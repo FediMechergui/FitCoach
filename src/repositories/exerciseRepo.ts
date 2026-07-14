@@ -1,21 +1,37 @@
 import { and, eq, like, or } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { exercises, type Exercise, type NewExercise, type SessionType } from '@/db/schema';
+import {
+  exercises,
+  type EquipmentType,
+  type Exercise,
+  type NewExercise,
+  type SessionType,
+} from '@/db/schema';
+import { PATTERN_CUES } from '@/data/exercises';
 
-export interface ExerciseView extends Omit<Exercise, 'muscleGroups'> {
+export interface ExerciseView extends Omit<Exercise, 'muscleGroups' | 'instructions'> {
   muscleGroups: string[];
+  /** bespoke steps if present, else the generic cues for this movement pattern */
+  instructions: string[];
+}
+
+function parseJson<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 function hydrate(e: Exercise): ExerciseView {
-  let mg: string[] = [];
-  if (e.muscleGroups) {
-    try {
-      mg = JSON.parse(e.muscleGroups) as string[];
-    } catch {
-      mg = [];
-    }
-  }
-  return { ...e, muscleGroups: mg };
+  const bespoke = parseJson<string[]>(e.instructions, []);
+  const cues = e.pattern ? PATTERN_CUES[e.pattern] ?? [] : [];
+  return {
+    ...e,
+    muscleGroups: parseJson<string[]>(e.muscleGroups, []),
+    instructions: bespoke.length ? bespoke : cues,
+  };
 }
 
 export function getExercise(id: number): ExerciseView | undefined {
@@ -23,19 +39,40 @@ export function getExercise(id: number): ExerciseView | undefined {
   return row ? hydrate(row) : undefined;
 }
 
-export function listExercises(opts: {
-  sessionType?: SessionType;
-  search?: string;
-} = {}): ExerciseView[] {
+export function getExerciseBySlug(slug: string): ExerciseView | undefined {
+  const row = db.select().from(exercises).where(eq(exercises.slug, slug)).get();
+  return row ? hydrate(row) : undefined;
+}
+
+export function listExercises(
+  opts: {
+    sessionType?: SessionType;
+    muscle?: string;
+    equipmentType?: EquipmentType;
+    search?: string;
+  } = {}
+): ExerciseView[] {
   const clauses = [];
   if (opts.sessionType) clauses.push(eq(exercises.sessionType, opts.sessionType));
+  if (opts.muscle) clauses.push(eq(exercises.primaryMuscle, opts.muscle));
+  if (opts.equipmentType) clauses.push(eq(exercises.equipmentType, opts.equipmentType));
   if (opts.search && opts.search.trim()) {
     const q = `%${opts.search.trim().toLowerCase()}%`;
-    clauses.push(or(like(exercises.name, q), like(exercises.category, q)));
+    clauses.push(or(like(exercises.name, q), like(exercises.category, q), like(exercises.primaryMuscle, q)));
   }
   const where = clauses.length ? and(...clauses) : undefined;
   const rows = db.select().from(exercises).where(where).orderBy(exercises.name).all();
   return rows.map(hydrate);
+}
+
+/** Resolve a list of slugs to exercises, preserving the given order. */
+export function exercisesBySlugs(slugs: string[]): ExerciseView[] {
+  const out: ExerciseView[] = [];
+  for (const slug of slugs) {
+    const ex = getExerciseBySlug(slug);
+    if (ex) out.push(ex);
+  }
+  return out;
 }
 
 export function createCustomExercise(input: {
@@ -43,16 +80,21 @@ export function createCustomExercise(input: {
   sessionType: SessionType;
   category?: string;
   muscleGroups?: string[];
+  primaryMuscle?: string;
+  equipmentType?: EquipmentType;
   equipment?: string;
   trackingType?: Exercise['trackingType'];
   iconKey?: string;
   metValue?: number;
 }): ExerciseView {
   const payload: NewExercise = {
+    slug: `custom-${Date.now()}`,
     name: input.name,
     category: input.category ?? 'custom',
     sessionType: input.sessionType,
     muscleGroups: JSON.stringify(input.muscleGroups ?? []),
+    primaryMuscle: input.primaryMuscle ?? null,
+    equipmentType: input.equipmentType ?? null,
     equipment: input.equipment ?? null,
     trackingType: input.trackingType ?? 'reps_weight',
     iconKey: input.iconKey ?? 'core.custom',

@@ -145,6 +145,10 @@ export function ProfileScreen() {
         <Divider />
         <LinkRow icon="sleep.moon" label="Sleep" onPress={() => navigation.navigate('Sleep')} />
         <Divider />
+        <LinkRow icon="work.briefcase" label="Work hours" onPress={() => navigation.navigate('Work')} />
+        <Divider />
+        <LinkRow icon="habits.generic" label="Habits" onPress={() => navigation.navigate('Habits')} />
+        <Divider />
         <LinkRow icon="alcohol.beer" label="Alcohol" onPress={() => navigation.navigate('Alcohol')} />
         <Divider />
         <LinkRow

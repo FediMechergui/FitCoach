@@ -12,6 +12,11 @@ import { computeBodyComp, ffmiCategory } from '../src/lib/bodyComposition';
 import { computeCycle } from '../src/lib/cycle';
 import { computeRating } from '../src/lib/rating';
 import { assessNight, sleepDebt } from '../src/lib/sleep';
+import { rangeMinutes, minutesToHM, minutesToHours, hmToMinutes } from '../src/lib/time';
+import { projectedYearHours, timeEquivalents, minutesFor } from '../src/lib/habits';
+import { estimateFromDescription as estFood } from '../src/data/foods';
+import { EXERCISE_LIBRARY } from '../src/data/exercises';
+import { SPLITS } from '../src/data/splits';
 
 let pass = 0;
 let fail = 0;
@@ -144,6 +149,32 @@ const rating = computeRating({
 check('Overall in 1..99', rating.overall >= 1 && rating.overall <= 99, `${rating.overall}`);
 check('All attributes in range', Object.values(rating.attributes).every((v) => v >= 1 && v <= 99));
 check('Solid athlete → Gold+ tier', ['Gold', 'Elite', 'Legend'].includes(rating.tier), rating.tier);
+
+console.log('\nTime-range logging:');
+check('23:30 → 07:00 = 450 min (overnight)', rangeMinutes('23:30', '07:00') === 450, `${rangeMinutes('23:30', '07:00')}`);
+check('09:00 → 17:30 = 510 min', rangeMinutes('09:00', '17:30') === 510, `${rangeMinutes('09:00', '17:30')}`);
+check('450 min → "7h 30m"', minutesToHM(450) === '7h 30m', minutesToHM(450));
+check('450 min → 7.5 h', minutesToHours(450) === 7.5, `${minutesToHours(450)}`);
+check('Invalid time → null', hmToMinutes('25:00') === null);
+
+console.log('\nHabits model:');
+check('Year hours: 210 min/wk ≈ 182h', projectedYearHours(210) === 182, `${projectedYearHours(210)}`);
+check('Time equivalents produced', timeEquivalents(182).length >= 1, timeEquivalents(182).join(', '));
+check('minutesFor count = qty × per-occurrence', minutesFor('count', 4, 0, 15) === 60, `${minutesFor('count', 4, 0, 15)}`);
+check('minutesFor duration = minutes', minutesFor('duration', 1, 45, 15) === 45, `${minutesFor('duration', 1, 45, 15)}`);
+
+console.log('\nTunisian food & library integrity:');
+const cousEst = estFood('couscous with lamb');
+check('Honest log knows couscous', cousEst.matched.some((m) => m.includes('couscous')), cousEst.matched.join('+'));
+check('Library has 150+ exercises', EXERCISE_LIBRARY.length >= 150, `${EXERCISE_LIBRARY.length}`);
+const slugs = EXERCISE_LIBRARY.map((e) => e.slug);
+check('All exercise slugs unique', new Set(slugs).size === slugs.length, `${slugs.length} slugs`);
+// Every split references exercises that exist in the library (no dead prefill).
+const known = new Set(slugs);
+const missing = SPLITS.flatMap((s) => s.days.flatMap((d) => d.exercises)).filter((x) => !known.has(x));
+check('All split exercises exist in library', missing.length === 0, missing.join(', ') || 'none missing');
+const originalNames = ['Barbell Bench Press', 'Pull-Up', 'Barbell Back Squat', 'Barbell Deadlift', 'Plank'];
+check('Original exercise names preserved (log-safe)', originalNames.every((n) => EXERCISE_LIBRARY.some((e) => e.name === n)));
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

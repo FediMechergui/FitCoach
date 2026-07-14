@@ -1,33 +1,58 @@
-import { sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from './client';
 import { exercises } from './schema';
 import { EXERCISE_LIBRARY } from '@/data/exercises';
 
 /**
- * Seed the built-in (non-custom) exercise library. Called once from the
- * bootstrap when user_version < SCHEMA_VERSION. Idempotent: clears prior
- * built-ins first so re-seeding on upgrade doesn't duplicate rows, while
- * leaving any user-created custom exercises intact.
+ * Seed / refresh the built-in exercise library.
+ *
+ * IMPORTANT — this must never delete-and-reinsert. `exercise_logs.exercise_id`
+ * references these rows by id, so wiping the table would orphan every workout
+ * the user has already logged. Instead we **upsert by `slug`** (a stable natural
+ * key), which preserves ids across library expansions:
+ *   - existing row (matched by slug, or by name for pre-slug databases) → UPDATE
+ *   - new exercise → INSERT
+ *   - exercises no longer in the library → left untouched, never deleted
+ * Custom user exercises are never touched.
  */
 export function seedExerciseLibrary(): void {
-  db.delete(exercises).where(sql`${exercises.isCustom} = 0`).run();
+  const existing = db.select().from(exercises).all();
+  const bySlug = new Map<string, number>();
+  const byName = new Map<string, number>();
+  for (const row of existing) {
+    if (row.slug) bySlug.set(row.slug, row.id);
+    byName.set(row.name.toLowerCase(), row.id);
+  }
 
-  const rows = EXERCISE_LIBRARY.map((e) => ({
-    name: e.name,
-    category: e.category,
-    sessionType: e.sessionType,
-    muscleGroups: JSON.stringify(e.muscleGroups),
-    equipment: e.equipment ?? null,
-    description: e.description ?? null,
-    trackingType: e.trackingType,
-    iconKey: e.icon,
-    isCustom: false,
-    metValue: e.met ?? null,
-  }));
+  for (const e of EXERCISE_LIBRARY) {
+    const payload = {
+      slug: e.slug,
+      name: e.name,
+      category: e.category,
+      sessionType: e.sessionType,
+      muscleGroups: JSON.stringify(e.muscleGroups),
+      primaryMuscle: e.primaryMuscle ?? null,
+      equipmentType: e.equipmentType ?? null,
+      equipment: e.equipment ?? null,
+      pattern: e.pattern ?? null,
+      description: e.description ?? null,
+      instructions: e.instructions ? JSON.stringify(e.instructions) : null,
+      trackingType: e.trackingType,
+      iconKey: e.icon,
+      isCustom: false,
+      metValue: e.met ?? null,
+    };
 
-  // Batch insert in chunks to stay well within SQLite variable limits.
-  const CHUNK = 50;
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    db.insert(exercises).values(rows.slice(i, i + CHUNK)).run();
+    // Match an existing row by slug first, then fall back to name so databases
+    // seeded before `slug` existed adopt the slug instead of duplicating.
+    const id = bySlug.get(e.slug) ?? byName.get(e.name.toLowerCase());
+
+    if (id !== undefined) {
+      db.update(exercises).set(payload).where(eq(exercises.id, id)).run();
+      bySlug.set(e.slug, id);
+    } else {
+      const res = db.insert(exercises).values(payload).run();
+      bySlug.set(e.slug, Number(res.lastInsertRowId));
+    }
   }
 }

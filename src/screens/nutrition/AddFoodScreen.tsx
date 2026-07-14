@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Pressable, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Pressable, FlatList, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +13,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import type { MealType } from '@/db/schema';
-import { FOOD_DB, estimateFromDescription, type FoodItem } from '@/data/foods';
+import { FOOD_DB, FOOD_CATEGORIES, estimateFromDescription, type FoodItem } from '@/data/foods';
+import { Chip } from '@/components/ui/Chip';
 import { useNutritionStore } from '@/stores/nutritionStore';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -50,14 +51,18 @@ function PreciseMode({ meal }: { meal: MealType }) {
   const navigation = useNavigation<Nav>();
   const addPrecise = useNutritionStore((s) => s.addPrecise);
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<string | null>(null);
   const [selected, setSelected] = useState<FoodItem | null>(null);
   const [qty, setQty] = useState('1');
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return FOOD_DB.slice(0, 12);
-    return FOOD_DB.filter((f) => f.name.toLowerCase().includes(q));
-  }, [query]);
+    let list = FOOD_DB;
+    if (category) list = list.filter((f) => f.category === category);
+    if (q) list = list.filter((f) => f.name.toLowerCase().includes(q));
+    else if (!category) list = list.slice(0, 25);
+    return list;
+  }, [query, category]);
 
   const save = () => {
     if (!selected) return;
@@ -107,19 +112,49 @@ function PreciseMode({ meal }: { meal: MealType }) {
 
   return (
     <View style={{ flex: 1, paddingHorizontal: theme.spacing.lg }}>
-      <Input value={query} onChangeText={setQuery} placeholder="Search foods" />
+      <Input value={query} onChangeText={setQuery} placeholder="Search foods (e.g. couscous, brik, tuna)" />
+
+      {/* Category browser */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginTop: theme.spacing.sm, flexGrow: 0 }}
+        contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
+      >
+        <Chip label="All" active={category === null} onPress={() => setCategory(null)} small />
+        {FOOD_CATEGORIES.map((c) => (
+          <Chip
+            key={c}
+            label={c}
+            active={category === c}
+            onPress={() => setCategory(category === c ? null : c)}
+            small
+          />
+        ))}
+      </ScrollView>
+
       <FlatList
         data={results}
         keyExtractor={(f) => f.id}
-        style={{ marginTop: theme.spacing.md }}
+        style={{ marginTop: theme.spacing.sm }}
         contentContainerStyle={{ gap: theme.spacing.sm, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <Text variant="caption" color="textFaint">
+            {results.length} food{results.length === 1 ? '' : 's'}
+          </Text>
+        }
         renderItem={({ item }) => (
           <Pressable onPress={() => setSelected(item)}>
             <Card>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="bodyStrong">{item.name}</Text>
+                  <Row gap={6} style={{ alignItems: 'center' }}>
+                    <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                      {item.name}
+                    </Text>
+                    {item.cuisine === 'tunisian' && <Text style={{ fontSize: 12 }}>🇹🇳</Text>}
+                  </Row>
                   <Text variant="caption" color="textMuted">
                     {item.serving} · {item.calories} kcal · P{item.protein} C{item.carbs} F{item.fat}
                   </Text>

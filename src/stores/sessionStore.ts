@@ -17,6 +17,7 @@ import {
   type SessionDetail,
   type SetDraft,
 } from '@/repositories/sessionRepo';
+import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { useUserStore } from './userStore';
 
 interface SessionState {
@@ -30,7 +31,18 @@ interface SessionState {
   restDurationS: number;
 
   resume: () => void;
-  begin: (type: SessionType, opts?: { label?: string; moodBefore?: number; style?: string }) => void;
+  begin: (
+    type: SessionType,
+    opts?: {
+      label?: string;
+      moodBefore?: number;
+      style?: string;
+      splitKey?: string;
+      splitDay?: string;
+      /** exercise slugs to pre-populate (from a training split) */
+      prefillSlugs?: string[];
+    }
+  ) => void;
   refresh: () => void;
   addExercise: (exerciseId: number) => number | null;
   logSet: (logId: number, draft: SetDraft) => void;
@@ -66,6 +78,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   begin: (type, opts) => {
     const id = startSession(type, opts);
+    // Pre-populate the session with the split day's exercises, in order.
+    if (opts?.prefillSlugs?.length) {
+      for (const ex of exercisesBySlugs(opts.prefillSlugs)) {
+        addExerciseToSession(id, ex.id);
+      }
+    }
     set({
       activeId: id,
       sessionType: type,

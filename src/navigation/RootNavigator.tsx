@@ -19,9 +19,12 @@ import { EditProfileScreen } from '@/screens/profile/EditProfileScreen';
 import { GoalsScreen } from '@/screens/profile/GoalsScreen';
 import { SmokingScreen } from '@/screens/smoking/SmokingScreen';
 import { SleepScreen } from '@/screens/health/SleepScreen';
+import { WorkScreen } from '@/screens/health/WorkScreen';
+import { HabitsScreen } from '@/screens/health/HabitsScreen';
 import { AlcoholScreen } from '@/screens/health/AlcoholScreen';
 import { CycleScreen } from '@/screens/health/CycleScreen';
 import { ConditionsScreen } from '@/screens/health/ConditionsScreen';
+import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
 import { BodyScreen } from '@/screens/profile/BodyScreen';
 import { ProfileCardScreen } from '@/screens/profile/ProfileCardScreen';
 import { ReportsScreen } from '@/screens/profile/ReportsScreen';
@@ -57,6 +60,7 @@ export function RootNavigator() {
             component={SessionTypePickerScreen}
             options={{ title: 'Start a Session', presentation: 'modal' }}
           />
+          <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: 'Training Split' }} />
           <Stack.Screen
             name="ActiveSession"
             component={ActiveSessionScreen}
@@ -101,6 +105,8 @@ export function RootNavigator() {
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Targets' }} />
           <Stack.Screen name="Smoking" component={SmokingScreen} options={{ title: 'Smoking' }} />
           <Stack.Screen name="Sleep" component={SleepScreen} options={{ title: 'Sleep' }} />
+          <Stack.Screen name="Work" component={WorkScreen} options={{ title: 'Work Hours' }} />
+          <Stack.Screen name="Habits" component={HabitsScreen} options={{ title: 'Habits' }} />
           <Stack.Screen name="Alcohol" component={AlcoholScreen} options={{ title: 'Alcohol' }} />
           <Stack.Screen name="Cycle" component={CycleScreen} options={{ title: 'Cycle' }} />
           <Stack.Screen name="Conditions" component={ConditionsScreen} options={{ title: 'Health' }} />

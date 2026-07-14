@@ -1,7 +1,12 @@
+import { TUNISIAN_FOODS } from './foods-tunisian';
+
 /**
  * Built-in food database for "precise" logging mode (spec §3.5).
- * Macros are per the stated serving. This is a compact starter set; users can
- * always add custom macros. Barcode search arrives in Phase 2.
+ * Macros are per the stated serving.
+ *
+ * `FOOD_DB` = generic staples + the full Tunisian/Mediterranean reference.
+ * Entries here are only a *search catalogue* — when a food is logged, its macros
+ * are copied into `food_entries`, so editing this list never alters past logs.
  */
 export interface FoodItem {
   id: string;
@@ -12,9 +17,11 @@ export interface FoodItem {
   carbs: number;
   fat: number;
   fiber: number;
+  category?: string;
+  cuisine?: 'general' | 'tunisian';
 }
 
-export const FOOD_DB: FoodItem[] = [
+const GENERIC_FOODS: FoodItem[] = [
   { id: 'egg', name: 'Egg (whole, large)', serving: '1 egg (50g)', calories: 78, protein: 6.3, carbs: 0.6, fat: 5.3, fiber: 0 },
   { id: 'chicken-breast', name: 'Chicken Breast (cooked)', serving: '100g', calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0 },
   { id: 'white-rice', name: 'White Rice (cooked)', serving: '1 cup (158g)', calories: 205, protein: 4.3, carbs: 45, fat: 0.4, fiber: 0.6 },
@@ -45,6 +52,17 @@ export const FOOD_DB: FoodItem[] = [
   { id: 'protein-bar', name: 'Protein Bar (typical)', serving: '1 bar (60g)', calories: 220, protein: 20, carbs: 22, fat: 7, fiber: 8 },
 ];
 
+/** The searchable catalogue: generic staples + the Tunisian reference. */
+export const FOOD_DB: FoodItem[] = [
+  ...GENERIC_FOODS.map((f) => ({ ...f, cuisine: 'general' as const })),
+  ...TUNISIAN_FOODS,
+];
+
+/** Distinct categories present in the DB, for filter chips. */
+export const FOOD_CATEGORIES: string[] = [
+  ...new Set(FOOD_DB.map((f) => f.category).filter((c): c is string => !!c)),
+].sort();
+
 /**
  * Very small keyword → macro estimator for "honest log" mode (spec §3.5).
  * Given a plain-language meal description we scan for known foods/dishes and
@@ -69,6 +87,24 @@ interface DishHeuristic {
 }
 
 const DISH_HEURISTICS: DishHeuristic[] = [
+  // ── Tunisian dishes (checked first so "couscous" isn't caught by "rice") ──
+  { keywords: ['couscous', 'kosksi'], calories: 700, protein: 35, carbs: 85, fat: 22 },
+  { keywords: ['mloukhia', 'molokhia', 'mloukhiya'], calories: 300, protein: 22, carbs: 12, fat: 18 },
+  { keywords: ['lablabi'], calories: 250, protein: 11, carbs: 35, fat: 7 },
+  { keywords: ['brik'], calories: 280, protein: 9, carbs: 20, fat: 19 },
+  { keywords: ['fricasse', 'fricassé'], calories: 316, protein: 12, carbs: 32, fat: 16 },
+  { keywords: ['ojja'], calories: 280, protein: 15, carbs: 10, fat: 20 },
+  { keywords: ['chorba'], calories: 150, protein: 8, carbs: 20, fat: 4 },
+  { keywords: ['tajine'], calories: 540, protein: 35, carbs: 20, fat: 35 },
+  { keywords: ['maccarona', 'macarona'], calories: 450, protein: 22, carbs: 55, fat: 15 },
+  { keywords: ['rechta'], calories: 420, protein: 20, carbs: 55, fat: 12 },
+  { keywords: ['merguez'], calories: 150, protein: 8, carbs: 1, fat: 13 },
+  { keywords: ['bambalouni'], calories: 260, protein: 4, carbs: 33, fat: 12 },
+  { keywords: ['makroudh', 'baklava', 'zgougou'], calories: 200, protein: 3, carbs: 28, fat: 9 },
+  { keywords: ['tabouna', 'khobz'], calories: 270, protein: 9, carbs: 55, fat: 1.5 },
+  { keywords: ['harissa'], calories: 30, protein: 1, carbs: 3, fat: 2 },
+  { keywords: ['olive oil', 'zit zitoun'], calories: 120, protein: 0, carbs: 0, fat: 13.5 },
+  // ── General dishes ────────────────────────────────────────────────────────
   { keywords: ['burger', 'cheeseburger', 'hamburger'], calories: 550, protein: 27, carbs: 40, fat: 30 },
   { keywords: ['fries', 'chips'], calories: 340, protein: 4, carbs: 44, fat: 17 },
   { keywords: ['pizza', 'slice'], calories: 285, protein: 12, carbs: 36, fat: 10 },

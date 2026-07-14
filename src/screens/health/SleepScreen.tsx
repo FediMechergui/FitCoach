@@ -7,19 +7,25 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
 import { useSleepStore } from '@/stores/sleepStore';
 import { sleepTrainingCorrelation } from '@/repositories/sleepRepo';
 import { assessNight, SLEEP_QUALITY_LABELS } from '@/lib/sleep';
+import { rangeMinutes, minutesToHM, minutesToHours } from '@/lib/time';
 
 const HOUR_OPTIONS = [4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 10];
 
 export function SleepScreen() {
   const theme = useTheme();
-  const { summary, lastNight, load, log } = useSleepStore();
+  const { summary, lastNight, load, log, logRange } = useSleepStore();
+  const [mode, setMode] = useState<'quick' | 'range'>('quick');
   const [hours, setHours] = useState(lastNight ?? 8);
+  const [bedtime, setBedtime] = useState('23:30');
+  const [wakeTime, setWakeTime] = useState('07:00');
   const [quality, setQuality] = useState<number | null>(null);
   const [correlation, setCorrelation] = useState(() => sleepTrainingCorrelation(30));
 
@@ -30,12 +36,16 @@ export function SleepScreen() {
     }, [load])
   );
 
+  const rangeMins = rangeMinutes(bedtime, wakeTime);
+  const effectiveHours = mode === 'range' && rangeMins != null ? minutesToHours(rangeMins) : hours;
+
   const save = () => {
-    log(hours, quality);
+    if (mode === 'range') logRange(bedtime, wakeTime, quality);
+    else log(hours, quality);
     setCorrelation(sleepTrainingCorrelation(30));
   };
 
-  const assessment = assessNight(hours);
+  const assessment = assessNight(effectiveHours);
   const perfPct = summary ? Math.round(summary.performanceFactor * 100) : 100;
 
   return (
@@ -48,30 +58,53 @@ export function SleepScreen() {
       {/* Log last night */}
       <Card style={{ gap: theme.spacing.md }}>
         <Text variant="h3">How did you sleep?</Text>
+        <SegmentedControl
+          options={[
+            { value: 'quick', label: 'Quick hours' },
+            { value: 'range', label: 'Bedtime → wake' },
+          ]}
+          value={mode}
+          onChange={setMode}
+          accent={theme.colors.mindbody}
+        />
         <View style={{ alignItems: 'center', gap: 4 }}>
-          <Text variant="display" style={{ color: theme.colors.mindbody }}>{hours}h</Text>
+          <Text variant="display" style={{ color: theme.colors.mindbody }}>
+            {mode === 'range' && rangeMins != null ? minutesToHM(rangeMins) : `${hours}h`}
+          </Text>
           <Text variant="caption" color={assessment.status === 'optimal' ? 'success' : 'warning'}>
-            {assessment.label}
+            {mode === 'range' && rangeMins == null ? 'Enter times as HH:MM' : assessment.label}
           </Text>
         </View>
-        <Row gap={6} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-          {HOUR_OPTIONS.map((h) => (
-            <Pressable key={h} onPress={() => setHours(h)}>
-              <View
-                style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 12,
-                  borderRadius: theme.radius.md,
-                  backgroundColor: hours === h ? theme.colors.mindbody : theme.colors.surfaceAlt,
-                }}
-              >
-                <Text variant="label" color={hours === h ? '#fff' : theme.colors.textMuted}>
-                  {h}h
-                </Text>
-              </View>
-            </Pressable>
-          ))}
-        </Row>
+
+        {mode === 'quick' ? (
+          <Row gap={6} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+            {HOUR_OPTIONS.map((h) => (
+              <Pressable key={h} onPress={() => setHours(h)}>
+                <View
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: theme.radius.md,
+                    backgroundColor: hours === h ? theme.colors.mindbody : theme.colors.surfaceAlt,
+                  }}
+                >
+                  <Text variant="label" color={hours === h ? '#fff' : theme.colors.textMuted}>
+                    {h}h
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </Row>
+        ) : (
+          <Row>
+            <View style={{ flex: 1 }}>
+              <Input label="Bedtime" value={bedtime} onChangeText={setBedtime} placeholder="23:30" keyboardType="numbers-and-punctuation" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Input label="Wake time" value={wakeTime} onChangeText={setWakeTime} placeholder="07:00" keyboardType="numbers-and-punctuation" />
+            </View>
+          </Row>
+        )}
         <View>
           <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>Quality</Text>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -89,7 +122,13 @@ export function SleepScreen() {
             ))}
           </Row>
         </View>
-        <Button title="Save last night" icon="core.check" color={theme.colors.mindbody} onPress={save} />
+        <Button
+          title="Save last night"
+          icon="core.check"
+          color={theme.colors.mindbody}
+          onPress={save}
+          disabled={mode === 'range' && rangeMins == null}
+        />
       </Card>
 
       {/* Summary */}

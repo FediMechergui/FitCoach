@@ -168,6 +168,23 @@ export const ICONS = {
     clipboard: def('MaterialCommunityIcons', 'clipboard-pulse-outline'),
   },
 
+  // Habits tracker
+  habits: {
+    phone: def('MaterialCommunityIcons', 'cellphone'),
+    private: def('MaterialCommunityIcons', 'lock-outline'),
+    snack: def('MaterialCommunityIcons', 'food-off-outline'),
+    generic: def('MaterialCommunityIcons', 'chart-timeline-variant'),
+    free: def('MaterialCommunityIcons', 'check-decagram'),
+    time: def('MaterialCommunityIcons', 'timer-sand'),
+  },
+
+  // Work hours
+  work: {
+    briefcase: def('MaterialCommunityIcons', 'briefcase-outline'),
+    clock: def('MaterialCommunityIcons', 'clock-time-four-outline'),
+    focus: def('MaterialCommunityIcons', 'brain'),
+  },
+
   // Athlete card & reports
   card: {
     trophy: def('MaterialCommunityIcons', 'card-account-details-star-outline'),

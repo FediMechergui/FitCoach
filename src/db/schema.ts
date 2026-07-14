@@ -90,6 +90,9 @@ export const sessions = sqliteTable('sessions', {
   userId: integer('user_id').notNull(),
   sessionType: text('session_type', { enum: SESSION_TYPES }).notNull(),
   label: text('label'),
+  /** e.g. 'push' | 'pull' | 'legs' | 'upper' | 'chest' — from the chosen split */
+  splitKey: text('split_key'),
+  splitDay: text('split_day'),
   startTime: integer('start_time').notNull(),
   endTime: integer('end_time'),
   durationS: integer('duration_s'),
@@ -141,14 +144,32 @@ export const TRACKING_TYPES = [
 ] as const;
 export type TrackingType = (typeof TRACKING_TYPES)[number];
 
+/** Equipment families used to split the library (spec: Part 2). */
+export const EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'other'] as const;
+export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
+
+/** Movement patterns — drive the beginner illustration for each exercise. */
+export const MOVEMENT_PATTERNS = [
+  'horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull',
+  'squat', 'hinge', 'lunge', 'curl', 'triceps_extension', 'lateral_raise',
+  'calf_raise', 'core', 'carry', 'rotation', 'cardio', 'mobility',
+] as const;
+export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number];
+
 export const exercises = sqliteTable('exercises', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  /** stable natural key — lets the library be upserted without changing ids */
+  slug: text('slug'),
   name: text('name').notNull(),
   category: text('category').notNull(), // e.g. 'barbell', 'bodyweight', 'running'
   sessionType: text('session_type', { enum: SESSION_TYPES }).notNull(),
   muscleGroups: text('muscle_groups'), // JSON array of strings
+  primaryMuscle: text('primary_muscle'), // chest / back / quads / …
+  equipmentType: text('equipment_type', { enum: EQUIPMENT_TYPES }),
   equipment: text('equipment'),
+  pattern: text('pattern', { enum: MOVEMENT_PATTERNS }),
   description: text('description'),
+  instructions: text('instructions'), // JSON array of step strings
   trackingType: text('tracking_type', { enum: TRACKING_TYPES })
     .notNull()
     .default('reps_weight'),
@@ -362,6 +383,64 @@ export const healthConditions = sqliteTable('health_conditions', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// ── Habits (generalized "habit I want to change" tracker) ────────────────────
+/** count = occurrences (e.g. times); duration = minutes spent. */
+export const HABIT_KINDS = ['count', 'duration'] as const;
+export type HabitKind = (typeof HABIT_KINDS)[number];
+
+export const habitProfiles = sqliteTable('habit_profiles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  habitKey: text('habit_key').notNull(), // catalogue key or 'custom:<slug>'
+  label: text('label').notNull(),
+  kind: text('kind', { enum: HABIT_KINDS }).notNull().default('count'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /** goal: reduce toward this per-day cap (count) or minutes/day (duration) */
+  dailyTarget: real('daily_target'),
+  /** typical baseline before tracking, for savings math */
+  baselinePerDay: real('baseline_per_day'),
+  /** minutes an average occurrence costs (count-kind habits) */
+  minutesPerOccurrence: real('minutes_per_occurrence'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const habitEntries = sqliteTable('habit_entries', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  habitKey: text('habit_key').notNull(),
+  date: text('date').notNull(),
+  /** occurrences (count habits) */
+  quantity: real('quantity').notNull().default(1),
+  /** minutes (duration habits) */
+  minutes: real('minutes').notNull().default(0),
+  /** optional context: late_night, stress, boredom… */
+  trigger: text('trigger'),
+  /** was it after 23:00 — used for sleep-displacement impact */
+  lateNight: integer('late_night', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── WorkLog (daily work hours, logged as a time range) ───────────────────────
+export const workLogs = sqliteTable('work_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  startTime: text('start_time'), // 'HH:MM'
+  endTime: text('end_time'), // 'HH:MM'
+  minutes: real('minutes').notNull().default(0), // total worked minutes
+  breakMinutes: real('break_minutes').notNull().default(0),
+  /** subjective focus/quality 1..5 */
+  quality: integer('quality'),
+  notes: text('notes'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 // ── AppOpenLog (daily app-usage / check-in streak) ───────────────────────────
 export const appOpenLogs = sqliteTable('app_open_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -396,6 +475,8 @@ export const COACH_CATEGORIES = [
   'alcohol',
   'cycle',
   'health',
+  'habits',
+  'work',
 ] as const;
 export type CoachCategory = (typeof COACH_CATEGORIES)[number];
 
@@ -441,3 +522,6 @@ export type PeriodLog = typeof periodLogs.$inferSelect;
 export type HealthCondition = typeof healthConditions.$inferSelect;
 export type ProfilePhoto = typeof profilePhotos.$inferSelect;
 export type AppOpenLog = typeof appOpenLogs.$inferSelect;
+export type HabitProfile = typeof habitProfiles.$inferSelect;
+export type HabitEntry = typeof habitEntries.$inferSelect;
+export type WorkLog = typeof workLogs.$inferSelect;

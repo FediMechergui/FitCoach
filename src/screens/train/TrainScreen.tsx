@@ -74,6 +74,13 @@ export function TrainScreen() {
         />
       )}
 
+      <Button
+        title="Train a Split (Push / Pull / Legs…)"
+        icon="stats.muscleMap"
+        variant="secondary"
+        onPress={() => navigation.navigate('SplitPicker')}
+      />
+
       <Row>
         <Button
           title="Walk"

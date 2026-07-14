@@ -13,17 +13,32 @@ import { Row, EmptyState } from '@/components/ui/misc';
 import { ExerciseHero } from '@/components/ExerciseHero';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
-import { type SessionType } from '@/db/schema';
+import { type EquipmentType, type SessionType } from '@/db/schema';
 import { listExercises, createCustomExercise, type ExerciseView } from '@/repositories/exerciseRepo';
 import { useSessionStore } from '@/stores/sessionStore';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
+import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
 
-const FILTERS: Array<{ value: SessionType | 'all'; label: string }> = [
+const TYPE_FILTERS: Array<{ value: SessionType | 'all'; label: string }> = [
   { value: 'all', label: 'All' },
   ...SESSION_TYPE_META.map((m) => ({ value: m.type, label: m.label })),
+];
+
+const MUSCLE_FILTERS: Array<{ value: string; label: string }> = [
+  { value: 'all', label: 'All muscles' },
+  ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABELS[m] ?? m })),
+];
+
+const EQUIP_FILTERS: Array<{ value: EquipmentType | 'all'; label: string }> = [
+  { value: 'all', label: 'All gear' },
+  { value: 'barbell', label: EQUIPMENT_LABELS.barbell },
+  { value: 'dumbbell', label: EQUIPMENT_LABELS.dumbbell },
+  { value: 'machine', label: EQUIPMENT_LABELS.machine },
+  { value: 'cable', label: EQUIPMENT_LABELS.cable },
+  { value: 'bodyweight', label: EQUIPMENT_LABELS.bodyweight },
 ];
 
 export function ExerciseLibraryScreen() {
@@ -35,19 +50,21 @@ export function ExerciseLibraryScreen() {
   const activeType = useSessionStore((s) => s.sessionType);
 
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<SessionType | 'all'>(
-    pick && activeType ? activeType : 'all'
-  );
+  const [type, setType] = useState<SessionType | 'all'>(pick && activeType ? activeType : 'all');
+  const [muscle, setMuscle] = useState<string>('all');
+  const [equip, setEquip] = useState<EquipmentType | 'all'>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
   const items = useMemo(
     () =>
       listExercises({
-        sessionType: filter === 'all' ? undefined : filter,
+        sessionType: type === 'all' ? undefined : type,
+        muscle: muscle === 'all' ? undefined : muscle,
+        equipmentType: equip === 'all' ? undefined : equip,
         search,
       }),
-    [filter, search, refresh]
+    [type, muscle, equip, search, refresh]
   );
 
   const onSelect = useCallback(
@@ -62,20 +79,18 @@ export function ExerciseLibraryScreen() {
     [pick, addExercise, navigation]
   );
 
+  const openDetail = useCallback(
+    (ex: ExerciseView) => navigation.navigate('ExerciseStats', { exerciseId: ex.id, name: ex.name }),
+    [navigation]
+  );
+
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
-      <View style={{ padding: theme.spacing.lg, gap: theme.spacing.md }}>
-        <Input
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search exercises & activities"
-        />
-        <SegmentedControl
-          scrollable
-          options={FILTERS}
-          value={filter}
-          onChange={(v) => setFilter(v)}
-        />
+      <View style={{ padding: theme.spacing.lg, gap: theme.spacing.sm }}>
+        <Input value={search} onChangeText={setSearch} placeholder="Search exercises & activities" />
+        <SegmentedControl scrollable options={TYPE_FILTERS} value={type} onChange={setType} />
+        <SegmentedControl scrollable options={MUSCLE_FILTERS} value={muscle} onChange={setMuscle} accent={theme.colors.accent} />
+        <SegmentedControl scrollable options={EQUIP_FILTERS} value={equip} onChange={setEquip} accent={theme.colors.warning} />
       </View>
 
       <FlatList
@@ -83,6 +98,11 @@ export function ExerciseLibraryScreen() {
         keyExtractor={(i) => String(i.id)}
         contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 120 }}
         keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <Text variant="caption" color="textFaint" style={{ marginBottom: 6 }}>
+            {items.length} exercise{items.length === 1 ? '' : 's'}
+          </Text>
+        }
         ListEmptyComponent={
           <EmptyState
             icon="nutrition.search"
@@ -101,11 +121,22 @@ export function ExerciseLibraryScreen() {
                       {item.name}
                     </Text>
                     <Text variant="caption" color="textMuted" numberOfLines={1}>
-                      {item.muscleGroups.length ? item.muscleGroups.join(', ') : item.category}
+                      {[
+                        item.primaryMuscle ? MUSCLE_LABELS[item.primaryMuscle] ?? item.primaryMuscle : null,
+                        item.equipmentType ? EQUIPMENT_LABELS[item.equipmentType] : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || item.category}
                     </Text>
                   </View>
                 </Row>
-                <Icon icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.textFaint} />
+                {/* In pick mode, still let the user open the how-to guide. */}
+                {pick && (
+                  <Pressable onPress={() => openDetail(item)} hitSlop={10} style={{ paddingHorizontal: 6 }}>
+                    <Icon icon="core.info" size={20} color={theme.colors.textFaint} />
+                  </Pressable>
+                )}
+                <Icon icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.primary} />
               </Row>
             </Card>
           </Pressable>
@@ -115,7 +146,7 @@ export function ExerciseLibraryScreen() {
       <View style={{ position: 'absolute', bottom: 24, left: 16, right: 16 }}>
         {showCreate ? (
           <CreateExerciseCard
-            defaultType={filter === 'all' ? activeType ?? 'strength' : filter}
+            defaultType={type === 'all' ? activeType ?? 'strength' : type}
             onCreated={(ex) => {
               setShowCreate(false);
               setRefresh((r) => r + 1);

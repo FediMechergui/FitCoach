@@ -36,7 +36,13 @@ export interface SessionDetail {
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 export function startSession(
   sessionType: SessionType,
-  opts: { label?: string; moodBefore?: number; style?: string } = {},
+  opts: {
+    label?: string;
+    moodBefore?: number;
+    style?: string;
+    splitKey?: string;
+    splitDay?: string;
+  } = {},
   userId: number = PRIMARY_USER_ID
 ): number {
   const payload: NewSession = {
@@ -44,6 +50,8 @@ export function startSession(
     sessionType,
     label: opts.label ?? null,
     style: opts.style ?? null,
+    splitKey: opts.splitKey ?? null,
+    splitDay: opts.splitDay ?? null,
     moodBefore: opts.moodBefore ?? null,
     startTime: Date.now(),
   };

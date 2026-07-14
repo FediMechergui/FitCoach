@@ -7,7 +7,7 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -15,11 +15,20 @@ const SCHEMA_VERSION = 2;
  * CREATE above) and upgrades from an earlier dev database.
  */
 const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
+  // v2
   { table: 'users', column: 'gender', ddl: "TEXT NOT NULL DEFAULT 'male'" },
   { table: 'weigh_ins', column: 'fat_mass_kg', ddl: 'REAL' },
   { table: 'weigh_ins', column: 'muscle_mass_kg', ddl: 'REAL' },
   { table: 'weigh_ins', column: 'body_water_pct', ddl: 'REAL' },
   { table: 'weigh_ins', column: 'bone_mass_kg', ddl: 'REAL' },
+  // v3 — richer exercise library + training splits
+  { table: 'exercises', column: 'slug', ddl: 'TEXT' },
+  { table: 'exercises', column: 'primary_muscle', ddl: 'TEXT' },
+  { table: 'exercises', column: 'equipment_type', ddl: 'TEXT' },
+  { table: 'exercises', column: 'pattern', ddl: 'TEXT' },
+  { table: 'exercises', column: 'instructions', ddl: 'TEXT' },
+  { table: 'sessions', column: 'split_key', ddl: 'TEXT' },
+  { table: 'sessions', column: 'split_day', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -69,6 +78,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id INTEGER NOT NULL,
   session_type TEXT NOT NULL,
   label TEXT,
+  split_key TEXT,
+  split_day TEXT,
   start_time INTEGER NOT NULL,
   end_time INTEGER,
   duration_s INTEGER,
@@ -110,18 +121,24 @@ CREATE INDEX IF NOT EXISTS idx_set_entries_log ON set_entries(exercise_log_id);
 
 CREATE TABLE IF NOT EXISTS exercises (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT,
   name TEXT NOT NULL,
   category TEXT NOT NULL,
   session_type TEXT NOT NULL,
   muscle_groups TEXT,
+  primary_muscle TEXT,
+  equipment_type TEXT,
   equipment TEXT,
+  pattern TEXT,
   description TEXT,
+  instructions TEXT,
   tracking_type TEXT NOT NULL DEFAULT 'reps_weight',
   icon_key TEXT NOT NULL DEFAULT 'strength.dumbbell',
   is_custom INTEGER NOT NULL DEFAULT 0,
   met_value REAL
 );
 CREATE INDEX IF NOT EXISTS idx_exercises_type ON exercises(session_type);
+CREATE INDEX IF NOT EXISTS idx_exercises_muscle ON exercises(primary_muscle);
 
 CREATE TABLE IF NOT EXISTS walk_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -282,6 +299,47 @@ CREATE TABLE IF NOT EXISTS health_conditions (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_health_conditions_user ON health_conditions(user_id, active);
+
+CREATE TABLE IF NOT EXISTS habit_profiles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  habit_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'count',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  daily_target REAL,
+  baseline_per_day REAL,
+  minutes_per_occurrence REAL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_habit_profiles_user_key ON habit_profiles(user_id, habit_key);
+
+CREATE TABLE IF NOT EXISTS habit_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  habit_key TEXT NOT NULL,
+  date TEXT NOT NULL,
+  quantity REAL NOT NULL DEFAULT 1,
+  minutes REAL NOT NULL DEFAULT 0,
+  trigger TEXT,
+  late_night INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_habit_entries_user_key_date ON habit_entries(user_id, habit_key, date);
+
+CREATE TABLE IF NOT EXISTS work_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  start_time TEXT,
+  end_time TEXT,
+  minutes REAL NOT NULL DEFAULT 0,
+  break_minutes REAL NOT NULL DEFAULT 0,
+  quality INTEGER,
+  notes TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_work_logs_user_date ON work_logs(user_id, date);
 
 CREATE TABLE IF NOT EXISTS app_open_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

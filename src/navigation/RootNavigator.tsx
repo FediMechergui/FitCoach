@@ -18,6 +18,13 @@ import { ExerciseStatsScreen } from '@/screens/stats/ExerciseStatsScreen';
 import { EditProfileScreen } from '@/screens/profile/EditProfileScreen';
 import { GoalsScreen } from '@/screens/profile/GoalsScreen';
 import { SmokingScreen } from '@/screens/smoking/SmokingScreen';
+import { SleepScreen } from '@/screens/health/SleepScreen';
+import { AlcoholScreen } from '@/screens/health/AlcoholScreen';
+import { CycleScreen } from '@/screens/health/CycleScreen';
+import { ConditionsScreen } from '@/screens/health/ConditionsScreen';
+import { BodyScreen } from '@/screens/profile/BodyScreen';
+import { ProfileCardScreen } from '@/screens/profile/ProfileCardScreen';
+import { ReportsScreen } from '@/screens/profile/ReportsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -93,6 +100,13 @@ export function RootNavigator() {
           />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Targets' }} />
           <Stack.Screen name="Smoking" component={SmokingScreen} options={{ title: 'Smoking' }} />
+          <Stack.Screen name="Sleep" component={SleepScreen} options={{ title: 'Sleep' }} />
+          <Stack.Screen name="Alcohol" component={AlcoholScreen} options={{ title: 'Alcohol' }} />
+          <Stack.Screen name="Cycle" component={CycleScreen} options={{ title: 'Cycle' }} />
+          <Stack.Screen name="Conditions" component={ConditionsScreen} options={{ title: 'Health' }} />
+          <Stack.Screen name="Body" component={BodyScreen} options={{ title: 'Body' }} />
+          <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: 'Athlete Card' }} />
+          <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
         </>
       )}
     </Stack.Navigator>

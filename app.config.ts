@@ -34,6 +34,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'FOREGROUND_SERVICE',
       'RECEIVE_BOOT_COMPLETED',
       'POST_NOTIFICATIONS',
+      'READ_MEDIA_IMAGES',
+      'WRITE_EXTERNAL_STORAGE',
     ],
   },
   ios: {
@@ -47,6 +49,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   plugins: [
+    'expo-font',
     'expo-sqlite',
     [
       'expo-location',
@@ -62,6 +65,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-notifications',
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'FitCoach uses your photos so you can set a monthly profile picture for your athlete card.',
+      },
+    ],
+    [
+      'expo-media-library',
+      {
+        photosPermission: 'FitCoach saves your exported athlete card to your photo library.',
+        savePhotosPermission: 'FitCoach saves your exported athlete card to your photo library.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
   ],
   extra: {
     eas: {

@@ -27,6 +27,13 @@ export type RootStackParamList = {
   EditProfile: undefined;
   Goals: undefined;
   Smoking: undefined;
+  Sleep: undefined;
+  Alcohol: undefined;
+  Cycle: undefined;
+  Conditions: undefined;
+  Body: undefined;
+  ProfileCard: undefined;
+  Reports: undefined;
 };
 
 export type SessionTypeMeta = {

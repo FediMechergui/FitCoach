@@ -133,6 +133,56 @@ export const ICONS = {
     trend: def('MaterialCommunityIcons', 'chart-line-variant'),
   },
 
+  // Sleep tracker
+  sleep: {
+    moon: def('MaterialCommunityIcons', 'moon-waning-crescent'),
+    bed: def('MaterialCommunityIcons', 'bed'),
+    quality: def('MaterialCommunityIcons', 'sleep'),
+    debt: def('MaterialCommunityIcons', 'alarm-snooze'),
+  },
+
+  // Alcohol tracker
+  alcohol: {
+    beer: def('MaterialCommunityIcons', 'beer'),
+    wine: def('MaterialCommunityIcons', 'glass-wine'),
+    spirit: def('MaterialCommunityIcons', 'glass-cocktail'),
+    cocktail: def('MaterialCommunityIcons', 'glass-cocktail'),
+    other: def('MaterialCommunityIcons', 'bottle-wine'),
+    bac: def('MaterialCommunityIcons', 'gauge'),
+  },
+
+  // Menstrual cycle
+  cycle: {
+    flower: def('MaterialCommunityIcons', 'flower'),
+    calendar: def('MaterialCommunityIcons', 'calendar-heart'),
+    drop: def('MaterialCommunityIcons', 'water'),
+    ovulation: def('MaterialCommunityIcons', 'egg-outline'),
+    phase: def('MaterialCommunityIcons', 'moon-waxing-crescent'),
+  },
+
+  // Health conditions
+  health: {
+    medical: def('MaterialCommunityIcons', 'medical-bag'),
+    heart: def('MaterialCommunityIcons', 'heart-pulse'),
+    pill: def('MaterialCommunityIcons', 'pill'),
+    clipboard: def('MaterialCommunityIcons', 'clipboard-pulse-outline'),
+  },
+
+  // Athlete card & reports
+  card: {
+    trophy: def('MaterialCommunityIcons', 'card-account-details-star-outline'),
+    star: def('MaterialCommunityIcons', 'star-four-points'),
+    camera: def('Ionicons', 'camera-outline'),
+    share: def('Ionicons', 'share-social-outline'),
+    download: def('Ionicons', 'download-outline'),
+  },
+  report: {
+    pdf: def('MaterialCommunityIcons', 'file-pdf-box'),
+    nutritionist: def('MaterialCommunityIcons', 'nutrition'),
+    coach: def('MaterialCommunityIcons', 'whistle'),
+    doc: def('MaterialCommunityIcons', 'file-document-outline'),
+  },
+
   // §8.6 Stats & Body
   stats: {
     weight: def('MaterialCommunityIcons', 'scale-bathroom'),

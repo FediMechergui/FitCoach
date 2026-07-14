@@ -65,7 +65,9 @@ export const lightColors = {
   ...palette,
 } as const;
 
-export type ColorTokens = typeof darkColors;
+// Widen values to `string` so the light and dark palettes (which share keys but
+// have different hex values) are both assignable to the token type.
+export type ColorTokens = { [K in keyof typeof darkColors]: string };
 
 export const spacing = {
   xs: 4,

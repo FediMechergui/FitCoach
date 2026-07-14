@@ -9,8 +9,10 @@ import { StatTile } from '@/components/ui/StatTile';
 import { LineChart } from '@/components/charts/LineChart';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, SectionHeader, EmptyState } from '@/components/ui/misc';
+import { ExerciseHero } from '@/components/ExerciseHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { exerciseProgression } from '@/repositories/statsRepo';
+import { getExercise } from '@/repositories/exerciseRepo';
 import type { ORMFormula } from '@/lib/oneRepMax';
 
 type StatsRoute = RouteProp<RootStackParamList, 'ExerciseStats'>;
@@ -21,6 +23,7 @@ export function ExerciseStatsScreen() {
   const { exerciseId, name } = route.params;
   const [formula, setFormula] = useState<ORMFormula>('epley');
   const [metric, setMetric] = useState<'orm' | 'volume'>('orm');
+  const exercise = useMemo(() => getExercise(exerciseId), [exerciseId]);
 
   const progression = useMemo(
     () => exerciseProgression(exerciseId, formula),
@@ -30,7 +33,13 @@ export function ExerciseStatsScreen() {
   if (progression.length === 0) {
     return (
       <Screen>
+        {exercise ? <ExerciseHero iconKey={exercise.iconKey} sessionType={exercise.sessionType} size="banner" /> : null}
         <Text variant="h1">{name}</Text>
+        {exercise?.description ? (
+          <Text variant="body" color="textMuted">
+            {exercise.description}
+          </Text>
+        ) : null}
         <EmptyState
           icon="stats.progression"
           title="No history yet"
@@ -51,6 +60,7 @@ export function ExerciseStatsScreen() {
 
   return (
     <Screen>
+      {exercise ? <ExerciseHero iconKey={exercise.iconKey} sessionType={exercise.sessionType} size="banner" /> : null}
       <Text variant="h1">{name}</Text>
 
       <Row>

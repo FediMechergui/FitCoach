@@ -47,6 +47,20 @@ export interface CoachContext {
   smokeFreeStreak: number;
   smokingDailyTarget: number | null;
   aerobicPenaltyPct: number;
+
+  // Sleep
+  avgSleep7d: number | null;
+  lastNightSleep: number | null;
+
+  // Alcohol
+  alcoholWeekG: number;
+  alcoholWeeklyLimitG: number;
+  dryDays7d: number;
+
+  // Menstrual cycle (opt-in)
+  cycleEnabled: boolean;
+  cyclePhase: string | null;
+  cycleDaysUntilPeriod: number | null;
 }
 
 export interface CoachTipDraft {
@@ -225,6 +239,67 @@ export function generateCoachTips(ctx: CoachContext): CoachTipDraft[] {
         title: 'Smoking is capping your cardio',
         message: `At ~${ctx.avgCigsPerDay7d}/day, your aerobic capacity is an estimated ${ctx.aerobicPenaltyPct}% lower — that's real minutes off your pace. Even cutting back a few a day compounds fast.`,
         ruleKey: `smoking.aerobic.${WEEK}`,
+      });
+    }
+  }
+
+  // ── Sleep ──────────────────────────────────────────────────────────────────
+  if (ctx.avgSleep7d !== null && ctx.avgSleep7d < 6.5) {
+    tips.push({
+      category: 'sleep',
+      title: 'You need more sleep',
+      message: `Averaging ${ctx.avgSleep7d.toFixed(1)}h a night. Under-sleeping raises cortisol, saps strength and stalls fat loss — aim for 7–9h to unlock your training.`,
+      ruleKey: `sleep.low_avg.${WEEK}`,
+    });
+  }
+  if (ctx.lastNightSleep !== null && ctx.lastNightSleep < 6 && ctx.sessionLoggedToday) {
+    tips.push({
+      category: 'sleep',
+      title: 'Training on low sleep',
+      message: `You trained on ${ctx.lastNightSleep.toFixed(1)}h. Expect lower output and slower recovery today — keep intensity in check and prioritize sleep tonight.`,
+      ruleKey: `sleep.trained_tired.${ctx.today}`,
+    });
+  }
+
+  // ── Alcohol ────────────────────────────────────────────────────────────────
+  if (ctx.alcoholWeekG > ctx.alcoholWeeklyLimitG) {
+    tips.push({
+      category: 'alcohol',
+      title: 'Above the low-risk alcohol guideline',
+      message: `~${Math.round(ctx.alcoholWeekG)}g this week vs a ${ctx.alcoholWeeklyLimitG}g guideline. Alcohol suppresses muscle protein synthesis and deep sleep — it directly slows recovery.`,
+      ruleKey: `alcohol.over_limit.${WEEK}`,
+    });
+  } else if (ctx.alcoholWeekG > 0 && ctx.dryDays7d === 0) {
+    tips.push({
+      category: 'alcohol',
+      title: 'Add a dry day',
+      message: `You've had a drink every day this week. A couple of alcohol-free days lets recovery and sleep quality bounce back.`,
+      ruleKey: `alcohol.no_dry_day.${WEEK}`,
+    });
+  }
+
+  // ── Menstrual cycle ────────────────────────────────────────────────────────
+  if (ctx.cycleEnabled && ctx.cyclePhase) {
+    if (ctx.cycleDaysUntilPeriod !== null && ctx.cycleDaysUntilPeriod <= 2 && ctx.cycleDaysUntilPeriod >= 0) {
+      tips.push({
+        category: 'cycle',
+        title: 'Period expected soon',
+        message: `Your next period is predicted in ${ctx.cycleDaysUntilPeriod} day${ctx.cycleDaysUntilPeriod === 1 ? '' : 's'}. Energy may dip — plan a lighter week and prioritize iron and rest.`,
+        ruleKey: `cycle.pre_period.${WEEK}`,
+      });
+    } else if (ctx.cyclePhase === 'follicular') {
+      tips.push({
+        category: 'cycle',
+        title: 'Strong-phase window',
+        message: `You're in your follicular phase — rising estrogen means this is often your best window for strength and PRs. Push a little.`,
+        ruleKey: `cycle.follicular.${WEEK}`,
+      });
+    } else if (ctx.cyclePhase === 'luteal') {
+      tips.push({
+        category: 'cycle',
+        title: 'Luteal phase — ease into recovery',
+        message: `Progesterone is up, so perceived effort and core temperature rise. Favor steady volume over max intensity and add recovery this week.`,
+        ruleKey: `cycle.luteal.${WEEK}`,
       });
     }
   }

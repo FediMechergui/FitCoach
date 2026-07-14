@@ -27,6 +27,9 @@ import { listSessions } from '@/repositories/sessionRepo';
 import { weighInHistory } from '@/repositories/userRepo';
 import { weeklyStepAverage } from '@/repositories/coachRepo';
 import { smokingCorrelation, smokingImpact } from '@/repositories/smokingRepo';
+import { sleepSummary } from '@/repositories/sleepRepo';
+import { alcoholImpact } from '@/repositories/alcoholRepo';
+import { computeBodyComp } from '@/lib/bodyComposition';
 import { useUserStore } from '@/stores/userStore';
 import { metaFor } from '@/constants/sessionTypes';
 import { SESSION_TYPE_COLORS } from '@/theme';
@@ -62,6 +65,9 @@ export function StatsScreen() {
     stepAvg,
     smoking,
     smokeCorr,
+    sleep,
+    bodyComp,
+    alcohol,
   } = data;
 
   const hasData =
@@ -186,11 +192,31 @@ export function StatsScreen() {
         </>
       )}
 
-      {/* Steps */}
-      <SectionHeader title="Activity" />
+      {/* Steps + recovery */}
+      <SectionHeader title="Activity & Recovery" />
       <Row>
         <StatTile icon="cardio.steps" label="Avg steps" value={stepAvg.toLocaleString()} sub="per day (7d)" accent={theme.colors.accent} />
+        <StatTile icon="sleep.moon" label="Avg sleep" value={sleep.avg7d != null ? `${sleep.avg7d}h` : '—'} sub="per night (7d)" accent={theme.colors.mindbody} />
+        <StatTile icon="alcohol.beer" label="Alcohol" value={`${Math.round(alcohol.weekGrams)}g`} sub="this week" accent={theme.colors.warning} />
       </Row>
+
+      {/* Body composition */}
+      {bodyComp && (bodyComp.bodyFatPct != null || bodyComp.normalizedFFMI != null) && (
+        <>
+          <SectionHeader title="Body Composition" />
+          <Row>
+            {bodyComp.bodyFatPct != null && (
+              <StatTile icon="stats.bodyFat" label="Body fat" value={`${bodyComp.bodyFatPct}%`} accent={theme.colors.warning} />
+            )}
+            {bodyComp.leanMassKg != null && (
+              <StatTile icon="strength.dumbbell" label="Lean mass" value={`${bodyComp.leanMassKg}kg`} accent={theme.colors.primary} />
+            )}
+            {bodyComp.normalizedFFMI != null && (
+              <StatTile icon="stats.progression" label="FFMI" value={`${bodyComp.normalizedFFMI}`} accent={theme.colors.accent} />
+            )}
+          </Row>
+        </>
+      )}
 
       {/* Smoking impact (opt-in) */}
       {smoking && (
@@ -283,5 +309,25 @@ function loadStats() {
     stepAvg: weeklyStepAverage(),
     smoking: smokingImpact(),
     smokeCorr: smokingCorrelation(30),
+    sleep: sleepSummary(),
+    alcohol: alcoholImpact(),
+    bodyComp: (() => {
+      const w = weighInHistory();
+      const last = w[w.length - 1];
+      if (!last) return null;
+      return computeBodyComp({
+        weightKg: last.weightKg,
+        heightCm: userHeight(),
+        bodyFatPct: last.bodyFatPct,
+        fatMassKg: last.fatMassKg,
+        muscleMassKg: last.muscleMassKg,
+        bodyWaterPct: last.bodyWaterPct,
+        boneMassKg: last.boneMassKg,
+      });
+    })(),
   };
+}
+
+function userHeight(): number | null {
+  return useUserStore.getState().user?.heightCm ?? null;
 }

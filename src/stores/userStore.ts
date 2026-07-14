@@ -9,6 +9,7 @@ import {
   updateUser,
   upsertNutritionGoal,
   addWeighIn,
+  type WeighInExtra,
 } from '@/repositories/userRepo';
 import { computeTargets, recommendedWaterMl, type CalorieInputs } from '@/lib/calories';
 import { estimateBodyType } from '@/lib/bodyType';
@@ -23,14 +24,15 @@ interface UserState {
 
   load: () => void;
   updateProfile: (patch: Partial<User>) => void;
-  logWeight: (weightKg: number, extra?: { bodyFatPct?: number | null; waistCm?: number | null; hipCm?: number | null }) => void;
+  logWeight: (weightKg: number, extra?: WeighInExtra) => void;
   recalcTargets: () => NutritionGoal | null;
   completeOnboarding: (data: OnboardingData) => void;
 }
 
 export interface OnboardingData {
   name: string;
-  sex: 'male' | 'female';
+  gender: User['gender'];
+  sex: 'male' | 'female'; // biological, for BMR
   birthdate: string;
   heightCm: number;
   weightKg: number;
@@ -107,6 +109,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     });
     updateUser({
       name: data.name,
+      gender: data.gender,
       sex: data.sex,
       birthdate: data.birthdate,
       heightCm: data.heightCm,

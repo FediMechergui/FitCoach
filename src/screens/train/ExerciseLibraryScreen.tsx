@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, EmptyState } from '@/components/ui/misc';
+import { ExerciseHero } from '@/components/ExerciseHero';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
 import { type SessionType } from '@/db/schema';
@@ -94,7 +95,7 @@ export function ExerciseLibraryScreen() {
             <Card>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                  <Icon icon={item.iconKey} size={22} color={theme.colors.primary} />
+                  <ExerciseHero iconKey={item.iconKey} sessionType={item.sessionType} />
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyStrong" numberOfLines={1}>
                       {item.name}

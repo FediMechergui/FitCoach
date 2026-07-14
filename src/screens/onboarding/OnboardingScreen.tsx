@@ -25,6 +25,7 @@ export function OnboardingScreen() {
 
   // Form state
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<OnboardingData['gender']>('male');
   const [sex, setSex] = useState<'male' | 'female'>('male');
   const [birthdate, setBirthdate] = useState('1995-01-01');
   const [height, setHeight] = useState('');
@@ -84,6 +85,7 @@ export function OnboardingScreen() {
   const finish = () => {
     complete({
       name: name.trim() || 'Athlete',
+      gender,
       sex,
       birthdate,
       heightCm,
@@ -124,17 +126,38 @@ export function OnboardingScreen() {
               <Input label="Name" value={name} onChangeText={setName} placeholder="Your name" />
               <View>
                 <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>
-                  Sex (for BMR formula)
+                  Gender
                 </Text>
                 <SegmentedControl
+                  scrollable
                   options={[
                     { value: 'male', label: 'Male' },
                     { value: 'female', label: 'Female' },
+                    { value: 'non_binary', label: 'Non-binary' },
+                    { value: 'other', label: 'Other' },
                   ]}
-                  value={sex}
-                  onChange={setSex}
+                  value={gender}
+                  onChange={(g) => {
+                    setGender(g);
+                    if (g === 'male' || g === 'female') setSex(g);
+                  }}
                 />
               </View>
+              {gender !== 'male' && gender !== 'female' && (
+                <View>
+                  <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>
+                    Sex for metabolic calculations (BMR)
+                  </Text>
+                  <SegmentedControl
+                    options={[
+                      { value: 'male', label: 'Male' },
+                      { value: 'female', label: 'Female' },
+                    ]}
+                    value={sex}
+                    onChange={setSex}
+                  />
+                </View>
+              )}
               <Input
                 label="Birthdate (YYYY-MM-DD)"
                 value={birthdate}

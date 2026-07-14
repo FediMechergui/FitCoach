@@ -130,18 +130,40 @@ export function ProfileScreen() {
         onChange={(v) => updateProfile({ unitPreference: v })}
       />
 
+      {/* Athlete card & reports */}
+      <SectionHeader title="Card & Reports" />
+      <Card style={{ gap: 0 }}>
+        <LinkRow icon="card.trophy" label="Athlete card" onPress={() => navigation.navigate('ProfileCard')} />
+        <Divider />
+        <LinkRow icon="report.pdf" label="Export PDF reports" onPress={() => navigation.navigate('Reports')} />
+      </Card>
+
+      {/* Health & wellness */}
+      <SectionHeader title="Health & Wellness" />
+      <Card style={{ gap: 0 }}>
+        <LinkRow icon="stats.bodyFat" label="Body composition" onPress={() => navigation.navigate('Body')} />
+        <Divider />
+        <LinkRow icon="sleep.moon" label="Sleep" onPress={() => navigation.navigate('Sleep')} />
+        <Divider />
+        <LinkRow icon="alcohol.beer" label="Alcohol" onPress={() => navigation.navigate('Alcohol')} />
+        <Divider />
+        <LinkRow
+          icon="smoking.cigarette"
+          label={smokingEnabled ? 'Smoking impact' : 'Smoking tracker'}
+          onPress={() => navigation.navigate('Smoking')}
+        />
+        <Divider />
+        <LinkRow icon="cycle.flower" label="Cycle tracking" onPress={() => navigation.navigate('Cycle')} />
+        <Divider />
+        <LinkRow icon="health.medical" label="Health conditions" onPress={() => navigation.navigate('Conditions')} />
+      </Card>
+
       {/* Links */}
       <SectionHeader title="More" />
       <Card style={{ gap: 0 }}>
         <LinkRow icon="core.calendar" label="Session history" onPress={() => navigation.navigate('SessionHistory')} />
         <Divider />
         <LinkRow icon="nav.train" label="Exercise library" onPress={() => navigation.navigate('ExerciseLibrary', { pick: false })} />
-        <Divider />
-        <LinkRow
-          icon="smoking.cigarette"
-          label={smokingEnabled ? 'Smoking impact' : 'Set up smoking tracker'}
-          onPress={() => navigation.navigate('Smoking')}
-        />
         <Divider />
         <LinkRow icon="core.settings" label="Recalculate targets" onPress={() => useUserStore.getState().recalcTargets()} />
       </Card>

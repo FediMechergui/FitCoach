@@ -16,7 +16,10 @@ interface IconProps {
   color?: string;
 }
 
-const LIBS: Record<IconLib, React.ComponentType<{ name: any; size?: number; color?: string }>> = {
+// Loosely typed: each @expo/vector-icons set has its own glyph-name union and a
+// color type of `string | OpaqueColorValue`. We resolve names dynamically, so
+// we intentionally erase those unions here.
+const LIBS: Record<IconLib, React.ComponentType<any>> = {
   Ionicons,
   MaterialCommunityIcons,
   FontAwesome5,

@@ -15,6 +15,11 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import { useSmokingStore } from '@/stores/smokingStore';
+import { useSleepStore } from '@/stores/sleepStore';
+import { useCycleStore } from '@/stores/cycleStore';
+import { useUsageStore } from '@/stores/usageStore';
+import { StreakMeter } from '@/components/StreakMeter';
+import { PHASE_GUIDANCE } from '@/lib/cycle';
 import { getDailySteps } from '@/repositories/activityRepo';
 import { activeCoachTips, dismissCoachTip, refreshCoachTips } from '@/repositories/coachRepo';
 import { currentStreak } from '@/repositories/statsRepo';
@@ -31,6 +36,10 @@ const CATEGORY_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']
   recovery: 'mindbody',
   activity: 'accent',
   smoking: 'warning',
+  sleep: 'mindbody',
+  alcohol: 'warning',
+  cycle: 'protein',
+  health: 'danger',
 };
 
 export function HomeScreen() {
@@ -46,6 +55,14 @@ export function HomeScreen() {
   const smokingToday = useSmokingStore((s) => s.today);
   const smokingImpact = useSmokingStore((s) => s.impact);
   const loadSmoking = useSmokingStore((s) => s.load);
+  const sleepLastNight = useSleepStore((s) => s.lastNight);
+  const sleepSummaryData = useSleepStore((s) => s.summary);
+  const loadSleep = useSleepStore((s) => s.load);
+  const cycleEnabled = useCycleStore((s) => s.enabled);
+  const cycleState = useCycleStore((s) => s.state);
+  const loadCycle = useCycleStore((s) => s.load);
+  const usage = useUsageStore((s) => s.streak);
+  const loadUsage = useUsageStore((s) => s.load);
 
   const [steps, setSteps] = useState(0);
   const [tips, setTips] = useState<CoachTip[]>([]);
@@ -59,7 +76,10 @@ export function HomeScreen() {
     setStreak(currentStreak());
     setTips(refreshCoachTips());
     loadSmoking();
-  }, [setDate, refreshNutrition, loadSmoking]);
+    loadSleep();
+    loadCycle();
+    loadUsage();
+  }, [setDate, refreshNutrition, loadSmoking, loadSleep, loadCycle, loadUsage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,13 +121,16 @@ export function HomeScreen() {
           <Text variant="h1">{user?.name ?? 'Athlete'}</Text>
         </View>
         <Row gap={6} style={{ alignItems: 'center' }}>
-          <Icon icon="core.streak" size={20} color={theme.colors.warning} />
+          <Icon icon="nav.train" size={18} color={theme.colors.primary} />
           <Text variant="h2">{streak}</Text>
           <Text variant="caption" color="textMuted">
-            day{streak === 1 ? '' : 's'}
+            training day{streak === 1 ? '' : 's'}
           </Text>
         </Row>
       </Row>
+
+      {/* Daily check-in streak meter */}
+      {usage && <StreakMeter streak={usage} />}
 
       {/* Primary rings */}
       <Card>
@@ -206,6 +229,34 @@ export function HomeScreen() {
           sub={`of ${goal?.fatG ?? 0}g`}
           accent={theme.colors.fat}
         />
+      </Row>
+
+      {/* Recovery: sleep + cycle */}
+      <Row>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Sleep')}>
+          <StatTile
+            icon="sleep.moon"
+            label="Sleep"
+            value={sleepLastNight != null ? `${sleepLastNight}h` : '—'}
+            sub={sleepSummaryData?.avg7d != null ? `${sleepSummaryData.avg7d}h avg` : 'Tap to log'}
+            accent={theme.colors.mindbody}
+          />
+        </Pressable>
+        {cycleEnabled && cycleState ? (
+          <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Cycle')}>
+            <StatTile
+              icon="cycle.flower"
+              label={PHASE_GUIDANCE[cycleState.phase].title}
+              value={`Day ${cycleState.dayOfCycle}`}
+              sub={`Period in ${cycleState.daysUntilNextPeriod}d`}
+              accent={PHASE_GUIDANCE[cycleState.phase].color}
+            />
+          </Pressable>
+        ) : (
+          <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Alcohol')}>
+            <StatTile icon="alcohol.beer" label="Alcohol" value="Log" sub="tap to track" accent={theme.colors.warning} />
+          </Pressable>
+        )}
       </Row>
 
       {/* Smoking tracker tile (opt-in) */}

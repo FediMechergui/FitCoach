@@ -29,6 +29,9 @@ import {
   smokeFreeStreak,
 } from './smokingRepo';
 import { aerobicPenaltyPct } from '@/lib/smoking';
+import { avgSleepHours, sleepForDate } from './sleepRepo';
+import { alcoholImpact } from './alcoholRepo';
+import { currentCycle } from './cycleRepo';
 
 const DEFAULT_STEP_GOAL = 8000;
 
@@ -52,6 +55,9 @@ export function buildCoachContext(userId: number = PRIMARY_USER_ID): CoachContex
   const smokingProfile = getSmokingProfile(userId);
   const smokingEnabled = !!smokingProfile?.enabled;
   const avgCigsPerDay7d = smokingEnabled ? avgCigarettesPerDay(7, userId) : 0;
+
+  const alcohol = alcoholImpact(userId);
+  const cycle = currentCycle(userId);
 
   return {
     today,
@@ -79,6 +85,14 @@ export function buildCoachContext(userId: number = PRIMARY_USER_ID): CoachContex
     smokeFreeStreak: smokingEnabled ? smokeFreeStreak(userId) : 0,
     smokingDailyTarget: smokingProfile?.dailyTarget ?? null,
     aerobicPenaltyPct: aerobicPenaltyPct(avgCigsPerDay7d),
+    avgSleep7d: avgSleepHours(7, userId),
+    lastNightSleep: sleepForDate(today, userId)?.hours ?? null,
+    alcoholWeekG: alcohol.weekGrams,
+    alcoholWeeklyLimitG: alcohol.weeklyLimitG,
+    dryDays7d: alcohol.dryDays7d,
+    cycleEnabled: !!cycle,
+    cyclePhase: cycle?.phase ?? null,
+    cycleDaysUntilPeriod: cycle?.daysUntilNextPeriod ?? null,
   };
 }
 

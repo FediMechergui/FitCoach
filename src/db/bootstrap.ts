@@ -7,13 +7,36 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+
+/**
+ * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
+ * is missing, so this is safe on both fresh installs (already present via the
+ * CREATE above) and upgrades from an earlier dev database.
+ */
+const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
+  { table: 'users', column: 'gender', ddl: "TEXT NOT NULL DEFAULT 'male'" },
+  { table: 'weigh_ins', column: 'fat_mass_kg', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'muscle_mass_kg', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'body_water_pct', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'bone_mass_kg', ddl: 'REAL' },
+];
+
+function ensureColumns(): void {
+  for (const { table, column, ddl } of ADDED_COLUMNS) {
+    const cols = sqlite.getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
+    if (!cols.some((c) => c.name === column)) {
+      sqlite.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl};`);
+    }
+  }
+}
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL DEFAULT 'Athlete',
   sex TEXT NOT NULL DEFAULT 'male',
+  gender TEXT NOT NULL DEFAULT 'male',
   birthdate TEXT,
   height_cm REAL,
   activity_level TEXT NOT NULL DEFAULT 'moderate',
@@ -31,6 +54,10 @@ CREATE TABLE IF NOT EXISTS weigh_ins (
   date TEXT NOT NULL,
   weight_kg REAL NOT NULL,
   body_fat_pct REAL,
+  fat_mass_kg REAL,
+  muscle_mass_kg REAL,
+  body_water_pct REAL,
+  bone_mass_kg REAL,
   waist_cm REAL,
   hip_cm REAL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
@@ -193,6 +220,86 @@ CREATE TABLE IF NOT EXISTS smoking_profiles (
 );
 CREATE INDEX IF NOT EXISTS idx_smoking_profiles_user ON smoking_profiles(user_id);
 
+CREATE TABLE IF NOT EXISTS sleep_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  hours REAL NOT NULL,
+  quality INTEGER,
+  bedtime TEXT,
+  wake_time TEXT,
+  notes TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_logs_user_date ON sleep_logs(user_id, date);
+
+CREATE TABLE IF NOT EXISTS alcohol_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  type TEXT NOT NULL,
+  label TEXT,
+  volume_ml REAL NOT NULL,
+  abv_pct REAL NOT NULL,
+  alcohol_grams REAL NOT NULL,
+  standard_drinks REAL NOT NULL,
+  calories REAL NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_alcohol_entries_user_date ON alcohol_entries(user_id, date);
+
+CREATE TABLE IF NOT EXISTS cycle_profiles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  avg_cycle_length INTEGER NOT NULL DEFAULT 28,
+  avg_period_length INTEGER NOT NULL DEFAULT 5,
+  last_period_start TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_cycle_profiles_user ON cycle_profiles(user_id);
+
+CREATE TABLE IF NOT EXISTS period_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT,
+  flow TEXT,
+  symptoms TEXT,
+  notes TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_period_logs_user ON period_logs(user_id, start_date);
+
+CREATE TABLE IF NOT EXISTS health_conditions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  condition_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  category TEXT,
+  notes TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_health_conditions_user ON health_conditions(user_id, active);
+
+CREATE TABLE IF NOT EXISTS app_open_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_app_open_logs_user_date ON app_open_logs(user_id, date);
+
+CREATE TABLE IF NOT EXISTS profile_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  month TEXT NOT NULL,
+  uri TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_photos_user_month ON profile_photos(user_id, month);
+
 CREATE TABLE IF NOT EXISTS coach_tips (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -219,6 +326,7 @@ export function initDatabase(): void {
   sqlite.execSync('PRAGMA journal_mode = WAL;');
   sqlite.execSync('PRAGMA foreign_keys = ON;');
   sqlite.execSync(DDL);
+  ensureColumns();
 
   const row = sqlite.getFirstSync<{ user_version: number }>(
     'PRAGMA user_version;'

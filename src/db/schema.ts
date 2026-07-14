@@ -14,10 +14,16 @@ import {
  */
 
 // ── User ────────────────────────────────────────────────────────────────────
+export const GENDERS = ['male', 'female', 'non_binary', 'other', 'prefer_not_to_say'] as const;
+export type Gender = (typeof GENDERS)[number];
+
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().default('Athlete'),
+  // Biological sex — used only for metabolic (BMR) formulas.
   sex: text('sex', { enum: ['male', 'female'] }).notNull().default('male'),
+  // Gender identity — user-chosen, independent of `sex`.
+  gender: text('gender', { enum: GENDERS }).notNull().default('male'),
   birthdate: text('birthdate'), // ISO date
   heightCm: real('height_cm'),
   activityLevel: text('activity_level', {
@@ -54,6 +60,11 @@ export const weighIns = sqliteTable('weigh_ins', {
   date: text('date').notNull(), // ISO date
   weightKg: real('weight_kg').notNull(),
   bodyFatPct: real('body_fat_pct'),
+  // Detailed body composition (all optional; entered if the user knows them).
+  fatMassKg: real('fat_mass_kg'),
+  muscleMassKg: real('muscle_mass_kg'),
+  bodyWaterPct: real('body_water_pct'), // total body water / retained water
+  boneMassKg: real('bone_mass_kg'),
   waistCm: real('waist_cm'),
   hipCm: real('hip_cm'),
   createdAt: integer('created_at')
@@ -276,6 +287,102 @@ export const smokingProfiles = sqliteTable('smoking_profiles', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// ── SleepLog ─────────────────────────────────────────────────────────────────
+export const sleepLogs = sqliteTable('sleep_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(), // the morning/wake ISO date the sleep belongs to
+  hours: real('hours').notNull(),
+  quality: integer('quality'), // 1..5 subjective
+  bedtime: text('bedtime'), // optional 'HH:MM'
+  wakeTime: text('wake_time'),
+  notes: text('notes'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── AlcoholEntry ─────────────────────────────────────────────────────────────
+export const ALCOHOL_TYPES = ['beer', 'wine', 'spirit', 'cocktail', 'other'] as const;
+export type AlcoholType = (typeof ALCOHOL_TYPES)[number];
+
+export const alcoholEntries = sqliteTable('alcohol_entries', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  type: text('type', { enum: ALCOHOL_TYPES }).notNull(),
+  label: text('label'),
+  volumeMl: real('volume_ml').notNull(),
+  abvPct: real('abv_pct').notNull(),
+  alcoholGrams: real('alcohol_grams').notNull(),
+  standardDrinks: real('standard_drinks').notNull(),
+  calories: real('calories').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── Menstrual cycle ──────────────────────────────────────────────────────────
+export const cycleProfiles = sqliteTable('cycle_profiles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+  avgCycleLength: integer('avg_cycle_length').notNull().default(28),
+  avgPeriodLength: integer('avg_period_length').notNull().default(5),
+  lastPeriodStart: text('last_period_start'), // ISO date
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const periodLogs = sqliteTable('period_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  startDate: text('start_date').notNull(), // ISO
+  endDate: text('end_date'), // ISO (null while ongoing)
+  flow: text('flow', { enum: ['light', 'medium', 'heavy'] }),
+  symptoms: text('symptoms'), // JSON array of strings
+  notes: text('notes'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── HealthCondition (chronic disease catalogue) ──────────────────────────────
+export const healthConditions = sqliteTable('health_conditions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  conditionKey: text('condition_key').notNull(), // catalogue key
+  label: text('label').notNull(),
+  category: text('category'), // metabolic / cardiovascular / respiratory / …
+  notes: text('notes'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── AppOpenLog (daily app-usage / check-in streak) ───────────────────────────
+export const appOpenLogs = sqliteTable('app_open_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(), // ISO day the app was opened (one row per day)
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── ProfilePhoto (monthly athlete-card photo) ────────────────────────────────
+export const profilePhotos = sqliteTable('profile_photos', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  month: text('month').notNull(), // 'YYYY-MM'
+  uri: text('uri').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 // ── CoachTip ─────────────────────────────────────────────────────────────────
 export const COACH_CATEGORIES = [
   'training',
@@ -285,6 +392,10 @@ export const COACH_CATEGORIES = [
   'recovery',
   'activity',
   'smoking',
+  'sleep',
+  'alcohol',
+  'cycle',
+  'health',
 ] as const;
 export type CoachCategory = (typeof COACH_CATEGORIES)[number];
 
@@ -323,3 +434,10 @@ export type CoachTip = typeof coachTips.$inferSelect;
 export type SmokingEntry = typeof smokingEntries.$inferSelect;
 export type SmokingProfile = typeof smokingProfiles.$inferSelect;
 export type NewSmokingProfile = typeof smokingProfiles.$inferInsert;
+export type SleepLog = typeof sleepLogs.$inferSelect;
+export type AlcoholEntry = typeof alcoholEntries.$inferSelect;
+export type CycleProfile = typeof cycleProfiles.$inferSelect;
+export type PeriodLog = typeof periodLogs.$inferSelect;
+export type HealthCondition = typeof healthConditions.$inferSelect;
+export type ProfilePhoto = typeof profilePhotos.$inferSelect;
+export type AppOpenLog = typeof appOpenLogs.$inferSelect;

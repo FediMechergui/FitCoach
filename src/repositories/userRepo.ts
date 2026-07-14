@@ -2,10 +2,12 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   nutritionGoals,
+  profilePhotos,
   users,
   weighIns,
   type NewUser,
   type NutritionGoal,
+  type ProfilePhoto,
   type User,
   type WeighIn,
 } from '@/db/schema';
@@ -40,9 +42,20 @@ export function isOnboarded(id: number = PRIMARY_USER_ID): boolean {
 }
 
 // ── Weigh-ins ────────────────────────────────────────────────────────────────
+export interface WeighInExtra {
+  bodyFatPct?: number | null;
+  fatMassKg?: number | null;
+  muscleMassKg?: number | null;
+  bodyWaterPct?: number | null;
+  boneMassKg?: number | null;
+  waistCm?: number | null;
+  hipCm?: number | null;
+  date?: string;
+}
+
 export function addWeighIn(
   weightKg: number,
-  extra: { bodyFatPct?: number | null; waistCm?: number | null; hipCm?: number | null; date?: string } = {},
+  extra: WeighInExtra = {},
   userId: number = PRIMARY_USER_ID
 ): void {
   const date = extra.date ?? todayISO();
@@ -54,6 +67,10 @@ export function addWeighIn(
       date,
       weightKg,
       bodyFatPct: extra.bodyFatPct ?? null,
+      fatMassKg: extra.fatMassKg ?? null,
+      muscleMassKg: extra.muscleMassKg ?? null,
+      bodyWaterPct: extra.bodyWaterPct ?? null,
+      boneMassKg: extra.boneMassKg ?? null,
       waistCm: extra.waistCm ?? null,
       hipCm: extra.hipCm ?? null,
     })
@@ -68,6 +85,28 @@ export function latestWeight(userId: number = PRIMARY_USER_ID): WeighIn | undefi
     .orderBy(desc(weighIns.date))
     .limit(1)
     .get();
+}
+
+// ── Monthly profile photos (athlete card) ────────────────────────────────────
+export function currentMonthKey(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function getProfilePhoto(month: string, userId: number = PRIMARY_USER_ID): ProfilePhoto | undefined {
+  return db
+    .select()
+    .from(profilePhotos)
+    .where(and(eq(profilePhotos.userId, userId), eq(profilePhotos.month, month)))
+    .get();
+}
+
+export function setProfilePhoto(month: string, uri: string, userId: number = PRIMARY_USER_ID): void {
+  const existing = getProfilePhoto(month, userId);
+  if (existing) {
+    db.update(profilePhotos).set({ uri }).where(eq(profilePhotos.id, existing.id)).run();
+  } else {
+    db.insert(profilePhotos).values({ userId, month, uri }).run();
+  }
 }
 
 export function weighInHistory(userId: number = PRIMARY_USER_ID): WeighIn[] {

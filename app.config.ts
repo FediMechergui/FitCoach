@@ -8,6 +8,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'FitCoach',
   slug: 'fitcoach',
+  owner: 'fedimechergui',
   version: '2.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -83,7 +84,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
   extra: {
     eas: {
-      // projectId is injected by `eas build:configure`.
+      projectId: '00d7b01f-b20d-4303-b6cb-8bcb88a8e512',
     },
   },
 });

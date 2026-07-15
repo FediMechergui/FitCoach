@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pedometer } from 'expo-sensors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -15,13 +15,14 @@ import { Row, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useWalkStore } from '@/stores/walkStore';
 import { useUserStore } from '@/stores/userStore';
-import { useLivePedometer } from '@/hooks/usePedometer';
-import { distanceFromSteps } from '@/lib/pedometer';
+import { useLiveWalk } from '@/hooks/usePedometer';
 import { walkCalories } from '@/lib/met';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type WalkRoute = RouteProp<RootStackParamList, 'Walk'>;
+
+const SOURCE_LABEL = { pedometer: 'Pedometer', accelerometer: 'Accelerometer', gps: 'GPS' } as const;
 
 export function WalkScreen() {
   const theme = useTheme();
@@ -32,7 +33,6 @@ export function WalkScreen() {
   const walk = useWalkStore();
   const user = useUserStore((s) => s.user);
   const weightKg = useUserStore((s) => s.currentWeightKg) ?? 75;
-  const heightCm = user?.heightCm ?? 175;
 
   const [hardwareAvailable, setHardwareAvailable] = useState<boolean | null>(null);
   const [summary, setSummary] = useState<{ steps: number; distanceM: number; calories: number; durationS: number } | null>(null);
@@ -41,21 +41,31 @@ export function WalkScreen() {
     Pedometer.isAvailableAsync().then(setHardwareAvailable).catch(() => setHardwareAvailable(false));
   }, []);
 
-  useLivePedometer(walk.active);
+  // Reconnect to a session that kept running while the app was backgrounded.
+  useFocusEffect(
+    React.useCallback(() => {
+      walk.resume();
+    }, [])
+  );
 
-  const distanceM = distanceFromSteps(walk.steps, heightCm, walk.mode);
+  useLiveWalk(walk.active);
+
+  const distanceM = walk.distanceM;
   const calories = walkCalories({ weightKg, distanceM, durationSec: walk.elapsedS, steps: walk.steps });
   const pace = distanceM > 0 && walk.elapsedS > 0 ? walk.elapsedS / (distanceM / 1000) : null;
   const unit = user?.unitPreference ?? 'metric';
 
-  const start = () => {
+  const start = async () => {
     setSummary(null);
-    walk.start(initialMode, hardwareAvailable ? 'pedometer' : 'accelerometer');
+    await walk.start(initialMode);
   };
   const stop = () => {
     const result = walk.stop();
     if (result) setSummary(result);
   };
+
+  const perms = walk.permissions;
+  const backgroundOn = !!perms?.background;
 
   if (summary) {
     return (
@@ -82,7 +92,7 @@ export function WalkScreen() {
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="h1">{initialMode === 'run' ? 'Run' : 'Walk'}</Text>
         <Badge
-          label={hardwareAvailable === false ? 'Accelerometer' : 'Pedometer'}
+          label={walk.active ? SOURCE_LABEL[walk.source] : hardwareAvailable === false ? 'Accelerometer' : 'Pedometer'}
           color={hardwareAvailable === false ? theme.colors.warning : theme.colors.accent}
         />
       </Row>
@@ -116,15 +126,41 @@ export function WalkScreen() {
         <StatTile icon="nutrition.calories" label="Calories" value={`${calories}`} accent={theme.colors.calories} />
       </Row>
 
-      {hardwareAvailable === false && (
+      {/* Background tracking status */}
+      {walk.active && (
+        <Card accent={backgroundOn ? theme.colors.success : theme.colors.warning}>
+          <Row gap={10} style={{ alignItems: 'flex-start' }}>
+            <Icon icon={backgroundOn ? 'core.check' : 'core.info'} size={18} color={backgroundOn ? theme.colors.success : theme.colors.warning} />
+            <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+              {backgroundOn
+                ? 'Background tracking is on — a notification keeps recording even with the screen off or the app closed.'
+                : 'Tracking is foreground-only. For screen-off tracking, allow location "Always" — FitCoach uses a location-based service notification to keep counting in the background.'}
+            </Text>
+          </Row>
+        </Card>
+      )}
+
+      {!walk.active && perms && !perms.motion && (
+        <Text variant="caption" color="warning" center>
+          Motion permission was denied. Enable “Physical activity” for FitCoach in Android settings to count steps.
+        </Text>
+      )}
+
+      {hardwareAvailable === false && !walk.active && (
         <Text variant="caption" color="textFaint" center>
-          Hardware step counter unavailable — using the accelerometer peak-detection
-          fallback. Keep the screen on for best accuracy.
+          No hardware step counter detected — FitCoach will use GPS distance and the accelerometer.
         </Text>
       )}
 
       {!walk.active ? (
-        <Button title={`Start ${initialMode === 'run' ? 'Run' : 'Walk'}`} icon="core.start" size="lg" onPress={start} color={theme.colors.accent} />
+        <Button
+          title={walk.starting ? 'Starting…' : `Start ${initialMode === 'run' ? 'Run' : 'Walk'}`}
+          icon="core.start"
+          size="lg"
+          onPress={start}
+          disabled={walk.starting}
+          color={theme.colors.accent}
+        />
       ) : (
         <Button title="Finish" icon="core.end" size="lg" onPress={stop} color={theme.colors.danger} />
       )}

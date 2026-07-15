@@ -14,7 +14,10 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { useUsageStore } from '@/stores/usageStore';
+import { useWalkStore } from '@/stores/walkStore';
 import { registerBackgroundSteps, syncTodaySteps } from '@/services/backgroundSteps';
+// Importing the service registers its TaskManager background task at startup.
+import { cleanupOrphanWalk } from '@/services/walkTracking';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -22,6 +25,7 @@ export default function App() {
   const load = useUserStore((s) => s.load);
   const loadSmoking = useSmokingStore((s) => s.load);
   const recordOpen = useUsageStore((s) => s.record);
+  const resumeWalk = useWalkStore((s) => s.resume);
 
   useEffect(() => {
     // Synchronous bootstrap: create tables + seed, then hydrate the stores.
@@ -29,11 +33,13 @@ export default function App() {
     load();
     loadSmoking();
     recordOpen(); // logs today's app open + computes the daily check-in streak
+    resumeWalk(); // reconnect to a walk that kept running in the background
     setReady(true);
     // Passive step tracking (best-effort; no-op on emulator / Expo Go).
     registerBackgroundSteps();
     syncTodaySteps().catch(() => {});
-  }, [load, loadSmoking, recordOpen]);
+    cleanupOrphanWalk().catch(() => {}); // stop a foreground service left by a crash
+  }, [load, loadSmoking, recordOpen, resumeWalk]);
 
   const colors = scheme === 'light' ? lightColors : darkColors;
   const navTheme = {

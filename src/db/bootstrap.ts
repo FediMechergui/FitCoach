@@ -156,6 +156,20 @@ CREATE TABLE IF NOT EXISTS walk_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_walk_sessions_user ON walk_sessions(user_id, start_time);
 
+CREATE TABLE IF NOT EXISTS live_walks (
+  id INTEGER PRIMARY KEY,
+  active INTEGER NOT NULL DEFAULT 0,
+  user_id INTEGER NOT NULL DEFAULT 1,
+  mode TEXT NOT NULL DEFAULT 'walk',
+  source TEXT NOT NULL DEFAULT 'pedometer',
+  start_time INTEGER,
+  steps INTEGER NOT NULL DEFAULT 0,
+  distance_m REAL NOT NULL DEFAULT 0,
+  last_lat REAL,
+  last_lng REAL,
+  updated_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS daily_step_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,

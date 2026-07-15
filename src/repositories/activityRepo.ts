@@ -1,8 +1,57 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { dailyStepLogs, walkSessions, type DailyStepLog, type WalkSession } from '@/db/schema';
+import {
+  dailyStepLogs,
+  liveWalks,
+  walkSessions,
+  type DailyStepLog,
+  type LiveWalk,
+  type WalkSession,
+} from '@/db/schema';
 import { todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
+
+// ── Live walk (shared with the background foreground service) ─────────────────
+const LIVE_ID = 1;
+
+export function getLiveWalk(): LiveWalk | undefined {
+  return db.select().from(liveWalks).where(eq(liveWalks.id, LIVE_ID)).get();
+}
+
+export function startLiveWalk(
+  data: { mode: 'walk' | 'run'; source: 'pedometer' | 'accelerometer' | 'gps' },
+  userId: number = PRIMARY_USER_ID
+): void {
+  const row = {
+    id: LIVE_ID,
+    active: true,
+    userId,
+    mode: data.mode,
+    source: data.source,
+    startTime: Date.now(),
+    steps: 0,
+    distanceM: 0,
+    lastLat: null,
+    lastLng: null,
+    updatedAt: Date.now(),
+  };
+  if (getLiveWalk()) {
+    db.update(liveWalks).set(row).where(eq(liveWalks.id, LIVE_ID)).run();
+  } else {
+    db.insert(liveWalks).values(row).run();
+  }
+}
+
+export function patchLiveWalk(patch: Partial<Omit<LiveWalk, 'id'>>): void {
+  if (!getLiveWalk()) return;
+  db.update(liveWalks).set({ ...patch, updatedAt: Date.now() }).where(eq(liveWalks.id, LIVE_ID)).run();
+}
+
+export function endLiveWalk(): void {
+  if (getLiveWalk()) {
+    db.update(liveWalks).set({ active: false }).where(eq(liveWalks.id, LIVE_ID)).run();
+  }
+}
 
 // ── Walk / Run sessions ──────────────────────────────────────────────────────
 export function saveWalkSession(

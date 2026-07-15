@@ -198,6 +198,26 @@ export const walkSessions = sqliteTable('walk_sessions', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// ── LiveWalk (in-progress walk/run, shared with the background service) ───────
+// Single row (id = 1). The foreground-service location task writes distance in
+// the background; the pedometer writes steps; the UI polls this row so tracking
+// survives the screen turning off or the app being backgrounded.
+export const liveWalks = sqliteTable('live_walks', {
+  id: integer('id').primaryKey(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(false),
+  userId: integer('user_id').notNull().default(1),
+  mode: text('mode', { enum: ['walk', 'run'] }).notNull().default('walk'),
+  source: text('source', { enum: ['pedometer', 'accelerometer', 'gps'] })
+    .notNull()
+    .default('pedometer'),
+  startTime: integer('start_time'),
+  steps: integer('steps').notNull().default(0),
+  distanceM: real('distance_m').notNull().default(0),
+  lastLat: real('last_lat'),
+  lastLng: real('last_lng'),
+  updatedAt: integer('updated_at'),
+});
+
 // ── DailyStepLog ─────────────────────────────────────────────────────────────
 export const dailyStepLogs = sqliteTable('daily_step_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -506,6 +526,7 @@ export type NewSetEntry = typeof setEntries.$inferInsert;
 export type Exercise = typeof exercises.$inferSelect;
 export type NewExercise = typeof exercises.$inferInsert;
 export type WalkSession = typeof walkSessions.$inferSelect;
+export type LiveWalk = typeof liveWalks.$inferSelect;
 export type DailyStepLog = typeof dailyStepLogs.$inferSelect;
 export type FoodEntry = typeof foodEntries.$inferSelect;
 export type NewFoodEntry = typeof foodEntries.$inferInsert;

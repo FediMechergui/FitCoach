@@ -33,6 +33,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'ACCESS_COARSE_LOCATION',
       'ACCESS_BACKGROUND_LOCATION',
       'FOREGROUND_SERVICE',
+      'FOREGROUND_SERVICE_LOCATION',
+      'FOREGROUND_SERVICE_HEALTH',
       'RECEIVE_BOOT_COMPLETED',
       'POST_NOTIFICATIONS',
       'READ_MEDIA_IMAGES',
@@ -47,6 +49,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'FitCoach uses motion data to count your steps and track walks/runs.',
       NSLocationWhenInUseUsageDescription:
         'FitCoach uses your location to map outdoor sessions and measure distance.',
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        'FitCoach keeps measuring your walk or run in the background, even when the screen is off.',
+      UIBackgroundModes: ['location'],
     },
   },
   plugins: [
@@ -57,7 +62,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
-          'FitCoach uses your location to map outdoor sessions and measure distance.',
+          'FitCoach uses your location to measure distance and keep tracking your walk or run while the screen is off.',
+        locationWhenInUsePermission:
+          'FitCoach uses your location to measure distance on outdoor sessions.',
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
       },
     ],
     [

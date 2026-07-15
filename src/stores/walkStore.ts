@@ -1,22 +1,29 @@
 import { create } from 'zustand';
-import { saveWalkSession } from '@/repositories/activityRepo';
-import { distanceFromSteps } from '@/lib/pedometer';
+import { getLiveWalk, saveWalkSession } from '@/repositories/activityRepo';
+import {
+  startWalkTracking,
+  stopWalkTracking,
+  type WalkPermissions,
+} from '@/services/walkTracking';
 import { walkCalories } from '@/lib/met';
 import { useUserStore } from './userStore';
 
 interface WalkState {
   active: boolean;
   mode: 'walk' | 'run';
-  startedAt: number | null;
-  baseSteps: number; // steps counted before this tick set
-  steps: number;
-  elapsedS: number;
   source: 'pedometer' | 'accelerometer' | 'gps';
+  startedAt: number | null;
+  steps: number;
+  distanceM: number;
+  elapsedS: number;
+  permissions: WalkPermissions | null;
+  starting: boolean;
 
-  start: (mode: 'walk' | 'run', source: 'pedometer' | 'accelerometer') => void;
-  setSteps: (steps: number) => void;
-  addStep: (n?: number) => void;
-  tick: (elapsedS: number) => void;
+  /** Restore an in-progress walk after the app was backgrounded/reopened. */
+  resume: () => void;
+  start: (mode: 'walk' | 'run') => Promise<void>;
+  /** Pull the latest steps/distance/elapsed from the shared live-walk row. */
+  refresh: () => void;
   stop: () => { steps: number; distanceM: number; calories: number; durationS: number } | null;
   reset: () => void;
 }
@@ -24,35 +31,76 @@ interface WalkState {
 export const useWalkStore = create<WalkState>((set, get) => ({
   active: false,
   mode: 'walk',
-  startedAt: null,
-  baseSteps: 0,
-  steps: 0,
-  elapsedS: 0,
   source: 'pedometer',
+  startedAt: null,
+  steps: 0,
+  distanceM: 0,
+  elapsedS: 0,
+  permissions: null,
+  starting: false,
 
-  start: (mode, source) =>
-    set({ active: true, mode, source, startedAt: Date.now(), steps: 0, baseSteps: 0, elapsedS: 0 }),
+  resume: () => {
+    const live = getLiveWalk();
+    if (live?.active && live.startTime) {
+      set({
+        active: true,
+        mode: live.mode,
+        source: live.source,
+        startedAt: live.startTime,
+        steps: live.steps,
+        distanceM: live.distanceM,
+        elapsedS: Math.round((Date.now() - live.startTime) / 1000),
+      });
+    }
+  },
 
-  setSteps: (steps) => set({ steps: Math.max(0, steps) }),
-  addStep: (n = 1) => set((s) => ({ steps: s.steps + n })),
-  tick: (elapsedS) => set({ elapsedS }),
+  start: async (mode) => {
+    if (get().starting || get().active) return;
+    set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0 });
+    const permissions = await startWalkTracking(mode);
+    const live = getLiveWalk();
+    set({
+      active: true,
+      starting: false,
+      mode,
+      source: live?.source ?? 'pedometer',
+      startedAt: live?.startTime ?? Date.now(),
+      permissions,
+    });
+  },
+
+  refresh: () => {
+    const s = get();
+    if (!s.active || !s.startedAt) return;
+    const live = getLiveWalk();
+    set({
+      steps: live?.steps ?? s.steps,
+      distanceM: live?.distanceM ?? s.distanceM,
+      elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
+    });
+  },
 
   stop: () => {
     const s = get();
     if (!s.active || !s.startedAt) return null;
-    const user = useUserStore.getState().user;
-    const heightCm = user?.heightCm ?? 175;
+
+    // stopWalkTracking is async (tears down the OS service) but we don't need to
+    // block the UI on it; grab the current tally synchronously from the row.
+    const live = getLiveWalk();
+    void stopWalkTracking();
+
     const weightKg = useUserStore.getState().currentWeightKg ?? 75;
-    const distanceM = distanceFromSteps(s.steps, heightCm, s.mode);
+    const steps = live?.steps ?? s.steps;
+    const distanceM = live?.distanceM ?? s.distanceM;
     const durationS = Math.max(1, Math.round((Date.now() - s.startedAt) / 1000));
-    const calories = walkCalories({ weightKg, distanceM, durationSec: durationS, steps: s.steps });
+    const calories = walkCalories({ weightKg, distanceM, durationSec: durationS, steps });
     const avgPace = distanceM > 0 ? durationS / (distanceM / 1000) : null;
 
     saveWalkSession({
       mode: s.mode,
       startTime: s.startedAt,
       endTime: Date.now(),
-      steps: s.steps,
+      steps,
       distanceM,
       durationS,
       caloriesBurned: calories,
@@ -61,8 +109,8 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     });
 
     set({ active: false, startedAt: null });
-    return { steps: s.steps, distanceM, calories, durationS };
+    return { steps, distanceM, calories, durationS };
   },
 
-  reset: () => set({ active: false, startedAt: null, steps: 0, baseSteps: 0, elapsedS: 0 }),
+  reset: () => set({ active: false, startedAt: null, steps: 0, distanceM: 0, elapsedS: 0 }),
 }));

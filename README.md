@@ -2,6 +2,7 @@
 
 > Private coaching, nutrition & health app — local-first, offline, Android-first.
 > Built from [FitCoach-App-Specification.md](FitCoach-App-Specification.md) (v2.0).
+> [APK DOWNLOAD](https://expo.dev/accounts/fedimechergui/projects/fitcoach/builds/ebc43c60-e5d7-4f12-a3e7-e1af515faa34)
 
 FitCoach is a personal fitness companion that combines three pillars in one app:
 

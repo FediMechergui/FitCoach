@@ -33,9 +33,13 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
 
 function ensureColumns(): void {
   for (const { table, column, ddl } of ADDED_COLUMNS) {
-    const cols = sqlite.getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
-    if (!cols.some((c) => c.name === column)) {
-      sqlite.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl};`);
+    try {
+      const cols = sqlite.getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
+      if (!cols.some((c) => c.name === column)) {
+        sqlite.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl};`);
+      }
+    } catch (e) {
+      console.warn(`[db] add column ${table}.${column} failed:`, e);
     }
   }
 }
@@ -395,20 +399,43 @@ let initialized = false;
 export function initDatabase(): void {
   if (initialized) return;
 
-  sqlite.execSync('PRAGMA journal_mode = WAL;');
-  sqlite.execSync('PRAGMA foreign_keys = ON;');
-  sqlite.execSync(DDL);
+  try {
+    sqlite.execSync('PRAGMA journal_mode = WAL;');
+    sqlite.execSync('PRAGMA foreign_keys = ON;');
+  } catch {
+    // pragmas are best-effort
+  }
+
+  // Run each CREATE statement independently so a single failure can't abort the
+  // rest of the schema (which would leave the app unusable / white-screening).
+  for (const stmt of DDL.split(';')) {
+    const sql = stmt.trim();
+    if (!sql) continue;
+    try {
+      sqlite.execSync(sql + ';');
+    } catch (e) {
+      console.warn('[db] statement failed:', sql.slice(0, 60), e);
+    }
+  }
+
   ensureColumns();
 
-  const row = sqlite.getFirstSync<{ user_version: number }>(
-    'PRAGMA user_version;'
-  );
-  const currentVersion = row?.user_version ?? 0;
+  let currentVersion = 0;
+  try {
+    currentVersion = sqlite.getFirstSync<{ user_version: number }>('PRAGMA user_version;')?.user_version ?? 0;
+  } catch {
+    currentVersion = 0;
+  }
 
   if (currentVersion < SCHEMA_VERSION) {
-    // First install (or upgrade) — seed the built-in exercise library.
-    seedExerciseLibrary();
-    sqlite.execSync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+    // First install (or upgrade) — seed the built-in exercise library. Isolated
+    // so a seed hiccup never prevents the app from opening.
+    try {
+      seedExerciseLibrary();
+      sqlite.execSync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+    } catch (e) {
+      console.warn('[db] seed failed (will retry next launch):', e);
+    }
   }
 
   initialized = true;

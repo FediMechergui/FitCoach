@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -173,7 +173,19 @@ export function ProfileScreen() {
         <Divider />
         <LinkRow icon="nav.train" label="Exercise library" onPress={() => navigation.navigate('ExerciseLibrary', { pick: false })} />
         <Divider />
-        <LinkRow icon="core.settings" label="Recalculate targets" onPress={() => useUserStore.getState().recalcTargets()} />
+        <LinkRow
+          icon="core.settings"
+          label="Recalculate targets"
+          onPress={() => {
+            const g = useUserStore.getState().recalcTargets();
+            Alert.alert(
+              g ? 'Targets recalculated ✓' : 'Missing data',
+              g
+                ? `${g.calorieTarget} kcal · P ${g.proteinG}g · C ${g.carbsG}g · F ${g.fatG}g\nWater ${(g.waterGoalMl / 1000).toFixed(1)} L`
+                : 'Log a weigh-in and set your height first, then recalculate.'
+            );
+          }}
+        />
       </Card>
 
       {/* Privacy note */}

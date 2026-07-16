@@ -236,27 +236,24 @@ Sleep and work can be logged as a **from → to** time range (`HH:MM`), which de
 duration in **hours + minutes** (handling overnight spans like 23:30 → 07:00) while
 keeping the quick-entry buttons and quality ratings.
 
-## Background walk & run tracking
+## Walk & run tracking (pedometer-first, no GPS)
 
-Walks and runs keep tracking **with the screen off or the app backgrounded**, and
-permissions are requested in-app (no more digging through system settings):
+Tuned for smoothness and battery — GPS was dropped in favour of the phone's own
+step hardware ([walkTracking.ts](src/services/walkTracking.ts)):
 
 - On **Start**, FitCoach requests the **Physical-activity** (pedometer) and
-  **Location** permissions via `Pedometer.requestPermissionsAsync()` and
-  `Location.request*PermissionsAsync()` ([walkTracking.ts](src/services/walkTracking.ts)).
-- Background tracking uses an **`expo-location` foreground service** — a persistent
-  notification that keeps a TaskManager task alive so distance keeps accumulating
-  from GPS even when the screen is off. Progress is written to a shared `live_walks`
-  row, so the UI re-syncs instantly when you reopen the app and nothing is lost.
-- **Steps** come from the hardware pedometer in the foreground and are back-filled
-  from distance × stride length otherwise, so the count never freezes. Calories and
-  pace are derived from the reconciled distance/steps/time.
-- Choosing **"Allow all the time"** for location enables full screen-off tracking;
-  "While using the app" still counts in the foreground. The Walk screen shows which
-  mode is active.
+  **Notification** permissions in-app — no digging through system settings.
+- **Hardware step counter** (TYPE_STEP_COUNTER) is the primary source: it keeps
+  counting at the OS level with the screen off and the batched total catches up
+  the moment you return. The **accelerometer fallback** runs at 25 Hz (foreground).
+- **No more lag**: steps live in an in-memory counter the UI polls directly; SQLite
+  is only a crash-safe backup flushed every 3 s (the old per-step DB writes are gone).
+- A **sticky notification** pins to the bar for every active session — walk, run
+  **and training** — and is dismissed when you finish or discard. Sessions survive
+  app restarts and reattach with their step base intact.
 
-> Requires a native build (EAS or a dev client). The foreground service and these
-> permissions do **not** work in Expo Go.
+> Requires a native build (EAS or a dev client); runtime permissions don't work in
+> Expo Go.
 
 ## Daily check-in streak
 

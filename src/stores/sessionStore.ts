@@ -18,6 +18,11 @@ import {
   type SetDraft,
 } from '@/repositories/sessionRepo';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
+import { metaFor } from '@/constants/sessionTypes';
+import {
+  dismissOngoingNotification,
+  showOngoingNotification,
+} from '@/services/sessionNotifications';
 import { useUserStore } from './userStore';
 
 interface SessionState {
@@ -75,6 +80,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         startedAt: active.startTime,
         detail: getSessionDetail(active.id),
       });
+      // Re-pin the sticky notification after an app restart.
+      const meta = metaFor(active.sessionType);
+      void showOngoingNotification(
+        'training',
+        `FitCoach — ${active.label ?? meta.label} in progress`,
+        'Session timer is running. Return to FitCoach to log sets and finish.'
+      );
     }
   },
 
@@ -98,6 +110,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       detail: getSessionDetail(id),
       restEndsAt: null,
     });
+
+    // Sticky notification while the session is live.
+    const meta = metaFor(type);
+    void showOngoingNotification(
+      'training',
+      `FitCoach — ${opts?.label ?? meta.label} in progress`,
+      'Session timer is running. Return to FitCoach to log sets and finish.'
+    );
   },
 
   refresh: () => {
@@ -152,6 +172,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const weightKg = useUserStore.getState().currentWeightKg ?? undefined;
     const result = finalizeSession(id, { ...opts, weightKg });
     set({ activeId: null, sessionType: null, startedAt: null, detail: null, restEndsAt: null });
+    void dismissOngoingNotification('training');
     return result;
   },
 
@@ -159,5 +180,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const id = get().activeId;
     if (id) deleteSession(id);
     set({ activeId: null, sessionType: null, startedAt: null, detail: null, restEndsAt: null });
+    void dismissOngoingNotification('training');
   },
 }));

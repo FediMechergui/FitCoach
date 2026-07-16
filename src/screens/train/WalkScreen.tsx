@@ -65,7 +65,7 @@ export function WalkScreen() {
   };
 
   const perms = walk.permissions;
-  const backgroundOn = !!perms?.background;
+  const hardwareSource = walk.source === 'pedometer';
 
   if (summary) {
     return (
@@ -126,18 +126,29 @@ export function WalkScreen() {
         <StatTile icon="nutrition.calories" label="Calories" value={`${calories}`} accent={theme.colors.calories} />
       </Row>
 
-      {/* Background tracking status */}
+      {/* Tracking status */}
       {walk.active && (
-        <Card accent={backgroundOn ? theme.colors.success : theme.colors.warning}>
+        <Card accent={hardwareSource ? theme.colors.success : theme.colors.warning}>
           <Row gap={10} style={{ alignItems: 'flex-start' }}>
-            <Icon icon={backgroundOn ? 'core.check' : 'core.info'} size={18} color={backgroundOn ? theme.colors.success : theme.colors.warning} />
+            <Icon
+              icon={hardwareSource ? 'core.check' : 'core.info'}
+              size={18}
+              color={hardwareSource ? theme.colors.success : theme.colors.warning}
+            />
             <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-              {backgroundOn
-                ? 'Background tracking is on — a notification keeps recording even with the screen off or the app closed.'
-                : 'Tracking is foreground-only. For screen-off tracking, allow location "Always" — FitCoach uses a location-based service notification to keep counting in the background.'}
+              {hardwareSource
+                ? 'Hardware step counter active — steps keep counting with the screen off and catch up the moment you come back. A notification stays in your bar until you finish.'
+                : 'Accelerometer mode — keep the app open and the screen on for accurate counting. A notification stays in your bar until you finish.'}
             </Text>
           </Row>
         </Card>
+      )}
+
+      {perms && !perms.notifications && walk.active && (
+        <Text variant="caption" color="textFaint" center>
+          Notifications are off — enable them for FitCoach to see the session in your
+          notification bar.
+        </Text>
       )}
 
       {!walk.active && perms && !perms.motion && (

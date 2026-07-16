@@ -13,6 +13,7 @@ import { Row, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { ACTIVITY_LABELS, GOAL_LABELS, type ActivityLevel, type Goal } from '@/lib/calories';
+import { BODY_TYPE_BLURB, BODY_TYPE_LABELS, type BodyType } from '@/lib/bodyType';
 import type { Gender } from '@/db/schema';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,6 +38,7 @@ export function EditProfileScreen() {
   const [activity, setActivity] = useState<ActivityLevel>(user?.activityLevel ?? 'moderate');
   const [goal, setGoal] = useState<Goal>(user?.goal ?? 'maintain');
   const [rate, setRate] = useState<'slow' | 'moderate' | 'aggressive'>(user?.rateOfChange ?? 'moderate');
+  const [bodyType, setBodyType] = useState<BodyType | null>(user?.bodyType ?? null);
   const [saving, setSaving] = useState(false);
 
   // Never crash on a missing store — show a recoverable state instead.
@@ -70,6 +72,7 @@ export function EditProfileScreen() {
         activityLevel: activity,
         goal,
         rateOfChange: rate,
+        bodyType,
       });
       const newGoal = recalc();
       Alert.alert(
@@ -149,6 +152,24 @@ export function EditProfileScreen() {
           value={activity}
           onChange={setActivity}
         />
+      </View>
+
+      {/* Body type — user-changeable; biases macro defaults & fat-distribution info */}
+      <View>
+        <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>Body type</Text>
+        <SegmentedControl
+          options={(['ectomorph', 'mesomorph', 'endomorph'] as BodyType[]).map((t) => ({
+            value: t,
+            label: BODY_TYPE_LABELS[t].replace('-leaning', ''),
+          }))}
+          value={(bodyType ?? 'mesomorph') as BodyType}
+          onChange={(t) => setBodyType(t)}
+        />
+        {bodyType && (
+          <Text variant="caption" color="textFaint" style={{ marginTop: 4 }}>
+            {BODY_TYPE_BLURB[bodyType]}
+          </Text>
+        )}
       </View>
 
       {/* Goal — the reason most people open this screen. */}

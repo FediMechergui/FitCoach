@@ -1,5 +1,3 @@
-import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import { Accelerometer, Pedometer } from 'expo-sensors';
 import {
   endLiveWalk,
@@ -9,79 +7,52 @@ import {
 } from '@/repositories/activityRepo';
 import { StepDetector, distanceFromSteps } from '@/lib/pedometer';
 import { useUserStore } from '@/stores/userStore';
+import {
+  dismissOngoingNotification,
+  requestNotificationPermission,
+  showOngoingNotification,
+} from './sessionNotifications';
 
 /**
- * Background-capable walk/run tracking.
+ * Walk/run tracking — pedometer-first, no GPS.
  *
- * The core problem: Expo pauses the JS runtime (and therefore Pedometer /
- * Accelerometer listeners) once the app is backgrounded, so counting stops when
- * the screen turns off. The fix is a **foreground service**: expo-location's
- * `startLocationUpdatesAsync({ foregroundService })` keeps a persistent
- * notification and delivers location updates to a TaskManager task *even when
- * the app is backgrounded or the screen is off*.
- *
- * Distance is accumulated from GPS in that background task (reliable in the
- * background). Steps come from the hardware pedometer while the app is in the
- * foreground and are back-filled from distance × stride length otherwise, so the
- * step count never freezes. Everything is persisted to the `live_walks` row so
- * the UI (which only runs in the foreground) can poll it and nothing is lost.
+ * Design (tuned for smoothness):
+ *  • Steps live in an in-memory counter; the UI polls memory, not the database.
+ *    SQLite is only a crash-safe backup, flushed at most every 3 seconds — the
+ *    per-step DB writes that made the old version laggy are gone.
+ *  • Hardware pedometer (TYPE_STEP_COUNTER) is the primary source. It keeps
+ *    counting at the OS level with the screen off, delivering the batched total
+ *    when the app resumes — so background steps catch up automatically.
+ *  • Accelerometer fallback runs at 25 Hz (was 50) — plenty for a 2–3 Hz step
+ *    cadence at half the CPU. Foreground-only by nature; the UI says so.
+ *  • A sticky notification marks the session as live and is dismissed on stop.
  */
 
-export const WALK_LOCATION_TASK = 'fitcoach-walk-location';
-
-// ── Background location task (runs even when the app is backgrounded) ─────────
-TaskManager.defineTask(WALK_LOCATION_TASK, async ({ data, error }) => {
-  if (error) return;
-  const locations = (data as { locations?: Location.LocationObject[] } | undefined)?.locations;
-  if (!locations || locations.length === 0) return;
-
-  const live = getLiveWalk();
-  if (!live || !live.active) return;
-
-  let distanceM = live.distanceM;
-  let lastLat = live.lastLat;
-  let lastLng = live.lastLng;
-
-  for (const loc of locations) {
-    const { latitude, longitude, accuracy } = loc.coords;
-    // Ignore very inaccurate fixes to avoid GPS jitter inflating distance.
-    if (accuracy != null && accuracy > 30) {
-      lastLat = latitude;
-      lastLng = longitude;
-      continue;
-    }
-    if (lastLat != null && lastLng != null) {
-      const step = haversineMeters(lastLat, lastLng, latitude, longitude);
-      // Reject tiny jitter and impossible jumps.
-      if (step >= 1 && step < 200) distanceM += step;
-    }
-    lastLat = latitude;
-    lastLng = longitude;
-  }
-
-  // Back-fill steps from distance if the pedometer hasn't updated in background.
-  const heightCm = 175; // background context has no store; a fair default
-  const impliedSteps = distanceFromSteps(1, heightCm, live.mode) > 0
-    ? Math.round(distanceM / distanceFromSteps(1, heightCm, live.mode))
-    : live.steps;
-  const steps = Math.max(live.steps, impliedSteps);
-
-  patchLiveWalk({ distanceM: Math.round(distanceM), lastLat, lastLng, steps });
-});
-
-// ── Foreground pedometer / accelerometer subscription ────────────────────────
 type Sub = { remove: () => void };
 let pedoSub: Sub | null = null;
 let accelSub: Sub | null = null;
 let detector: StepDetector | null = null;
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+
+type Source = 'pedometer' | 'accelerometer' | 'gps';
+
+/** In-memory live session — the single source of truth while tracking. */
+const mem = {
+  active: false,
+  mode: 'walk' as 'walk' | 'run',
+  source: 'pedometer' as Source,
+  startTime: 0,
+  /** steps carried over from before a process restart (resume) */
+  baseSteps: 0,
+  steps: 0,
+  dirty: false,
+};
 
 export interface WalkPermissions {
-  motion: boolean; // pedometer / activity recognition
-  location: boolean; // foreground
-  background: boolean; // background location (enables screen-off tracking)
+  motion: boolean;
+  notifications: boolean;
 }
 
-/** Request every permission a fully-backgrounded walk needs. */
 export async function requestWalkPermissions(): Promise<WalkPermissions> {
   let motion = false;
   try {
@@ -90,24 +61,8 @@ export async function requestWalkPermissions(): Promise<WalkPermissions> {
   } catch {
     motion = false;
   }
-
-  let location = false;
-  let background = false;
-  try {
-    const fg = await Location.requestForegroundPermissionsAsync();
-    location = fg.granted;
-    if (location) {
-      // Background permission is what lets the foreground service keep tracking
-      // with the screen off. Requesting it is best-effort — the OS may require
-      // the user to pick "Allow all the time" in settings.
-      const bg = await Location.requestBackgroundPermissionsAsync();
-      background = bg.granted;
-    }
-  } catch {
-    // location unavailable — foreground-only pedometer tracking still works
-  }
-
-  return { motion, location, background };
+  const notifications = await requestNotificationPermission();
+  return { motion, notifications };
 }
 
 async function isPedometerAvailable(): Promise<boolean> {
@@ -118,63 +73,111 @@ async function isPedometerAvailable(): Promise<boolean> {
   }
 }
 
-/**
- * Start tracking. Requests permissions, starts the foreground-service location
- * updates (if permitted) and the pedometer/accelerometer step source.
- */
-export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
-  const perms = await requestWalkPermissions();
-  const hardware = perms.motion && (await isPedometerAvailable());
-  const source: 'pedometer' | 'accelerometer' | 'gps' = hardware
-    ? 'pedometer'
-    : perms.location
-      ? 'gps'
-      : 'accelerometer';
+/** Current live numbers — memory first (fresh), DB as fallback after restarts. */
+export function getLiveSnapshot(): { active: boolean; mode: 'walk' | 'run'; source: Source; startTime: number; steps: number } | null {
+  if (mem.active) {
+    return { active: true, mode: mem.mode, source: mem.source, startTime: mem.startTime, steps: mem.baseSteps + mem.steps };
+  }
+  const row = getLiveWalk();
+  if (row?.active && row.startTime) {
+    return { active: true, mode: row.mode, source: row.source, startTime: row.startTime, steps: row.steps };
+  }
+  return null;
+}
 
-  startLiveWalk({ mode, source });
-
-  // Step source (foreground).
+function attachSensors(hardware: boolean): void {
   if (hardware) {
+    // watchStepCount reports cumulative steps since subscription — batched by
+    // the hardware even while the CPU sleeps, so it catches up on resume.
     pedoSub = Pedometer.watchStepCount((result) => {
-      const live = getLiveWalk();
-      if (live?.active) patchLiveWalk({ steps: result.steps });
+      mem.steps = result.steps;
+      mem.dirty = true;
     });
   } else {
     detector = new StepDetector();
-    Accelerometer.setUpdateInterval(20);
+    Accelerometer.setUpdateInterval(40); // 25 Hz
     accelSub = Accelerometer.addListener(({ x, y, z }) => {
-      if (detector?.onSample(x, y, z, Date.now())) {
-        const live = getLiveWalk();
-        if (live?.active) patchLiveWalk({ steps: live.steps + 1 });
+      if (detector!.onSample(x, y, z, Date.now())) {
+        mem.steps += 1;
+        mem.dirty = true;
       }
     });
   }
 
-  // Background distance via the foreground-service location task.
-  if (perms.location) {
-    try {
-      const already = await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK).catch(() => false);
-      if (already) await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK).catch(() => {});
-      await Location.startLocationUpdatesAsync(WALK_LOCATION_TASK, {
-        accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: 2000,
-        distanceInterval: 5,
-        pausesUpdatesAutomatically: false,
-        activityType: Location.ActivityType.Fitness,
-        showsBackgroundLocationIndicator: true,
-        foregroundService: {
-          notificationTitle: `FitCoach — tracking your ${mode}`,
-          notificationBody: 'Steps and distance are being recorded, even with the screen off.',
-          notificationColor: '#4F8CFF',
-          killServiceOnDestroy: false,
-        },
-      });
-    } catch {
-      // If the foreground service can't start, foreground-only tracking remains.
+  // Crash-safe backup: persist at most every 3 s, and only when changed.
+  flushTimer = setInterval(() => {
+    if (mem.dirty && mem.active) {
+      patchLiveWalk({ steps: mem.baseSteps + mem.steps });
+      mem.dirty = false;
     }
+  }, 3000);
+}
+
+function detachSensors(): void {
+  pedoSub?.remove();
+  pedoSub = null;
+  accelSub?.remove();
+  accelSub = null;
+  detector = null;
+  if (flushTimer) {
+    clearInterval(flushTimer);
+    flushTimer = null;
   }
+}
+
+export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
+  const perms = await requestWalkPermissions();
+  const hardware = perms.motion && (await isPedometerAvailable());
+  const source: Source = hardware ? 'pedometer' : 'accelerometer';
+
+  startLiveWalk({ mode, source });
+  mem.active = true;
+  mem.mode = mode;
+  mem.source = source;
+  mem.startTime = Date.now();
+  mem.baseSteps = 0;
+  mem.steps = 0;
+  mem.dirty = false;
+
+  attachSensors(hardware);
+
+  void showOngoingNotification(
+    'walk',
+    `FitCoach — ${mode === 'run' ? 'run' : 'walk'} in progress`,
+    hardware
+      ? 'Steps keep counting, even with the screen off. Return to finish.'
+      : 'Counting with the accelerometer — keep the app open for accuracy.'
+  );
 
   return perms;
+}
+
+/**
+ * Reconnect to a live walk after the app was killed/restarted mid-session.
+ * The DB row carries the steps so far; the hardware counter resumes from a new
+ * subscription, so its readings are added on top of the persisted base.
+ */
+export async function resumeWalkTracking(): Promise<void> {
+  if (mem.active) return; // already attached in this process
+  const row = getLiveWalk();
+  if (!row?.active || !row.startTime) return;
+
+  const hardware = row.source === 'pedometer' && (await isPedometerAvailable());
+  mem.active = true;
+  mem.mode = row.mode;
+  mem.source = row.source;
+  mem.startTime = row.startTime;
+  mem.baseSteps = row.steps;
+  mem.steps = 0;
+  mem.dirty = false;
+
+  attachSensors(hardware);
+
+  void showOngoingNotification(
+    'walk',
+    `FitCoach — ${row.mode === 'run' ? 'run' : 'walk'} in progress`,
+    'Session resumed — return to FitCoach to finish.'
+  );
 }
 
 export interface WalkResult {
@@ -183,67 +186,37 @@ export interface WalkResult {
   distanceM: number;
   durationS: number;
   startTime: number;
-  source: 'pedometer' | 'accelerometer' | 'gps';
+  source: Source;
 }
 
 /** Stop tracking and return the final tally (does not persist a WalkSession). */
-export async function stopWalkTracking(): Promise<WalkResult | null> {
-  const live = getLiveWalk();
-
-  // Tear down the step source.
-  pedoSub?.remove();
-  pedoSub = null;
-  accelSub?.remove();
-  accelSub = null;
-  detector = null;
-
-  // Stop the foreground service.
-  try {
-    const started = await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK).catch(() => false);
-    if (started) await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
-  } catch {
-    // ignore
-  }
-
+export function stopWalkTracking(): WalkResult | null {
+  const snapshot = getLiveSnapshot();
+  detachSensors();
   endLiveWalk();
-  if (!live || !live.startTime) return null;
+  void dismissOngoingNotification('walk');
+  mem.active = false;
 
-  // Reconcile steps with distance one last time (covers deep-background gaps).
+  if (!snapshot) return null;
+
   const heightCm = useUserStore.getState().user?.heightCm ?? 175;
-  const strideM = distanceFromSteps(1, heightCm, live.mode) || 0.75;
-  const steps = Math.max(live.steps, live.distanceM > 0 ? Math.round(live.distanceM / strideM) : live.steps);
-  const distanceM = live.distanceM > 0 ? live.distanceM : distanceFromSteps(live.steps, heightCm, live.mode);
+  const steps = snapshot.steps;
+  const distanceM = distanceFromSteps(steps, heightCm, snapshot.mode);
 
   return {
-    mode: live.mode,
+    mode: snapshot.mode,
     steps,
     distanceM: Math.round(distanceM),
-    durationS: Math.max(1, Math.round((Date.now() - live.startTime) / 1000)),
-    startTime: live.startTime,
-    source: live.source,
+    durationS: Math.max(1, Math.round((Date.now() - snapshot.startTime) / 1000)),
+    startTime: snapshot.startTime,
+    source: snapshot.source,
   };
 }
 
-/** On app launch, stop any orphaned foreground service from a crash/kill. */
+/** Startup hygiene: clear a stale notification if no session survived a crash. */
 export async function cleanupOrphanWalk(): Promise<void> {
   const live = getLiveWalk();
-  if (live?.active) return; // a real session may be resuming
-  try {
-    const started = await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK).catch(() => false);
-    if (started) await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
-  } catch {
-    // ignore
+  if (!live?.active) {
+    await dismissOngoingNotification('walk');
   }
-}
-
-// Haversine great-circle distance in metres.
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }

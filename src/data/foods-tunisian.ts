@@ -120,6 +120,57 @@ export const TUNISIAN_FOODS: FoodItem[] = [
   F('tn-rice-white', 'White Rice (cooked)', '158 g (1 cup)', 205, 4.3, 45, 0.4, 0.6, 'Grain'),
   F('tn-bulgur', 'Bulgur (cooked)', '182 g (1 cup)', 151, 5.6, 34, 0.4, 8, 'Grain'),
 
+  // ── Chocolate — all common variations ─────────────────────────────────────
+  F('ch-dark-85', 'Dark Chocolate (70–85%)', '30 g (3 squares)', 170, 2.3, 13.7, 12.8, 3.3, 'Chocolate'),
+  F('ch-dark-60', 'Dark Chocolate (50–69%)', '30 g (3 squares)', 164, 1.9, 18, 9.5, 2, 'Chocolate'),
+  F('ch-milk', 'Milk Chocolate', '30 g (3 squares)', 160, 2.3, 17.8, 8.9, 1, 'Chocolate'),
+  F('ch-white', 'White Chocolate', '30 g (3 squares)', 162, 1.8, 17.7, 9.6, 0, 'Chocolate'),
+  F('ch-bar-nuts', 'Chocolate Bar with Nuts', '1 bar (45 g)', 240, 4, 25, 14, 2, 'Chocolate'),
+  F('ch-spread', 'Chocolate-Hazelnut Spread (Nutella-style)', '1 tbsp (20 g)', 107, 1.2, 11.5, 6.3, 1, 'Chocolate'),
+  F('ch-cocoa', 'Cocoa Powder (unsweetened)', '1 tbsp (5 g)', 12, 1, 3, 0.7, 1.8, 'Chocolate'),
+  F('ch-hot-chocolate', 'Hot Chocolate (with milk)', '250 ml cup', 190, 8, 27, 6, 1, 'Chocolate'),
+  F('ch-chocolate-croissant', 'Pain au Chocolat', '1 piece (65 g)', 270, 5, 30, 15, 1.5, 'Chocolate'),
+
+  // ── Juices & fresh drinks ─────────────────────────────────────────────────
+  F('ju-orange', 'Orange Juice (fresh)', '250 ml glass', 112, 1.7, 26, 0.5, 0.5, 'Juice'),
+  F('ju-apple', 'Apple Juice', '250 ml glass', 114, 0.2, 28, 0.3, 0.2, 'Juice'),
+  F('ju-grape', 'Grape Juice', '250 ml glass', 152, 1, 37, 0.3, 0.2, 'Juice'),
+  F('ju-pomegranate', 'Pomegranate Juice', '250 ml glass', 134, 0.4, 33, 0.7, 0.2, 'Juice'),
+  F('ju-citronnade', 'Citronnade (Tunisian lemonade)', '250 ml glass', 105, 0.2, 27, 0, 0.2, 'Juice'),
+  F('ju-strawberry', 'Strawberry Juice', '250 ml glass', 95, 1, 23, 0.3, 0.8, 'Juice'),
+  F('ju-mango', 'Mango Juice / Nectar', '250 ml glass', 128, 0.3, 33, 0.3, 0.5, 'Juice'),
+  F('ju-peach', 'Peach Nectar', '250 ml glass', 134, 0.5, 34, 0, 0.5, 'Juice'),
+  F('ju-carrot', 'Carrot Juice', '250 ml glass', 94, 2.2, 22, 0.4, 1.9, 'Juice'),
+  F('ju-multifruit', 'Multifruit Juice', '250 ml glass', 120, 0.5, 29, 0.3, 0.3, 'Juice'),
+  F('ju-banana-milk', 'Banana Milkshake (fresh)', '300 ml glass', 180, 6, 33, 3, 1.5, 'Juice'),
+  F('ju-almond-drink', 'Almond Drink (sweetened)', '250 ml glass', 130, 2, 22, 4, 0.8, 'Juice'),
+
+  // ── Seeds & traditional boosters ──────────────────────────────────────────
+  F('sd-pumpkin', 'Pumpkin Seeds (graines de courge)', '28 g handful', 151, 7, 5, 13, 1.7, 'Seeds'),
+  F('sd-chia', 'Chia Seeds (graines de chia)', '28 g (2 tbsp)', 138, 4.7, 12, 8.7, 9.8, 'Seeds'),
+  F('sd-helba', 'Helba (fenugreek seeds)', '1 tbsp (11 g)', 36, 2.5, 6.5, 0.7, 2.7, 'Seeds'),
+  F('sd-flax', 'Flax Seeds (graines de lin)', '1 tbsp (10 g)', 53, 1.8, 2.9, 4.2, 2.7, 'Seeds'),
+  F('sd-sunflower', 'Sunflower Seeds', '28 g handful', 165, 5.5, 6.8, 14, 3, 'Seeds'),
+
+  // ── Fast food — well known, honestly counted ──────────────────────────────
+  F('ff-big-mac', 'Big Mac', '1 burger (219 g)', 550, 25, 45, 30, 3, 'Fast food'),
+  F('ff-cheeseburger', 'Cheeseburger (standard)', '1 burger (115 g)', 300, 15, 33, 13, 1, 'Fast food'),
+  F('ff-fries-medium', 'French Fries (medium)', '117 g', 340, 4, 44, 16, 4, 'Fast food'),
+  F('ff-nuggets', 'Chicken Nuggets', '6 pieces (96 g)', 270, 14, 16, 17, 1, 'Fast food'),
+  F('ff-pizza-slice', 'Pizza (1 slice, Margherita)', '1 slice (107 g)', 250, 11, 31, 9, 2, 'Fast food'),
+  F('ff-tacos-fr', 'Tacos (French-Tunisian, medium)', '1 tacos (~400 g)', 800, 30, 70, 45, 4, 'Fast food'),
+  F('ff-kebab', 'Kebab Sandwich', '1 sandwich (300 g)', 550, 27, 45, 28, 3, 'Fast food'),
+  F('ff-shawarma', 'Shawarma / Chawarma', '1 wrap (250 g)', 500, 25, 45, 25, 3, 'Fast food'),
+  F('ff-chapati', 'Chapati Tunisien (fast food)', '1 chapati (250 g)', 450, 18, 50, 20, 3, 'Fast food'),
+  F('ff-makloub', 'Makloub', '1 makloub (300 g)', 600, 25, 55, 30, 3, 'Fast food'),
+  F('ff-baguette-farcie', 'Baguette Farcie', '1 piece (350 g)', 650, 22, 70, 30, 4, 'Fast food'),
+  F('ff-libanais', 'Libanais (sandwich)', '1 sandwich (280 g)', 480, 20, 50, 22, 3, 'Fast food'),
+  F('ff-panini', 'Panini (cheese & meat)', '1 panini (220 g)', 450, 18, 45, 22, 2, 'Fast food'),
+  F('ff-hot-dog', 'Hot Dog', '1 piece (100 g)', 290, 10, 24, 17, 1, 'Fast food'),
+  F('ff-fried-chicken', 'Fried Chicken (1 piece, breaded)', '1 piece (135 g)', 320, 19, 11, 22, 0.5, 'Fast food'),
+  F('ff-ice-cream', 'Ice Cream (1 scoop)', '1 scoop (66 g)', 137, 2, 16, 7, 0.5, 'Fast food'),
+  F('ff-milkshake', 'Milkshake (fast-food)', '400 ml', 530, 11, 86, 15, 1, 'Fast food'),
+
   // ── Nuts & seeds ──────────────────────────────────────────────────────────
   F('tn-peanuts', 'Peanuts', '28 g', 160, 7, 4.6, 14, 2.4, 'Nuts'),
   F('tn-almonds', 'Almonds', '28 g', 170, 6, 6, 15, 3.5, 'Nuts'),

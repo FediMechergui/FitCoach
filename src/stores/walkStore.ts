@@ -1,10 +1,13 @@
 import { create } from 'zustand';
-import { getLiveWalk, saveWalkSession } from '@/repositories/activityRepo';
+import { saveWalkSession } from '@/repositories/activityRepo';
 import {
+  getLiveSnapshot,
+  resumeWalkTracking,
   startWalkTracking,
   stopWalkTracking,
   type WalkPermissions,
 } from '@/services/walkTracking';
+import { distanceFromSteps } from '@/lib/pedometer';
 import { walkCalories } from '@/lib/met';
 import { useUserStore } from './userStore';
 
@@ -19,13 +22,17 @@ interface WalkState {
   permissions: WalkPermissions | null;
   starting: boolean;
 
-  /** Restore an in-progress walk after the app was backgrounded/reopened. */
+  /** Reattach to a walk that survived a background/app restart. */
   resume: () => void;
   start: (mode: 'walk' | 'run') => Promise<void>;
-  /** Pull the latest steps/distance/elapsed from the shared live-walk row. */
+  /** Pull the latest numbers from the in-memory tracker (cheap; no DB read). */
   refresh: () => void;
   stop: () => { steps: number; distanceM: number; calories: number; durationS: number } | null;
   reset: () => void;
+}
+
+function heightCm(): number {
+  return useUserStore.getState().user?.heightCm ?? 175;
 }
 
 export const useWalkStore = create<WalkState>((set, get) => ({
@@ -40,16 +47,17 @@ export const useWalkStore = create<WalkState>((set, get) => ({
   starting: false,
 
   resume: () => {
-    const live = getLiveWalk();
-    if (live?.active && live.startTime) {
+    const snap = getLiveSnapshot();
+    if (snap?.active) {
+      void resumeWalkTracking();
       set({
         active: true,
-        mode: live.mode,
-        source: live.source,
-        startedAt: live.startTime,
-        steps: live.steps,
-        distanceM: live.distanceM,
-        elapsedS: Math.round((Date.now() - live.startTime) / 1000),
+        mode: snap.mode,
+        source: snap.source,
+        startedAt: snap.startTime,
+        steps: snap.steps,
+        distanceM: distanceFromSteps(snap.steps, heightCm(), snap.mode),
+        elapsedS: Math.round((Date.now() - snap.startTime) / 1000),
       });
     }
   },
@@ -58,13 +66,13 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     if (get().starting || get().active) return;
     set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0 });
     const permissions = await startWalkTracking(mode);
-    const live = getLiveWalk();
+    const snap = getLiveSnapshot();
     set({
       active: true,
       starting: false,
       mode,
-      source: live?.source ?? 'pedometer',
-      startedAt: live?.startTime ?? Date.now(),
+      source: snap?.source ?? 'pedometer',
+      startedAt: snap?.startTime ?? Date.now(),
       permissions,
     });
   },
@@ -72,10 +80,11 @@ export const useWalkStore = create<WalkState>((set, get) => ({
   refresh: () => {
     const s = get();
     if (!s.active || !s.startedAt) return;
-    const live = getLiveWalk();
+    const snap = getLiveSnapshot();
+    const steps = snap?.steps ?? s.steps;
     set({
-      steps: live?.steps ?? s.steps,
-      distanceM: live?.distanceM ?? s.distanceM,
+      steps,
+      distanceM: distanceFromSteps(steps, heightCm(), s.mode),
       elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
     });
   },
@@ -84,32 +93,32 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     const s = get();
     if (!s.active || !s.startedAt) return null;
 
-    // stopWalkTracking is async (tears down the OS service) but we don't need to
-    // block the UI on it; grab the current tally synchronously from the row.
-    const live = getLiveWalk();
-    void stopWalkTracking();
+    const result = stopWalkTracking();
+    set({ active: false, startedAt: null });
+    if (!result) return null;
 
     const weightKg = useUserStore.getState().currentWeightKg ?? 75;
-    const steps = live?.steps ?? s.steps;
-    const distanceM = live?.distanceM ?? s.distanceM;
-    const durationS = Math.max(1, Math.round((Date.now() - s.startedAt) / 1000));
-    const calories = walkCalories({ weightKg, distanceM, durationSec: durationS, steps });
-    const avgPace = distanceM > 0 ? durationS / (distanceM / 1000) : null;
+    const calories = walkCalories({
+      weightKg,
+      distanceM: result.distanceM,
+      durationSec: result.durationS,
+      steps: result.steps,
+    });
+    const avgPace = result.distanceM > 0 ? result.durationS / (result.distanceM / 1000) : null;
 
     saveWalkSession({
-      mode: s.mode,
-      startTime: s.startedAt,
+      mode: result.mode,
+      startTime: result.startTime,
       endTime: Date.now(),
-      steps,
-      distanceM,
-      durationS,
+      steps: result.steps,
+      distanceM: result.distanceM,
+      durationS: result.durationS,
       caloriesBurned: calories,
       avgPace,
-      source: s.source,
+      source: result.source,
     });
 
-    set({ active: false, startedAt: null });
-    return { steps, distanceM, calories, durationS };
+    return { steps: result.steps, distanceM: result.distanceM, calories, durationS: result.durationS };
   },
 
   reset: () => set({ active: false, startedAt: null, steps: 0, distanceM: 0, elapsedS: 0 }),

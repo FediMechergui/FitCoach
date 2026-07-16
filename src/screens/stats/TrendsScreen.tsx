@@ -9,7 +9,14 @@ import { Icon } from '@/components/ui/Icon';
 import { LineChart } from '@/components/charts/LineChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader } from '@/components/ui/misc';
-import { trendsData, type TrendsData, type WeekPoint } from '@/repositories/trendsRepo';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Pressable } from 'react-native';
+import {
+  trendsData,
+  type Granularity,
+  type TrendsData,
+  type WeekPoint,
+} from '@/repositories/trendsRepo';
 import { BODY_TYPE_LABELS } from '@/lib/bodyType';
 
 /**
@@ -19,30 +26,74 @@ import { BODY_TYPE_LABELS } from '@/lib/bodyType';
  */
 export function TrendsScreen() {
   const theme = useTheme();
+  const [granularity, setGranularity] = useState<Granularity>('weekly');
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<TrendsData | null>(null);
+
+  const reload = useCallback(
+    (g: Granularity, p: number) => setData(trendsData({ granularity: g, page: p })),
+    []
+  );
 
   useFocusEffect(
     useCallback(() => {
-      setData(trendsData());
-    }, [])
+      reload(granularity, page);
+    }, [reload, granularity, page])
   );
 
   if (!data) return <Screen><Text>Loading…</Text></Screen>;
 
   const has = (pts: WeekPoint[]) => pts.some((p) => p.samples > 0);
   const line = (pts: WeekPoint[]) => pts.map((p, i) => ({ x: i, y: p.value, label: p.label }));
-  const bars = (pts: WeekPoint[]) => pts.map((p) => ({ label: p.label.replace('w', ''), value: p.value }));
+  // Bar labels: day-of-month for daily, week-start day/month for weekly.
+  const bars = (pts: WeekPoint[]) =>
+    pts.map((p) => ({ label: granularity === 'daily' ? p.label.slice(0, 2) : p.label, value: p.value }));
+  const per = granularity === 'daily' ? 'day' : 'week';
 
   return (
     <Screen>
       <Row gap={12} style={{ alignItems: 'center' }}>
         <Icon icon="stats.progression" size={28} color={theme.colors.primary} />
-        <Text variant="h1">Trends — 12 weeks</Text>
+        <Text variant="h1">Trends</Text>
       </Row>
+
+      {/* Granularity + time navigation */}
+      <SegmentedControl
+        options={[
+          { value: 'daily', label: 'Daily (14 days)' },
+          { value: 'weekly', label: 'Weekly (12 weeks)' },
+        ]}
+        value={granularity}
+        onChange={(g) => {
+          setGranularity(g);
+          setPage(0);
+        }}
+      />
+      <Card>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Pressable onPress={() => setPage(page + 1)} hitSlop={10} style={{ padding: 4 }}>
+            <Icon icon="core.back" size={22} color={theme.colors.primary} />
+          </Pressable>
+          <View style={{ alignItems: 'center' }}>
+            <Text variant="bodyStrong">{data.rangeLabel}</Text>
+            <Text variant="caption" color="textFaint">
+              {page === 0 ? 'latest' : `${page} window${page === 1 ? '' : 's'} back`} · per {per}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setPage(Math.max(0, page - 1))}
+            hitSlop={10}
+            style={{ padding: 4, opacity: page === 0 ? 0.3 : 1 }}
+            disabled={page === 0}
+          >
+            <Icon icon="core.forward" size={22} color={theme.colors.primary} />
+          </Pressable>
+        </Row>
+      </Card>
 
       {/* Body */}
       {has(data.weight) && (
-        <ChartCard title="Body weight (kg, weekly avg)" color={theme.colors.info}>
+        <ChartCard title={`Body weight (kg, avg per ${per})`} color={theme.colors.info}>
           <LineChart data={line(data.weight)} color={theme.colors.info} yFormat={(v) => v.toFixed(0)} />
         </ChartCard>
       )}
@@ -68,7 +119,7 @@ export function TrendsScreen() {
           <Mini label="Hip" value={data.latestHip != null ? `${data.latestHip} cm` : '—'} />
           <Mini label="WHR" value={data.whr != null ? `${data.whr}` : '—'} />
           <Mini
-            label="Waist 12w"
+            label="Waist Δ (window)"
             value={data.waistChange12w != null ? `${data.waistChange12w > 0 ? '+' : ''}${data.waistChange12w} cm` : '—'}
           />
         </Row>
@@ -107,12 +158,12 @@ export function TrendsScreen() {
       {/* Training */}
       <SectionHeader title="Training" />
       {has(data.volume) && (
-        <ChartCard title="Lifting volume (kg/week)" color={theme.colors.primary}>
+        <ChartCard title={`Lifting volume (kg / ${per})`} color={theme.colors.primary}>
           <BarChart data={bars(data.volume)} color={theme.colors.primary} valueFormat={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${Math.round(v)}`)} />
         </ChartCard>
       )}
       {has(data.activeMinutes) && (
-        <ChartCard title="Active minutes / week" color={theme.colors.accent}>
+        <ChartCard title={`Active minutes / ${per}`} color={theme.colors.accent}>
           <BarChart data={bars(data.activeMinutes)} color={theme.colors.accent} valueFormat={(v) => `${Math.round(v)}`} />
         </ChartCard>
       )}
@@ -135,7 +186,7 @@ export function TrendsScreen() {
         </ChartCard>
       )}
       {has(data.workHours) && (
-        <ChartCard title="Work hours / week" color={theme.colors.info}>
+        <ChartCard title={`Work hours / ${per}`} color={theme.colors.info}>
           <BarChart data={bars(data.workHours)} color={theme.colors.info} valueFormat={(v) => `${Math.round(v)}h`} />
         </ChartCard>
       )}
@@ -143,17 +194,17 @@ export function TrendsScreen() {
       {/* Habits impact */}
       <SectionHeader title="Habits impact" />
       {has(data.alcohol) && (
-        <ChartCard title="Alcohol (g/week)" color={theme.colors.warning}>
+        <ChartCard title={`Alcohol (g / ${per})`} color={theme.colors.warning}>
           <BarChart data={bars(data.alcohol)} color={theme.colors.warning} valueFormat={(v) => `${Math.round(v)}`} />
         </ChartCard>
       )}
       {has(data.cigarettes) && (
-        <ChartCard title="Cigarettes / week" color={theme.colors.warning}>
+        <ChartCard title={`Cigarettes / ${per}`} color={theme.colors.warning}>
           <BarChart data={bars(data.cigarettes)} color={theme.colors.warning} valueFormat={(v) => `${Math.round(v)}`} />
         </ChartCard>
       )}
       {has(data.habitMinutes) && (
-        <ChartCard title="Tracked-habit minutes / week" color={theme.colors.calisthenics}>
+        <ChartCard title={`Tracked-habit minutes / ${per}`} color={theme.colors.calisthenics}>
           <BarChart data={bars(data.habitMinutes)} color={theme.colors.calisthenics} valueFormat={(v) => `${Math.round(v)}`} />
         </ChartCard>
       )}

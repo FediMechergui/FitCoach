@@ -23,6 +23,8 @@ export interface SeedExercise {
   sessionType: SessionType;
   muscleGroups: string[];
   primaryMuscle?: string;
+  /** finer target within the muscle group (lats, traps, front_delt, …) */
+  subMuscle?: string;
   equipmentType?: EquipmentType;
   equipment?: string;
   pattern?: MovementPattern;
@@ -33,6 +35,38 @@ export interface SeedExercise {
   icon: string;
   met?: number;
 }
+
+/** Human labels for sub-muscles (v2 reference: every muscle individually). */
+export const SUB_MUSCLE_LABELS: Record<string, string> = {
+  lats: 'Lats (width)',
+  traps: 'Traps',
+  mid_back: 'Mid-Back / Rhomboids',
+  lower_back: 'Lower Back',
+  front_delt: 'Front Delt',
+  side_delt: 'Side Delt',
+  rear_delt: 'Rear Delt',
+  upper_abs: 'Upper Abs',
+  lower_abs: 'Lower Abs',
+  obliques: 'Obliques',
+};
+
+/**
+ * Mandatory warm-up before working sets, per muscle group (v2 reference).
+ * Shown as a checklist at the top of every strength/calisthenics session.
+ */
+export const WARMUPS_BY_MUSCLE: Record<string, string> = {
+  chest: 'Arm circles ×15, then 1 light set of push-ups or band presses',
+  back: 'Scapular pull-ups or band pull-aparts ×15',
+  shoulders: 'Arm circles ×15 + band pull-aparts ×15 (front/side/rear)',
+  biceps: 'Light band curls ×15',
+  triceps: 'Bench dips ×10 or light overhead triceps stretch',
+  quads: 'Bodyweight squats ×15 + leg swings',
+  hamstrings: 'Leg swings + 1 light RDL set (bar only)',
+  glutes: 'Bodyweight glute bridges ×15–20',
+  calves: 'Ankle circles + bodyweight calf raises ×20',
+  core: 'Cat-camel ×10 + pelvic tilts ×15',
+  forearms: 'Wrist circles + light grip squeezes ×20',
+};
 
 /** Generic form cues shown when an exercise has no bespoke instructions. */
 export const PATTERN_CUES: Record<MovementPattern, string[]> = {
@@ -120,7 +154,7 @@ export const PATTERN_CUES: Record<MovementPattern, string[]> = {
 
 // Compact builder to keep this large table readable.
 type Opts = Partial<
-  Pick<SeedExercise, 'equipment' | 'description' | 'instructions' | 'trackingType' | 'met' | 'sessionType'>
+  Pick<SeedExercise, 'equipment' | 'description' | 'instructions' | 'trackingType' | 'met' | 'sessionType' | 'subMuscle'>
 >;
 function S(
   slug: string,
@@ -140,6 +174,7 @@ function S(
     sessionType: opts.sessionType ?? (isBodyweight ? 'calisthenics' : 'strength'),
     muscleGroups,
     primaryMuscle,
+    subMuscle: opts.subMuscle,
     equipmentType,
     equipment: opts.equipment ?? equipmentType,
     pattern,
@@ -871,6 +906,135 @@ export const EXERCISE_LIBRARY: SeedExercise[] = [
     equipment: 'pull-up bar', trackingType: 'duration', met: 4,
   }),
 
+  // ══════════════════════════ TRAPS (v2) ══════════════════════════
+  S('barbell-shrug', 'Barbell Shrug', 'back', 'barbell', 'carry', ['traps'], BB, {
+    subMuscle: 'traps',
+    description: 'The trap builder — heavy weight, small range.',
+    instructions: [
+      'Hold the bar at arm\'s length in front of your thighs.',
+      'Shrug your shoulders STRAIGHT UP toward your ears — don\'t roll them.',
+      'Pause at the top, lower slowly. Keep your arms straight the whole set.',
+    ],
+  }),
+  S('behind-back-shrug', 'Behind-the-Back Shrug', 'back', 'barbell', 'carry', ['traps'], BB, { subMuscle: 'traps' }),
+  S('barbell-high-pull', 'Barbell High Pull', 'back', 'barbell', 'vertical_pull', ['traps', 'shoulders'], BB, {
+    subMuscle: 'traps', description: 'Explosive pull to chest height — traps and upper back power.',
+  }),
+  S('db-shrug', 'Dumbbell Shrug', 'back', 'dumbbell', 'carry', ['traps'], DB_, { subMuscle: 'traps' }),
+  S('farmers-carry-shrug', "Farmer's-Carry Shrug", 'back', 'dumbbell', 'carry', ['traps', 'forearms'], DB_, {
+    subMuscle: 'traps', trackingType: 'duration',
+  }),
+  S('cable-shrug', 'Cable Shrug', 'back', 'cable', 'carry', ['traps'], CB, { subMuscle: 'traps' }),
+  S('smith-shrug', 'Smith Machine Shrug', 'back', 'machine', 'carry', ['traps'], MC, { subMuscle: 'traps' }),
+
+  // ══════════════════════════ LOWER BACK (v2) ══════════════════════════
+  S('db-good-morning', 'Dumbbell Good Morning', 'hamstrings', 'dumbbell', 'hinge',
+    ['hamstrings', 'lower back', 'glutes'], DB_, { subMuscle: 'lower_back' }),
+  S('back-extension', 'Back Extension (45° / Roman Chair)', 'back', 'machine', 'hinge',
+    ['lower back', 'glutes', 'hamstrings'], MC, {
+    subMuscle: 'lower_back',
+    description: 'The safest way to build lower-back endurance.',
+    instructions: [
+      'Set the pad at your hip crease so you can hinge freely.',
+      'Lower under control, then raise your torso until your body is straight.',
+      'Squeeze your glutes at the top — don\'t hyperextend past neutral.',
+    ],
+  }),
+  S('cable-good-morning', 'Cable Good Morning', 'back', 'cable', 'hinge', ['lower back', 'hamstrings'], CB, {
+    subMuscle: 'lower_back',
+  }),
+  S('hyperextension-bw', 'Bodyweight Hyperextension', 'back', 'bodyweight', 'hinge',
+    ['lower back', 'glutes'], BW, { subMuscle: 'lower_back', trackingType: 'reps_only', met: 3 }),
+  S('bird-dog', 'Bird-Dog', 'core', 'bodyweight', 'core', ['core', 'lower back'], BW, {
+    subMuscle: 'lower_back', trackingType: 'reps_only', met: 3,
+    description: 'Opposite arm/leg reach from all fours — spine-safe stability.',
+  }),
+  S('stiff-leg-deadlift', 'Stiff-Leg Deadlift', 'hamstrings', 'barbell', 'hinge',
+    ['hamstrings', 'glutes', 'lower back'], BB, {
+    description: 'Like an RDL but from the floor with straighter knees — deep hamstring stretch.',
+  }),
+  S('glute-ham-raise', 'Glute-Ham Raise', 'hamstrings', 'bodyweight', 'hinge',
+    ['hamstrings', 'glutes'], BW, { trackingType: 'reps_only', met: 6 }),
+
+  // ══════════════════════════ GLUTES (v2 additions) ══════════════════════════
+  S('barbell-glute-bridge', 'Barbell Glute Bridge', 'glutes', 'barbell', 'hinge', ['glutes'], BB),
+  S('cable-glute-kickback', 'Cable Kickback', 'glutes', 'cable', 'hinge', ['glutes'], CB, { met: 4 }),
+  S('hip-abduction-machine', 'Hip Abduction Machine', 'glutes', 'machine', 'hinge', ['glutes'], MC, {
+    met: 4, description: 'Targets the side glutes (medius) — hip stability and shape.',
+  }),
+  S('single-leg-glute-bridge', 'Single-Leg Glute Bridge', 'glutes', 'bodyweight', 'hinge', ['glutes'], BW, {
+    trackingType: 'reps_only', met: 3.5,
+  }),
+  S('fire-hydrant', 'Fire Hydrant', 'glutes', 'bodyweight', 'hinge', ['glutes'], BW, {
+    trackingType: 'reps_only', met: 3,
+  }),
+
+  // ══════════════════════════ SHOULDERS — per delt head (v2) ══════════════════════════
+  S('behind-neck-press', 'Behind-the-Neck Press', 'shoulders', 'barbell', 'vertical_push',
+    ['shoulders', 'triceps'], BB, {
+    subMuscle: 'front_delt',
+    description: 'Advanced only — requires excellent shoulder mobility. Skip it if in doubt.',
+  }),
+  S('cable-front-raise', 'Cable Front Raise', 'shoulders', 'cable', 'lateral_raise', ['shoulders'], CB, {
+    subMuscle: 'front_delt', met: 3.5,
+  }),
+  S('seated-lateral-raise', 'Seated Lateral Raise', 'shoulders', 'dumbbell', 'lateral_raise',
+    ['shoulders'], DB_, { subMuscle: 'side_delt', met: 3.5, description: 'Seated removes all momentum — strict side-delt work.' }),
+  S('leaning-lateral-raise', 'Leaning Lateral Raise', 'shoulders', 'dumbbell', 'lateral_raise',
+    ['shoulders'], DB_, { subMuscle: 'side_delt', met: 3.5 }),
+  S('lateral-raise-machine', 'Lateral Raise Machine', 'shoulders', 'machine', 'lateral_raise',
+    ['shoulders'], MC, { subMuscle: 'side_delt', met: 3.5 }),
+  S('incline-rear-delt-fly', 'Incline-Bench Rear-Delt Fly', 'shoulders', 'dumbbell', 'horizontal_pull',
+    ['shoulders', 'back'], DB_, { subMuscle: 'rear_delt', met: 3.5 }),
+  S('prone-swimmers', 'Prone Swimmers', 'shoulders', 'bodyweight', 'lateral_raise',
+    ['shoulders', 'back'], BW, { subMuscle: 'rear_delt', trackingType: 'reps_only', met: 3 }),
+
+  // ══════════════════════════ CORE — lower abs & obliques (v2) ══════════════════════════
+  S('lying-leg-raise', 'Lying Leg Raise', 'core', 'bodyweight', 'core', ['core', 'hip flexors'], BW, {
+    subMuscle: 'lower_abs', trackingType: 'reps_only', met: 3.5,
+    instructions: [
+      'Lie flat, hands under your hips for support.',
+      'Raise your legs to vertical, keeping them as straight as comfortable.',
+      'Lower SLOWLY without letting your lower back arch off the floor.',
+    ],
+  }),
+  S('reverse-crunch', 'Reverse Crunch', 'core', 'bodyweight', 'core', ['core'], BW, {
+    subMuscle: 'lower_abs', trackingType: 'reps_only', met: 3.5,
+  }),
+  S('flutter-kicks', 'Flutter Kicks', 'core', 'bodyweight', 'core', ['core', 'hip flexors'], BW, {
+    subMuscle: 'lower_abs', trackingType: 'duration', met: 4,
+  }),
+  S('captains-chair-leg-raise', "Captain's-Chair Leg Raise", 'core', 'machine', 'core',
+    ['core', 'hip flexors'], MC, { subMuscle: 'lower_abs', trackingType: 'reps_only', met: 4 }),
+  S('cable-reverse-crunch', 'Cable Reverse Crunch', 'core', 'cable', 'core', ['core'], CB, {
+    subMuscle: 'lower_abs', met: 4,
+  }),
+  S('weighted-leg-raise', 'Weighted Leg Raise', 'core', 'dumbbell', 'core', ['core', 'hip flexors'], DB_, {
+    subMuscle: 'lower_abs', met: 4,
+  }),
+  S('weighted-crunch', 'Weighted Crunch', 'core', 'dumbbell', 'core', ['core'], DB_, {
+    subMuscle: 'upper_abs', met: 4,
+  }),
+  S('sit-up', 'Sit-Up', 'core', 'bodyweight', 'core', ['core'], BW, {
+    subMuscle: 'upper_abs', trackingType: 'reps_only', met: 3.5,
+  }),
+  S('db-woodchopper', 'Dumbbell Woodchopper', 'core', 'dumbbell', 'rotation', ['core', 'obliques'], DB_, {
+    subMuscle: 'obliques', trackingType: 'reps_only', met: 4,
+  }),
+  S('cable-side-bend', 'Cable Side Bend', 'core', 'cable', 'core', ['core', 'obliques'], CB, {
+    subMuscle: 'obliques', met: 3.5,
+  }),
+  S('rotational-mountain-climber', 'Rotational Mountain Climber', 'core', 'bodyweight', 'rotation',
+    ['core', 'obliques'], BW, { subMuscle: 'obliques', trackingType: 'duration', met: 8 }),
+
+  // ══════════════════════════ SCAPULAR CONTROL (v2) ══════════════════════════
+  S('scapular-pull-up', 'Scapular Pull-Up', 'back', 'bodyweight', 'vertical_pull', ['back'], BW, {
+    subMuscle: 'lats', equipment: 'pull-up bar', trackingType: 'reps_only', met: 4,
+    description: 'Dead hang, then pull only the shoulder blades down — the pull-up\'s first inch.',
+  }),
+  S('scap-retraction-hold', 'Scapular Retraction Hold', 'back', 'bodyweight', 'horizontal_pull',
+    ['back'], BW, { subMuscle: 'mid_back', trackingType: 'duration', met: 3 }),
+
   // ══════════════════════════ OTHER STRENGTH (kept from v1) ══════════════════════════
   S('kettlebell-swing', 'Kettlebell Swing', 'glutes', 'other', 'hinge',
     ['glutes', 'hamstrings', 'core', 'shoulders'], DB_, {
@@ -964,6 +1128,42 @@ export const EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'body-scan', name: 'Body Scan', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.meditation', met: 1 },
   { slug: 'unguided-sit', name: 'Unguided Sit', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.meditation', met: 1 },
 ];
+
+/**
+ * Sub-muscle backfill for entries defined before v2 introduced `subMuscle`.
+ * Applied in-place so every exercise sorts under its individual muscle.
+ */
+const SUB_BY_SLUG: Record<string, string> = {
+  // Back
+  'pull-up': 'lats', 'pull-up-wide': 'lats', 'pull-up-neutral': 'lats', 'chin-up': 'lats',
+  'lat-pulldown': 'lats', 'lat-pulldown-close': 'lats', 'lat-pulldown-reverse': 'lats',
+  'straight-arm-pulldown': 'lats', 'assisted-pull-up': 'lats', 'muscle-up': 'lats',
+  'barbell-row': 'mid_back', 'pendlay-row': 'mid_back', 't-bar-row': 'mid_back', 'yates-row': 'mid_back',
+  'db-one-arm-row': 'mid_back', 'db-chest-supported-row': 'mid_back', 'renegade-row': 'mid_back',
+  'kroc-row': 'mid_back', 'seated-cable-row': 'mid_back', 'machine-row': 'mid_back',
+  'inverted-row': 'mid_back', 'band-pull-apart': 'mid_back',
+  deadlift: 'lower_back', 'sumo-deadlift': 'lower_back', 'rack-pull': 'lower_back',
+  'good-morning': 'lower_back', 'superman-hold': 'lower_back',
+  // Shoulders
+  'overhead-press': 'front_delt', 'push-press': 'front_delt', 'db-shoulder-press': 'front_delt',
+  'arnold-press': 'front_delt', 'front-raise': 'front_delt', 'machine-shoulder-press': 'front_delt',
+  'db-single-arm-shoulder-press': 'front_delt', 'pike-push-up': 'front_delt', 'handstand-push-up': 'front_delt',
+  'lateral-raise': 'side_delt', 'cable-lateral-raise': 'side_delt', 'upright-row': 'side_delt',
+  'rear-delt-fly': 'rear_delt', 'cable-rear-delt-fly': 'rear_delt', 'reverse-pec-deck': 'rear_delt',
+  'y-raise': 'rear_delt',
+  // Core
+  crunch: 'upper_abs', 'weighted-sit-up': 'upper_abs', 'cable-crunch': 'upper_abs',
+  'ab-crunch-machine': 'upper_abs', 'v-up': 'upper_abs', 'barbell-rollout': 'upper_abs',
+  'hollow-body-hold': 'upper_abs',
+  'hanging-leg-raise': 'lower_abs',
+  'side-plank': 'obliques', 'bicycle-crunch': 'obliques', 'russian-twist': 'obliques',
+  'db-side-bend': 'obliques', 'cable-woodchopper': 'obliques', 'landmine-rotation': 'obliques',
+  'landmine-anti-rotation-press': 'obliques',
+};
+
+for (const e of EXERCISE_LIBRARY) {
+  if (!e.subMuscle && SUB_BY_SLUG[e.slug]) e.subMuscle = SUB_BY_SLUG[e.slug];
+}
 
 /** Muscle groups used for library filtering. */
 export const MUSCLE_GROUPS = [

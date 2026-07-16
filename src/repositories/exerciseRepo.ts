@@ -81,6 +81,7 @@ export function createCustomExercise(input: {
   category?: string;
   muscleGroups?: string[];
   primaryMuscle?: string;
+  subMuscle?: string;
   equipmentType?: EquipmentType;
   equipment?: string;
   trackingType?: Exercise['trackingType'];
@@ -94,6 +95,7 @@ export function createCustomExercise(input: {
     sessionType: input.sessionType,
     muscleGroups: JSON.stringify(input.muscleGroups ?? []),
     primaryMuscle: input.primaryMuscle ?? null,
+    subMuscle: input.subMuscle ?? null,
     equipmentType: input.equipmentType ?? null,
     equipment: input.equipment ?? null,
     trackingType: input.trackingType ?? 'reps_weight',
@@ -103,6 +105,32 @@ export function createCustomExercise(input: {
   };
   const res = db.insert(exercises).values(payload).run();
   return getExercise(Number(res.lastInsertRowId))!;
+}
+
+/** Update a user-created exercise (built-ins are managed by the seed). */
+export function updateCustomExercise(
+  id: number,
+  patch: {
+    name?: string;
+    sessionType?: SessionType;
+    primaryMuscle?: string | null;
+    subMuscle?: string | null;
+    equipmentType?: EquipmentType | null;
+    equipment?: string | null;
+    trackingType?: Exercise['trackingType'];
+    muscleGroups?: string[];
+    iconKey?: string;
+  }
+): ExerciseView | undefined {
+  const { muscleGroups, ...rest } = patch;
+  db.update(exercises)
+    .set({
+      ...rest,
+      ...(muscleGroups ? { muscleGroups: JSON.stringify(muscleGroups) } : {}),
+    })
+    .where(and(eq(exercises.id, id), eq(exercises.isCustom, true)))
+    .run();
+  return getExercise(id);
 }
 
 export function deleteCustomExercise(id: number): void {

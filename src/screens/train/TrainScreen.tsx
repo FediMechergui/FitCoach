@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -14,6 +14,7 @@ import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { sessionTypeIcon } from '@/constants/icon-map';
 import { useSessionStore } from '@/stores/sessionStore';
 import { listSessions } from '@/repositories/sessionRepo';
+import { deleteRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
 import { fromISODate, toISODate } from '@/lib/date';
@@ -27,13 +28,28 @@ export function TrainScreen() {
   const activeId = useSessionStore((s) => s.activeId);
   const begin = useSessionStore((s) => s.begin);
   const [recent, setRecent] = useState<Session[]>([]);
+  const [routines, setRoutines] = useState<RoutineView[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       resume();
       setRecent(listSessions({ limit: 8 }));
+      setRoutines(listRoutines());
     }, [resume])
   );
+
+  const startRoutine = (r: RoutineView) => {
+    begin('strength', { label: r.name, prefillExerciseIds: r.exerciseIds });
+    const id = useSessionStore.getState().activeId!;
+    navigation.navigate('ActiveSession', { sessionId: id });
+  };
+
+  const confirmDeleteRoutine = (r: RoutineView) => {
+    Alert.alert(`Delete “${r.name}”?`, 'The routine template is removed; logged sessions are untouched.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => { deleteRoutine(r.id); setRoutines(listRoutines()); } },
+    ]);
+  };
 
   const quickStart = (type: (typeof SESSION_TYPE_META)[number]) => {
     begin(type.type);
@@ -99,6 +115,35 @@ export function TrainScreen() {
           style={{ flex: 1 }}
         />
       </Row>
+
+      {/* Saved custom routines */}
+      {routines.length > 0 && (
+        <>
+          <SectionHeader title="My Routines" />
+          {routines.map((r) => (
+            <Pressable key={r.id} onPress={() => startRoutine(r)}>
+              <Card accent={theme.colors.primary}>
+                <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+                    <Icon icon="core.custom" size={20} color={theme.colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
+                      <Text variant="caption" color="textMuted" numberOfLines={1}>
+                        {r.exercises.length} exercises · {r.exercises.slice(0, 3).map((e) => e.name).join(', ')}
+                        {r.exercises.length > 3 ? '…' : ''}
+                      </Text>
+                    </View>
+                  </Row>
+                  <Pressable onPress={() => confirmDeleteRoutine(r)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                    <Icon icon="core.delete" size={18} color={theme.colors.textFaint} />
+                  </Pressable>
+                  <Icon icon="core.start" size={22} color={theme.colors.primary} />
+                </Row>
+              </Card>
+            </Pressable>
+          ))}
+        </>
+      )}
 
       <SectionHeader title="Quick Start" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>

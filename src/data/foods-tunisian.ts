@@ -35,7 +35,23 @@ export const TUNISIAN_FOODS: FoodItem[] = [
   F('tn-chorba-frik', 'Chorba Frik', '300 g bowl', 150, 8, 20, 4, 3, 'Tunisian dish'),
   F('tn-ojja', 'Ojja', '250 g', 280, 15, 10, 20, 3, 'Tunisian dish'),
   F('tn-mloukhia', 'Mloukhia', '250 g bowl', 300, 22, 12, 18, 5, 'Tunisian dish'),
+  F('tn-kafteji', 'Kafteji', '300 g plate', 450, 12, 35, 30, 5, 'Tunisian dish'),
   F('tn-bambalouni', 'Bambalouni', '1 doughnut (50 g)', 260, 4, 33, 12, 1, 'Tunisian sweet'),
+
+  // ── Salads (v2 — restored & expanded) ─────────────────────────────────────
+  F('tn-mechouia', 'Salade Mechouia', '200 g', 150, 7, 10, 9, 3, 'Salad'),
+  F('tn-slata-tounsiya', 'Slata Tounsiya (Tunisian Salad)', '150 g', 150, 3, 8, 12, 2.5, 'Salad'),
+  F('tn-houria', 'Houria (spiced carrot salad)', '100 g', 80, 1.5, 9, 4.5, 2.5, 'Salad'),
+  F('tn-torshi', 'Torshi (mixed pickles)', '50 g', 10, 0.3, 2, 0, 0.8, 'Salad'),
+  F('tn-salade-poivrons', 'Salade de Poivrons Grillés', '150 g', 110, 2, 9, 8, 3, 'Salad'),
+  F('tn-salade-aubergines', "Salade d'Aubergines (roasted eggplant)", '150 g', 140, 2, 10, 11, 4, 'Salad'),
+  F('tn-salade-poulpe', 'Salade de Poulpe (octopus salad)', '150 g', 140, 15, 3, 8, 0.5, 'Salad'),
+  F('tn-salade-thon', 'Salade de Thon (tuna salad)', '150 g', 200, 15, 4, 14, 1, 'Salad'),
+  F('tn-salade-betterave', 'Salade de Betterave (beetroot salad)', '100 g', 55, 1.5, 8, 2, 2, 'Salad'),
+
+  // ── Bsisa & traditional energy mixes (v2) ─────────────────────────────────
+  F('tn-bsisa-dry', 'Bsisa (dry mix)', '100 g', 430, 15, 65, 10, 10, 'Tunisian dish'),
+  F('tn-bsisa-prepared', 'Bsisa (prepared, olive oil & honey)', '1 bowl (~60 g mix)', 280, 8, 38, 11, 5, 'Tunisian dish'),
 
   // ── Pasta (Tunisian-style) ────────────────────────────────────────────────
   F('tn-pasta-plain', 'Pasta (plain, cooked)', '140 g (1 cup)', 183, 7, 36, 1, 2, 'Pasta'),
@@ -47,6 +63,7 @@ export const TUNISIAN_FOODS: FoodItem[] = [
   F('tn-khobz-tabouna', 'Khobz Tabouna', '100 g', 270, 9, 55, 1.5, 3, 'Bread'),
   F('tn-baguette', 'Baguette', '60 g', 160, 5, 31, 1, 1.5, 'Bread'),
   F('tn-pain-complet', 'Pain Complet (whole wheat)', '50 g slice', 120, 5, 21, 1.5, 3, 'Bread'),
+  F('tn-mlewi', 'Mlewi (layered flatbread)', '1 piece (80 g)', 250, 6, 38, 8, 2, 'Bread'),
   F('tn-croissant', 'Croissant', '60 g', 240, 5, 26, 13, 1.5, 'Pastry'),
   F('tn-makroudh', 'Makroudh', '50 g', 200, 2, 30, 8, 2, 'Tunisian sweet'),
   F('tn-baklava', 'Baklava', '28 g', 120, 2, 14, 7, 0.7, 'Tunisian sweet'),

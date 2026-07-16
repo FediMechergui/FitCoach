@@ -14,10 +14,16 @@ import { ExerciseHero } from '@/components/ExerciseHero';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
 import { type EquipmentType, type SessionType } from '@/db/schema';
-import { listExercises, createCustomExercise, type ExerciseView } from '@/repositories/exerciseRepo';
+import {
+  listExercises,
+  createCustomExercise,
+  updateCustomExercise,
+  type ExerciseView,
+} from '@/repositories/exerciseRepo';
 import { useSessionStore } from '@/stores/sessionStore';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
-import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
+import { Chip } from '@/components/ui/Chip';
+import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
@@ -54,6 +60,7 @@ export function ExerciseLibraryScreen() {
   const [muscle, setMuscle] = useState<string>('all');
   const [equip, setEquip] = useState<EquipmentType | 'all'>('all');
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<ExerciseView | null>(null);
   const [refresh, setRefresh] = useState(0);
 
   const items = useMemo(
@@ -122,7 +129,11 @@ export function ExerciseLibraryScreen() {
                     </Text>
                     <Text variant="caption" color="textMuted" numberOfLines={1}>
                       {[
-                        item.primaryMuscle ? MUSCLE_LABELS[item.primaryMuscle] ?? item.primaryMuscle : null,
+                        item.subMuscle
+                          ? SUB_MUSCLE_LABELS[item.subMuscle] ?? item.subMuscle
+                          : item.primaryMuscle
+                            ? MUSCLE_LABELS[item.primaryMuscle] ?? item.primaryMuscle
+                            : null,
                         item.equipmentType ? EQUIPMENT_LABELS[item.equipmentType] : null,
                       ]
                         .filter(Boolean)
@@ -136,6 +147,12 @@ export function ExerciseLibraryScreen() {
                     <Icon icon="core.info" size={20} color={theme.colors.textFaint} />
                   </Pressable>
                 )}
+                {/* Custom exercises are editable. */}
+                {item.isCustom && (
+                  <Pressable onPress={() => setEditing(item)} hitSlop={10} style={{ paddingHorizontal: 6 }}>
+                    <Icon icon="core.edit" size={18} color={theme.colors.accent} />
+                  </Pressable>
+                )}
                 <Icon icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.primary} />
               </Row>
             </Card>
@@ -144,15 +161,16 @@ export function ExerciseLibraryScreen() {
       />
 
       <View style={{ position: 'absolute', bottom: 24, left: 16, right: 16 }}>
-        {showCreate ? (
-          <CreateExerciseCard
+        {showCreate || editing ? (
+          <ExerciseFormCard
             defaultType={type === 'all' ? activeType ?? 'strength' : type}
-            onCreated={(ex) => {
+            existing={editing}
+            onDone={(ex) => {
               setShowCreate(false);
+              setEditing(null);
               setRefresh((r) => r + 1);
-              onSelect(ex);
+              if (ex && !editing) onSelect(ex);
             }}
-            onCancel={() => setShowCreate(false)}
           />
         ) : (
           <Button title="Create Custom Exercise" icon="core.custom" onPress={() => setShowCreate(true)} />
@@ -162,34 +180,64 @@ export function ExerciseLibraryScreen() {
   );
 }
 
-function CreateExerciseCard({
+/**
+ * Create or edit a custom exercise with the full category choices (session
+ * type, muscle group, individual sub-muscle, equipment) so it files into the
+ * same structure as the built-in library — per the v2 custom-exercise template.
+ */
+function ExerciseFormCard({
   defaultType,
-  onCreated,
-  onCancel,
+  existing,
+  onDone,
 }: {
   defaultType: SessionType;
-  onCreated: (ex: ExerciseView) => void;
-  onCancel: () => void;
+  existing: ExerciseView | null;
+  onDone: (ex: ExerciseView | null) => void;
 }) {
   const theme = useTheme();
-  const [name, setName] = useState('');
-  const [type, setType] = useState<SessionType>(defaultType);
+  const [name, setName] = useState(existing?.name ?? '');
+  const [type, setType] = useState<SessionType>(existing?.sessionType ?? defaultType);
+  const [muscle, setMuscle] = useState<string | null>(existing?.primaryMuscle ?? null);
+  const [sub, setSub] = useState<string | null>(existing?.subMuscle ?? null);
+  const [equip, setEquip] = useState<EquipmentType | null>(
+    (existing?.equipmentType as EquipmentType | null) ?? null
+  );
 
-  const create = () => {
+  const isLifting = type === 'strength' || type === 'calisthenics';
+
+  const save = () => {
     if (!name.trim()) return;
     const meta = SESSION_TYPE_META.find((m) => m.type === type);
-    const ex = createCustomExercise({
-      name: name.trim(),
-      sessionType: type,
-      trackingType: type === 'strength' || type === 'calisthenics' ? 'reps_weight' : 'duration',
-      iconKey: meta?.icon ?? 'core.custom',
-    });
-    onCreated(ex);
+    if (existing) {
+      updateCustomExercise(existing.id, {
+        name: name.trim(),
+        sessionType: type,
+        primaryMuscle: muscle,
+        subMuscle: sub,
+        equipmentType: equip,
+        muscleGroups: muscle ? [muscle] : [],
+        trackingType: isLifting ? 'reps_weight' : 'duration',
+        iconKey: meta?.icon ?? 'core.custom',
+      });
+      onDone(null);
+    } else {
+      const ex = createCustomExercise({
+        name: name.trim(),
+        sessionType: type,
+        primaryMuscle: muscle ?? undefined,
+        subMuscle: sub ?? undefined,
+        equipmentType: equip ?? undefined,
+        muscleGroups: muscle ? [muscle] : [],
+        trackingType: isLifting ? 'reps_weight' : 'duration',
+        iconKey: meta?.icon ?? 'core.custom',
+      });
+      onDone(ex);
+    }
   };
 
   return (
-    <Card style={{ gap: theme.spacing.md }}>
-      <Text variant="h3">New custom exercise</Text>
+    <Card style={{ gap: theme.spacing.sm, maxHeight: 460 }}>
+      <Text variant="h3">{existing ? `Edit “${existing.name}”` : 'New custom exercise'}</Text>
       <Input label="Name" value={name} onChangeText={setName} placeholder="e.g. Sled Push" />
       <SegmentedControl
         scrollable
@@ -197,9 +245,72 @@ function CreateExerciseCard({
         value={type}
         onChange={setType}
       />
+      {isLifting && (
+        <>
+          <Text variant="caption" color="textMuted">Muscle group</Text>
+          <Row gap={6} style={{ flexWrap: 'wrap' }}>
+            {MUSCLE_GROUPS.map((m) => (
+              <Chip
+                key={m}
+                label={MUSCLE_LABELS[m] ?? m}
+                active={muscle === m}
+                small
+                onPress={() => {
+                  setMuscle(muscle === m ? null : m);
+                  setSub(null);
+                }}
+              />
+            ))}
+          </Row>
+          {(muscle === 'back' || muscle === 'shoulders' || muscle === 'core') && (
+            <>
+              <Text variant="caption" color="textMuted">Individual muscle</Text>
+              <Row gap={6} style={{ flexWrap: 'wrap' }}>
+                {Object.keys(SUB_MUSCLE_LABELS)
+                  .filter((k) =>
+                    muscle === 'back'
+                      ? ['lats', 'traps', 'mid_back', 'lower_back'].includes(k)
+                      : muscle === 'shoulders'
+                        ? ['front_delt', 'side_delt', 'rear_delt'].includes(k)
+                        : ['upper_abs', 'lower_abs', 'obliques'].includes(k)
+                  )
+                  .map((k) => (
+                    <Chip
+                      key={k}
+                      label={SUB_MUSCLE_LABELS[k]}
+                      active={sub === k}
+                      small
+                      color={theme.colors.accent}
+                      onPress={() => setSub(sub === k ? null : k)}
+                    />
+                  ))}
+              </Row>
+            </>
+          )}
+          <Text variant="caption" color="textMuted">Equipment</Text>
+          <Row gap={6} style={{ flexWrap: 'wrap' }}>
+            {(['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'other'] as EquipmentType[]).map((eq) => (
+              <Chip
+                key={eq}
+                label={EQUIPMENT_LABELS[eq] ?? eq}
+                active={equip === eq}
+                small
+                color={theme.colors.warning}
+                onPress={() => setEquip(equip === eq ? null : eq)}
+              />
+            ))}
+          </Row>
+        </>
+      )}
       <Row>
-        <Button title="Cancel" variant="secondary" onPress={onCancel} style={{ flex: 1 }} fullWidth={false} />
-        <Button title="Create" onPress={create} style={{ flex: 2 }} fullWidth={false} disabled={!name.trim()} />
+        <Button title="Cancel" variant="secondary" onPress={() => onDone(null)} style={{ flex: 1 }} fullWidth={false} />
+        <Button
+          title={existing ? 'Save changes' : 'Create'}
+          onPress={save}
+          style={{ flex: 2 }}
+          fullWidth={false}
+          disabled={!name.trim()}
+        />
       </Row>
     </Card>
   );

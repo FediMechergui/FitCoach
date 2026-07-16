@@ -7,7 +7,7 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -29,6 +29,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'exercises', column: 'instructions', ddl: 'TEXT' },
   { table: 'sessions', column: 'split_key', ddl: 'TEXT' },
   { table: 'sessions', column: 'split_day', ddl: 'TEXT' },
+  // v4 — per-muscle targeting
+  { table: 'exercises', column: 'sub_muscle', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -131,6 +133,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   session_type TEXT NOT NULL,
   muscle_groups TEXT,
   primary_muscle TEXT,
+  sub_muscle TEXT,
   equipment_type TEXT,
   equipment TEXT,
   pattern TEXT,
@@ -143,6 +146,16 @@ CREATE TABLE IF NOT EXISTS exercises (
 );
 CREATE INDEX IF NOT EXISTS idx_exercises_type ON exercises(session_type);
 CREATE INDEX IF NOT EXISTS idx_exercises_muscle ON exercises(primary_muscle);
+
+CREATE TABLE IF NOT EXISTS custom_routines (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  exercise_ids TEXT NOT NULL DEFAULT '[]',
+  updated_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_custom_routines_user ON custom_routines(user_id);
 
 CREATE TABLE IF NOT EXISTS walk_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -358,6 +371,39 @@ CREATE TABLE IF NOT EXISTS work_logs (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_work_logs_user_date ON work_logs(user_id, date);
+
+CREATE TABLE IF NOT EXISTS prayer_settings (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL DEFAULT 1,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  latitude REAL,
+  longitude REAL,
+  location_name TEXT,
+  method TEXT NOT NULL DEFAULT 'tunisia',
+  asr_factor INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+
+CREATE TABLE IF NOT EXISTS fasting_profiles (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL DEFAULT 1,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  mode TEXT NOT NULL DEFAULT 'ramadan',
+  manual_suhoor TEXT DEFAULT '04:00',
+  manual_iftar TEXT DEFAULT '19:00',
+  eating_start TEXT DEFAULT '12:00',
+  eating_end TEXT DEFAULT '20:00',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+
+CREATE TABLE IF NOT EXISTS fasting_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  completed INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fasting_logs_user_date ON fasting_logs(user_id, date);
 
 CREATE TABLE IF NOT EXISTS app_open_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

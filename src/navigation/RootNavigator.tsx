@@ -25,6 +25,10 @@ import { AlcoholScreen } from '@/screens/health/AlcoholScreen';
 import { CycleScreen } from '@/screens/health/CycleScreen';
 import { ConditionsScreen } from '@/screens/health/ConditionsScreen';
 import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
+import { GrowthScreen } from '@/screens/stats/GrowthScreen';
+import { TrendsScreen } from '@/screens/stats/TrendsScreen';
+import { PrayersScreen } from '@/screens/faith/PrayersScreen';
+import { FastingScreen } from '@/screens/faith/FastingScreen';
 import { BodyScreen } from '@/screens/profile/BodyScreen';
 import { ProfileCardScreen } from '@/screens/profile/ProfileCardScreen';
 import { ReportsScreen } from '@/screens/profile/ReportsScreen';
@@ -113,6 +117,10 @@ export function RootNavigator() {
           <Stack.Screen name="Body" component={BodyScreen} options={{ title: 'Body' }} />
           <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: 'Athlete Card' }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
+          <Stack.Screen name="Growth" component={GrowthScreen} options={{ title: 'Muscle Growth' }} />
+          <Stack.Screen name="Trends" component={TrendsScreen} options={{ title: 'Trends' }} />
+          <Stack.Screen name="Prayers" component={PrayersScreen} options={{ title: 'Prayer Times' }} />
+          <Stack.Screen name="Fasting" component={FastingScreen} options={{ title: 'Fasting' }} />
         </>
       )}
     </Stack.Navigator>

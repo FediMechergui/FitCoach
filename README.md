@@ -25,11 +25,14 @@ A **daily check-in streak meter** on the Home dashboard rewards you for opening 
 app every day — with a flame count, a 7-day dot row, your best streak, and progress
 toward the next milestone.
 
-It ships with a **189-exercise library** split by muscle group and equipment (barbell
-/ dumbbell / machine-cable / bodyweight) — each with a beginner illustration and
-step-by-step form cues — plus one-tap **training splits** (Push/Pull/Legs, Upper/Lower,
-Bro, Full-Body, Arnold), a **Tunisian & Mediterranean food database**, and **habit** &
-**work-hours** trackers with honest, own-data impact.
+It ships with a **228-exercise library** split by muscle group, **individual muscle**
+(lats, traps, front/side/rear delts, upper/lower abs, obliques…) and equipment — each
+with a beginner illustration, step-by-step form cues and a **mandatory warm-up** — plus
+one-tap **training splits** (Push/Pull/Legs, Upper/Lower, Bro, Full-Body, Arnold),
+**saved & updatable custom routines**, a **Tunisian & Mediterranean food database**
+(salads, Bsisa, Kafteji…), **habit** & **work-hours** trackers, an honest
+**muscle-growth readiness** engine, a 12-week **Trends** dashboard, and offline
+**prayer times** + **fasting mode** (Ramadan & intermittent).
 
 Everything works **100% offline** on an on-device SQLite database — no account,
 no internet required.
@@ -104,7 +107,7 @@ Pure, unit-testable TypeScript — the "insight" half of the app:
 - **`time.ts`** — time-range math for logging sleep/work as bedtime→wake (handles
   overnight spans and `HH:MM` parsing).
 
-Every formula above is exercised by `npm run verify:engines` (**67 checks**), which
+Every formula above is exercised by `npm run verify:engines` (**84 checks**), which
 asserts them against known values (BMR, TDEE, 1RM, MET, BAC, FFMI, cycle dates,
 time ranges…) and validates library/split integrity.
 
@@ -161,9 +164,42 @@ Stats and Coach Tips:
   The nutritionist template leads with nutrition/body-comp/conditions; the coach
   template leads with training/recovery/rating.
 
+## v2 update highlights
+
+- **Per-muscle library (228 exercises)** — every muscle individually: traps (shrugs, high
+  pulls), lower back (back extensions, good mornings, bird-dog), glutes (hip thrust,
+  kickbacks, abduction machine), each delt head, upper/lower abs and obliques — split by
+  barbell / dumbbell / machine-cable / bodyweight, with a `sub_muscle` filter.
+- **Mandatory warm-ups** — every muscle group has a required warm-up (from the v2
+  reference); active sessions show a warm-up **checklist** before working sets and each
+  exercise page shows its muscle's warm-up.
+- **Custom routines** — save any session as a named routine from the recap; saving with
+  the same name **updates** it. Start routines one-tap from the Train tab.
+- **Editable custom exercises** — full category choices (session type, muscle group,
+  individual muscle, equipment) matching the library structure; edit any custom exercise
+  from the library (pencil icon).
+- **Muscle-growth readiness** (Stats → Muscle Growth) — per-muscle scoring against the
+  evidence: 10–20 hard sets/week, progressive overload trend, 48–72 h recovery spacing,
+  protein ≥1.6 g/kg and 7 h+ sleep gates, plus a realistic natural gain-rate range by
+  training age. No fabricated numbers.
+- **Trends** (Stats → Trends) — 12 weeks of weekly-bucketed charts: weight, calories,
+  protein, water, caffeine, lifting volume, active minutes, steps, sleep, mood, work
+  hours, alcohol, cigarettes, habit minutes — plus a fat-distribution card (body type,
+  WHR, waist trend).
+- **Prayer times** — fully offline solar calculation (Fajr/Sunrise/Dhuhr/Asr/Maghrib/
+  Isha) with Tunisia/MWL/ISNA/Egypt/Umm-al-Qura methods, GPS or Tunisian city presets,
+  and a next-prayer countdown.
+- **Fasting mode** — Ramadan (Suhoor = Fajr, Iftar = Maghrib, auto-synced with prayer
+  times) or intermittent eating windows; live fasting timer, fasted-day streak, fasting
+  banner in the nutrition diary, and fasted-training guidance.
+- **Foods v2** — 9 Tunisian salads (Mechouia, Slata Tounsiya, Houria…), Kafteji, Mlewi
+  and **Bsisa**; the honest-log estimator recognizes them by name.
+- **Fixed**: the Edit Profile / change-goal screen (now null-safe, validated, and shows
+  the recalculated targets immediately after saving).
+
 ## Exercise library, splits & beginner guides
 
-- **189 exercises** ([src/data/exercises.ts](src/data/exercises.ts)) organized by muscle
+- **228 exercises** ([src/data/exercises.ts](src/data/exercises.ts)) organized by muscle
   group and split by equipment family. The library screen filters by **session type ·
   muscle · equipment** and searches by name.
 - **Beginner how-to**: each exercise detail shows an SVG **movement illustration**
@@ -290,7 +326,7 @@ EAS handles signing automatically. The `preview` APK can be sideloaded directly.
 | `npm run start` | Expo dev server |
 | `npm run android` | Launch on Android |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify:engines` | Run the 53 pure-domain formula checks |
+| `npm run verify:engines` | Run the 84 pure-domain formula checks |
 | `npm run db:generate` | Generate Drizzle SQL migrations (optional; runtime uses a bootstrap DDL) |
 | `npm run build:apk` | EAS preview APK |
 | `npm run build:aab` | EAS production AAB |
@@ -307,7 +343,7 @@ cleanly.
 **upserted by a stable `slug`** (falling back to name for older databases) rather
 than deleted and re-inserted — see [src/db/seed.ts](src/db/seed.ts). Because
 `exercise_logs.exercise_id` references those rows, this keeps every past workout
-pointing at the right exercise even as the library grows from 46 to 189 entries.
+pointing at the right exercise even as the library grows from 46 to 228 entries.
 Nutrition/alcohol/session logs likewise store their values denormalized at log
 time, so editing a food or exercise definition never rewrites history.
 
@@ -332,7 +368,7 @@ defers to your clinician.
   calculator, onboarding, local storage, EAS APK — **plus** the health & wellness
   suite: smoking, sleep, alcohol, body composition, gender & menstrual-cycle
   tracking, chronic conditions, the athlete card (PNG), and PDF reports — plus a
-  189-exercise library with beginner guides, training splits, a Tunisian food
+  228-exercise library with beginner guides, training splits, a Tunisian food
   database, habit & work-hours trackers, and a daily check-in streak.
 - **Phase 2:** dynamic TDEE auto-tuning, barcode scanning, cloud sync, routine
   builder, GPS route maps.

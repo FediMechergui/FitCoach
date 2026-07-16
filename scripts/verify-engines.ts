@@ -15,8 +15,11 @@ import { assessNight, sleepDebt } from '../src/lib/sleep';
 import { rangeMinutes, minutesToHM, minutesToHours, hmToMinutes } from '../src/lib/time';
 import { projectedYearHours, timeEquivalents, minutesFor } from '../src/lib/habits';
 import { estimateFromDescription as estFood } from '../src/data/foods';
-import { EXERCISE_LIBRARY } from '../src/data/exercises';
+import { EXERCISE_LIBRARY, WARMUPS_BY_MUSCLE } from '../src/data/exercises';
 import { SPLITS } from '../src/data/splits';
+import { computePrayerTimes, nextPrayer } from '../src/lib/prayers';
+import { resolveWindow, fastingState } from '../src/lib/fasting';
+import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 
 let pass = 0;
 let fail = 0;
@@ -175,6 +178,58 @@ const missing = SPLITS.flatMap((s) => s.days.flatMap((d) => d.exercises)).filter
 check('All split exercises exist in library', missing.length === 0, missing.join(', ') || 'none missing');
 const originalNames = ['Barbell Bench Press', 'Pull-Up', 'Barbell Back Squat', 'Barbell Deadlift', 'Plank'];
 check('Original exercise names preserved (log-safe)', originalNames.every((n) => EXERCISE_LIBRARY.some((e) => e.name === n)));
+
+console.log('\nPrayer times (Tunis, 2026-07-15, UTC+1):');
+const pt = computePrayerTimes({
+  date: new Date(2026, 6, 15),
+  latitude: 36.8065,
+  longitude: 10.1815,
+  tzOffsetHours: 1,
+  method: 'tunisia',
+});
+const mins = (hm: string) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
+const between = (hm: string, lo: string, hi: string) => mins(hm) >= mins(lo) && mins(hm) <= mins(hi);
+check('Dhuhr ≈ solar noon (12:05–12:25)', between(pt.dhuhr, '12:05', '12:25'), pt.dhuhr);
+check('Sunrise plausible (05:00–05:25)', between(pt.sunrise, '05:00', '05:25'), pt.sunrise);
+check('Maghrib plausible (19:05–19:40)', between(pt.maghrib, '19:05', '19:40'), pt.maghrib);
+check('Fajr plausible (03:00–04:05)', between(pt.fajr, '03:00', '04:05'), pt.fajr);
+check('Asr plausible (15:45–16:30)', between(pt.asr, '15:45', '16:30'), pt.asr);
+check('Isha plausible (20:50–21:40)', between(pt.isha, '20:50', '21:40'), pt.isha);
+check(
+  'Times strictly ordered',
+  mins(pt.fajr) < mins(pt.sunrise) && mins(pt.sunrise) < mins(pt.dhuhr) &&
+    mins(pt.dhuhr) < mins(pt.asr) && mins(pt.asr) < mins(pt.maghrib) && mins(pt.maghrib) < mins(pt.isha),
+  `${pt.fajr} ${pt.sunrise} ${pt.dhuhr} ${pt.asr} ${pt.maghrib} ${pt.isha}`
+);
+const np = nextPrayer(pt, new Date(2026, 6, 15, 13, 0));
+check('Next prayer after 13:00 is Asr', np.key === 'asr', np.label);
+
+console.log('\nFasting model:');
+const ramadanWin = resolveWindow('ramadan', { manualSuhoor: '04:00', manualIftar: '19:00' });
+const fsNoon = fastingState(ramadanWin, new Date(2026, 6, 15, 12, 0));
+check('Ramadan noon → fasting', fsNoon.fasting === true);
+check('Minutes to iftar = 420', fsNoon.minutesUntilNext === 420, `${fsNoon.minutesUntilNext}`);
+const fsNight = fastingState(ramadanWin, new Date(2026, 6, 15, 20, 0));
+check('After iftar → eating', fsNight.fasting === false);
+const ifWin = resolveWindow('intermittent', { eatingStart: '12:00', eatingEnd: '20:00' });
+const fsMorning = fastingState(ifWin, new Date(2026, 6, 15, 9, 0));
+check('16:8 morning → fasting, eats at 12:00', fsMorning.fasting === true && fsMorning.nextTime === '12:00', `${fsMorning.fasting} ${fsMorning.nextTime}`);
+
+console.log('\nMuscle growth model:');
+const gGood = scoreMuscle(
+  { muscle: 'chest', setsThisWeek: 14, avgSetsPerWeek4w: 14, overloadTrendPct: 8, avgRestDays: 3, sessionsPerWeek: 2 },
+  { proteinOk: true, sleepOk: true, calorieOk: true }
+);
+check('In-band + gates → growing', gGood.status === 'growing' && gGood.score >= 70, `${gGood.status} ${gGood.score}`);
+const gNone = scoreMuscle(
+  { muscle: 'calves', setsThisWeek: 0, avgSetsPerWeek4w: 0, overloadTrendPct: null, avgRestDays: null, sessionsPerWeek: 0 },
+  { proteinOk: true, sleepOk: true, calorieOk: true }
+);
+check('0 sets → under-stimulated', gNone.status === 'under-stimulated');
+const gr = naturalGainRangeKgPerMonth(6, 'male');
+check('Beginner male 0.5–1.0 kg/mo', gr.min === 0.5 && gr.max === 1.0, `${gr.min}-${gr.max}`);
+check('Female rate is half', naturalGainRangeKgPerMonth(6, 'female').max === 0.5);
+check('Every muscle group has a warm-up', ['chest','back','quads','hamstrings','glutes','calves','shoulders','biceps','triceps','core','forearms'].every((m) => !!WARMUPS_BY_MUSCLE[m]));
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

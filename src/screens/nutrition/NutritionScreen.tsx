@@ -16,6 +16,9 @@ import { MEAL_TYPES, type MealType } from '@/db/schema';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
+import { currentFastingState } from '@/repositories/faithRepo';
+import { minutesToHM } from '@/lib/time';
+import type { FastingState } from '@/lib/fasting';
 import { BEVERAGE_PRESETS, WATER_QUICK_ADD } from '@/data/beverages';
 import { mealIcon } from '@/constants/icon-map';
 import { addDays, todayISO } from '@/lib/date';
@@ -39,11 +42,13 @@ export function NutritionScreen() {
   const addCig = useSmokingStore((s) => s.add);
   const undoCig = useSmokingStore((s) => s.undo);
   const loadSmoking = useSmokingStore((s) => s.load);
+  const [fasting, setFasting] = React.useState<FastingState | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       refresh();
       loadSmoking();
+      setFasting(currentFastingState());
     }, [refresh, loadSmoking])
   );
 
@@ -71,6 +76,23 @@ export function NutritionScreen() {
           <Icon icon="core.forward" size={24} color={isToday ? theme.colors.surfaceAlt : theme.colors.textMuted} />
         </Pressable>
       </Row>
+
+      {/* Fasting banner */}
+      {fasting && isToday && (
+        <Pressable onPress={() => navigation.navigate('Fasting')}>
+          <Card accent={fasting.fasting ? theme.colors.warning : theme.colors.success}>
+            <Row gap={10} style={{ alignItems: 'center' }}>
+              <Icon icon="faith.fasting" size={20} color={fasting.fasting ? theme.colors.warning : theme.colors.success} />
+              <Text variant="bodyStrong" style={{ flex: 1 }}>
+                {fasting.fasting
+                  ? `Fasting — ${fasting.nextLabel.toLowerCase()} at ${fasting.nextTime}`
+                  : `Eating window — fast begins at ${fasting.nextTime}`}
+              </Text>
+              <Text variant="caption" color="textMuted">{minutesToHM(fasting.minutesUntilNext)}</Text>
+            </Row>
+          </Card>
+        </Pressable>
+      )}
 
       {/* Calorie + macro dashboard */}
       <Card>

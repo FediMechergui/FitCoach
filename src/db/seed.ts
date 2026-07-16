@@ -32,6 +32,7 @@ export function seedExerciseLibrary(): void {
       sessionType: e.sessionType,
       muscleGroups: JSON.stringify(e.muscleGroups),
       primaryMuscle: e.primaryMuscle ?? null,
+      subMuscle: e.subMuscle ?? null,
       equipmentType: e.equipmentType ?? null,
       equipment: e.equipment ?? null,
       pattern: e.pattern ?? null,

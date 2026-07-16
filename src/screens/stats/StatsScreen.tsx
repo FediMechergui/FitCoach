@@ -93,6 +93,16 @@ export function StatsScreen() {
     <Screen>
       <Text variant="h1">Stats</Text>
 
+      {/* Deep-dive views */}
+      <Row>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Growth')}>
+          <StatTile icon="stats.muscleMap" label="Muscle Growth" value="Open" sub="per-muscle readiness" accent={theme.colors.accent} />
+        </Pressable>
+        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Trends')}>
+          <StatTile icon="stats.progression" label="Trends" value="12 wk" sub="everything charted" accent={theme.colors.primary} />
+        </Pressable>
+      </Row>
+
       {/* This week */}
       <Row>
         <StatTile icon="nav.train" label="Sessions" value={`${weekSessions}`} sub="this week" />

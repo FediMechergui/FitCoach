@@ -13,6 +13,7 @@ import { Row, Divider, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSessionStore } from '@/stores/sessionStore';
 import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
+import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS } from '@/data/exercises';
 import { formatDuration } from '@/lib/format';
 import type { ExerciseLogView } from '@/repositories/sessionRepo';
 
@@ -235,6 +236,8 @@ function LiftingSection({ detail, accent }: { detail: ExerciseLogView[]; accent:
 
   return (
     <View style={{ gap: theme.spacing.md }}>
+      {detail.length > 0 && <WarmupChecklist detail={detail} />}
+
       {detail.length > 0 && (
         <Row style={{ justifyContent: 'space-between' }}>
           <Text variant="label" color="textMuted">
@@ -389,6 +392,65 @@ function ExerciseLogCard({ lv, accent }: { lv: ExerciseLogView; accent: string }
           </Pressable>
         ))}
       </Row>
+    </Card>
+  );
+}
+
+/**
+ * Mandatory warm-up checklist (v2 reference): one warm-up line per distinct
+ * muscle group in the session, each checkable. Collapses once all are done.
+ */
+function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
+  const theme = useTheme();
+  const [done, setDone] = useState<Record<string, boolean>>({});
+
+  const muscles = useMemo(() => {
+    const seen = new Set<string>();
+    for (const lv of detail) {
+      if (lv.primaryMuscle && WARMUPS_BY_MUSCLE[lv.primaryMuscle]) seen.add(lv.primaryMuscle);
+    }
+    return [...seen];
+  }, [detail]);
+
+  if (muscles.length === 0) return null;
+  const allDone = muscles.every((m) => done[m]);
+
+  if (allDone) {
+    return (
+      <Row gap={8} style={{ alignItems: 'center', paddingHorizontal: 4 }}>
+        <Icon icon="core.check" size={16} color={theme.colors.success} />
+        <Text variant="caption" color="success">Warm-ups done — lift safe.</Text>
+      </Row>
+    );
+  }
+
+  return (
+    <Card accent={theme.colors.warning} style={{ gap: 10 }}>
+      <Row gap={8} style={{ alignItems: 'center' }}>
+        <Icon icon="core.timer" size={18} color={theme.colors.warning} />
+        <Text variant="h3" style={{ flex: 1 }}>Warm up first (mandatory)</Text>
+      </Row>
+      {muscles.map((m) => (
+        <Pressable key={m} onPress={() => setDone((d) => ({ ...d, [m]: !d[m] }))}>
+          <Row gap={10} style={{ alignItems: 'flex-start' }}>
+            <Icon
+              icon={done[m] ? 'core.check' : 'core.add'}
+              size={18}
+              color={done[m] ? theme.colors.success : theme.colors.textFaint}
+            />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong" style={done[m] ? { textDecorationLine: 'line-through' } : undefined}>
+                {MUSCLE_LABELS[m] ?? m}
+              </Text>
+              <Text variant="caption" color="textMuted">{WARMUPS_BY_MUSCLE[m]}</Text>
+            </View>
+          </Row>
+        </Pressable>
+      ))}
+      <Text variant="caption" color="textFaint">
+        Warming up raises muscle temperature and primes the joints — it directly cuts injury
+        risk before your working sets.
+      </Text>
     </Card>
   );
 }

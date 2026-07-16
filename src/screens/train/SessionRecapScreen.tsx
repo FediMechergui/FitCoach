@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,10 +8,12 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
 import { Row, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { getSessionDetail } from '@/repositories/sessionRepo';
+import { saveRoutine, sessionExerciseIds, findRoutineByName } from '@/repositories/routinesRepo';
 import { metaFor, MOOD_EMOJI } from '@/constants/sessionTypes';
 import { formatDurationLong, formatDistance, formatPace } from '@/lib/format';
 import { useUserStore } from '@/stores/userStore';
@@ -139,7 +141,55 @@ export function SessionRecapScreen() {
         </Card>
       )}
 
+      {isLifting && logs.length > 0 && <SaveAsRoutine sessionId={session.id} defaultName={session.label} />}
+
       <Button title="Done" icon="core.check" onPress={() => navigation.navigate('Main')} />
     </Screen>
+  );
+}
+
+/**
+ * Save (or update) this session's exercise list as a reusable custom routine.
+ * Saving under an existing name updates that routine — templates stay current.
+ */
+function SaveAsRoutine({ sessionId, defaultName }: { sessionId: number; defaultName: string | null }) {
+  const theme = useTheme();
+  const [name, setName] = useState(defaultName ?? '');
+  const [savedAs, setSavedAs] = useState<string | null>(null);
+
+  const save = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existed = !!findRoutineByName(trimmed);
+    saveRoutine(trimmed, sessionExerciseIds(sessionId));
+    setSavedAs(existed ? `Updated routine “${trimmed}”` : `Saved routine “${trimmed}”`);
+  };
+
+  return (
+    <Card style={{ gap: 10 }} accent={theme.colors.primary}>
+      <Row gap={8} style={{ alignItems: 'center' }}>
+        <Icon icon="core.custom" size={18} color={theme.colors.primary} />
+        <Text variant="h3" style={{ flex: 1 }}>Save as routine</Text>
+      </Row>
+      {savedAs ? (
+        <Row gap={8} style={{ alignItems: 'center' }}>
+          <Icon icon="core.check" size={18} color={theme.colors.success} />
+          <Text variant="body" color="success">{savedAs}</Text>
+        </Row>
+      ) : (
+        <>
+          <Text variant="caption" color="textMuted">
+            Reuse this exact workout later from the Train tab. Saving with an existing name
+            updates that routine.
+          </Text>
+          <Row style={{ alignItems: 'flex-end' }}>
+            <View style={{ flex: 2 }}>
+              <Input value={name} onChangeText={setName} placeholder="e.g. My Push Day" />
+            </View>
+            <Button title="Save" size="sm" onPress={save} disabled={!name.trim()} style={{ flex: 1 }} fullWidth={false} />
+          </Row>
+        </>
+      )}
+    </Card>
   );
 }

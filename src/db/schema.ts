@@ -165,6 +165,8 @@ export const exercises = sqliteTable('exercises', {
   sessionType: text('session_type', { enum: SESSION_TYPES }).notNull(),
   muscleGroups: text('muscle_groups'), // JSON array of strings
   primaryMuscle: text('primary_muscle'), // chest / back / quads / …
+  /** finer target: lats / traps / mid_back / lower_back / front_delt / … */
+  subMuscle: text('sub_muscle'),
   equipmentType: text('equipment_type', { enum: EQUIPMENT_TYPES }),
   equipment: text('equipment'),
   pattern: text('pattern', { enum: MOVEMENT_PATTERNS }),
@@ -176,6 +178,19 @@ export const exercises = sqliteTable('exercises', {
   iconKey: text('icon_key').notNull().default('strength.dumbbell'),
   isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(false),
   metValue: real('met_value'), // metabolic equivalent for calorie estimation
+});
+
+// ── CustomRoutine (saved, updatable workout templates) ───────────────────────
+export const customRoutines = sqliteTable('custom_routines', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  name: text('name').notNull(),
+  /** JSON array of exercise ids, in performance order */
+  exerciseIds: text('exercise_ids').notNull().default('[]'),
+  updatedAt: integer('updated_at'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
 });
 
 // ── WalkSession ──────────────────────────────────────────────────────────────
@@ -461,6 +476,48 @@ export const workLogs = sqliteTable('work_logs', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// ── PrayerSettings (single row, id = 1) ──────────────────────────────────────
+export const prayerSettings = sqliteTable('prayer_settings', {
+  id: integer('id').primaryKey(),
+  userId: integer('user_id').notNull().default(1),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  locationName: text('location_name'),
+  method: text('method').notNull().default('tunisia'),
+  asrFactor: integer('asr_factor').notNull().default(1), // 1 standard, 2 hanafi
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── FastingProfile (single row, id = 1) ──────────────────────────────────────
+export const fastingProfiles = sqliteTable('fasting_profiles', {
+  id: integer('id').primaryKey(),
+  userId: integer('user_id').notNull().default(1),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+  mode: text('mode', { enum: ['ramadan', 'intermittent'] }).notNull().default('ramadan'),
+  /** manual fallbacks when prayer times aren't configured */
+  manualSuhoor: text('manual_suhoor').default('04:00'),
+  manualIftar: text('manual_iftar').default('19:00'),
+  /** intermittent eating window */
+  eatingStart: text('eating_start').default('12:00'),
+  eatingEnd: text('eating_end').default('20:00'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const fastingLogs = sqliteTable('fasting_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  completed: integer('completed', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 // ── AppOpenLog (daily app-usage / check-in streak) ───────────────────────────
 export const appOpenLogs = sqliteTable('app_open_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -527,6 +584,7 @@ export type Exercise = typeof exercises.$inferSelect;
 export type NewExercise = typeof exercises.$inferInsert;
 export type WalkSession = typeof walkSessions.$inferSelect;
 export type LiveWalk = typeof liveWalks.$inferSelect;
+export type CustomRoutine = typeof customRoutines.$inferSelect;
 export type DailyStepLog = typeof dailyStepLogs.$inferSelect;
 export type FoodEntry = typeof foodEntries.$inferSelect;
 export type NewFoodEntry = typeof foodEntries.$inferInsert;
@@ -546,3 +604,6 @@ export type AppOpenLog = typeof appOpenLogs.$inferSelect;
 export type HabitProfile = typeof habitProfiles.$inferSelect;
 export type HabitEntry = typeof habitEntries.$inferSelect;
 export type WorkLog = typeof workLogs.$inferSelect;
+export type PrayerSettings = typeof prayerSettings.$inferSelect;
+export type FastingProfile = typeof fastingProfiles.$inferSelect;
+export type FastingLog = typeof fastingLogs.$inferSelect;

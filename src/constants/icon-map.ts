@@ -185,6 +185,19 @@ export const ICONS = {
     focus: def('MaterialCommunityIcons', 'brain'),
   },
 
+  // Prayers & fasting
+  faith: {
+    crescent: def('MaterialCommunityIcons', 'moon-waning-crescent'),
+    dawn: def('MaterialCommunityIcons', 'weather-sunset-up'),
+    sunrise: def('MaterialCommunityIcons', 'weather-sunset'),
+    sun: def('MaterialCommunityIcons', 'white-balance-sunny'),
+    afternoon: def('MaterialCommunityIcons', 'weather-partly-cloudy'),
+    sunset: def('MaterialCommunityIcons', 'weather-sunset-down'),
+    night: def('MaterialCommunityIcons', 'weather-night'),
+    fasting: def('MaterialCommunityIcons', 'food-off'),
+    location: def('Ionicons', 'location-outline'),
+  },
+
   // Athlete card & reports
   card: {
     trophy: def('MaterialCommunityIcons', 'card-account-details-star-outline'),

@@ -25,6 +25,7 @@ export interface ExerciseLogView {
   log: typeof exerciseLogs.$inferSelect;
   exerciseName: string;
   iconKey: string;
+  primaryMuscle: string | null;
   sets: SetEntry[];
 }
 
@@ -262,6 +263,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
       log: exerciseLogs,
       exerciseName: exercises.name,
       iconKey: exercises.iconKey,
+      primaryMuscle: exercises.primaryMuscle,
     })
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
@@ -273,6 +275,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
     log: r.log,
     exerciseName: r.exerciseName,
     iconKey: r.iconKey,
+    primaryMuscle: r.primaryMuscle,
     sets: db
       .select()
       .from(setEntries)

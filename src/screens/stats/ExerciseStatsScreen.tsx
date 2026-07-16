@@ -12,7 +12,7 @@ import { Row, SectionHeader, EmptyState, Divider } from '@/components/ui/misc';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { ExerciseIllustration } from '@/components/ExerciseIllustration';
-import { MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
+import { MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS, WARMUPS_BY_MUSCLE } from '@/data/exercises';
 import type { RootStackParamList } from '@/navigation/types';
 import { exerciseProgression } from '@/repositories/statsRepo';
 import { getExercise, type ExerciseView } from '@/repositories/exerciseRepo';
@@ -125,6 +125,13 @@ function ExerciseGuide({ exercise }: { exercise: ExerciseView }) {
             small
           />
         )}
+        {exercise.subMuscle && (
+          <Chip
+            label={SUB_MUSCLE_LABELS[exercise.subMuscle] ?? exercise.subMuscle}
+            color={theme.colors.calisthenics}
+            small
+          />
+        )}
         {exercise.equipmentType && (
           <Chip
             label={EQUIPMENT_LABELS[exercise.equipmentType] ?? exercise.equipmentType}
@@ -143,6 +150,19 @@ function ExerciseGuide({ exercise }: { exercise: ExerciseView }) {
           {exercise.description}
         </Text>
       ) : null}
+
+      {/* Mandatory warm-up for this muscle (v2 reference) */}
+      {exercise.primaryMuscle && WARMUPS_BY_MUSCLE[exercise.primaryMuscle] && (
+        <Card accent={theme.colors.warning} style={{ gap: 4 }}>
+          <Row gap={8} style={{ alignItems: 'center' }}>
+            <Icon icon="core.timer" size={16} color={theme.colors.warning} />
+            <Text variant="bodyStrong">Warm-up first (mandatory)</Text>
+          </Row>
+          <Text variant="caption" color="textMuted">
+            {WARMUPS_BY_MUSCLE[exercise.primaryMuscle]}
+          </Text>
+        </Card>
+      )}
 
       {exercise.instructions.length > 0 && (
         <Card style={{ gap: 10 }} accent={theme.colors.accent}>

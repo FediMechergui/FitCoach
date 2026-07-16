@@ -37,6 +37,10 @@ export type RootStackParamList = {
   Body: undefined;
   ProfileCard: undefined;
   Reports: undefined;
+  Growth: undefined;
+  Trends: undefined;
+  Prayers: undefined;
+  Fasting: undefined;
 };
 
 export type SessionTypeMeta = {

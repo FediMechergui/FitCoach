@@ -102,6 +102,11 @@ const DISH_HEURISTICS: DishHeuristic[] = [
   { keywords: ['bambalouni'], calories: 260, protein: 4, carbs: 33, fat: 12 },
   { keywords: ['makroudh', 'baklava', 'zgougou'], calories: 200, protein: 3, carbs: 28, fat: 9 },
   { keywords: ['tabouna', 'khobz'], calories: 270, protein: 9, carbs: 55, fat: 1.5 },
+  { keywords: ['kafteji'], calories: 450, protein: 12, carbs: 35, fat: 30 },
+  { keywords: ['mechouia', 'mechwiya'], calories: 150, protein: 7, carbs: 10, fat: 9 },
+  { keywords: ['slata', 'houria'], calories: 120, protein: 2, carbs: 9, fat: 8 },
+  { keywords: ['bsisa'], calories: 280, protein: 8, carbs: 38, fat: 11 },
+  { keywords: ['mlewi', 'mlaoui'], calories: 250, protein: 6, carbs: 38, fat: 8 },
   { keywords: ['harissa'], calories: 30, protein: 1, carbs: 3, fat: 2 },
   { keywords: ['olive oil', 'zit zitoun'], calories: 120, protein: 0, carbs: 0, fat: 13.5 },
   // ── General dishes ────────────────────────────────────────────────────────

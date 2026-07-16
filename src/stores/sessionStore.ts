@@ -41,6 +41,8 @@ interface SessionState {
       splitDay?: string;
       /** exercise slugs to pre-populate (from a training split) */
       prefillSlugs?: string[];
+      /** exercise ids to pre-populate (from a saved custom routine) */
+      prefillExerciseIds?: number[];
     }
   ) => void;
   refresh: () => void;
@@ -78,10 +80,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   begin: (type, opts) => {
     const id = startSession(type, opts);
-    // Pre-populate the session with the split day's exercises, in order.
+    // Pre-populate the session with the split day's / routine's exercises, in order.
     if (opts?.prefillSlugs?.length) {
       for (const ex of exercisesBySlugs(opts.prefillSlugs)) {
         addExerciseToSession(id, ex.id);
+      }
+    }
+    if (opts?.prefillExerciseIds?.length) {
+      for (const exId of opts.prefillExerciseIds) {
+        addExerciseToSession(id, exId);
       }
     }
     set({

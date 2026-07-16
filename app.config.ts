@@ -55,6 +55,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   plugins: [
+    './plugins/withJitpackExclusive',
     'expo-asset',
     'expo-font',
     'expo-sqlite',

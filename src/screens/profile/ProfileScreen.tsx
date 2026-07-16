@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Pressable, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Updates from 'expo-updates';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -38,6 +39,37 @@ export function ProfileScreen() {
   );
 
   if (!user) return <Screen><Text>Loading…</Text></Screen>;
+
+  /** Over-the-air update check: download & apply without reinstalling the APK. */
+  const checkForUpdates = async () => {
+    if (__DEV__ || !Updates.isEnabled) {
+      Alert.alert('Updates unavailable', 'Over-the-air updates only work in an installed build (not in development).');
+      return;
+    }
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        Alert.alert('Up to date ✓', 'You are already on the latest version.');
+        return;
+      }
+      Alert.alert('Update available', 'Download and restart with the new version now?', [
+        { text: 'Later', style: 'cancel' },
+        {
+          text: 'Update now',
+          onPress: async () => {
+            try {
+              await Updates.fetchUpdateAsync();
+              await Updates.reloadAsync();
+            } catch (e) {
+              Alert.alert('Update failed', String(e instanceof Error ? e.message : e));
+            }
+          },
+        },
+      ]);
+    } catch (e) {
+      Alert.alert('Update check failed', String(e instanceof Error ? e.message : e));
+    }
+  };
 
   const unit = user.unitPreference;
   const saveWeight = () => {
@@ -169,6 +201,8 @@ export function ProfileScreen() {
       {/* Links */}
       <SectionHeader title="More" />
       <Card style={{ gap: 0 }}>
+        <LinkRow icon="card.download" label="Check for app updates" onPress={checkForUpdates} />
+        <Divider />
         <LinkRow icon="core.calendar" label="Session history" onPress={() => navigation.navigate('SessionHistory')} />
         <Divider />
         <LinkRow icon="nav.train" label="Exercise library" onPress={() => navigation.navigate('ExerciseLibrary', { pick: false })} />

@@ -316,6 +316,25 @@ npm run build:aab          # eas build -p android --profile production
 
 EAS handles signing automatically. The `preview` APK can be sideloaded directly.
 
+## Over-the-air updates (no reinstalls)
+
+The app updates itself via **EAS Update** (`expo-updates`): JS and content changes
+ship straight into installed builds — no new APK.
+
+```bash
+# publish an update to every installed preview APK
+npm run update:push          # = eas update --branch preview
+```
+
+- Installed apps **download the update on launch** and apply it on the next start.
+- **Profile → Check for app updates** downloads and applies immediately.
+- `runtimeVersion: { policy: 'appVersion' }` guards compatibility: an update only
+  applies to builds whose native runtime matches, so a JS update can never land on
+  an APK missing its native modules.
+- **Native changes** (new permissions, new native modules, SDK upgrades) still
+  require a rebuild: `npm run build:apk`. Rule of thumb — if `package.json` gained
+  a native dependency or `app.config.ts` changed, rebuild; otherwise `update:push`.
+
 ## Scripts
 
 | Script | Purpose |

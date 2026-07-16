@@ -12,7 +12,8 @@
     "verify:engines": "tsx scripts/verify-engines.ts",
     "db:generate": "drizzle-kit generate",
     "build:apk": "eas build -p android --profile preview",
-    "build:aab": "eas build -p android --profile production"
+    "build:aab": "eas build -p android --profile production",
+    "update:push": "eas update --branch preview"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
@@ -36,6 +37,7 @@
     "expo-sqlite": "~15.1.4",
     "expo-status-bar": "~2.0.1",
     "expo-task-manager": "~12.0.5",
+    "expo-updates": "~0.27.5",
     "react": "18.3.1",
     "react-native": "0.76.9",
     "react-native-gesture-handler": "~2.20.2",

@@ -15,6 +15,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'fitcoach',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
+  // Over-the-air updates (EAS Update): JS/content changes ship straight into
+  // installed builds — no APK reinstall. The update is downloaded on launch and
+  // applied on the next start (or immediately via Profile → Check for updates).
+  updates: {
+    url: 'https://u.expo.dev/00d7b01f-b20d-4303-b6cb-8bcb88a8e512',
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 0,
+  },
+  // Updates only apply to builds with the same native runtime — appVersion
+  // policy ties that to `version`, so a JS update can never land on an APK
+  // whose native modules don't match it.
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',

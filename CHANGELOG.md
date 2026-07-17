@@ -4,8 +4,9 @@ Patch notes for FitCoach. The in-app **Profile → What's new** mirrors this fro
 [`src/data/changelog.ts`](src/data/changelog.ts) (the source of truth).
 
 Over-the-air releases are published with `npm run release` (see the README), which
-tags the release in git and ships the update via EAS to installed apps — so the
-app's **Profile → App version** always reflects the latest and shows "Up to date ✓".
+ships the update via EAS to installed apps, tags the release in git, **and publishes
+a matching GitHub Release** (from the notes below) — so the repo's Releases tab and
+the app's **Profile → App version** both reflect the latest and show "Up to date ✓".
 
 ---
 

@@ -352,9 +352,15 @@ npm run update:push                   # = eas update --branch preview
 ```
 
 `npm run release` reads the current version from [`src/data/changelog.ts`](src/data/changelog.ts),
-publishes the JS bundle to the `preview` channel with the patch-note text, and creates & pushes
-a **git tag** for the release. Add a new entry to the top of `changelog.ts` (and mirror it in
-[`CHANGELOG.md`](CHANGELOG.md)) before releasing — the app shows it under **Profile → What's new**.
+publishes the JS bundle to the `preview` channel with the patch-note text, creates & pushes a
+**git tag**, and publishes a matching **GitHub Release** so the repo's **Releases** tab shows a
+titled, "Latest"-badged entry (not just a bare tag). Add a new entry to the top of `changelog.ts`
+(and mirror it in [`CHANGELOG.md`](CHANGELOG.md)) before releasing — the app shows it under
+**Profile → What's new**, and the GitHub Release body is pulled from the matching `CHANGELOG.md` section.
+
+> The GitHub Release step needs either the **`gh` CLI** (authenticated via `gh auth login`) or a
+> **`GITHUB_TOKEN`** env var with `repo` scope. If neither is present, the OTA update and git tag
+> still ship and the script prints a "Draft a new release" link to publish the tag manually.
 
 - Installed apps **download the update on launch** and apply it on the next start; **Profile →
   App version** shows the release and an **"Up to date ✓"** status.

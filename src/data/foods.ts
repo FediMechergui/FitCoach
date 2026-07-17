@@ -1,4 +1,6 @@
 import { TUNISIAN_FOODS } from './foods-tunisian';
+import { FOOD_MICROS } from './foodMicros';
+import type { MicroProfile } from '@/lib/micros';
 
 /**
  * Built-in food database for "precise" logging mode (spec §3.5).
@@ -19,6 +21,8 @@ export interface FoodItem {
   fiber: number;
   category?: string;
   cuisine?: 'general' | 'tunisian';
+  /** vitamins/minerals per this serving (only for foods with known data) */
+  micros?: Partial<MicroProfile>;
 }
 
 const GENERIC_FOODS: FoodItem[] = [
@@ -56,7 +60,10 @@ const GENERIC_FOODS: FoodItem[] = [
 export const FOOD_DB: FoodItem[] = [
   ...GENERIC_FOODS.map((f) => ({ ...f, cuisine: 'general' as const })),
   ...TUNISIAN_FOODS,
-];
+].map((f) => (FOOD_MICROS[f.id] ? { ...f, micros: FOOD_MICROS[f.id] } : f));
+
+/** Count of foods that carry micronutrient data (for honest UI copy). */
+export const FOODS_WITH_MICROS = FOOD_DB.filter((f) => f.micros).length;
 
 /** Distinct categories present in the DB, for filter chips. */
 export const FOOD_CATEGORIES: string[] = [

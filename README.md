@@ -107,7 +107,7 @@ Pure, unit-testable TypeScript — the "insight" half of the app:
 - **`time.ts`** — time-range math for logging sleep/work as bedtime→wake (handles
   overnight spans and `HH:MM` parsing).
 
-Every formula above is exercised by `npm run verify:engines` (**84 checks**), which
+Every formula above is exercised by `npm run verify:engines` (**102 checks**), which
 asserts them against known values (BMR, TDEE, 1RM, MET, BAC, FFMI, cycle dates,
 time ranges…) and validates library/split integrity.
 
@@ -316,6 +316,27 @@ npm run build:aab          # eas build -p android --profile production
 
 EAS handles signing automatically. The `preview` APK can be sideloaded directly.
 
+## Micronutrients & supplements
+
+Beyond macros, FitCoach tracks **vitamins and minerals** and ties them to foods and pills
+— without ever touching the calorie/macro math (verified in the engine tests).
+
+- **13 vitamins + 11 minerals + omega-3** with sex-specific RDIs ([micros.ts](src/lib/micros.ts)).
+- **72 whole foods** carry curated per-serving micronutrient data ([foodMicros.ts](src/data/foodMicros.ts));
+  logging one stores its scaled micros denormalized on the entry, so history is stable.
+  Composite/fast foods contribute macros only — the UI is explicit that micro totals reflect
+  "foods & pills with known data", a floor rather than a guess.
+- **Micronutrients screen** (Nutrition diary → card): each nutrient as **% of RDI** with
+  low/ok/over status, a "running low" gap list, and a food-vs-supplement source split, with
+  date paging synced to the diary.
+- **Supplements** ([supplements.ts](src/data/supplements.ts), [SupplementsScreen](src/screens/nutrition/SupplementsScreen.tsx)):
+  - **Micronutrient pills** (multivitamin, D3, magnesium, zinc, iron, C, B12, omega-3, calcium,
+    folate) whose doses **count toward the same micro totals** as food.
+  - **Performance & wellness** (creatine, caffeine, beta-alanine, citrulline, whey,
+    **ashwagandha**, L-theanine, melatonin, collagen, ZMA, probiotics) tracked for dose &
+    consistency with **honest evidence ratings** (strong / moderate / limited / mixed) — no hype.
+  - Build a **stack** for one-tap daily logging, with per-supplement streaks.
+
 ## Over-the-air updates (no reinstalls)
 
 The app updates itself via **EAS Update** (`expo-updates`): JS and content changes
@@ -342,7 +363,7 @@ npm run update:push          # = eas update --branch preview
 | `npm run start` | Expo dev server |
 | `npm run android` | Launch on Android |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify:engines` | Run the 84 pure-domain formula checks |
+| `npm run verify:engines` | Run the 102 pure-domain formula checks |
 | `npm run db:generate` | Generate Drizzle SQL migrations (optional; runtime uses a bootstrap DDL) |
 | `npm run build:apk` | EAS preview APK |
 | `npm run build:aab` | EAS production AAB |

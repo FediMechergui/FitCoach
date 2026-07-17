@@ -17,6 +17,8 @@ import { useNutritionStore } from '@/stores/nutritionStore';
 import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { currentFastingState } from '@/repositories/faithRepo';
+import { dayMicros } from '@/repositories/microsRepo';
+import { microGaps } from '@/lib/micros';
 import { minutesToHM } from '@/lib/time';
 import type { FastingState } from '@/lib/fasting';
 import { BEVERAGE_PRESETS, WATER_QUICK_ADD } from '@/data/beverages';
@@ -43,13 +45,19 @@ export function NutritionScreen() {
   const undoCig = useSmokingStore((s) => s.undo);
   const loadSmoking = useSmokingStore((s) => s.load);
   const [fasting, setFasting] = React.useState<FastingState | null>(null);
+  const [microGapCount, setMicroGapCount] = React.useState(0);
+  const [microHasData, setMicroHasData] = React.useState(false);
+  const sex = useUserStore((s) => s.user?.sex ?? 'male');
 
   useFocusEffect(
     useCallback(() => {
       refresh();
       loadSmoking();
       setFasting(currentFastingState());
-    }, [refresh, loadSmoking])
+      const m = dayMicros(date);
+      setMicroHasData(m.foodEntriesWithMicros > 0 || m.supplementCount > 0);
+      setMicroGapCount(microGaps(m.totals, sex).length);
+    }, [refresh, loadSmoking, date, sex])
   );
 
   const calTarget = goal?.calorieTarget ?? 2200;
@@ -111,6 +119,28 @@ export function NutritionScreen() {
           </View>
         </Row>
       </Card>
+
+      {/* Micronutrients & supplements */}
+      <Pressable onPress={() => navigation.navigate('Micronutrients')}>
+        <Card accent={theme.colors.accent}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="micro.vitamins" size={20} color={theme.colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Micronutrients & supplements</Text>
+                <Text variant="caption" color="textMuted">
+                  {microHasData
+                    ? microGapCount > 0
+                      ? `${microGapCount} vitamin/mineral${microGapCount === 1 ? '' : 's'} running low today`
+                      : 'On track across vitamins & minerals'
+                    : 'Log whole foods or pills to see vitamins & minerals'}
+                </Text>
+              </View>
+            </Row>
+            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+          </Row>
+        </Card>
+      </Pressable>
 
       {/* Water + caffeine */}
       <Row>

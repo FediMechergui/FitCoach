@@ -23,6 +23,8 @@ export type RootStackParamList = {
   SessionDetail: { sessionId: number };
 
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
+  Micronutrients: undefined;
+  Supplements: undefined;
 
   ExerciseStats: { exerciseId: number; name: string };
   EditProfile: undefined;

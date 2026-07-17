@@ -185,6 +185,22 @@ export const ICONS = {
     focus: def('MaterialCommunityIcons', 'brain'),
   },
 
+  // Micronutrients & supplements
+  micro: {
+    vitamins: def('MaterialCommunityIcons', 'nutrition'),
+    leaf: def('MaterialCommunityIcons', 'leaf'),
+  },
+  supp: {
+    pill: def('MaterialCommunityIcons', 'pill'),
+    mineral: def('MaterialCommunityIcons', 'diamond-stone'),
+    scoop: def('MaterialCommunityIcons', 'shaker-outline'),
+    oil: def('MaterialCommunityIcons', 'fish'),
+    sun: def('MaterialCommunityIcons', 'white-balance-sunny'),
+    bolt: def('MaterialCommunityIcons', 'lightning-bolt'),
+    leaf: def('MaterialCommunityIcons', 'leaf'),
+    moon: def('MaterialCommunityIcons', 'moon-waning-crescent'),
+  },
+
   // Prayers & fasting
   faith: {
     crescent: def('MaterialCommunityIcons', 'moon-waning-crescent'),

@@ -14,6 +14,8 @@ import { WalkScreen } from '@/screens/train/WalkScreen';
 import { SessionHistoryScreen } from '@/screens/train/SessionHistoryScreen';
 import { SessionDetailScreen } from '@/screens/train/SessionDetailScreen';
 import { AddFoodScreen } from '@/screens/nutrition/AddFoodScreen';
+import { MicronutrientsScreen } from '@/screens/nutrition/MicronutrientsScreen';
+import { SupplementsScreen } from '@/screens/nutrition/SupplementsScreen';
 import { ExerciseStatsScreen } from '@/screens/stats/ExerciseStatsScreen';
 import { EditProfileScreen } from '@/screens/profile/EditProfileScreen';
 import { GoalsScreen } from '@/screens/profile/GoalsScreen';
@@ -96,6 +98,8 @@ export function RootNavigator() {
             component={AddFoodScreen}
             options={{ title: 'Add Food', presentation: 'modal' }}
           />
+          <Stack.Screen name="Micronutrients" component={MicronutrientsScreen} options={{ title: 'Micronutrients' }} />
+          <Stack.Screen name="Supplements" component={SupplementsScreen} options={{ title: 'Supplements' }} />
           <Stack.Screen
             name="ExerciseStats"
             component={ExerciseStatsScreen}

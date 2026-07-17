@@ -9,6 +9,7 @@ import {
 } from '@/db/schema';
 import { BEVERAGE_PRESETS } from '@/data/beverages';
 import { estimateFromDescription } from '@/data/foods';
+import { scaleMicros, type MicroProfile } from '@/lib/micros';
 import { todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -23,11 +24,14 @@ export interface PreciseFoodInput {
   carbsG: number;
   fatG: number;
   fiberG?: number;
+  /** per-serving vitamins/minerals; scaled by quantity and stored denormalized */
+  micros?: Partial<MicroProfile>;
   date?: string;
 }
 
 export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY_USER_ID): number {
   const q = input.quantity || 1;
+  const micros = input.micros ? scaleMicros(input.micros, q) : null;
   const res = db
     .insert(foodEntries)
     .values({
@@ -43,6 +47,7 @@ export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY
       carbsG: input.carbsG * q,
       fatG: input.fatG * q,
       fiberG: (input.fiberG ?? 0) * q,
+      micros: micros ? JSON.stringify(micros) : null,
       isEstimated: false,
     })
     .run();

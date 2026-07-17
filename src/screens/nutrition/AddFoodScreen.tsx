@@ -77,6 +77,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
       carbsG: selected.carbs,
       fatG: selected.fat,
       fiberG: selected.fiber,
+      micros: selected.micros,
     });
     navigation.goBack();
   };

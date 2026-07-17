@@ -264,9 +264,38 @@ export const foodEntries = sqliteTable('food_entries', {
   carbsG: real('carbs_g').notNull().default(0),
   fatG: real('fat_g').notNull().default(0),
   fiberG: real('fiber_g').notNull().default(0),
+  /** vitamins/minerals for this entry (JSON Partial<MicroProfile>), scaled by qty */
+  micros: text('micros'),
   isEstimated: integer('is_estimated', { mode: 'boolean' })
     .notNull()
     .default(false),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── Supplements (pills + ergogenics) ─────────────────────────────────────────
+export const supplementStack = sqliteTable('supplement_stack', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  key: text('key').notNull(), // catalogue key
+  dose: text('dose'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const supplementLogs = sqliteTable('supplement_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  key: text('key').notNull(),
+  label: text('label').notNull(),
+  category: text('category', { enum: ['micronutrient', 'ergogenic'] }).notNull(),
+  dose: text('dose'),
+  /** micronutrient contribution (JSON Partial<MicroProfile>) if any */
+  micros: text('micros'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -588,6 +617,8 @@ export type CustomRoutine = typeof customRoutines.$inferSelect;
 export type DailyStepLog = typeof dailyStepLogs.$inferSelect;
 export type FoodEntry = typeof foodEntries.$inferSelect;
 export type NewFoodEntry = typeof foodEntries.$inferInsert;
+export type SupplementStack = typeof supplementStack.$inferSelect;
+export type SupplementLog = typeof supplementLogs.$inferSelect;
 export type BeverageEntry = typeof beverageEntries.$inferSelect;
 export type NutritionGoal = typeof nutritionGoals.$inferSelect;
 export type CoachTip = typeof coachTips.$inferSelect;

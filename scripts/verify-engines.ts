@@ -20,6 +20,9 @@ import { SPLITS } from '../src/data/splits';
 import { computePrayerTimes, nextPrayer } from '../src/lib/prayers';
 import { resolveWindow, fastingState } from '../src/lib/fasting';
 import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
+import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
+import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
+import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 
 let pass = 0;
 let fail = 0;
@@ -230,6 +233,38 @@ const gr = naturalGainRangeKgPerMonth(6, 'male');
 check('Beginner male 0.5–1.0 kg/mo', gr.min === 0.5 && gr.max === 1.0, `${gr.min}-${gr.max}`);
 check('Female rate is half', naturalGainRangeKgPerMonth(6, 'female').max === 0.5);
 check('Every muscle group has a warm-up', ['chest','back','quads','hamstrings','glutes','calves','shoulders','biceps','triceps','core','forearms'].every((m) => !!WARMUPS_BY_MUSCLE[m]));
+
+console.log('\nMicronutrients:');
+const mSum = sumMicros([{ iron_mg: 6.6, folate_ug: 358 }, { iron_mg: 4.7, magnesium_mg: 79 }]);
+check('Sum adds overlapping keys (iron 11.3)', near(mSum.iron_mg, 11.3, 0.01), `${mSum.iron_mg}`);
+check('Sum keeps distinct keys (folate 358)', mSum.folate_ug === 358);
+check('Missing key sums to 0 (vitaminC)', mSum.vitaminC_mg === 0);
+const mScaled = scaleMicros({ iron_mg: 6.6, magnesium_mg: 71 }, 2);
+check('Scale ×2 doubles present keys', mScaled.iron_mg === 13.2 && mScaled.magnesium_mg === 142);
+check('Iron RDI differs by sex (m8 f18)', percentRdi(9, 'iron_mg', 'male') === 113 && percentRdi(9, 'iron_mg', 'female') === 50, `${percentRdi(9,'iron_mg','male')}/${percentRdi(9,'iron_mg','female')}`);
+check('Low status under 50% RDI', microStatus(3, 'iron_mg', 'female') === 'low');
+check('Over-upper-limit flagged (sodium)', microStatus(3000, 'sodium_mg', 'male') === 'over');
+const gaps = microGaps(sumMicros([{ vitaminC_mg: 80 }]), 'male');
+check('Gaps exclude what is met, include what is missing', !gaps.some((g) => g.key === 'vitaminC_mg') && gaps.some((g) => g.key === 'iron_mg'));
+
+console.log('\nFood micros ↔ macros integrity:');
+check('60+ foods carry micro data', FOODS_WITH_MICROS >= 55, `${FOODS_WITH_MICROS}`);
+const liver = FOOD_DB.find((f) => f.id === 'tn-beef-liver')!;
+check('Liver is a B12 powerhouse (>20µg)', (liver.micros?.vitaminB12_ug ?? 0) > 20, `${liver.micros?.vitaminB12_ug}`);
+// Macros must be UNAFFECTED by the micro merge.
+check('Chicken macros unchanged by micro merge', (() => {
+  const c = FOOD_DB.find((f) => f.id === 'chicken-breast')!;
+  return c.calories === 165 && c.protein === 31 && c.carbs === 0 && c.fat === 3.6;
+})());
+check('Every food micro key is a valid MicroKey', FOOD_DB.every((f) => !f.micros || Object.keys(f.micros).every((k) => (MICRO_KEYS as readonly string[]).includes(k))));
+
+console.log('\nSupplements:');
+check('Magnesium pill adds 400mg magnesium', findSupplement('magnesium')?.micros?.magnesium_mg === 400);
+check('Multivitamin spans many nutrients', Object.keys(findSupplement('multivitamin')?.micros ?? {}).length >= 15);
+check('Creatine is ergogenic with strong evidence', findSupplement('creatine')?.category === 'ergogenic' && findSupplement('creatine')?.evidenceLevel === 'strong');
+check('Ashwagandha present & honestly rated (not strong)', ['moderate', 'limited', 'mixed'].includes(findSupplement('ashwagandha')?.evidenceLevel ?? ''));
+check('Ergogenics carry evidence text', SUPPLEMENTS.filter((s) => s.category === 'ergogenic').every((s) => !!s.evidence));
+check('All supplement micro keys valid', SUPPLEMENTS.every((s) => !s.micros || Object.keys(s.micros).every((k) => (MICRO_KEYS as readonly string[]).includes(k))));
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

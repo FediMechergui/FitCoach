@@ -7,7 +7,7 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -31,6 +31,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'sessions', column: 'split_day', ddl: 'TEXT' },
   // v4 — per-muscle targeting
   { table: 'exercises', column: 'sub_muscle', ddl: 'TEXT' },
+  // v5 — micronutrients
+  { table: 'food_entries', column: 'micros', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -212,10 +214,34 @@ CREATE TABLE IF NOT EXISTS food_entries (
   carbs_g REAL NOT NULL DEFAULT 0,
   fat_g REAL NOT NULL DEFAULT 0,
   fiber_g REAL NOT NULL DEFAULT 0,
+  micros TEXT,
   is_estimated INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_food_entries_user_date ON food_entries(user_id, date);
+
+CREATE TABLE IF NOT EXISTS supplement_stack (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  dose TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_supplement_stack_user_key ON supplement_stack(user_id, key);
+
+CREATE TABLE IF NOT EXISTS supplement_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL,
+  dose TEXT,
+  micros TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_supplement_logs_user_date ON supplement_logs(user_id, date);
 
 CREATE TABLE IF NOT EXISTS beverage_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

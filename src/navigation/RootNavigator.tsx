@@ -28,6 +28,7 @@ import { CycleScreen } from '@/screens/health/CycleScreen';
 import { ConditionsScreen } from '@/screens/health/ConditionsScreen';
 import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
 import { GrowthScreen } from '@/screens/stats/GrowthScreen';
+import { ChangelogScreen } from '@/screens/profile/ChangelogScreen';
 import { TrendsScreen } from '@/screens/stats/TrendsScreen';
 import { PrayersScreen } from '@/screens/faith/PrayersScreen';
 import { FastingScreen } from '@/screens/faith/FastingScreen';
@@ -122,6 +123,7 @@ export function RootNavigator() {
           <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: 'Athlete Card' }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
           <Stack.Screen name="Growth" component={GrowthScreen} options={{ title: 'Muscle Growth' }} />
+          <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: "What's New" }} />
           <Stack.Screen name="Trends" component={TrendsScreen} options={{ title: 'Trends' }} />
           <Stack.Screen name="Prayers" component={PrayersScreen} options={{ title: 'Prayer Times' }} />
           <Stack.Screen name="Fasting" component={FastingScreen} options={{ title: 'Fasting' }} />

@@ -41,6 +41,7 @@ export type RootStackParamList = {
   Reports: undefined;
   Growth: undefined;
   Trends: undefined;
+  Changelog: undefined;
   Prayers: undefined;
   Fasting: undefined;
 };

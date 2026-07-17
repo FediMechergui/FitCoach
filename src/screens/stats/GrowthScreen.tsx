@@ -17,6 +17,7 @@ import {
   OPTIMAL_SETS_MIN,
 } from '@/lib/growth';
 import { MUSCLE_LABELS } from '@/data/exercises';
+import { fmtNum } from '@/lib/format';
 
 export function GrowthScreen() {
   const theme = useTheme();
@@ -64,13 +65,13 @@ export function GrowthScreen() {
         <GateRow
           ok={gates.proteinOk}
           label="Protein ≥ 1.6 g/kg"
-          detail={gates.proteinGPerKg != null ? `${gates.proteinGPerKg} g/kg (7d avg)` : 'no nutrition logs this week'}
+          detail={gates.proteinGPerKg != null ? `${fmtNum(gates.proteinGPerKg ?? 0)} g/kg (7d avg)` : 'no nutrition logs this week'}
         />
         <Divider />
         <GateRow
           ok={gates.sleepOk}
           label="Sleep ≥ 7 h"
-          detail={gates.avgSleep != null ? `${gates.avgSleep} h avg` : 'no sleep logs this week'}
+          detail={gates.avgSleep != null ? `${fmtNum(gates.avgSleep ?? 0)} h avg` : 'no sleep logs this week'}
         />
         <Divider />
         <GateRow
@@ -108,7 +109,7 @@ export function GrowthScreen() {
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" color="textMuted">
-                ~{m.avgSetsPerWeek4w} sets/wk (this week: {m.setsThisWeek})
+                ~{fmtNum(m.avgSetsPerWeek4w)} sets/wk (this week: {m.setsThisWeek})
               </Text>
               <Text variant="caption" color="textMuted">
                 growth zone {OPTIMAL_SETS_MIN}–{OPTIMAL_SETS_MAX}

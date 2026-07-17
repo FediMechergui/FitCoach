@@ -1,0 +1,60 @@
+/**
+ * In-app changelog / patch notes.
+ *
+ * `version` here is a DISPLAY release label and is intentionally decoupled from
+ * the native app version (`app.config.ts` → `version`), which must stay stable
+ * because `runtimeVersion: { policy: 'appVersion' }` ties over-the-air update
+ * compatibility to it. Bumping a changelog release ships via `eas update` and
+ * does NOT change the runtime, so OTA keeps working on the installed APK.
+ *
+ * Newest entry first. `APP_RELEASE` is what the app shows as "current version".
+ */
+
+export interface ChangelogEntry {
+  version: string;
+  date: string; // ISO
+  title: string;
+  highlights: string[];
+}
+
+export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '2.1',
+    date: '2026-07-17',
+    title: 'Micronutrients, supplements & polish',
+    highlights: [
+      'Micronutrients: 13 vitamins + 11 minerals + omega-3, tracked as % of your RDI.',
+      '175 foods now carry vitamin/mineral data — logging them fills your daily micros.',
+      'Supplements: vitamin/mineral pills that count toward your micros, plus creatine, ashwagandha and more tracked with honest evidence ratings.',
+      'All estimated numbers now show at most 2 decimals (no more 0.00000025).',
+      'In-app changelog + "up to date" status, and this What\'s New screen.',
+    ],
+  },
+  {
+    version: '2.0',
+    date: '2026-07-16',
+    title: 'Self-updating app + tracking upgrades',
+    highlights: [
+      'The app now updates itself over-the-air — no reinstalls for content/logic changes.',
+      'Walk/run pedometer rebuilt: smoother, no lag, keeps counting with the screen off.',
+      'Sticky notification for every active session (walk, run and training).',
+      'New foods: chocolate, juices, seeds (chia, pumpkin, helba…) and fast food.',
+      'Body type is now editable, and charts page day-by-day or week-by-week.',
+    ],
+  },
+  {
+    version: '1.9',
+    date: '2026-07-15',
+    title: 'Per-muscle training, growth, prayers & fasting',
+    highlights: [
+      '228-exercise library by individual muscle, with mandatory warm-ups.',
+      'Saved & updatable custom routines; editable custom exercises.',
+      'Muscle-growth readiness engine and a 12-week Trends dashboard.',
+      'Offline prayer times and Ramadan / intermittent fasting mode.',
+    ],
+  },
+];
+
+/** The current display release (top of the changelog). */
+export const APP_RELEASE = CHANGELOG[0].version;
+export const APP_RELEASE_DATE = CHANGELOG[0].date;

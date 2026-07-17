@@ -322,7 +322,7 @@ Beyond macros, FitCoach tracks **vitamins and minerals** and ties them to foods 
 — without ever touching the calorie/macro math (verified in the engine tests).
 
 - **13 vitamins + 11 minerals + omega-3** with sex-specific RDIs ([micros.ts](src/lib/micros.ts)).
-- **72 whole foods** carry curated per-serving micronutrient data ([foodMicros.ts](src/data/foodMicros.ts));
+- **175 foods** carry curated per-serving micronutrient data ([foodMicros.ts](src/data/foodMicros.ts));
   logging one stores its scaled micros denormalized on the entry, so history is stable.
   Composite/fast foods contribute macros only — the UI is explicit that micro totals reflect
   "foods & pills with known data", a floor rather than a guess.
@@ -343,12 +343,24 @@ The app updates itself via **EAS Update** (`expo-updates`): JS and content chang
 ship straight into installed builds — no new APK.
 
 ```bash
-# publish an update to every installed preview APK
-npm run update:push          # = eas update --branch preview
+# publish an update with patch notes + a git tag (recommended)
+npm run release                       # message = latest CHANGELOG title
+npm run release "hotfix: …"           # custom patch-note message
+
+# or a bare update with no tag/notes
+npm run update:push                   # = eas update --branch preview
 ```
 
-- Installed apps **download the update on launch** and apply it on the next start.
+`npm run release` reads the current version from [`src/data/changelog.ts`](src/data/changelog.ts),
+publishes the JS bundle to the `preview` channel with the patch-note text, and creates & pushes
+a **git tag** for the release. Add a new entry to the top of `changelog.ts` (and mirror it in
+[`CHANGELOG.md`](CHANGELOG.md)) before releasing — the app shows it under **Profile → What's new**.
+
+- Installed apps **download the update on launch** and apply it on the next start; **Profile →
+  App version** shows the release and an **"Up to date ✓"** status.
 - **Profile → Check for app updates** downloads and applies immediately.
+- The changelog "version" is a display label, decoupled from the native `version` /
+  `runtimeVersion` (which stays fixed so OTA compatibility never breaks).
 - `runtimeVersion: { policy: 'appVersion' }` guards compatibility: an update only
   applies to builds whose native runtime matches, so a JS update can never land on
   an APK missing its native modules.

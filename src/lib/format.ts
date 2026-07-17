@@ -62,6 +62,19 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Format any number for display with at most `maxDecimals` decimal places, and
+ * NO long floating-point tails: 0.22 stays 0.22, 0.00000025 becomes 0, 5 stays
+ * "5" (trailing zeros stripped). Use this anywhere a computed/estimated value is
+ * rendered so users never see 0.30000000000000004.
+ */
+export function fmtNum(value: number, maxDecimals = 2): string {
+  if (value == null || !isFinite(value)) return '0';
+  const rounded = Number(value.toFixed(maxDecimals));
+  const safe = Object.is(rounded, -0) ? 0 : rounded;
+  return String(safe);
+}
+
 export function round(value: number, decimals = 0): number {
   const f = 10 ** decimals;
   return Math.round(value * f) / f;

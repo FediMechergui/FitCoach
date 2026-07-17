@@ -18,6 +18,7 @@ import {
   type WeekPoint,
 } from '@/repositories/trendsRepo';
 import { BODY_TYPE_LABELS } from '@/lib/bodyType';
+import { fmtNum } from '@/lib/format';
 
 /**
  * The long-view: 12 weeks of everything, charted week by week — training,
@@ -115,12 +116,12 @@ export function TrendsScreen() {
             : ''}
         </Text>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Mini label="Waist" value={data.latestWaist != null ? `${data.latestWaist} cm` : '—'} />
-          <Mini label="Hip" value={data.latestHip != null ? `${data.latestHip} cm` : '—'} />
-          <Mini label="WHR" value={data.whr != null ? `${data.whr}` : '—'} />
+          <Mini label="Waist" value={data.latestWaist != null ? `${fmtNum(data.latestWaist)} cm` : '—'} />
+          <Mini label="Hip" value={data.latestHip != null ? `${fmtNum(data.latestHip)} cm` : '—'} />
+          <Mini label="WHR" value={data.whr != null ? `${fmtNum(data.whr)}` : '—'} />
           <Mini
             label="Waist Δ (window)"
-            value={data.waistChange12w != null ? `${data.waistChange12w > 0 ? '+' : ''}${data.waistChange12w} cm` : '—'}
+            value={data.waistChange12w != null ? `${data.waistChange12w > 0 ? '+' : ''}${fmtNum(data.waistChange12w)} cm` : '—'}
           />
         </Row>
         <Text variant="caption" color="textFaint">

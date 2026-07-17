@@ -14,6 +14,7 @@ import { Row, SectionHeader, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { latestWeight } from '@/repositories/userRepo';
+import { fmtNum } from '@/lib/format';
 import {
   bodyFatCategory,
   computeBodyComp,
@@ -128,18 +129,18 @@ export function BodyScreen() {
             <StatTile
               icon="stats.bodyFat"
               label="Body fat"
-              value={shown.bodyFatPct != null ? `${shown.bodyFatPct}%` : '—'}
+              value={shown.bodyFatPct != null ? `${fmtNum(shown.bodyFatPct)}%` : '—'}
               sub={shown.bodyFatPct != null && user ? bodyFatCategory(shown.bodyFatPct, user.sex) : undefined}
               accent={theme.colors.warning}
             />
-            <StatTile icon="strength.dumbbell" label="Lean mass" value={shown.leanMassKg != null ? `${shown.leanMassKg}kg` : '—'} accent={theme.colors.primary} />
+            <StatTile icon="strength.dumbbell" label="Lean mass" value={shown.leanMassKg != null ? `${fmtNum(shown.leanMassKg)}kg` : '—'} accent={theme.colors.primary} />
           </Row>
           <Row>
-            <StatTile icon="nutrition.calories" label="Fat mass" value={shown.fatMassKg != null ? `${shown.fatMassKg}kg` : '—'} accent={theme.colors.calories} />
+            <StatTile icon="nutrition.calories" label="Fat mass" value={shown.fatMassKg != null ? `${fmtNum(shown.fatMassKg)}kg` : '—'} accent={theme.colors.calories} />
             <StatTile
               icon="stats.progression"
               label="FFMI"
-              value={shown.normalizedFFMI != null ? `${shown.normalizedFFMI}` : '—'}
+              value={shown.normalizedFFMI != null ? `${fmtNum(shown.normalizedFFMI)}` : '—'}
               sub={shown.normalizedFFMI != null && user ? ffmiCategory(shown.normalizedFFMI, user.sex) : undefined}
               accent={theme.colors.accent}
             />
@@ -150,7 +151,7 @@ export function BodyScreen() {
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Text variant="caption" color="textMuted">Muscle mass</Text>
                   <Text variant="bodyStrong">
-                    {shown.muscleMassKg}kg{shown.musclePctOfLean != null ? ` · ${shown.musclePctOfLean}% of lean` : ''}
+                    {fmtNum(shown.muscleMassKg ?? 0)}kg{shown.musclePctOfLean != null ? ` · ${fmtNum(shown.musclePctOfLean)}% of lean` : ''}
                   </Text>
                 </Row>
               )}
@@ -160,7 +161,7 @@ export function BodyScreen() {
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Text variant="caption" color="textMuted">Body water</Text>
                     <Text variant="bodyStrong" color={shown.waterStatus === 'healthy' ? 'success' : 'warning'}>
-                      {shown.bodyWaterPct}% ({shown.waterStatus})
+                      {fmtNum(shown.bodyWaterPct ?? 0)}% ({shown.waterStatus})
                     </Text>
                   </Row>
                 </>

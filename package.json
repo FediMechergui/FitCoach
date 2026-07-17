@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "build:apk": "eas build -p android --profile preview",
     "build:aab": "eas build -p android --profile production",
-    "update:push": "eas update --branch preview"
+    "update:push": "eas update --branch preview",
+    "release": "node scripts/release.js"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",

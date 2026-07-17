@@ -16,6 +16,7 @@ import { Row, SectionHeader, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
+import { APP_RELEASE, APP_RELEASE_DATE } from '@/data/changelog';
 import { BODY_TYPE_LABELS } from '@/lib/bodyType';
 import { GOAL_LABELS, ACTIVITY_LABELS } from '@/lib/calories';
 import { ageFromBirthdate } from '@/lib/date';
@@ -30,6 +31,7 @@ export function ProfileScreen() {
   const smokingEnabled = useSmokingStore((s) => s.enabled);
   const loadSmoking = useSmokingStore((s) => s.load);
   const [weighInput, setWeighInput] = useState('');
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'uptodate' | 'available' | 'unavailable'>('idle');
 
   useFocusEffect(
     useCallback(() => {
@@ -43,15 +45,19 @@ export function ProfileScreen() {
   /** Over-the-air update check: download & apply without reinstalling the APK. */
   const checkForUpdates = async () => {
     if (__DEV__ || !Updates.isEnabled) {
+      setUpdateStatus('unavailable');
       Alert.alert('Updates unavailable', 'Over-the-air updates only work in an installed build (not in development).');
       return;
     }
     try {
+      setUpdateStatus('checking');
       const result = await Updates.checkForUpdateAsync();
       if (!result.isAvailable) {
+        setUpdateStatus('uptodate');
         Alert.alert('Up to date ✓', 'You are already on the latest version.');
         return;
       }
+      setUpdateStatus('available');
       Alert.alert('Update available', 'Download and restart with the new version now?', [
         { text: 'Later', style: 'cancel' },
         {
@@ -67,6 +73,7 @@ export function ProfileScreen() {
         },
       ]);
     } catch (e) {
+      setUpdateStatus('idle');
       Alert.alert('Update check failed', String(e instanceof Error ? e.message : e));
     }
   };
@@ -198,11 +205,39 @@ export function ProfileScreen() {
         <LinkRow icon="faith.fasting" label="Fasting mode" onPress={() => navigation.navigate('Fasting')} />
       </Card>
 
-      {/* Links */}
+      {/* Version + updates */}
+      <SectionHeader title="App version" />
+      <Card accent={updateStatus === 'uptodate' ? theme.colors.success : theme.colors.primary} style={{ gap: 10 }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyStrong">FitCoach v{APP_RELEASE}</Text>
+            <Text variant="caption" color="textMuted">
+              {updateStatus === 'checking'
+                ? 'Checking for updates…'
+                : updateStatus === 'uptodate'
+                  ? 'Up to date ✓'
+                  : updateStatus === 'available'
+                    ? 'Update available — tap to install'
+                    : `Released ${APP_RELEASE_DATE} · updates automatically`}
+            </Text>
+          </View>
+          {updateStatus === 'uptodate' && <Icon icon="core.check" size={22} color={theme.colors.success} />}
+        </Row>
+        <Row>
+          <Button title="What's new" icon="card.star" variant="secondary" size="sm" onPress={() => navigation.navigate('Changelog')} style={{ flex: 1 }} fullWidth={false} />
+          <Button
+            title={updateStatus === 'checking' ? 'Checking…' : 'Check for updates'}
+            icon="card.download"
+            size="sm"
+            onPress={checkForUpdates}
+            style={{ flex: 1 }}
+            fullWidth={false}
+          />
+        </Row>
+      </Card>
+
       <SectionHeader title="More" />
       <Card style={{ gap: 0 }}>
-        <LinkRow icon="card.download" label="Check for app updates" onPress={checkForUpdates} />
-        <Divider />
         <LinkRow icon="core.calendar" label="Session history" onPress={() => navigation.navigate('SessionHistory')} />
         <Divider />
         <LinkRow icon="nav.train" label="Exercise library" onPress={() => navigation.navigate('ExerciseLibrary', { pick: false })} />

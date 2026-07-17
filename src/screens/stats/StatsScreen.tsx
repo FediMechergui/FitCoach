@@ -34,7 +34,7 @@ import { useUserStore } from '@/stores/userStore';
 import { metaFor } from '@/constants/sessionTypes';
 import { SESSION_TYPE_COLORS } from '@/theme';
 import { daysAgoISO } from '@/lib/date';
-import { formatWeight } from '@/lib/format';
+import { formatWeight, fmtNum } from '@/lib/format';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -216,13 +216,13 @@ export function StatsScreen() {
           <SectionHeader title="Body Composition" />
           <Row>
             {bodyComp.bodyFatPct != null && (
-              <StatTile icon="stats.bodyFat" label="Body fat" value={`${bodyComp.bodyFatPct}%`} accent={theme.colors.warning} />
+              <StatTile icon="stats.bodyFat" label="Body fat" value={`${fmtNum(bodyComp.bodyFatPct ?? 0)}%`} accent={theme.colors.warning} />
             )}
             {bodyComp.leanMassKg != null && (
-              <StatTile icon="strength.dumbbell" label="Lean mass" value={`${bodyComp.leanMassKg}kg`} accent={theme.colors.primary} />
+              <StatTile icon="strength.dumbbell" label="Lean mass" value={`${fmtNum(bodyComp.leanMassKg ?? 0)}kg`} accent={theme.colors.primary} />
             )}
             {bodyComp.normalizedFFMI != null && (
-              <StatTile icon="stats.progression" label="FFMI" value={`${bodyComp.normalizedFFMI}`} accent={theme.colors.accent} />
+              <StatTile icon="stats.progression" label="FFMI" value={`${fmtNum(bodyComp.normalizedFFMI ?? 0)}`} accent={theme.colors.accent} />
             )}
           </Row>
         </>

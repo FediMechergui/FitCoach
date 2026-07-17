@@ -1,3 +1,5 @@
+import { fmtNum } from './format';
+
 /**
  * Micronutrient engine — vitamins, minerals and a couple of extras, with
  * Reference Daily Intake (RDI) targets so intake can be shown as % of need.
@@ -73,6 +75,11 @@ export function rdiFor(key: MicroKey, sex: 'male' | 'female'): number {
   return sex === 'female' ? d.rdi.f : d.rdi.m;
 }
 
+/** Round to 2 decimals without floating-point tails. */
+function r2(n: number): number {
+  return Number(n.toFixed(2));
+}
+
 /** Sum any number of partial profiles into a full zero-filled profile. */
 export function sumMicros(profiles: Array<Partial<MicroProfile>>): MicroProfile {
   const out = {} as MicroProfile;
@@ -83,6 +90,8 @@ export function sumMicros(profiles: Array<Partial<MicroProfile>>): MicroProfile 
       if (typeof v === 'number' && isFinite(v)) out[k] += v;
     }
   }
+  // Clean float tails so totals never render as 0.30000000000000004.
+  for (const k of MICRO_KEYS) out[k] = r2(out[k]);
   return out;
 }
 
@@ -91,7 +100,7 @@ export function scaleMicros(p: Partial<MicroProfile>, factor: number): Partial<M
   const out: Partial<MicroProfile> = {};
   for (const k of MICRO_KEYS) {
     const v = p[k];
-    if (typeof v === 'number' && isFinite(v)) out[k] = Math.round(v * factor * 1000) / 1000;
+    if (typeof v === 'number' && isFinite(v)) out[k] = r2(v * factor);
   }
   return out;
 }
@@ -126,9 +135,9 @@ export function microGaps(
     .sort((a, b) => a.pct - b.pct);
 }
 
-/** Format a micro amount with its unit. */
+/** Format a micro amount with its unit — never more than 2 decimals, no tails. */
 export function formatMicro(key: MicroKey, value: number): string {
   const def = microDef(key);
-  const v = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+  const v = value >= 100 ? String(Math.round(value)) : fmtNum(value, value >= 10 ? 1 : 2);
   return `${v} ${def.unit}`;
 }

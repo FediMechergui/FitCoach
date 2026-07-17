@@ -248,7 +248,7 @@ const gaps = microGaps(sumMicros([{ vitaminC_mg: 80 }]), 'male');
 check('Gaps exclude what is met, include what is missing', !gaps.some((g) => g.key === 'vitaminC_mg') && gaps.some((g) => g.key === 'iron_mg'));
 
 console.log('\nFood micros ↔ macros integrity:');
-check('60+ foods carry micro data', FOODS_WITH_MICROS >= 55, `${FOODS_WITH_MICROS}`);
+check('150+ foods carry micro data', FOODS_WITH_MICROS >= 150, `${FOODS_WITH_MICROS}`);
 const liver = FOOD_DB.find((f) => f.id === 'tn-beef-liver')!;
 check('Liver is a B12 powerhouse (>20µg)', (liver.micros?.vitaminB12_ug ?? 0) > 20, `${liver.micros?.vitaminB12_ug}`);
 // Macros must be UNAFFECTED by the micro merge.

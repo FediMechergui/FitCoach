@@ -17,7 +17,8 @@ export type RootStackParamList = {
   LogSession: undefined;
   SplitPicker: undefined;
   ActiveSession: { sessionId: number };
-  ExerciseLibrary: { pick?: boolean } | undefined;
+  /** pick=true selects exercises; sessionId targets a specific (e.g. finished) session */
+  ExerciseLibrary: { pick?: boolean; sessionId?: number } | undefined;
   SessionRecap: { sessionId: number; prCount?: number };
   Walk: { mode: 'walk' | 'run' } | undefined;
   SessionHistory: undefined;
@@ -26,6 +27,7 @@ export type RootStackParamList = {
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
   Micronutrients: undefined;
   Supplements: undefined;
+  DietPlan: undefined;
 
   ExerciseStats: { exerciseId: number; name: string };
   EditProfile: undefined;

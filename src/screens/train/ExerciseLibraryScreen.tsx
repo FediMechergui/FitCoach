@@ -20,6 +20,7 @@ import {
   updateCustomExercise,
   type ExerciseView,
 } from '@/repositories/exerciseRepo';
+import { addExerciseToSession, getSession } from '@/repositories/sessionRepo';
 import { useSessionStore } from '@/stores/sessionStore';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { Chip } from '@/components/ui/Chip';
@@ -52,11 +53,14 @@ export function ExerciseLibraryScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<LibRoute>();
   const pick = route.params?.pick ?? false;
+  const targetSessionId = route.params?.sessionId;
   const addExercise = useSessionStore((s) => s.addExercise);
   const activeType = useSessionStore((s) => s.sessionType);
+  // When targeting a specific (e.g. finished) session, default the filter to its type.
+  const targetType = targetSessionId ? getSession(targetSessionId)?.sessionType : undefined;
 
   const [search, setSearch] = useState('');
-  const [type, setType] = useState<SessionType | 'all'>(pick && activeType ? activeType : 'all');
+  const [type, setType] = useState<SessionType | 'all'>(targetType ?? (pick && activeType ? activeType : 'all'));
   const [muscle, setMuscle] = useState<string>('all');
   const [equip, setEquip] = useState<EquipmentType | 'all'>('all');
   const [showCreate, setShowCreate] = useState(false);
@@ -77,13 +81,16 @@ export function ExerciseLibraryScreen() {
   const onSelect = useCallback(
     (ex: ExerciseView) => {
       if (pick) {
-        addExercise(ex.id);
+        // Target a specific session (e.g. a finished/logged one) directly, else
+        // the live session via the store.
+        if (targetSessionId) addExerciseToSession(targetSessionId, ex.id);
+        else addExercise(ex.id);
         navigation.goBack();
       } else {
         navigation.navigate('ExerciseStats', { exerciseId: ex.id, name: ex.name });
       }
     },
-    [pick, addExercise, navigation]
+    [pick, targetSessionId, addExercise, navigation]
   );
 
   const openDetail = useCallback(
@@ -166,10 +173,21 @@ export function ExerciseLibraryScreen() {
             defaultType={type === 'all' ? activeType ?? 'strength' : type}
             existing={editing}
             onDone={(ex) => {
+              const wasEditing = !!editing;
               setShowCreate(false);
               setEditing(null);
               setRefresh((r) => r + 1);
-              if (ex && !editing) onSelect(ex);
+              if (ex && !wasEditing) {
+                if (pick) {
+                  // In a session: add the new exercise straight away.
+                  onSelect(ex);
+                } else {
+                  // Browsing: keep the user on the list and reveal the saved
+                  // exercise so it's obvious it persisted.
+                  setType(ex.sessionType);
+                  setSearch('');
+                }
+              }
             }}
           />
         ) : (

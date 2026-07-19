@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { saveWalkSession } from '@/repositories/activityRepo';
 import {
   getLiveSnapshot,
+  reconcileSteps,
   resumeWalkTracking,
   startWalkTracking,
   stopWalkTracking,
@@ -30,6 +31,8 @@ interface WalkState {
   start: (mode: 'walk' | 'run') => Promise<void>;
   /** Pull the latest numbers from the in-memory tracker (cheap; no DB read). */
   refresh: () => void;
+  /** Reconcile against the hardware step counter (catches up background steps), then refresh. */
+  reconcile: () => Promise<void>;
   stop: () => { steps: number; distanceM: number; calories: number; durationS: number } | null;
   reset: () => void;
 }
@@ -99,6 +102,12 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       usingGps: usingGps || s.usingGps,
       elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
     });
+  },
+
+  reconcile: async () => {
+    if (!get().active) return;
+    await reconcileSteps();
+    get().refresh();
   },
 
   stop: () => {

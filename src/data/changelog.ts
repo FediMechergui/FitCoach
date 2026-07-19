@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.3',
+    date: '2026-07-19',
+    title: 'Diet planner, self-care & prayer check-ins, smoother tracking',
+    highlights: [
+      'Diet plan generator: auto-builds a day of meals that hits your macro targets, with styles (balanced, high-protein, low-carb, vegetarian, mediterranean) and a Shuffle for endless same-macro variations — log any meal straight to your diary.',
+      'Home self-care check-ins: brush teeth ×3, shower and relax time to keep your routine stable.',
+      'Prayer check-ins on Home when faith mode is on — tick off each of the 5 daily prayers; prayers are also pre-programmed meditation exercises with their approximate times.',
+      'Smoother walk/run tracking: steps now reconcile against the hardware counter, so they no longer lag or reset when you leave the app or the screen turns off.',
+      'You can now add exercises to logged & past sessions (and custom exercises stay in your library).',
+      'Fasting now shows in the food logger too — it knows when you\'re in your fasting vs eating window.',
+    ],
+  },
+  {
     version: '2.2',
     date: '2026-07-19',
     title: 'GPS run maps, activity logging, hormones & naps',

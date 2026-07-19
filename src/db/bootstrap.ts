@@ -7,7 +7,7 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -462,6 +462,25 @@ CREATE TABLE IF NOT EXISTS fasting_logs (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fasting_logs_user_date ON fasting_logs(user_id, date);
+
+CREATE TABLE IF NOT EXISTS self_care_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  key TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_self_care_user_date_key ON self_care_logs(user_id, date, key);
+
+CREATE TABLE IF NOT EXISTS prayer_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  prayer TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prayer_logs_user_date_prayer ON prayer_logs(user_id, date, prayer);
 
 CREATE TABLE IF NOT EXISTS app_open_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

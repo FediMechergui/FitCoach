@@ -1127,7 +1127,24 @@ export const EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'breathwork', name: 'Breathwork', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.breath', met: 1.3 },
   { slug: 'body-scan', name: 'Body Scan', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.meditation', met: 1 },
   { slug: 'unguided-sit', name: 'Unguided Sit', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.meditation', met: 1 },
+
+  // ── Salat (prayers) as pre-programmed mind-body practice ──────────────────
+  // Logged as meditation with each prayer's typical duration (fard + light sunnah).
+  { slug: 'prayer-fajr', name: 'Fajr Prayer (Salat)', category: 'prayer', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'faith.dawn', met: 1.8, description: 'Dawn prayer · ~10 min with sunnah.', instructions: ['Approx. duration: 10 minutes.', 'Two rak\'ah sunnah + two rak\'ah fard.'] },
+  { slug: 'prayer-dhuhr', name: 'Dhuhr Prayer (Salat)', category: 'prayer', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'faith.sun', met: 1.8, description: 'Midday prayer · ~12 min with sunnah.', instructions: ['Approx. duration: 12 minutes.', 'Four rak\'ah fard (+ sunnah).'] },
+  { slug: 'prayer-asr', name: 'Asr Prayer (Salat)', category: 'prayer', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'faith.afternoon', met: 1.8, description: 'Afternoon prayer · ~8 min.', instructions: ['Approx. duration: 8 minutes.', 'Four rak\'ah fard.'] },
+  { slug: 'prayer-maghrib', name: 'Maghrib Prayer (Salat)', category: 'prayer', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'faith.sunset', met: 1.8, description: 'Sunset prayer · ~8 min with sunnah.', instructions: ['Approx. duration: 8 minutes.', 'Three rak\'ah fard + two sunnah.'] },
+  { slug: 'prayer-isha', name: 'Isha Prayer (Salat)', category: 'prayer', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'faith.night', met: 1.8, description: 'Night prayer · ~14 min with sunnah & witr.', instructions: ['Approx. duration: 14 minutes.', 'Four rak\'ah fard + sunnah + witr.'] },
 ];
+
+/** Suggested duration (minutes) for the prayer meditation exercises. */
+export const PRAYER_EXERCISE_MINUTES: Record<string, number> = {
+  'prayer-fajr': 10,
+  'prayer-dhuhr': 12,
+  'prayer-asr': 8,
+  'prayer-maghrib': 8,
+  'prayer-isha': 14,
+};
 
 /**
  * Sub-muscle backfill for entries defined before v2 introduced `subMuscle`.

@@ -587,6 +587,32 @@ export const fastingLogs = sqliteTable('fasting_logs', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// ── SelfCareLog (daily hygiene / relax check-ins) ────────────────────────────
+// One row per (day, key). key ∈ 'brush' | 'shower' | 'relax'; count is how many
+// times done today (brush target 3, shower/relax target 1).
+export const selfCareLogs = sqliteTable('self_care_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  key: text('key').notNull(),
+  count: integer('count').notNull().default(0),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── PrayerLog (which of the 5 daily prayers were performed) ───────────────────
+// Presence of a row = that prayer was done that day.
+export const prayerLogs = sqliteTable('prayer_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  prayer: text('prayer').notNull(), // fajr | dhuhr | asr | maghrib | isha
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 // ── AppOpenLog (daily app-usage / check-in streak) ───────────────────────────
 export const appOpenLogs = sqliteTable('app_open_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -674,6 +700,8 @@ export type PeriodLog = typeof periodLogs.$inferSelect;
 export type HealthCondition = typeof healthConditions.$inferSelect;
 export type ProfilePhoto = typeof profilePhotos.$inferSelect;
 export type AppOpenLog = typeof appOpenLogs.$inferSelect;
+export type SelfCareLog = typeof selfCareLogs.$inferSelect;
+export type PrayerLog = typeof prayerLogs.$inferSelect;
 export type HabitProfile = typeof habitProfiles.$inferSelect;
 export type HabitEntry = typeof habitEntries.$inferSelect;
 export type WorkLog = typeof workLogs.$inferSelect;

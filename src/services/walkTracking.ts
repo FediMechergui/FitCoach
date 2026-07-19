@@ -23,26 +23,28 @@ import {
 } from './sessionNotifications';
 
 /**
- * Walk/run tracking — pedometer-first, no GPS.
+ * Walk/run tracking.
  *
- * Design (tuned for smoothness):
- *  • Steps live in an in-memory counter; the UI polls memory, not the database.
- *    SQLite is only a crash-safe backup, flushed at most every 3 seconds — the
- *    per-step DB writes that made the old version laggy are gone.
- *  • Hardware pedometer (TYPE_STEP_COUNTER) is the primary source. It keeps
- *    counting at the OS level with the screen off, delivering the batched total
- *    when the app resumes — so background steps catch up automatically.
- *  • Accelerometer fallback runs at 25 Hz (was 50) — plenty for a 2–3 Hz step
- *    cadence at half the CPU. Foreground-only by nature; the UI says so.
- *  • A sticky notification marks the session as live and is dismissed on stop.
+ * Step source of truth (the fix for the "laggy / forgetful after backgrounding"
+ * bug): the hardware step counter, read as an ABSOLUTE total since the session
+ * start via `Pedometer.getStepCountAsync(startTime, now)`. That counter runs at
+ * the OS level and keeps ticking with the app backgrounded or the screen off, so
+ * re-reading it on resume recovers every step taken while we were asleep — the
+ * old `watchStepCount` subscription only reported steps since it was (re)created,
+ * silently dropping background steps. We reconcile against this absolute count on
+ * every UI tick and whenever the app returns to the foreground.
+ *
+ * When there is no hardware counter we fall back to the accelerometer detector
+ * (foreground-only by nature; the UI says so). Runs additionally trace a GPS
+ * route via a foreground service (see locationTracking.ts).
  */
 
 type Sub = { remove: () => void };
-let pedoSub: Sub | null = null;
 let accelSub: Sub | null = null;
 let detector: StepDetector | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let lastNotifiedSteps = -1;
+let reconciling = false;
 
 type Source = 'pedometer' | 'accelerometer' | 'gps';
 
@@ -51,9 +53,10 @@ const mem = {
   active: false,
   mode: 'walk' as 'walk' | 'run',
   source: 'pedometer' as Source,
+  /** a hardware step counter is available → use the absolute-count reconcile */
+  hardware: false,
   startTime: 0,
-  /** steps carried over from before a process restart (resume) */
-  baseSteps: 0,
+  /** authoritative total step count for the session */
   steps: 0,
   /** GPS route tracking is live for this session */
   usingGps: false,
@@ -107,7 +110,7 @@ export function getLiveSnapshot(): WalkSnapshot | null {
       mode: mem.mode,
       source: mem.source,
       startTime: mem.startTime,
-      steps: mem.baseSteps + mem.steps,
+      steps: mem.steps,
       route: mem.usingGps ? getLiveRoute() : [],
       gpsDistanceM: mem.usingGps ? getLiveRouteDistanceM() : 0,
     };
@@ -127,15 +130,31 @@ export function getLiveSnapshot(): WalkSnapshot | null {
   return null;
 }
 
-function attachSensors(hardware: boolean): void {
-  if (hardware) {
-    // watchStepCount reports cumulative steps since subscription — batched by
-    // the hardware even while the CPU sleeps, so it catches up on resume.
-    pedoSub = Pedometer.watchStepCount((result) => {
-      mem.steps = result.steps;
+/**
+ * Reconcile the in-memory step count against the hardware counter's ABSOLUTE
+ * total since the session start. This is what makes background/screen-off steps
+ * "catch up" instead of being lost. Only ever increases the count. No-op for
+ * accelerometer sessions (their count comes from the live detector).
+ */
+export async function reconcileSteps(): Promise<void> {
+  if (!mem.active || !mem.hardware || reconciling) return;
+  reconciling = true;
+  try {
+    const res = await Pedometer.getStepCountAsync(new Date(mem.startTime), new Date());
+    const s = res?.steps;
+    if (typeof s === 'number' && isFinite(s) && s > mem.steps) {
+      mem.steps = s;
       mem.dirty = true;
-    });
-  } else {
+    }
+  } catch {
+    // getStepCountAsync can throw on devices without history — keep last count.
+  } finally {
+    reconciling = false;
+  }
+}
+
+function attachSensors(): void {
+  if (!mem.hardware) {
     detector = new StepDetector();
     Accelerometer.setUpdateInterval(40); // 25 Hz
     accelSub = Accelerometer.addListener(({ x, y, z }) => {
@@ -146,30 +165,31 @@ function attachSensors(hardware: boolean): void {
     });
   }
 
-  // Crash-safe backup: persist at most every 3 s, and only when changed. Also
-  // push the live step count into the sticky notification so the user watches it
-  // climb from the notification bar (non-GPS sessions — GPS runs use the
-  // foreground-service notification instead).
+  // Persist + reconcile + refresh the live notification every 3 s. Reconciling
+  // here (not only from the UI) keeps the count and notification advancing even
+  // when no screen is polling, as long as the process is alive.
   flushTimer = setInterval(() => {
-    if (mem.dirty && mem.active) {
-      const total = mem.baseSteps + mem.steps;
-      patchLiveWalk({ steps: total });
-      mem.dirty = false;
-      if (!mem.usingGps && total !== lastNotifiedSteps) {
-        lastNotifiedSteps = total;
-        void updateOngoingNotification(
-          'walk',
-          `FitCoach — ${mem.mode === 'run' ? 'run' : 'walk'} in progress`,
-          `${total.toLocaleString()} steps · tap to return and finish`
-        );
+    if (!mem.active) return;
+    const run = async () => {
+      if (mem.hardware) await reconcileSteps();
+      if (mem.dirty) {
+        patchLiveWalk({ steps: mem.steps });
+        mem.dirty = false;
+        if (!mem.usingGps && mem.steps !== lastNotifiedSteps) {
+          lastNotifiedSteps = mem.steps;
+          void updateOngoingNotification(
+            'walk',
+            `FitCoach — ${mem.mode === 'run' ? 'run' : 'walk'} in progress`,
+            `${mem.steps.toLocaleString()} steps · tap to return and finish`
+          );
+        }
       }
-    }
+    };
+    void run();
   }, 3000);
 }
 
 function detachSensors(): void {
-  pedoSub?.remove();
-  pedoSub = null;
   accelSub?.remove();
   accelSub = null;
   detector = null;
@@ -196,15 +216,15 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   mem.active = true;
   mem.mode = mode;
   mem.source = source;
+  mem.hardware = hardware;
   mem.startTime = Date.now();
-  mem.baseSteps = 0;
   mem.steps = 0;
   mem.usingGps = gps;
   mem.dirty = false;
   lastNotifiedSteps = -1;
 
-  // Steps are still counted alongside GPS (useful cadence/step info on a run).
-  attachSensors(hardware);
+  attachSensors();
+  if (hardware) void reconcileSteps();
 
   // GPS runs already have the location foreground-service notification; only add
   // our own sticky (with the live step count) for pedometer/accelerometer walks.
@@ -222,12 +242,16 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
 }
 
 /**
- * Reconnect to a live walk after the app was killed/restarted mid-session.
- * The DB row carries the steps so far; the hardware counter resumes from a new
- * subscription, so its readings are added on top of the persisted base.
+ * Reconnect to a live walk after the app was backgrounded or restarted. The DB
+ * row carries the session start; re-reading the hardware counter from that start
+ * recovers every step taken while we were away.
  */
 export async function resumeWalkTracking(): Promise<void> {
-  if (mem.active) return; // already attached in this process
+  if (mem.active) {
+    // Already attached — just catch up any steps taken while we were away.
+    if (mem.hardware) await reconcileSteps();
+    return;
+  }
   const row = getLiveWalk();
   if (!row?.active || !row.startTime) return;
 
@@ -236,19 +260,20 @@ export async function resumeWalkTracking(): Promise<void> {
   mem.active = true;
   mem.mode = row.mode;
   mem.source = row.source;
+  mem.hardware = hardware;
   mem.startTime = row.startTime;
-  mem.baseSteps = row.steps;
-  mem.steps = 0;
+  mem.steps = row.steps;
   mem.usingGps = row.source === 'gps' || gpsLive;
   mem.dirty = false;
+  lastNotifiedSteps = -1;
 
   // If it was a GPS run and the foreground service died (rare), restart it.
   if (mem.usingGps && !gpsLive) {
     await startRouteTracking(row.mode);
   }
 
-  lastNotifiedSteps = -1;
-  attachSensors(hardware);
+  attachSensors();
+  if (hardware) await reconcileSteps();
 
   if (!mem.usingGps) {
     void showOngoingNotification(

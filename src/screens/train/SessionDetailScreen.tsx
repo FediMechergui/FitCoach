@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { View, Alert } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { View, Alert, Pressable } from 'react-native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -8,10 +8,19 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
-import { Row, Divider } from '@/components/ui/misc';
+import { Row, Divider, SectionHeader } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
-import { deleteSession, getSessionDetail } from '@/repositories/sessionRepo';
+import {
+  addSet,
+  deleteSet,
+  deleteSession,
+  getSessionDetail,
+  removeExerciseLog,
+  type ExerciseLogView,
+  type SessionDetail,
+} from '@/repositories/sessionRepo';
 import { metaFor, MOOD_EMOJI } from '@/constants/sessionTypes';
 import { formatDurationLong, formatDistance, formatPace, formatDuration } from '@/lib/format';
 import type { SetEntry } from '@/db/schema';
@@ -31,12 +40,27 @@ function describeSet(s: SetEntry): string {
   return parts.join(' · ') || '—';
 }
 
+function fieldsFor(t: ExerciseLogView['trackingType']) {
+  return {
+    weight: t === 'reps_weight',
+    reps: t === 'reps_weight' || t === 'reps_only' || t === 'custom',
+    duration: t === 'duration' || t === 'duration_distance',
+    distance: t === 'distance' || t === 'duration_distance',
+  };
+}
+
 export function SessionDetailScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute<DetailRoute>();
+  const sessionId = route.params.sessionId;
   const unit = useUserStore((s) => s.user?.unitPreference ?? 'metric');
-  const detail = useMemo(() => getSessionDetail(route.params.sessionId), [route.params.sessionId]);
+  const [detail, setDetail] = useState<SessionDetail>(() => getSessionDetail(sessionId));
+  const [editing, setEditing] = useState(false);
+
+  const reload = useCallback(() => setDetail(getSessionDetail(sessionId)), [sessionId]);
+  useFocusEffect(useCallback(() => reload(), [reload]));
+
   const { session, logs } = detail;
   const meta = metaFor(session.sessionType);
   const isLifting = meta.flow === 'lifting';
@@ -124,33 +148,91 @@ export function SessionDetailScreen() {
         </Card>
       ) : null}
 
-      {isLifting && logs.length > 0 && (
+      {/* Exercises — editable for any session type (fixes adding to logged/premade sessions) */}
+      <SectionHeader
+        title="Exercises"
+        action={editing ? 'Done' : 'Edit'}
+        onAction={() => setEditing((e) => !e)}
+      />
+      {logs.length === 0 && !editing ? (
+        <Card style={{ borderStyle: 'dashed' }}>
+          <Text variant="body" color="textFaint" center>No exercises logged. Tap “Edit” to add some.</Text>
+        </Card>
+      ) : (
         <Card style={{ gap: 12 }}>
-          <Text variant="h3">Exercises</Text>
           {logs.map((lv, idx) => (
             <View key={lv.log.id} style={{ gap: 6 }}>
               {idx > 0 ? <Divider /> : null}
-              <Row gap={8} style={{ alignItems: 'center' }}>
-                <Icon icon={lv.iconKey} size={18} color={theme.colors.primary} />
-                <Text variant="bodyStrong">{lv.exerciseName}</Text>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Row gap={8} style={{ alignItems: 'center', flex: 1 }}>
+                  <Icon icon={lv.iconKey} size={18} color={theme.colors.primary} />
+                  <Text variant="bodyStrong" style={{ flex: 1 }}>{lv.exerciseName}</Text>
+                </Row>
+                {editing && (
+                  <Pressable onPress={() => { removeExerciseLog(lv.log.id); reload(); }} hitSlop={8}>
+                    <Icon icon="core.delete" size={16} color={theme.colors.textFaint} />
+                  </Pressable>
+                )}
               </Row>
               {lv.sets.map((s) => (
                 <Row key={s.id} style={{ paddingLeft: 26, alignItems: 'center' }}>
-                  <Text variant="caption" color="textFaint" style={{ width: 30 }}>
-                    #{s.setNumber}
-                  </Text>
-                  <Text variant="body" style={{ flex: 1 }}>
-                    {describeSet(s)}
-                  </Text>
-                  {s.isPr ? <Icon icon="core.pr" size={15} color={theme.colors.warning} /> : null}
+                  <Text variant="caption" color="textFaint" style={{ width: 30 }}>#{s.setNumber}</Text>
+                  <Text variant="body" style={{ flex: 1 }}>{describeSet(s)}</Text>
+                  {s.isPr ? (
+                    <Icon icon="core.pr" size={15} color={theme.colors.warning} />
+                  ) : editing ? (
+                    <Pressable onPress={() => { deleteSet(s.id); reload(); }} hitSlop={6}>
+                      <Icon icon="core.close" size={14} color={theme.colors.textFaint} />
+                    </Pressable>
+                  ) : null}
                 </Row>
               ))}
+              {editing && <AddSetRow lv={lv} onAdded={reload} />}
             </View>
           ))}
+          {editing && (
+            <Button
+              title="Add exercise"
+              icon="core.add"
+              variant="secondary"
+              onPress={() => navigation.navigate('ExerciseLibrary', { pick: true, sessionId })}
+            />
+          )}
         </Card>
       )}
 
       <Button title="Delete Session" variant="ghost" icon="core.delete" onPress={confirmDelete} color={theme.colors.danger} />
     </Screen>
+  );
+}
+
+/** Inline "log a set" row on a finished session, adapting inputs to the exercise. */
+function AddSetRow({ lv, onAdded }: { lv: ExerciseLogView; onAdded: () => void }) {
+  const theme = useTheme();
+  const f = fieldsFor(lv.trackingType);
+  const [reps, setReps] = useState('');
+  const [weight, setWeight] = useState('');
+  const [minutes, setMinutes] = useState('');
+  const [distanceKm, setDistanceKm] = useState('');
+
+  const add = () => {
+    addSet(lv.log.id, {
+      reps: f.reps && reps ? parseInt(reps, 10) : null,
+      weightKg: f.weight && weight ? parseFloat(weight) : null,
+      durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
+      distanceM: f.distance && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
+    });
+    setReps(''); setWeight(''); setMinutes(''); setDistanceKm('');
+    onAdded();
+  };
+
+  return (
+    <Row style={{ alignItems: 'flex-end', paddingLeft: 26 }} gap={6}>
+      {f.weight && <View style={{ flex: 1 }}><Input label="kg" value={weight} onChangeText={setWeight} placeholder="0" keyboardType="numeric" /></View>}
+      {f.reps && <View style={{ flex: 1 }}><Input label="reps" value={reps} onChangeText={setReps} placeholder="0" keyboardType="numeric" /></View>}
+      {f.duration && <View style={{ flex: 1 }}><Input label="min" value={minutes} onChangeText={setMinutes} placeholder="0" keyboardType="numeric" /></View>}
+      {f.distance && <View style={{ flex: 1 }}><Input label="km" value={distanceKm} onChangeText={setDistanceKm} placeholder="0" keyboardType="numeric" /></View>}
+      <Button title="Add" size="sm" icon="core.add" onPress={add} fullWidth={false} color={theme.colors.primary} />
+    </Row>
   );
 }

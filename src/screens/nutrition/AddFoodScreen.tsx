@@ -16,6 +16,8 @@ import type { MealType } from '@/db/schema';
 import { FOOD_DB, FOOD_CATEGORIES, estimateFromDescription, type FoodItem } from '@/data/foods';
 import { Chip } from '@/components/ui/Chip';
 import { useNutritionStore } from '@/stores/nutritionStore';
+import { currentFastingState } from '@/repositories/faithRepo';
+import { minutesToHM } from '@/lib/time';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type AddFoodRoute = RouteProp<RootStackParamList, 'AddFood'>;
@@ -25,11 +27,25 @@ export function AddFoodScreen() {
   const route = useRoute<AddFoodRoute>();
   const meal = route.params.meal;
   const [mode, setMode] = useState<'precise' | 'honest'>(route.params.mode ?? 'precise');
+  const fasting = useMemo(() => currentFastingState(), []);
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={{ padding: theme.spacing.lg, gap: theme.spacing.md }}>
+          {/* Fasting-aware banner — logging still allowed, but the state is explicit. */}
+          {fasting && (
+            <Card accent={fasting.fasting ? theme.colors.warning : theme.colors.success}>
+              <Row gap={10} style={{ alignItems: 'center' }}>
+                <Icon icon="faith.fasting" size={18} color={fasting.fasting ? theme.colors.warning : theme.colors.success} />
+                <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+                  {fasting.fasting
+                    ? `You're fasting — eating window opens at ${fasting.nextTime} (${minutesToHM(fasting.minutesUntilNext)}). Log now only if you're breaking your fast.`
+                    : `Eating window open — ${minutesToHM(fasting.minutesUntilNext)} until the fast begins at ${fasting.nextTime}.`}
+                </Text>
+              </Row>
+            </Card>
+          )}
           <SegmentedControl
             options={[
               { value: 'precise', label: 'Precise', icon: 'nutrition.search' },

@@ -192,6 +192,14 @@ export const ICONS = {
     time: def('MaterialCommunityIcons', 'timer-sand'),
   },
 
+  // Self-care & hygiene
+  care: {
+    brush: def('MaterialCommunityIcons', 'toothbrush-paste'),
+    shower: def('MaterialCommunityIcons', 'shower-head'),
+    relax: def('MaterialCommunityIcons', 'spa-outline'),
+    heart: def('MaterialCommunityIcons', 'hand-heart-outline'),
+  },
+
   // Work hours
   work: {
     briefcase: def('MaterialCommunityIcons', 'briefcase-outline'),

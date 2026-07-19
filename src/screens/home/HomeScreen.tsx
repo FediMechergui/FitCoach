@@ -23,6 +23,10 @@ import { PHASE_GUIDANCE } from '@/lib/cycle';
 import { getDailySteps } from '@/repositories/activityRepo';
 import { activeCoachTips, dismissCoachTip, refreshCoachTips } from '@/repositories/coachRepo';
 import { currentStreak } from '@/repositories/statsRepo';
+import { getSelfCare, bumpSelfCare } from '@/repositories/selfCareRepo';
+import { getPrayerSettings, prayersDone, togglePrayer, DAILY_PRAYERS } from '@/repositories/faithRepo';
+import { SELF_CARE_ITEMS } from '@/lib/selfCare';
+import { PRAYER_NAMES } from '@/lib/prayers';
 import type { CoachTip } from '@/db/schema';
 import { todayISO } from '@/lib/date';
 
@@ -68,6 +72,9 @@ export function HomeScreen() {
   const [tips, setTips] = useState<CoachTip[]>([]);
   const [streak, setStreak] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [care, setCare] = useState<Record<string, number>>({});
+  const [prayersSet, setPrayersSet] = useState<Set<string>>(new Set());
+  const [faithOn, setFaithOn] = useState(false);
 
   const reload = useCallback(() => {
     setDate(todayISO());
@@ -79,7 +86,19 @@ export function HomeScreen() {
     loadSleep();
     loadCycle();
     loadUsage();
+    setCare(getSelfCare());
+    setFaithOn(!!getPrayerSettings()?.enabled);
+    setPrayersSet(prayersDone());
   }, [setDate, refreshNutrition, loadSmoking, loadSleep, loadCycle, loadUsage]);
+
+  const tapCare = (key: string) => {
+    bumpSelfCare(key);
+    setCare(getSelfCare());
+  };
+  const tapPrayer = (prayer: string) => {
+    togglePrayer(prayer);
+    setPrayersSet(prayersDone());
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -179,6 +198,81 @@ export function HomeScreen() {
           style={{ flex: 1 }}
         />
       </Row>
+
+      {/* Self-care / hygiene check-ins */}
+      <SectionHeader title="Self-care" />
+      <Card>
+        <Row style={{ justifyContent: 'space-around' }}>
+          {SELF_CARE_ITEMS.map((item) => {
+            const count = care[item.key] ?? 0;
+            const done = count >= item.target;
+            const color = theme.colors[item.color as keyof typeof theme.colors] ?? theme.colors.primary;
+            return (
+              <Pressable key={item.key} onPress={() => tapCare(item.key)} style={{ alignItems: 'center', gap: 6, flex: 1 }}>
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: done ? color : (color as string) + '22',
+                    borderWidth: 2,
+                    borderColor: count > 0 ? color : theme.colors.border,
+                  }}
+                >
+                  <Icon icon={item.icon} size={26} color={done ? '#fff' : color} />
+                </View>
+                <Text variant="caption" color={count > 0 ? 'text' : 'textFaint'} style={{ textAlign: 'center' }}>
+                  {item.label}
+                </Text>
+                <Text variant="caption" color="textFaint" style={{ fontSize: 10 }}>
+                  {item.target > 1 ? `${count}/${item.target}` : done ? 'Done ✓' : item.hint}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </Row>
+      </Card>
+
+      {/* Prayer check-ins (faith mode) */}
+      {faithOn && (
+        <>
+          <SectionHeader title="Prayers today" action="Times" onAction={() => navigation.navigate('Prayers')} />
+          <Card>
+            <Row style={{ justifyContent: 'space-between' }}>
+              {DAILY_PRAYERS.map((p) => {
+                const meta = PRAYER_NAMES.find((n) => n.key === p);
+                const done = prayersSet.has(p);
+                return (
+                  <Pressable key={p} onPress={() => tapPrayer(p)} style={{ alignItems: 'center', gap: 5, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 23,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: done ? theme.colors.success : theme.colors.surfaceAlt,
+                        borderWidth: 1.5,
+                        borderColor: done ? theme.colors.success : theme.colors.border,
+                      }}
+                    >
+                      <Icon icon={done ? 'core.check' : (meta?.icon ?? 'faith.crescent')} size={20} color={done ? '#fff' : theme.colors.textMuted} />
+                    </View>
+                    <Text variant="caption" color={done ? 'success' : 'textFaint'} style={{ fontSize: 11 }}>
+                      {meta?.label ?? p}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </Row>
+            <Text variant="caption" color="textFaint" center style={{ marginTop: 8 }}>
+              {prayersSet.size} of 5 prayers marked done
+            </Text>
+          </Card>
+        </>
+      )}
 
       {/* Coach tips */}
       {tips.length > 0 && (

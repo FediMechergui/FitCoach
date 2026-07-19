@@ -3,6 +3,7 @@ import { db } from '@/db/client';
 import {
   fastingLogs,
   fastingProfiles,
+  prayerLogs,
   prayerSettings,
   type FastingProfile,
   type PrayerSettings,
@@ -41,6 +42,35 @@ export function todaysPrayerTimes(date: Date = new Date()): PrayerTimes | null {
     method: s.method as never,
     asrFactor: (s.asrFactor === 2 ? 2 : 1) as 1 | 2,
   });
+}
+
+// ── Prayer check-ins (which of the 5 daily prayers were performed) ───────────
+export const DAILY_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
+export type DailyPrayer = (typeof DAILY_PRAYERS)[number];
+
+/** The set of prayers marked done for a day. */
+export function prayersDone(date: string = todayISO(), userId: number = PRIMARY_USER_ID): Set<string> {
+  const rows = db
+    .select()
+    .from(prayerLogs)
+    .where(and(eq(prayerLogs.userId, userId), eq(prayerLogs.date, date)))
+    .all();
+  return new Set(rows.map((r) => r.prayer));
+}
+
+/** Toggle a prayer done/undone for a day. Returns whether it is now done. */
+export function togglePrayer(prayer: string, date: string = todayISO(), userId: number = PRIMARY_USER_ID): boolean {
+  const existing = db
+    .select()
+    .from(prayerLogs)
+    .where(and(eq(prayerLogs.userId, userId), eq(prayerLogs.date, date), eq(prayerLogs.prayer, prayer)))
+    .get();
+  if (existing) {
+    db.delete(prayerLogs).where(eq(prayerLogs.id, existing.id)).run();
+    return false;
+  }
+  db.insert(prayerLogs).values({ userId, date, prayer }).run();
+  return true;
 }
 
 // ── Fasting ──────────────────────────────────────────────────────────────────

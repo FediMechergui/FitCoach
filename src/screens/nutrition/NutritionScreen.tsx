@@ -120,6 +120,24 @@ export function NutritionScreen() {
         </Row>
       </Card>
 
+      {/* Diet plan generator */}
+      <Pressable onPress={() => navigation.navigate('DietPlan')}>
+        <Card accent={theme.colors.calories}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="nutrition.calories" size={20} color={theme.colors.calories} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Diet plan</Text>
+                <Text variant="caption" color="textMuted">
+                  Auto-build a day of meals that hits your macros — shuffle for variety
+                </Text>
+              </View>
+            </Row>
+            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+          </Row>
+        </Card>
+      </Pressable>
+
       {/* Micronutrients & supplements */}
       <Pressable onPress={() => navigation.navigate('Micronutrients')}>
         <Card accent={theme.colors.accent}>

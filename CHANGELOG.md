@@ -10,6 +10,20 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.3 — 2026-07-19 · Diet planner, self-care & prayer check-ins, smoother tracking
+- **Diet plan generator**: auto-builds a day of meals that hits your calorie & macro targets,
+  with 5 styles (balanced, high-protein, low-carb, vegetarian, mediterranean) and a **Shuffle**
+  for endless same-macro variations. Log any meal — or the whole day — straight to your diary.
+- **Home self-care check-ins**: brush teeth ×3, shower, and relax time.
+- **Prayer check-ins** on Home when faith mode is on — tick off each of the 5 daily prayers.
+  Prayers are also pre-programmed **meditation exercises** with their approximate durations.
+- **Smoother walk/run tracking**: step counts reconcile against the hardware counter (via
+  `getStepCountAsync`) on every tick and on app-resume, so they no longer lag or reset when you
+  background the app or the screen turns off.
+- **Add exercises to logged/past sessions** (and custom exercises persist in your library).
+- **Fasting** now surfaces in the food logger — it knows whether you're in your fasting or
+  eating window when you add food.
+
 ## v2.2 — 2026-07-19 · GPS run maps, activity logging, hormones & naps
 - Runs are traced by GPS and drawn as a **circuit map**; a persistent foreground-service
   notification keeps recording your path even with the app closed or the screen off.

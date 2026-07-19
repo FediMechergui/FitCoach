@@ -25,26 +25,33 @@ import {
 /**
  * Walk/run tracking.
  *
- * Step source of truth (the fix for the "laggy / forgetful after backgrounding"
- * bug): the hardware step counter, read as an ABSOLUTE total since the session
- * start via `Pedometer.getStepCountAsync(startTime, now)`. That counter runs at
- * the OS level and keeps ticking with the app backgrounded or the screen off, so
- * re-reading it on resume recovers every step taken while we were asleep — the
- * old `watchStepCount` subscription only reported steps since it was (re)created,
- * silently dropping background steps. We reconcile against this absolute count on
- * every UI tick and whenever the app returns to the foreground.
+ * Real-time step source: `Pedometer.watchStepCount` (TYPE_STEP_COUNTER on
+ * Android, CMPedometer on iOS). It reports the cumulative step count since the
+ * subscription, and because the hardware counter keeps ticking while the app is
+ * backgrounded or the screen is off, the listener delivers the batched total the
+ * moment it resumes — so background steps catch up. This is the source that
+ * actually works on Android.
  *
- * When there is no hardware counter we fall back to the accelerometer detector
- * (foreground-only by nature; the UI says so). Runs additionally trace a GPS
- * route via a foreground service (see locationTracking.ts).
+ * `getStepCountAsync` is used ONLY as a best-effort *upward* correction: on iOS
+ * it can read the exact count over a date range; on Android it is unavailable
+ * and throws, so we swallow the error and rely entirely on the watch counter.
+ * (An earlier version made getStepCountAsync the sole source, which silently
+ * broke step counting on Android — never do that again.)
+ *
+ * With no hardware counter we fall back to the accelerometer detector
+ * (foreground-only). Runs additionally trace a GPS route via a foreground
+ * service (see locationTracking.ts).
  */
 
 type Sub = { remove: () => void };
+let pedoSub: Sub | null = null;
 let accelSub: Sub | null = null;
 let detector: StepDetector | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let lastNotifiedSteps = -1;
 let reconciling = false;
+/** null = untested, false = unavailable (Android) so we stop calling it. */
+let stepCountSupported: boolean | null = null;
 
 type Source = 'pedometer' | 'accelerometer' | 'gps';
 
@@ -53,15 +60,21 @@ const mem = {
   active: false,
   mode: 'walk' as 'walk' | 'run',
   source: 'pedometer' as Source,
-  /** a hardware step counter is available → use the absolute-count reconcile */
+  /** a hardware step counter is in use (watchStepCount) */
   hardware: false,
   startTime: 0,
-  /** authoritative total step count for the session */
+  /** steps carried over from before this subscription (resume / getStepCount catch-up) */
+  baseSteps: 0,
+  /** steps reported by the current watch subscription / accelerometer detector */
   steps: 0,
   /** GPS route tracking is live for this session */
   usingGps: false,
   dirty: false,
 };
+
+function total(): number {
+  return mem.baseSteps + mem.steps;
+}
 
 export interface WalkPermissions {
   motion: boolean;
@@ -110,7 +123,7 @@ export function getLiveSnapshot(): WalkSnapshot | null {
       mode: mem.mode,
       source: mem.source,
       startTime: mem.startTime,
-      steps: mem.steps,
+      steps: total(),
       route: mem.usingGps ? getLiveRoute() : [],
       gpsDistanceM: mem.usingGps ? getLiveRouteDistanceM() : 0,
     };
@@ -131,30 +144,39 @@ export function getLiveSnapshot(): WalkSnapshot | null {
 }
 
 /**
- * Reconcile the in-memory step count against the hardware counter's ABSOLUTE
- * total since the session start. This is what makes background/screen-off steps
- * "catch up" instead of being lost. Only ever increases the count. No-op for
- * accelerometer sessions (their count comes from the live detector).
+ * Best-effort upward correction against the hardware counter's absolute total
+ * since the session start. Works on iOS; on Android `getStepCountAsync` throws
+ * and this quietly no-ops (watchStepCount remains the source). Never decreases
+ * the count.
  */
 export async function reconcileSteps(): Promise<void> {
-  if (!mem.active || !mem.hardware || reconciling) return;
+  if (!mem.active || !mem.hardware || reconciling || stepCountSupported === false) return;
   reconciling = true;
   try {
     const res = await Pedometer.getStepCountAsync(new Date(mem.startTime), new Date());
-    const s = res?.steps;
-    if (typeof s === 'number' && isFinite(s) && s > mem.steps) {
-      mem.steps = s;
+    stepCountSupported = true;
+    const hw = res?.steps;
+    if (typeof hw === 'number' && isFinite(hw) && hw > total()) {
+      // Fold the extra into baseSteps so the watch subscription keeps adding on top.
+      mem.baseSteps = hw - mem.steps;
       mem.dirty = true;
     }
   } catch {
-    // getStepCountAsync can throw on devices without history — keep last count.
+    // Unavailable on Android (getStepCountAsync is iOS-only) — stop trying;
+    // watchStepCount remains the live source.
+    stepCountSupported = false;
   } finally {
     reconciling = false;
   }
 }
 
 function attachSensors(): void {
-  if (!mem.hardware) {
+  if (mem.hardware) {
+    pedoSub = Pedometer.watchStepCount((result) => {
+      mem.steps = result.steps;
+      mem.dirty = true;
+    });
+  } else {
     detector = new StepDetector();
     Accelerometer.setUpdateInterval(40); // 25 Hz
     accelSub = Accelerometer.addListener(({ x, y, z }) => {
@@ -165,31 +187,27 @@ function attachSensors(): void {
     });
   }
 
-  // Persist + reconcile + refresh the live notification every 3 s. Reconciling
-  // here (not only from the UI) keeps the count and notification advancing even
-  // when no screen is polling, as long as the process is alive.
+  // Persist + refresh the live notification every 3 s (and only when changed).
   flushTimer = setInterval(() => {
-    if (!mem.active) return;
-    const run = async () => {
-      if (mem.hardware) await reconcileSteps();
-      if (mem.dirty) {
-        patchLiveWalk({ steps: mem.steps });
-        mem.dirty = false;
-        if (!mem.usingGps && mem.steps !== lastNotifiedSteps) {
-          lastNotifiedSteps = mem.steps;
-          void updateOngoingNotification(
-            'walk',
-            `FitCoach — ${mem.mode === 'run' ? 'run' : 'walk'} in progress`,
-            `${mem.steps.toLocaleString()} steps · tap to return and finish`
-          );
-        }
+    if (mem.dirty && mem.active) {
+      const t = total();
+      patchLiveWalk({ steps: t });
+      mem.dirty = false;
+      if (!mem.usingGps && t !== lastNotifiedSteps) {
+        lastNotifiedSteps = t;
+        void updateOngoingNotification(
+          'walk',
+          `FitCoach — ${mem.mode === 'run' ? 'run' : 'walk'} in progress`,
+          `${t.toLocaleString()} steps · tap to return and finish`
+        );
       }
-    };
-    void run();
+    }
   }, 3000);
 }
 
 function detachSensors(): void {
+  pedoSub?.remove();
+  pedoSub = null;
   accelSub?.remove();
   accelSub = null;
   detector = null;
@@ -218,13 +236,13 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   mem.source = source;
   mem.hardware = hardware;
   mem.startTime = Date.now();
+  mem.baseSteps = 0;
   mem.steps = 0;
   mem.usingGps = gps;
   mem.dirty = false;
   lastNotifiedSteps = -1;
 
   attachSensors();
-  if (hardware) void reconcileSteps();
 
   // GPS runs already have the location foreground-service notification; only add
   // our own sticky (with the live step count) for pedometer/accelerometer walks.
@@ -243,13 +261,12 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
 
 /**
  * Reconnect to a live walk after the app was backgrounded or restarted. The DB
- * row carries the session start; re-reading the hardware counter from that start
- * recovers every step taken while we were away.
+ * row carries the steps so far; a fresh watch subscription resumes counting on
+ * top of that persisted base.
  */
 export async function resumeWalkTracking(): Promise<void> {
   if (mem.active) {
-    // Already attached — just catch up any steps taken while we were away.
-    if (mem.hardware) await reconcileSteps();
+    if (mem.hardware) void reconcileSteps();
     return;
   }
   const row = getLiveWalk();
@@ -262,7 +279,8 @@ export async function resumeWalkTracking(): Promise<void> {
   mem.source = row.source;
   mem.hardware = hardware;
   mem.startTime = row.startTime;
-  mem.steps = row.steps;
+  mem.baseSteps = row.steps;
+  mem.steps = 0;
   mem.usingGps = row.source === 'gps' || gpsLive;
   mem.dirty = false;
   lastNotifiedSteps = -1;
@@ -273,7 +291,7 @@ export async function resumeWalkTracking(): Promise<void> {
   }
 
   attachSensors();
-  if (hardware) await reconcileSteps();
+  if (hardware) void reconcileSteps();
 
   if (!mem.usingGps) {
     void showOngoingNotification(

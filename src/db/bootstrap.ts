@@ -7,7 +7,7 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -33,6 +33,11 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'exercises', column: 'sub_muscle', ddl: 'TEXT' },
   // v5 — micronutrients
   { table: 'food_entries', column: 'micros', ddl: 'TEXT' },
+  // v6 — activity logging, GPS routes, naps & hormones
+  { table: 'set_entries', column: 'duration_s', ddl: 'INTEGER' },
+  { table: 'set_entries', column: 'distance_m', ddl: 'REAL' },
+  { table: 'walk_sessions', column: 'route_json', ddl: 'TEXT' },
+  { table: 'live_walks', column: 'route_json', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -122,6 +127,8 @@ CREATE TABLE IF NOT EXISTS set_entries (
   reps INTEGER,
   weight_kg REAL,
   rpe REAL,
+  duration_s INTEGER,
+  distance_m REAL,
   is_pr INTEGER NOT NULL DEFAULT 0,
   completed INTEGER NOT NULL DEFAULT 1
 );
@@ -171,6 +178,7 @@ CREATE TABLE IF NOT EXISTS walk_sessions (
   calories_burned REAL NOT NULL DEFAULT 0,
   avg_pace REAL,
   source TEXT NOT NULL DEFAULT 'pedometer',
+  route_json TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_walk_sessions_user ON walk_sessions(user_id, start_time);
@@ -186,6 +194,7 @@ CREATE TABLE IF NOT EXISTS live_walks (
   distance_m REAL NOT NULL DEFAULT 0,
   last_lat REAL,
   last_lng REAL,
+  route_json TEXT,
   updated_at INTEGER
 );
 
@@ -306,6 +315,29 @@ CREATE TABLE IF NOT EXISTS sleep_logs (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_logs_user_date ON sleep_logs(user_id, date);
+
+CREATE TABLE IF NOT EXISTS nap_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  minutes REAL NOT NULL DEFAULT 0,
+  start_time TEXT,
+  quality INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_nap_logs_user_date ON nap_logs(user_id, date);
+
+CREATE TABLE IF NOT EXISTS hormone_flags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  hormone_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'monitoring',
+  notes TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_hormone_flags_user ON hormone_flags(user_id, active);
 
 CREATE TABLE IF NOT EXISTS alcohol_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

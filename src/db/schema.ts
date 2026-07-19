@@ -129,6 +129,10 @@ export const setEntries = sqliteTable('set_entries', {
   reps: integer('reps'),
   weightKg: real('weight_kg'),
   rpe: real('rpe'), // 1..10
+  /** duration-tracked movements (cardio, holds, mobility) — seconds */
+  durationS: integer('duration_s'),
+  /** distance-tracked movements (row, run intervals) — metres */
+  distanceM: real('distance_m'),
   isPr: integer('is_pr', { mode: 'boolean' }).notNull().default(false),
   completed: integer('completed', { mode: 'boolean' }).notNull().default(true),
 });
@@ -208,6 +212,8 @@ export const walkSessions = sqliteTable('walk_sessions', {
   source: text('source', { enum: ['pedometer', 'accelerometer', 'gps'] })
     .notNull()
     .default('pedometer'),
+  /** GPS route as JSON [[lat,lng],…] for the circuit map (runs/outdoor) */
+  routeJson: text('route_json'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -230,6 +236,8 @@ export const liveWalks = sqliteTable('live_walks', {
   distanceM: real('distance_m').notNull().default(0),
   lastLat: real('last_lat'),
   lastLng: real('last_lng'),
+  /** accumulating GPS route as JSON [[lat,lng],…] while a run is live */
+  routeJson: text('route_json'),
   updatedAt: integer('updated_at'),
 });
 
@@ -382,6 +390,38 @@ export const sleepLogs = sqliteTable('sleep_logs', {
   bedtime: text('bedtime'), // optional 'HH:MM'
   wakeTime: text('wake_time'),
   notes: text('notes'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── NapLog (daytime naps — separate from night sleep, many per day) ──────────
+export const napLogs = sqliteTable('nap_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(), // ISO day the nap happened
+  minutes: real('minutes').notNull().default(0),
+  startTime: text('start_time'), // optional 'HH:MM'
+  quality: integer('quality'), // 1..5 subjective
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── HormoneFlag (user-flagged hormonal status, from the profile) ─────────────
+// Educational, non-diagnostic. Lets the user note a hormone they're low/high in
+// or monitoring, so reports and the hormones screen surface the right levers.
+export const HORMONE_STATUSES = ['low', 'high', 'monitoring'] as const;
+export type HormoneStatus = (typeof HORMONE_STATUSES)[number];
+
+export const hormoneFlags = sqliteTable('hormone_flags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  hormoneKey: text('hormone_key').notNull(), // catalogue key
+  label: text('label').notNull(),
+  status: text('status', { enum: HORMONE_STATUSES }).notNull().default('monitoring'),
+  notes: text('notes'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -626,6 +666,8 @@ export type SmokingEntry = typeof smokingEntries.$inferSelect;
 export type SmokingProfile = typeof smokingProfiles.$inferSelect;
 export type NewSmokingProfile = typeof smokingProfiles.$inferInsert;
 export type SleepLog = typeof sleepLogs.$inferSelect;
+export type NapLog = typeof napLogs.$inferSelect;
+export type HormoneFlag = typeof hormoneFlags.$inferSelect;
 export type AlcoholEntry = typeof alcoholEntries.$inferSelect;
 export type CycleProfile = typeof cycleProfiles.$inferSelect;
 export type PeriodLog = typeof periodLogs.$inferSelect;

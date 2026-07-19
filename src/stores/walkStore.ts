@@ -8,6 +8,7 @@ import {
   type WalkPermissions,
 } from '@/services/walkTracking';
 import { distanceFromSteps } from '@/lib/pedometer';
+import type { LatLng } from '@/lib/geo';
 import { walkCalories } from '@/lib/met';
 import { useUserStore } from './userStore';
 
@@ -19,6 +20,8 @@ interface WalkState {
   steps: number;
   distanceM: number;
   elapsedS: number;
+  route: LatLng[];
+  usingGps: boolean;
   permissions: WalkPermissions | null;
   starting: boolean;
 
@@ -43,6 +46,8 @@ export const useWalkStore = create<WalkState>((set, get) => ({
   steps: 0,
   distanceM: 0,
   elapsedS: 0,
+  route: [],
+  usingGps: false,
   permissions: null,
   starting: false,
 
@@ -50,13 +55,16 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     const snap = getLiveSnapshot();
     if (snap?.active) {
       void resumeWalkTracking();
+      const usingGps = snap.gpsDistanceM > 0 || snap.route.length > 0;
       set({
         active: true,
         mode: snap.mode,
         source: snap.source,
         startedAt: snap.startTime,
         steps: snap.steps,
-        distanceM: distanceFromSteps(snap.steps, heightCm(), snap.mode),
+        distanceM: usingGps ? snap.gpsDistanceM : distanceFromSteps(snap.steps, heightCm(), snap.mode),
+        route: snap.route,
+        usingGps,
         elapsedS: Math.round((Date.now() - snap.startTime) / 1000),
       });
     }
@@ -64,7 +72,7 @@ export const useWalkStore = create<WalkState>((set, get) => ({
 
   start: async (mode) => {
     if (get().starting || get().active) return;
-    set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0 });
+    set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [] });
     const permissions = await startWalkTracking(mode);
     const snap = getLiveSnapshot();
     set({
@@ -73,6 +81,7 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       mode,
       source: snap?.source ?? 'pedometer',
       startedAt: snap?.startTime ?? Date.now(),
+      usingGps: permissions.gps,
       permissions,
     });
   },
@@ -82,9 +91,12 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     if (!s.active || !s.startedAt) return;
     const snap = getLiveSnapshot();
     const steps = snap?.steps ?? s.steps;
+    const usingGps = !!snap && (snap.gpsDistanceM > 0 || snap.route.length > 0);
     set({
       steps,
-      distanceM: distanceFromSteps(steps, heightCm(), s.mode),
+      distanceM: usingGps ? snap!.gpsDistanceM : distanceFromSteps(steps, heightCm(), s.mode),
+      route: snap?.route ?? s.route,
+      usingGps: usingGps || s.usingGps,
       elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
     });
   },
@@ -116,10 +128,11 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       caloriesBurned: calories,
       avgPace,
       source: result.source,
+      routeJson: result.route.length > 1 ? JSON.stringify(result.route) : null,
     });
 
     return { steps: result.steps, distanceM: result.distanceM, calories, durationS: result.durationS };
   },
 
-  reset: () => set({ active: false, startedAt: null, steps: 0, distanceM: 0, elapsedS: 0 }),
+  reset: () => set({ active: false, startedAt: null, steps: 0, distanceM: 0, elapsedS: 0, route: [], usingGps: false }),
 }));

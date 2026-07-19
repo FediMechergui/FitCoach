@@ -1,6 +1,6 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { sessions, sleepLogs, type SleepLog } from '@/db/schema';
+import { napLogs, sessions, sleepLogs, type NapLog, type SleepLog } from '@/db/schema';
 import { averageSleep, sleepDebt, sleepPerformanceFactor } from '@/lib/sleep';
 import { daysAgoISO, lastNDates, toISODate, todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
@@ -63,6 +63,40 @@ export function sleepSummary(userId: number = PRIMARY_USER_ID): SleepSummary {
     performanceFactor: sleepPerformanceFactor(avg),
     series,
   };
+}
+
+// ── Naps (daytime, many per day, separate from night sleep) ──────────────────
+export function logNap(
+  data: { date?: string; minutes: number; startTime?: string | null; quality?: number | null },
+  userId: number = PRIMARY_USER_ID
+): void {
+  db.insert(napLogs)
+    .values({
+      userId,
+      date: data.date ?? todayISO(),
+      minutes: data.minutes,
+      startTime: data.startTime ?? null,
+      quality: data.quality ?? null,
+    })
+    .run();
+}
+
+export function deleteNap(id: number): void {
+  db.delete(napLogs).where(eq(napLogs.id, id)).run();
+}
+
+export function napsForDate(date: string = todayISO(), userId: number = PRIMARY_USER_ID): NapLog[] {
+  return db
+    .select()
+    .from(napLogs)
+    .where(and(eq(napLogs.userId, userId), eq(napLogs.date, date)))
+    .orderBy(desc(napLogs.id))
+    .all();
+}
+
+/** Total nap minutes for a day — folded into "total rest" alongside night sleep. */
+export function napMinutesForDate(date: string = todayISO(), userId: number = PRIMARY_USER_ID): number {
+  return napsForDate(date, userId).reduce((sum, n) => sum + n.minutes, 0);
 }
 
 export function avgSleepHours(days = 7, userId: number = PRIMARY_USER_ID): number | null {

@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.2',
+    date: '2026-07-19',
+    title: 'GPS run maps, activity logging, hormones & naps',
+    highlights: [
+      'Runs now draw your route as a circuit map, tracked by GPS with a pinned notification that keeps recording even with the app closed.',
+      'Walks show a live, non-dismissible step counter in your notification bar.',
+      'Log exercises & activities in ANY session — cardio, sport and mind-body, not just lifting — each with reps, time or distance.',
+      'Forgot to start a session? Log a past one from its start–finish time.',
+      'New Hormones section: what raises/lowers each, low/high signs, and flags you can set from your profile.',
+      'Sleep now tracks daytime naps separately from your night sleep.',
+      'More foods: halwa chamia, cordon bleu, milkshakes, and sandwich condiments (mayo, garlic sauce, harissa, harissa arbi, hummus…) — with omega-3 filled in across foods.',
+    ],
+  },
+  {
     version: '2.1',
     date: '2026-07-17',
     title: 'Micronutrients, supplements & polish',

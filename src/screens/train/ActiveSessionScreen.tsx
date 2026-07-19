@@ -111,7 +111,8 @@ export function ActiveSessionScreen() {
 
       <RestTimerBanner />
 
-      {flow === 'lifting' && <LiftingSection detail={detail?.logs ?? []} accent={meta.color} />}
+      {/* Exercises / activities — available for every session type, not just lifting */}
+      <ExerciseSection detail={detail?.logs ?? []} accent={meta.color} isLifting={flow === 'lifting'} />
 
       {flow === 'cardio' && (
         <Card style={{ gap: theme.spacing.md }}>
@@ -143,7 +144,7 @@ export function ActiveSessionScreen() {
           )}
           <Text variant="caption" color="textFaint">
             Distance & elevation are optional — duration and estimated calories are always
-            captured. Live GPS route arrives in Phase 2.
+            captured. For a live GPS route map, start a Run from the Train tab.
           </Text>
         </Card>
       )}
@@ -219,8 +220,8 @@ function RestTimerBanner() {
   );
 }
 
-// ── Lifting section (strength / calisthenics) ────────────────────────────────
-function LiftingSection({ detail, accent }: { detail: ExerciseLogView[]; accent: string }) {
+// ── Exercise section (all session types) ─────────────────────────────────────
+function ExerciseSection({ detail, accent, isLifting }: { detail: ExerciseLogView[]; accent: string; isLifting: boolean }) {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
 
@@ -236,31 +237,37 @@ function LiftingSection({ detail, accent }: { detail: ExerciseLogView[]; accent:
 
   return (
     <View style={{ gap: theme.spacing.md }}>
-      {detail.length > 0 && <WarmupChecklist detail={detail} />}
+      {isLifting && detail.length > 0 && <WarmupChecklist detail={detail} />}
 
       {detail.length > 0 && (
         <Row style={{ justifyContent: 'space-between' }}>
           <Text variant="label" color="textMuted">
             {detail.length} exercise{detail.length === 1 ? '' : 's'}
           </Text>
-          <Text variant="label" color="textMuted">
-            Volume {Math.round(totalVolume).toLocaleString()} kg
-          </Text>
+          {isLifting && (
+            <Text variant="label" color="textMuted">
+              Volume {Math.round(totalVolume).toLocaleString()} kg
+            </Text>
+          )}
         </Row>
       )}
 
       {detail.length === 0 ? (
         <EmptyState
-          icon="strength.dumbbell"
-          title="Add your first exercise"
-          message="Pick from the library, then log sets as you go."
+          icon={isLifting ? 'strength.dumbbell' : 'cardio.running'}
+          title={isLifting ? 'Add your first exercise' : 'Add an activity (optional)'}
+          message={
+            isLifting
+              ? 'Pick from the library, then log sets as you go.'
+              : 'Log the specific drills or activities you did — each with its own reps, time or distance.'
+          }
         />
       ) : (
-        detail.map((lv) => <ExerciseLogCard key={lv.log.id} lv={lv} accent={accent} />)
+        detail.map((lv) => <ExerciseLogCard key={lv.log.id} lv={lv} accent={accent} isLifting={isLifting} />)
       )}
 
       <Button
-        title="Add Exercise"
+        title={isLifting ? 'Add Exercise' : 'Add Exercise / Activity'}
         icon="core.add"
         variant="secondary"
         onPress={() => navigation.navigate('ExerciseLibrary', { pick: true })}
@@ -269,23 +276,50 @@ function LiftingSection({ detail, accent }: { detail: ExerciseLogView[]; accent:
   );
 }
 
-function ExerciseLogCard({ lv, accent }: { lv: ExerciseLogView; accent: string }) {
+/** Which input fields a tracking type needs. */
+function fieldsFor(t: ExerciseLogView['trackingType']) {
+  return {
+    weight: t === 'reps_weight',
+    reps: t === 'reps_weight' || t === 'reps_only' || t === 'custom',
+    duration: t === 'duration' || t === 'duration_distance',
+    distance: t === 'distance' || t === 'duration_distance',
+  };
+}
+
+function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accent: string; isLifting: boolean }) {
   const theme = useTheme();
   const store = useSessionStore();
+  const f = fieldsFor(lv.trackingType);
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
   const [rpe, setRpe] = useState('');
+  const [minutes, setMinutes] = useState('');
+  const [distanceKm, setDistanceKm] = useState('');
 
   const addSet = () => {
     store.logSet(lv.log.id, {
-      reps: reps ? parseInt(reps, 10) : null,
-      weightKg: weight ? parseFloat(weight) : null,
-      rpe: rpe ? parseFloat(rpe) : null,
+      reps: f.reps && reps ? parseInt(reps, 10) : null,
+      weightKg: f.weight && weight ? parseFloat(weight) : null,
+      rpe: isLifting && rpe ? parseFloat(rpe) : null,
+      durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
+      distanceM: f.distance && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
     });
     setReps('');
     setWeight('');
     setRpe('');
-    store.startRest(store.restDurationS);
+    setMinutes('');
+    setDistanceKm('');
+    if (isLifting) store.startRest(store.restDurationS);
+  };
+
+  const describeSet = (s: (typeof lv.sets)[number]): string => {
+    const parts: string[] = [];
+    if (s.weightKg != null) parts.push(`${s.weightKg} kg`);
+    if (s.reps != null) parts.push(`${s.reps} reps`);
+    if (s.durationS != null) parts.push(formatDuration(s.durationS));
+    if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
+    if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
+    return parts.join(' · ') || 'logged';
   };
 
   return (
@@ -304,34 +338,13 @@ function ExerciseLogCard({ lv, accent }: { lv: ExerciseLogView; accent: string }
 
       {lv.sets.length > 0 && (
         <View style={{ gap: 4 }}>
-          <Row style={{ paddingHorizontal: 4 }}>
-            <Text variant="caption" color="textFaint" style={{ width: 28 }}>
-              #
-            </Text>
-            <Text variant="caption" color="textFaint" style={{ flex: 1 }}>
-              Weight
-            </Text>
-            <Text variant="caption" color="textFaint" style={{ flex: 1 }}>
-              Reps
-            </Text>
-            <Text variant="caption" color="textFaint" style={{ width: 44 }}>
-              RPE
-            </Text>
-            <View style={{ width: 24 }} />
-          </Row>
           {lv.sets.map((s) => (
             <Row key={s.id} style={{ alignItems: 'center', paddingHorizontal: 4 }}>
               <Text variant="body" style={{ width: 28 }}>
                 {s.setNumber}
               </Text>
               <Text variant="body" style={{ flex: 1 }}>
-                {s.weightKg != null ? `${s.weightKg} kg` : '—'}
-              </Text>
-              <Text variant="body" style={{ flex: 1 }}>
-                {s.reps ?? '—'}
-              </Text>
-              <Text variant="body" style={{ width: 44 }}>
-                {s.rpe ?? '—'}
+                {describeSet(s)}
               </Text>
               <View style={{ width: 24, alignItems: 'flex-end' }}>
                 {s.isPr ? (
@@ -350,48 +363,68 @@ function ExerciseLogCard({ lv, accent }: { lv: ExerciseLogView; accent: string }
       <Divider />
 
       <Row style={{ alignItems: 'flex-end' }}>
-        <View style={{ flex: 1 }}>
-          <Input label="Weight" value={weight} onChangeText={setWeight} placeholder="kg" keyboardType="numeric" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Input label="Reps" value={reps} onChangeText={setReps} placeholder="0" keyboardType="numeric" />
-        </View>
-        <View style={{ width: 64 }}>
-          <Input label="RPE" value={rpe} onChangeText={setRpe} placeholder="–" keyboardType="numeric" />
-        </View>
+        {f.weight && (
+          <View style={{ flex: 1 }}>
+            <Input label="Weight" value={weight} onChangeText={setWeight} placeholder="kg" keyboardType="numeric" />
+          </View>
+        )}
+        {f.reps && (
+          <View style={{ flex: 1 }}>
+            <Input label="Reps" value={reps} onChangeText={setReps} placeholder="0" keyboardType="numeric" />
+          </View>
+        )}
+        {f.duration && (
+          <View style={{ flex: 1 }}>
+            <Input label="Minutes" value={minutes} onChangeText={setMinutes} placeholder="0" keyboardType="numeric" />
+          </View>
+        )}
+        {f.distance && (
+          <View style={{ flex: 1 }}>
+            <Input label="Distance" value={distanceKm} onChangeText={setDistanceKm} placeholder="km" keyboardType="numeric" />
+          </View>
+        )}
+        {isLifting && (
+          <View style={{ width: 64 }}>
+            <Input label="RPE" value={rpe} onChangeText={setRpe} placeholder="–" keyboardType="numeric" />
+          </View>
+        )}
       </Row>
       <Row>
-        <Button title="Add Set" icon="core.add" size="sm" onPress={addSet} style={{ flex: 2 }} fullWidth={false} />
-        <Button
-          title="Repeat Last"
-          size="sm"
-          variant="secondary"
-          onPress={() => {
-            store.repeatLastSet(lv.log.id, lv.log.exerciseId);
-            store.startRest(store.restDurationS);
-          }}
-          style={{ flex: 1 }}
-          fullWidth={false}
-        />
+        <Button title={isLifting ? 'Add Set' : 'Log'} icon="core.add" size="sm" onPress={addSet} style={{ flex: 2 }} fullWidth={false} />
+        {isLifting && (
+          <Button
+            title="Repeat Last"
+            size="sm"
+            variant="secondary"
+            onPress={() => {
+              store.repeatLastSet(lv.log.id, lv.log.exerciseId);
+              store.startRest(store.restDurationS);
+            }}
+            style={{ flex: 1 }}
+            fullWidth={false}
+          />
+        )}
       </Row>
-      <Row gap={6}>
-        {REST_PRESETS.map((sec) => (
-          <Pressable key={sec} onPress={() => store.startRest(sec)} style={{ flex: 1 }}>
-            <View
-              style={{
-                paddingVertical: 6,
-                borderRadius: theme.radius.sm,
-                backgroundColor: theme.colors.surfaceAlt,
-                alignItems: 'center',
-              }}
-            >
-              <Text variant="caption" color="textMuted">
-                {sec >= 60 ? `${sec / 60}m` : `${sec}s`}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </Row>
+      {isLifting && (
+        <Row gap={6}>
+          {REST_PRESETS.map((sec) => (
+            <Pressable key={sec} onPress={() => store.startRest(sec)} style={{ flex: 1 }}>
+              <View
+                style={{
+                  paddingVertical: 6,
+                  borderRadius: theme.radius.sm,
+                  backgroundColor: theme.colors.surfaceAlt,
+                  alignItems: 'center',
+                }}
+              >
+                <Text variant="caption" color="textMuted">
+                  {sec >= 60 ? `${sec / 60}m` : `${sec}s`}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </Row>
+      )}
     </Card>
   );
 }

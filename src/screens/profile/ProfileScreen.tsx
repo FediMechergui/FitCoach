@@ -200,6 +200,8 @@ export function ProfileScreen() {
         <Divider />
         <LinkRow icon="health.medical" label="Health conditions" onPress={() => navigation.navigate('Conditions')} />
         <Divider />
+        <LinkRow icon="hormone.gland" label="Hormones" onPress={() => navigation.navigate('Hormones')} />
+        <Divider />
         <LinkRow icon="faith.crescent" label="Prayer times" onPress={() => navigation.navigate('Prayers')} />
         <Divider />
         <LinkRow icon="faith.fasting" label="Fasting mode" onPress={() => navigation.navigate('Fasting')} />

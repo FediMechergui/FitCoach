@@ -20,6 +20,11 @@ const CHANNEL_ID = 'active-session';
 let channelReady = false;
 const activeIds: Record<string, string> = {};
 
+/** Stable per-key identifier so updates replace the notification in place (no flicker). */
+function idFor(key: string): string {
+  return `active-session-${key}`;
+}
+
 async function ensureChannel(): Promise<void> {
   if (channelReady || Platform.OS !== 'android') {
     channelReady = true;
@@ -57,11 +62,10 @@ export async function showOngoingNotification(key: string, title: string, body: 
   try {
     const ok = await requestNotificationPermission();
     if (!ok) return;
-    if (activeIds[key]) {
-      await Notifications.dismissNotificationAsync(activeIds[key]).catch(() => {});
-      delete activeIds[key];
-    }
+    const identifier = idFor(key);
+    // Reusing a stable identifier updates the notification in place — no flicker.
     activeIds[key] = await Notifications.scheduleNotificationAsync({
+      identifier,
       content: {
         title,
         body,
@@ -76,11 +80,21 @@ export async function showOngoingNotification(key: string, title: string, body: 
   }
 }
 
+/**
+ * Update the live text of an already-showing sticky notification (e.g. the
+ * climbing step count on a walk). Same stable identifier → replaced in place.
+ */
+export async function updateOngoingNotification(key: string, title: string, body: string): Promise<void> {
+  if (!activeIds[key]) return; // only update one that's already shown
+  await showOngoingNotification(key, title, body);
+}
+
 /** Dismiss the sticky notification for a session kind. */
 export async function dismissOngoingNotification(key: string): Promise<void> {
   try {
+    await Notifications.dismissNotificationAsync(idFor(key)).catch(() => {});
     if (activeIds[key]) {
-      await Notifications.dismissNotificationAsync(activeIds[key]);
+      await Notifications.dismissNotificationAsync(activeIds[key]).catch(() => {});
       delete activeIds[key];
     }
   } catch {

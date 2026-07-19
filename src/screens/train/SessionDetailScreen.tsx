@@ -13,11 +13,23 @@ import { Row, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { deleteSession, getSessionDetail } from '@/repositories/sessionRepo';
 import { metaFor, MOOD_EMOJI } from '@/constants/sessionTypes';
-import { formatDurationLong, formatDistance, formatPace } from '@/lib/format';
+import { formatDurationLong, formatDistance, formatPace, formatDuration } from '@/lib/format';
+import type { SetEntry } from '@/db/schema';
 import { useUserStore } from '@/stores/userStore';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DetailRoute = RouteProp<RootStackParamList, 'SessionDetail'>;
+
+/** Human-readable one-liner for a logged set (reps/weight, or time/distance). */
+function describeSet(s: SetEntry): string {
+  const parts: string[] = [];
+  if (s.weightKg != null) parts.push(`${s.weightKg} kg`);
+  if (s.reps != null) parts.push(`${s.reps} reps`);
+  if (s.durationS != null) parts.push(formatDuration(s.durationS));
+  if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
+  if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
+  return parts.join(' · ') || '—';
+}
 
 export function SessionDetailScreen() {
   const theme = useTheme();
@@ -128,8 +140,7 @@ export function SessionDetailScreen() {
                     #{s.setNumber}
                   </Text>
                   <Text variant="body" style={{ flex: 1 }}>
-                    {s.weightKg != null ? `${s.weightKg} kg` : '—'} × {s.reps ?? '—'}
-                    {s.rpe ? `  RPE ${s.rpe}` : ''}
+                    {describeSet(s)}
                   </Text>
                   {s.isPr ? <Icon icon="core.pr" size={15} color={theme.colors.warning} /> : null}
                 </Row>

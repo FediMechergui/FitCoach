@@ -10,6 +10,19 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.2 — 2026-07-19 · GPS run maps, activity logging, hormones & naps
+- Runs are traced by GPS and drawn as a **circuit map**; a persistent foreground-service
+  notification keeps recording your path even with the app closed or the screen off.
+- Walks show a **live, non-dismissible step counter** in the notification bar.
+- Log exercises & activities in **any** session type (cardio, sport, mind-body) — each with
+  reps, time or distance — not just strength/calisthenics.
+- **Log a past session** from its start–finish time for when you forgot to start the timer.
+- New **Hormones** section: what raises/lowers each hormone, low/high signs, and flags you
+  can set from your profile (educational, non-diagnostic).
+- **Naps**: track daytime naps separately from night sleep.
+- More foods: halwa chamia, cordon bleu, milkshakes and sandwich condiments (mayo, garlic
+  sauce, harissa, harissa arbi, hummus…), plus omega-3 filled in across foods.
+
 ## v2.1 — 2026-07-17 · Micronutrients, supplements & polish
 - Micronutrients: 13 vitamins + 11 minerals + omega-3, tracked as % of your RDI.
 - 175 foods now carry vitamin/mineral data — logging them fills your daily micros.

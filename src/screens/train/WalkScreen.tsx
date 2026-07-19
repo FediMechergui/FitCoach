@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/Button';
 import { StatTile } from '@/components/ui/StatTile';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Row, Badge } from '@/components/ui/misc';
+import { RouteMap } from '@/components/RouteMap';
 import type { RootStackParamList } from '@/navigation/types';
 import { useWalkStore } from '@/stores/walkStore';
 import { useUserStore } from '@/stores/userStore';
 import { useLiveWalk } from '@/hooks/usePedometer';
 import { walkCalories } from '@/lib/met';
+import type { LatLng } from '@/lib/geo';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -35,7 +37,7 @@ export function WalkScreen() {
   const weightKg = useUserStore((s) => s.currentWeightKg) ?? 75;
 
   const [hardwareAvailable, setHardwareAvailable] = useState<boolean | null>(null);
-  const [summary, setSummary] = useState<{ steps: number; distanceM: number; calories: number; durationS: number } | null>(null);
+  const [summary, setSummary] = useState<{ steps: number; distanceM: number; calories: number; durationS: number; route: LatLng[] } | null>(null);
 
   useEffect(() => {
     Pedometer.isAvailableAsync().then(setHardwareAvailable).catch(() => setHardwareAvailable(false));
@@ -60,8 +62,9 @@ export function WalkScreen() {
     await walk.start(initialMode);
   };
   const stop = () => {
+    const routeAtStop = walk.route;
     const result = walk.stop();
-    if (result) setSummary(result);
+    if (result) setSummary({ ...result, route: routeAtStop });
   };
 
   const perms = walk.permissions;
@@ -74,6 +77,12 @@ export function WalkScreen() {
           <Icon icon="core.check" size={48} color={theme.colors.accent} />
           <Text variant="h1">{initialMode === 'run' ? 'Run' : 'Walk'} saved</Text>
         </View>
+        {summary.route.length > 1 && (
+          <Card>
+            <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>Your route</Text>
+            <RouteMap route={summary.route} height={220} />
+          </Card>
+        )}
         <Row>
           <StatTile icon="cardio.steps" label="Steps" value={summary.steps.toLocaleString()} />
           <StatTile icon="cardio.gps" label="Distance" value={formatDistance(summary.distanceM, unit)} accent={theme.colors.outdoor} />
@@ -126,19 +135,32 @@ export function WalkScreen() {
         <StatTile icon="nutrition.calories" label="Calories" value={`${calories}`} accent={theme.colors.calories} />
       </Row>
 
+      {/* Live GPS route (runs) */}
+      {walk.active && walk.usingGps && (
+        <Card>
+          <Row gap={8} style={{ alignItems: 'center', marginBottom: 6 }}>
+            <Icon icon="cardio.gps" size={16} color={theme.colors.outdoor} />
+            <Text variant="label" color="textMuted">Live route</Text>
+          </Row>
+          <RouteMap route={walk.route} height={200} />
+        </Card>
+      )}
+
       {/* Tracking status */}
       {walk.active && (
-        <Card accent={hardwareSource ? theme.colors.success : theme.colors.warning}>
+        <Card accent={walk.usingGps || hardwareSource ? theme.colors.success : theme.colors.warning}>
           <Row gap={10} style={{ alignItems: 'flex-start' }}>
             <Icon
-              icon={hardwareSource ? 'core.check' : 'core.info'}
+              icon={walk.usingGps || hardwareSource ? 'core.check' : 'core.info'}
               size={18}
-              color={hardwareSource ? theme.colors.success : theme.colors.warning}
+              color={walk.usingGps || hardwareSource ? theme.colors.success : theme.colors.warning}
             />
             <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-              {hardwareSource
-                ? 'Hardware step counter active — steps keep counting with the screen off and catch up the moment you come back. A notification stays in your bar until you finish.'
-                : 'Accelerometer mode — keep the app open and the screen on for accurate counting. A notification stays in your bar until you finish.'}
+              {walk.usingGps
+                ? 'GPS route tracking active — a persistent notification keeps the session running and recording your path even with the app closed or the screen off. Return here to finish.'
+                : hardwareSource
+                  ? 'Hardware step counter active — steps keep counting with the screen off and catch up the moment you come back. A notification stays in your bar until you finish.'
+                  : 'Accelerometer mode — keep the app open and the screen on for accurate counting. A notification stays in your bar until you finish.'}
             </Text>
           </Row>
         </Card>
@@ -148,6 +170,13 @@ export function WalkScreen() {
         <Text variant="caption" color="textFaint" center>
           Notifications are off — enable them for FitCoach to see the session in your
           notification bar.
+        </Text>
+      )}
+
+      {perms && initialMode === 'run' && !perms.gps && walk.active && (
+        <Text variant="caption" color="warning" center>
+          Route mapping needs location set to “Allow all the time”. Enable it in Android settings
+          to draw your run as a circuit — distance is estimated from steps meanwhile.
         </Text>
       )}
 

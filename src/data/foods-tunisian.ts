@@ -282,4 +282,29 @@ export const TUNISIAN_FOODS: FoodItem[] = [
   F('tn-asparagus', 'Asparagus', '100 g', 20, 2.2, 3.9, 0.1, 2.1, 'Vegetable'),
   F('tn-sweet-corn', 'Sweet Corn', '100 g', 86, 3.2, 19, 1.2, 2.7, 'Vegetable'),
   F('tn-olives', 'Olives', '30 g (10 olives)', 35, 0.3, 1, 3.3, 1, 'Vegetable'),
+
+  // ── Condiments & sandwich sauces ──────────────────────────────────────────
+  F('cd-mayo', 'Mayonnaise', '1 tbsp (15 g)', 100, 0.1, 0.6, 11, 0, 'Condiment'),
+  F('cd-garlic-sauce', "Sauce à l'Ail (garlic sauce)", '1 tbsp (15 g)', 110, 0.2, 1, 12, 0.1, 'Condiment'),
+  F('cd-mayo-harissa', 'Spicy Mayo (mayo-harissa)', '1 tbsp (15 g)', 90, 0.3, 1.5, 9, 0.3, 'Condiment'),
+  F('cd-harissa', 'Harissa (chili paste)', '1 tbsp (15 g)', 30, 1, 3, 2, 1, 'Condiment'),
+  F('cd-harissa-arbi', 'Harissa Arbi (traditional sun-dried)', '1 tbsp (15 g)', 35, 1.2, 3.5, 2.2, 1.5, 'Condiment'),
+  F('cd-hummus', 'Hummus (Hommos spread)', '2 tbsp (30 g)', 80, 2.4, 6, 5, 1.5, 'Condiment'),
+  F('cd-tahini', 'Tahini (sesame paste)', '1 tbsp (15 g)', 89, 2.6, 3.2, 8, 1.4, 'Condiment'),
+  F('cd-ketchup', 'Ketchup', '1 tbsp (17 g)', 17, 0.2, 4.5, 0, 0.1, 'Condiment'),
+  F('cd-mustard', 'Mustard', '1 tbsp (15 g)', 15, 0.9, 1, 0.9, 0.6, 'Condiment'),
+  F('cd-tomato-sauce', 'Tomato Sauce (cooked)', '¼ cup (60 g)', 30, 1.3, 7, 0.2, 1.5, 'Condiment'),
+  F('cd-bechamel', 'Béchamel Sauce', '¼ cup (60 g)', 110, 3, 7, 8, 0.2, 'Condiment'),
+
+  // ── Prepared / breaded dishes ─────────────────────────────────────────────
+  F('tn-cordon-bleu', 'Cordon Bleu (breaded chicken, ham & cheese)', '1 piece (150 g)', 360, 22, 18, 22, 1, 'Prepared'),
+  F('tn-halwa-chamia', 'Halwa Chamia (sesame halva)', '30 g slice', 155, 4, 15, 9, 1.5, 'Tunisian sweet'),
+
+  // ── Milkshakes (café-style, made with milk & ice cream) ────────────────────
+  F('ms-vanilla', 'Vanilla Milkshake', '300 ml', 350, 8, 50, 13, 0.5, 'Milkshake'),
+  F('ms-chocolate', 'Chocolate Milkshake', '300 ml', 390, 9, 58, 14, 1, 'Milkshake'),
+  F('ms-strawberry', 'Strawberry Milkshake', '300 ml', 340, 8, 52, 11, 0.8, 'Milkshake'),
+  F('ms-banana', 'Banana Milkshake', '300 ml', 320, 8, 48, 10, 1.2, 'Milkshake'),
+  F('ms-oreo', 'Cookies & Cream Milkshake', '300 ml', 430, 9, 62, 17, 1, 'Milkshake'),
+  F('ms-caramel', 'Caramel Milkshake', '300 ml', 400, 8, 60, 14, 0.3, 'Milkshake'),
 ];

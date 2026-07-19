@@ -97,6 +97,13 @@ export function TrainScreen() {
         onPress={() => navigation.navigate('SplitPicker')}
       />
 
+      <Button
+        title="Log a past session"
+        icon="core.calendar"
+        variant="ghost"
+        onPress={() => navigation.navigate('LogSession')}
+      />
+
       <Row>
         <Button
           title="Walk"

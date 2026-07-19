@@ -7,6 +7,7 @@ import { TabNavigator } from './TabNavigator';
 
 import { OnboardingScreen } from '@/screens/onboarding/OnboardingScreen';
 import { SessionTypePickerScreen } from '@/screens/train/SessionTypePickerScreen';
+import { LogSessionScreen } from '@/screens/train/LogSessionScreen';
 import { ActiveSessionScreen } from '@/screens/train/ActiveSessionScreen';
 import { ExerciseLibraryScreen } from '@/screens/train/ExerciseLibraryScreen';
 import { SessionRecapScreen } from '@/screens/train/SessionRecapScreen';
@@ -26,6 +27,7 @@ import { HabitsScreen } from '@/screens/health/HabitsScreen';
 import { AlcoholScreen } from '@/screens/health/AlcoholScreen';
 import { CycleScreen } from '@/screens/health/CycleScreen';
 import { ConditionsScreen } from '@/screens/health/ConditionsScreen';
+import { HormonesScreen } from '@/screens/health/HormonesScreen';
 import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
 import { GrowthScreen } from '@/screens/stats/GrowthScreen';
 import { ChangelogScreen } from '@/screens/profile/ChangelogScreen';
@@ -67,6 +69,7 @@ export function RootNavigator() {
             component={SessionTypePickerScreen}
             options={{ title: 'Start a Session', presentation: 'modal' }}
           />
+          <Stack.Screen name="LogSession" component={LogSessionScreen} options={{ title: 'Log Past Session', presentation: 'modal' }} />
           <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: 'Training Split' }} />
           <Stack.Screen
             name="ActiveSession"
@@ -119,6 +122,7 @@ export function RootNavigator() {
           <Stack.Screen name="Alcohol" component={AlcoholScreen} options={{ title: 'Alcohol' }} />
           <Stack.Screen name="Cycle" component={CycleScreen} options={{ title: 'Cycle' }} />
           <Stack.Screen name="Conditions" component={ConditionsScreen} options={{ title: 'Health' }} />
+          <Stack.Screen name="Hormones" component={HormonesScreen} options={{ title: 'Hormones' }} />
           <Stack.Screen name="Body" component={BodyScreen} options={{ title: 'Body' }} />
           <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: 'Athlete Card' }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />

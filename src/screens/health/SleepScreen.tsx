@@ -19,14 +19,17 @@ import { rangeMinutes, minutesToHM, minutesToHours } from '@/lib/time';
 
 const HOUR_OPTIONS = [4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 10];
 
+const NAP_OPTIONS = [10, 15, 20, 30, 45, 60, 90];
+
 export function SleepScreen() {
   const theme = useTheme();
-  const { summary, lastNight, load, log, logRange } = useSleepStore();
+  const { summary, lastNight, naps, napMinutesToday, load, log, logRange, addNap, removeNap } = useSleepStore();
   const [mode, setMode] = useState<'quick' | 'range'>('quick');
   const [hours, setHours] = useState(lastNight ?? 8);
   const [bedtime, setBedtime] = useState('23:30');
   const [wakeTime, setWakeTime] = useState('07:00');
   const [quality, setQuality] = useState<number | null>(null);
+  const [napMinutes, setNapMinutes] = useState(20);
   const [correlation, setCorrelation] = useState(() => sleepTrainingCorrelation(30));
 
   useFocusEffect(
@@ -129,6 +132,67 @@ export function SleepScreen() {
           onPress={save}
           disabled={mode === 'range' && rangeMins == null}
         />
+      </Card>
+
+      {/* Naps (daytime) */}
+      <Card style={{ gap: theme.spacing.md }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row gap={8} style={{ alignItems: 'center' }}>
+            <Icon icon="sleep.bed" size={18} color={theme.colors.info} />
+            <Text variant="h3">Naps today</Text>
+          </Row>
+          {napMinutesToday > 0 && (
+            <Text variant="bodyStrong" color={theme.colors.info}>
+              {minutesToHM(napMinutesToday)} total
+            </Text>
+          )}
+        </Row>
+        <Text variant="caption" color="textMuted">
+          Log daytime naps separately from your night sleep. Naps count toward daily recovery
+          without changing last night's number.
+        </Text>
+        <Row gap={6} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+          {NAP_OPTIONS.map((m) => (
+            <Pressable key={m} onPress={() => setNapMinutes(m)}>
+              <View
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: theme.radius.md,
+                  backgroundColor: napMinutes === m ? theme.colors.info : theme.colors.surfaceAlt,
+                }}
+              >
+                <Text variant="label" color={napMinutes === m ? '#fff' : theme.colors.textMuted}>
+                  {m}m
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </Row>
+        <Button
+          title={`Add ${napMinutes}-min nap`}
+          icon="core.add"
+          variant="secondary"
+          onPress={() => addNap(napMinutes)}
+        />
+        {naps.length > 0 && (
+          <View style={{ gap: 6 }}>
+            {naps.map((n) => (
+              <Row key={n.id} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Row gap={8} style={{ alignItems: 'center' }}>
+                  <Icon icon="sleep.moon" size={14} color={theme.colors.textFaint} />
+                  <Text variant="body">
+                    {minutesToHM(n.minutes)}
+                    {n.startTime ? ` · ${n.startTime}` : ''}
+                  </Text>
+                </Row>
+                <Pressable onPress={() => removeNap(n.id)} hitSlop={8}>
+                  <Icon icon="core.close" size={16} color={theme.colors.textFaint} />
+                </Pressable>
+              </Row>
+            ))}
+          </View>
+        )}
       </Card>
 
       {/* Summary */}

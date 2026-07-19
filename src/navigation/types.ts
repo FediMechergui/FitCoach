@@ -14,6 +14,7 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<TabParamList> | undefined;
 
   SessionTypePicker: undefined;
+  LogSession: undefined;
   SplitPicker: undefined;
   ActiveSession: { sessionId: number };
   ExerciseLibrary: { pick?: boolean } | undefined;
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   Alcohol: undefined;
   Cycle: undefined;
   Conditions: undefined;
+  Hormones: undefined;
   Body: undefined;
   ProfileCard: undefined;
   Reports: undefined;

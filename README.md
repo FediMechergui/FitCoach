@@ -107,7 +107,7 @@ Pure, unit-testable TypeScript — the "insight" half of the app:
 - **`time.ts`** — time-range math for logging sleep/work as bedtime→wake (handles
   overnight spans and `HH:MM` parsing).
 
-Every formula above is exercised by `npm run verify:engines` (**102 checks**), which
+Every formula above is exercised by `npm run verify:engines` (**109 checks**), which
 asserts them against known values (BMR, TDEE, 1RM, MET, BAC, FFMI, cycle dates,
 time ranges…) and validates library/split integrity.
 
@@ -322,7 +322,7 @@ Beyond macros, FitCoach tracks **vitamins and minerals** and ties them to foods 
 — without ever touching the calorie/macro math (verified in the engine tests).
 
 - **13 vitamins + 11 minerals + omega-3** with sex-specific RDIs ([micros.ts](src/lib/micros.ts)).
-- **175 foods** carry curated per-serving micronutrient data ([foodMicros.ts](src/data/foodMicros.ts));
+- **194 foods** carry curated per-serving micronutrient data ([foodMicros.ts](src/data/foodMicros.ts));
   logging one stores its scaled micros denormalized on the entry, so history is stable.
   Composite/fast foods contribute macros only — the UI is explicit that micro totals reflect
   "foods & pills with known data", a floor rather than a guess.
@@ -381,7 +381,7 @@ titled, "Latest"-badged entry (not just a bare tag). Add a new entry to the top 
 | `npm run start` | Expo dev server |
 | `npm run android` | Launch on Android |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify:engines` | Run the 102 pure-domain formula checks |
+| `npm run verify:engines` | Run the 109 pure-domain formula checks |
 | `npm run db:generate` | Generate Drizzle SQL migrations (optional; runtime uses a bootstrap DDL) |
 | `npm run build:apk` | EAS preview APK |
 | `npm run build:aab` | EAS production AAB |

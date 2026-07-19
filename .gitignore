@@ -35,3 +35,6 @@ yarn-error.*
 
 # Drizzle generated migrations (optional to commit)
 # drizzle/
+
+# Graphify generated knowledge graph (regenerate with /graphify .)
+graphify-out/

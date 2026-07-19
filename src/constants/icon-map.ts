@@ -168,6 +168,20 @@ export const ICONS = {
     clipboard: def('MaterialCommunityIcons', 'clipboard-pulse-outline'),
   },
 
+  // Hormones (educational endocrine reference)
+  hormone: {
+    gland: def('MaterialCommunityIcons', 'water-percent'),
+    anabolic: def('MaterialCommunityIcons', 'arm-flex'),
+    metabolic: def('MaterialCommunityIcons', 'fire'),
+    stress: def('MaterialCommunityIcons', 'head-cog-outline'),
+    thyroid: def('MaterialCommunityIcons', 'butterfly-outline'),
+    sleep: def('MaterialCommunityIcons', 'moon-waning-crescent'),
+    appetite: def('MaterialCommunityIcons', 'stomach'),
+    reproductive: def('MaterialCommunityIcons', 'gender-male-female'),
+    up: def('MaterialCommunityIcons', 'arrow-up-bold'),
+    down: def('MaterialCommunityIcons', 'arrow-down-bold'),
+  },
+
   // Habits tracker
   habits: {
     phone: def('MaterialCommunityIcons', 'cellphone'),

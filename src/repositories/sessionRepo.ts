@@ -9,6 +9,7 @@ import {
   type Session,
   type SessionType,
   type SetEntry,
+  type TrackingType,
 } from '@/db/schema';
 import { caloriesFromMet, SESSION_TYPE_MET } from '@/lib/met';
 import { estimate1RM } from '@/lib/oneRepMax';
@@ -18,6 +19,8 @@ export interface SetDraft {
   reps?: number | null;
   weightKg?: number | null;
   rpe?: number | null;
+  durationS?: number | null;
+  distanceM?: number | null;
   completed?: boolean;
 }
 
@@ -26,6 +29,7 @@ export interface ExerciseLogView {
   exerciseName: string;
   iconKey: string;
   primaryMuscle: string | null;
+  trackingType: TrackingType;
   sets: SetEntry[];
 }
 
@@ -87,6 +91,8 @@ export function addSet(exerciseLogId: number, draft: SetDraft): number {
       reps: draft.reps ?? null,
       weightKg: draft.weightKg ?? null,
       rpe: draft.rpe ?? null,
+      durationS: draft.durationS ?? null,
+      distanceM: draft.distanceM ?? null,
       completed: draft.completed ?? true,
     })
     .run();
@@ -99,6 +105,8 @@ export function updateSet(setId: number, patch: SetDraft): void {
       reps: patch.reps ?? null,
       weightKg: patch.weightKg ?? null,
       rpe: patch.rpe ?? null,
+      durationS: patch.durationS ?? null,
+      distanceM: patch.distanceM ?? null,
       ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
     })
     .where(eq(setEntries.id, setId))
@@ -250,6 +258,58 @@ function bestPrior1RM(exerciseId: number, excludeSessionId: number): number {
   return best;
 }
 
+/**
+ * Log a session retroactively from an explicit start→end time (spec: "I forgot
+ * to start the session"). Creates an already-finished session — duration and
+ * MET-based calories are derived from the time range, no live timer needed.
+ * Optional exercise slugs pre-populate it so the movements are recorded too.
+ */
+export function logPastSession(
+  input: {
+    sessionType: SessionType;
+    label?: string | null;
+    startTime: number; // epoch ms
+    endTime: number; // epoch ms
+    distanceM?: number | null;
+    elevationM?: number | null;
+    score?: string | null;
+    notes?: string | null;
+    exerciseIds?: number[];
+    weightKg?: number;
+  },
+  userId: number = PRIMARY_USER_ID
+): Session {
+  const durationS = Math.max(1, Math.round((input.endTime - input.startTime) / 1000));
+  const met = SESSION_TYPE_MET[input.sessionType] ?? 4;
+  const bodyKg = input.weightKg ?? 75;
+  const caloriesBurned = caloriesFromMet(met, bodyKg, durationS);
+  const pace =
+    input.distanceM && input.distanceM > 0 ? durationS / (input.distanceM / 1000) : null;
+
+  const res = db
+    .insert(sessions)
+    .values({
+      userId,
+      sessionType: input.sessionType,
+      label: input.label ?? null,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      durationS,
+      distanceM: input.distanceM ?? null,
+      elevationM: input.elevationM ?? null,
+      pace,
+      score: input.score ?? null,
+      caloriesBurned,
+      notes: input.notes ?? null,
+    })
+    .run();
+  const id = Number(res.lastInsertRowId);
+  for (const exId of input.exerciseIds ?? []) {
+    addExerciseToSession(id, exId);
+  }
+  return getSession(id)!;
+}
+
 // ── Queries ──────────────────────────────────────────────────────────────────
 export function getSession(sessionId: number): Session | undefined {
   return db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
@@ -264,6 +324,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
       exerciseName: exercises.name,
       iconKey: exercises.iconKey,
       primaryMuscle: exercises.primaryMuscle,
+      trackingType: exercises.trackingType,
     })
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
@@ -276,6 +337,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
     exerciseName: r.exerciseName,
     iconKey: r.iconKey,
     primaryMuscle: r.primaryMuscle,
+    trackingType: r.trackingType,
     sets: db
       .select()
       .from(setEntries)

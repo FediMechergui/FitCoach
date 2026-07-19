@@ -9,6 +9,7 @@ import {
   type WalkSession,
 } from '@/db/schema';
 import { todayISO } from '@/lib/date';
+import { haversine, parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
 import { PRIMARY_USER_ID } from './userRepo';
 
 // ── Live walk (shared with the background foreground service) ─────────────────
@@ -33,6 +34,7 @@ export function startLiveWalk(
     distanceM: 0,
     lastLat: null,
     lastLng: null,
+    routeJson: null,
     updatedAt: Date.now(),
   };
   if (getLiveWalk()) {
@@ -53,6 +55,50 @@ export function endLiveWalk(): void {
   }
 }
 
+/**
+ * Append GPS points to the live route and recompute total GPS distance. Called
+ * from the background location task — reads the current route from the DB (the
+ * only channel shared with the headless task context), appends, writes back.
+ */
+export function appendLiveRoutePoints(points: LatLng[]): void {
+  const row = getLiveWalk();
+  if (!row?.active) return;
+  const route = parseRoute(row.routeJson);
+  let distance = row.distanceM;
+  let last: LatLng | null = route.length ? route[route.length - 1] : null;
+  for (const p of points) {
+    if (last) {
+      const seg = haversine(last, p);
+      // Ignore GPS jitter (<2 m) so a stationary phone doesn't inflate distance.
+      if (seg < 2) continue;
+      distance += seg;
+    }
+    route.push(p);
+    last = p;
+  }
+  const tail = route[route.length - 1];
+  db.update(liveWalks)
+    .set({
+      routeJson: JSON.stringify(route),
+      distanceM: distance,
+      lastLat: tail?.[0] ?? row.lastLat,
+      lastLng: tail?.[1] ?? row.lastLng,
+      updatedAt: Date.now(),
+    })
+    .where(eq(liveWalks.id, LIVE_ID))
+    .run();
+}
+
+/** The live route so far (for drawing the circuit while tracking). */
+export function getLiveRoute(): LatLng[] {
+  return parseRoute(getLiveWalk()?.routeJson);
+}
+
+/** Total GPS path distance of the live route (metres). */
+export function getLiveRouteDistanceM(): number {
+  return routeDistanceM(getLiveRoute());
+}
+
 // ── Walk / Run sessions ──────────────────────────────────────────────────────
 export function saveWalkSession(
   data: {
@@ -65,6 +111,7 @@ export function saveWalkSession(
     caloriesBurned: number;
     avgPace?: number | null;
     source: 'pedometer' | 'accelerometer' | 'gps';
+    routeJson?: string | null;
   },
   userId: number = PRIMARY_USER_ID
 ): number {
@@ -81,6 +128,7 @@ export function saveWalkSession(
       caloriesBurned: data.caloriesBurned,
       avgPace: data.avgPace ?? null,
       source: data.source,
+      routeJson: data.routeJson ?? null,
     })
     .run();
   // Roll the session's steps into today's passive step total too.

@@ -228,4 +228,53 @@ export const FOOD_MICROS: Record<string, M> = {
 
   // ── Honey ──────────────────────────────────────────────────────────────────
   'tn-honey-tbsp': { manganese_mg: 0.1, potassium_mg: 11 },
+
+  // ── Condiments & sandwich sauces ───────────────────────────────────────────
+  // Oil-based sauces carry meaningful ALA omega-3 (soybean/sunflower oil) + fat-soluble vits.
+  'cd-mayo': { omega3_mg: 600, vitaminE_mg: 1.5, vitaminK_ug: 24, sodium_mg: 90 },
+  'cd-garlic-sauce': { omega3_mg: 700, vitaminE_mg: 1.8, vitaminK_ug: 10, sodium_mg: 200 },
+  'cd-mayo-harissa': { omega3_mg: 450, vitaminE_mg: 1.2, vitaminK_ug: 18, vitaminA_ug: 30, sodium_mg: 180 },
+  'cd-harissa': { vitaminA_ug: 80, vitaminC_mg: 5, vitaminE_mg: 1, iron_mg: 0.5, potassium_mg: 60, sodium_mg: 200 },
+  'cd-harissa-arbi': { vitaminA_ug: 110, vitaminC_mg: 6, vitaminE_mg: 1.3, iron_mg: 0.7, potassium_mg: 75, sodium_mg: 220 },
+  'cd-hummus': { folate_ug: 15, iron_mg: 0.9, magnesium_mg: 18, phosphorus_mg: 55, copper_mg: 0.1, calcium_mg: 15, zinc_mg: 0.6 },
+  'cd-tahini': { calcium_mg: 64, iron_mg: 1.3, magnesium_mg: 14, phosphorus_mg: 110, copper_mg: 0.24, thiamin_mg: 0.18, zinc_mg: 0.7 },
+  'cd-ketchup': { vitaminA_ug: 20, vitaminC_mg: 2, potassium_mg: 57, sodium_mg: 154 },
+  'cd-mustard': { selenium_ug: 5, sodium_mg: 168, calcium_mg: 9, phosphorus_mg: 15 },
+  'cd-tomato-sauce': { vitaminC_mg: 6, vitaminA_ug: 25, potassium_mg: 180, vitaminK_ug: 3, iron_mg: 0.5, sodium_mg: 250 },
+  'cd-bechamel': { calcium_mg: 70, vitaminA_ug: 60, vitaminB12_ug: 0.3, phosphorus_mg: 55, sodium_mg: 200 },
+
+  // ── Prepared / breaded & sweets ────────────────────────────────────────────
+  'tn-cordon-bleu': { calcium_mg: 120, vitaminB12_ug: 0.6, selenium_ug: 22, phosphorus_mg: 200, niacin_mg: 8, zinc_mg: 1.4, sodium_mg: 620 },
+  'tn-halwa-chamia': { calcium_mg: 90, iron_mg: 1.8, magnesium_mg: 25, phosphorus_mg: 110, copper_mg: 0.4, zinc_mg: 0.7, thiamin_mg: 0.1 },
+
+  // ── Milkshakes (milk + ice cream base) ─────────────────────────────────────
+  'ms-vanilla': { calcium_mg: 250, vitaminB12_ug: 0.9, riboflavin_mg: 0.35, phosphorus_mg: 200, potassium_mg: 380, vitaminA_ug: 120, iodine_ug: 40 },
+  'ms-chocolate': { calcium_mg: 250, vitaminB12_ug: 0.9, riboflavin_mg: 0.35, phosphorus_mg: 210, potassium_mg: 420, magnesium_mg: 30, vitaminA_ug: 110 },
+  'ms-strawberry': { calcium_mg: 240, vitaminB12_ug: 0.8, riboflavin_mg: 0.32, phosphorus_mg: 195, potassium_mg: 360, vitaminC_mg: 12, vitaminA_ug: 110 },
+  'ms-banana': { calcium_mg: 230, vitaminB12_ug: 0.8, potassium_mg: 500, vitaminB6_mg: 0.3, riboflavin_mg: 0.3, vitaminA_ug: 100 },
+  'ms-oreo': { calcium_mg: 240, vitaminB12_ug: 0.8, riboflavin_mg: 0.32, phosphorus_mg: 210, potassium_mg: 350, iron_mg: 1 },
+  'ms-caramel': { calcium_mg: 245, vitaminB12_ug: 0.85, riboflavin_mg: 0.34, phosphorus_mg: 200, potassium_mg: 370, vitaminA_ug: 110 },
+
 };
+
+/**
+ * Additive omega-3 (and a few micro) top-ups merged into the profiles above.
+ * Kept separate so the base tables stay readable; applied at module load.
+ * These fill the nutrient the user most asked about (omega-3) on foods that
+ * genuinely contain it but were previously blank for it.
+ */
+const MICRO_TOPUPS: Record<string, M> = {
+  egg: { omega3_mg: 50 },
+  avocado: { omega3_mg: 110 },
+  'tn-avocado': { omega3_mg: 110 },
+  'olive-oil': { omega3_mg: 100 },
+  'tn-olive-oil-tbsp': { omega3_mg: 100 },
+  tofu: { omega3_mg: 200 },
+  'tn-milk-soy': { omega3_mg: 90 },
+  'peanut-butter': { omega3_mg: 30 },
+  'tn-sardine': { vitaminA_ug: 32 },
+};
+
+for (const [id, topup] of Object.entries(MICRO_TOPUPS)) {
+  FOOD_MICROS[id] = { ...(FOOD_MICROS[id] ?? {}), ...topup };
+}

@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View } from 'react-native';
-import { SvgXml } from 'react-native-svg';
+import { View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -8,7 +7,8 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Row, SectionHeader, Badge } from '@/components/ui/misc';
+import { Row, Badge } from '@/components/ui/misc';
+import { BadgeSvg } from '@/components/BadgeSvg';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, type AchievementDef } from '@/data/achievements';
 import { achievementStats, type AchievementStats } from '@/repositories/achievementsRepo';
 import { evaluateAchievement, type AchievementProgress } from '@/lib/achievementRules';
@@ -16,6 +16,9 @@ import { evaluateAchievement, type AchievementProgress } from '@/lib/achievement
 export function AchievementsScreen() {
   const theme = useTheme();
   const [stats, setStats] = useState<AchievementStats | null>(null);
+  // Categories are collapsible so we never mount all 100 badge SVGs at once
+  // (first category open by default).
+  const [open, setOpen] = useState<Record<number, boolean>>({ 1: true });
 
   useFocusEffect(
     useCallback(() => {
@@ -62,12 +65,19 @@ export function AchievementsScreen() {
         const cat = i + 1;
         const items = evaluated.filter((e) => e.def.category === cat);
         const done = items.filter((e) => e.p.unlocked).length;
+        const isOpen = !!open[cat];
         return (
           <View key={cat} style={{ gap: theme.spacing.sm }}>
-            <SectionHeader title={`${catName}  ·  ${done}/${items.length}`} />
-            {items.map(({ def, p }) => (
-              <AchievementRow key={def.id} def={def} p={p} />
-            ))}
+            <Pressable onPress={() => setOpen((o) => ({ ...o, [cat]: !o[cat] }))}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center', paddingTop: 8 }}>
+                <Text variant="h3" style={{ flex: 1 }}>{catName}</Text>
+                <Text variant="caption" color={done === items.length ? 'success' : 'textMuted'}>
+                  {done}/{items.length}
+                </Text>
+                <Icon icon={isOpen ? 'core.back' : 'core.forward'} size={16} color={theme.colors.textFaint} />
+              </Row>
+            </Pressable>
+            {isOpen && items.map(({ def, p }) => <AchievementRow key={def.id} def={def} p={p} />)}
           </View>
         );
       })}
@@ -93,7 +103,7 @@ function AchievementRow({ def, p }: { def: AchievementDef; p: AchievementProgres
       <Row gap={12} style={{ alignItems: 'center' }}>
         {/* Badge art — full colour when unlocked, dimmed when locked */}
         <View style={{ opacity: p.unlocked ? 1 : 0.35 }}>
-          <SvgXml xml={def.svg} width={48} height={48} />
+          <BadgeSvg svg={def.svg} size={48} />
         </View>
         <View style={{ flex: 1 }}>
           <Row gap={6} style={{ alignItems: 'center' }}>

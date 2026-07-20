@@ -94,44 +94,59 @@ function trailingStreak(has: (d: string) => boolean): number {
   return streak;
 }
 
-export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementStats {
-  const usage = usageStreak(userId);
-  const goal = getNutritionGoal(userId);
-  const weightKg = latestWeight(userId)?.weightKg ?? 75;
-  const sex = getUser(userId)?.sex ?? 'male';
+/**
+ * Max of a numeric array WITHOUT `Math.max(...spread)` — spreading a large array
+ * (hundreds of sessions/walks) can throw RangeError on Hermes, which was
+ * white-screening the Achievements screen. reduce is safe at any length.
+ */
+function maxOf(nums: number[], base = 0): number {
+  let m = base;
+  for (const n of nums) if (n > m) m = n;
+  return m;
+}
+
+/** Run a metric computation but never let it crash the whole screen. */
+function safe<T>(fn: () => T, fallback: T): T {
+  try {
+    return fn();
+  } catch {
+    return fallback;
+  }
+}
+
+function computeAchievementStats(userId: number): AchievementStats {
+  const appStreakBest = safe(() => usageStreak(userId).longest, 0);
+  const goal = safe(() => getNutritionGoal(userId), undefined);
+  const weightKg = safe(() => latestWeight(userId)?.weightKg ?? 75, 75);
+  const sex = safe(() => getUser(userId)?.sex ?? 'male', 'male' as const);
 
   // ── steps / movement ──
-  const stepHist = stepHistorySince(daysAgoISO(90), userId);
+  const stepHist = safe(() => stepHistorySince(daysAgoISO(90), userId), []);
   const stepsByDate = new Map(stepHist.map((r) => [r.date, r.stepCount]));
-  const bestStepDay = Math.max(getDailySteps(todayISO(), userId)?.stepCount ?? 0, ...stepHist.map((r) => r.stepCount), 0);
+  const bestStepDay = maxOf(stepHist.map((r) => r.stepCount), safe(() => getDailySteps(todayISO(), userId)?.stepCount ?? 0, 0));
   const best10kStreak = trailingStreak((d) => (stepsByDate.get(d) ?? 0) >= 10000);
-  const walks = listWalkSessions(500, userId);
+  const walks = safe(() => listWalkSessions(500, userId), []);
   const monthCutoff = Date.now() - 30 * 86_400_000;
   const monthDistanceKm =
     walks.filter((w) => w.startTime >= monthCutoff).reduce((s, w) => s + w.distanceM, 0) / 1000;
-  const bestRunKcal = Math.max(0, ...walks.map((w) => w.caloriesBurned));
-  const bestRunMinutes = Math.max(0, ...walks.map((w) => w.durationS / 60));
+  const bestRunKcal = maxOf(walks.map((w) => w.caloriesBurned));
+  const bestRunMinutes = maxOf(walks.map((w) => w.durationS / 60));
 
   // ── strength / sessions ──
-  const sessions = listSessions({ limit: 1000 }, userId);
-  const maxVolumeKg = Math.max(0, ...sessions.map((s) => s.totalVolume ?? 0));
+  const sessions = safe(() => listSessions({ limit: 1000 }, userId), []);
+  const maxVolumeKg = maxOf(sessions.map((s) => s.totalVolume ?? 0));
   const fullBodyDone = sessions.some(
     (s) => (s.splitKey ?? '').toLowerCase().includes('full') || (s.label ?? '').toLowerCase().includes('full-body')
   );
-  const prCount = personalRecords(200, userId).length;
-  const routineCount = listRoutines(userId).length;
-  const customExerciseCount = listExercises({}).filter((e) => e.isCustom).length;
-  let maxSetsThisWeek = 0;
-  try {
-    maxSetsThisWeek = Math.max(0, ...growthReport(userId).muscles.map((m) => m.setsThisWeek));
-  } catch {
-    maxSetsThisWeek = 0;
-  }
+  const prCount = safe(() => personalRecords(200, userId).length, 0);
+  const routineCount = safe(() => listRoutines(userId).length, 0);
+  const customExerciseCount = safe(() => listExercises({}).filter((e) => e.isCustom).length, 0);
+  const maxSetsThisWeek = safe(() => maxOf(growthReport(userId).muscles.map((m) => m.setsThisWeek)), 0);
 
   // ── nutrition ──
-  const todayN = dayNutrition(todayISO(), userId);
-  const proteinPerKgToday = weightKg > 0 ? todayN.protein / weightKg : 0;
-  const intake = dailyIntakeSince(daysAgoISO(60), userId);
+  const todayN = safe(() => dayNutrition(todayISO(), userId), null);
+  const proteinPerKgToday = todayN && weightKg > 0 ? todayN.protein / weightKg : 0;
+  const intake = safe(() => dailyIntakeSince(daysAgoISO(60), userId), []);
   const intakeByDate = new Map(intake.map((r) => [r.date, r]));
   const nutritionLogStreak = trailingStreak((d) => (intakeByDate.get(d)?.calories ?? 0) > 0);
   const loggedDaysCount = intake.filter((r) => r.calories > 0).length;
@@ -140,18 +155,22 @@ export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementS
     ? intake.filter((r) => Math.abs(r.calories - calTarget) <= calTarget * 0.1).length
     : 0;
   let macroHitsToday = 0;
-  if (goal) {
+  if (goal && todayN) {
     if (Math.abs(todayN.protein - goal.proteinG) <= 5) macroHitsToday++;
     if (Math.abs(todayN.carbs - goal.carbsG) <= 5) macroHitsToday++;
     if (Math.abs(todayN.fat - goal.fatG) <= 5) macroHitsToday++;
   }
 
   // water & caffeine per-day (from beverages) for streaks
-  const bevRows = db
-    .select()
-    .from(beverageEntries)
-    .where(and(eq(beverageEntries.userId, userId), gte(beverageEntries.date, daysAgoISO(20))))
-    .all();
+  const bevRows = safe(
+    () =>
+      db
+        .select()
+        .from(beverageEntries)
+        .where(and(eq(beverageEntries.userId, userId), gte(beverageEntries.date, daysAgoISO(20))))
+        .all(),
+    []
+  );
   const waterByDate = new Map<string, number>();
   const caffByDate = new Map<string, number>();
   for (const b of bevRows) {
@@ -166,11 +185,15 @@ export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementS
   const caffeineUnderStreak = trailingStreak((d) => intakeByDate.has(d) && (caffByDate.get(d) ?? 0) <= caffLimit);
 
   // ── heritage (search logged food text) ──
-  const foodRows = db
-    .select()
-    .from(foodEntries)
-    .where(and(eq(foodEntries.userId, userId), gte(foodEntries.date, daysAgoISO(90))))
-    .all();
+  const foodRows = safe(
+    () =>
+      db
+        .select()
+        .from(foodEntries)
+        .where(and(eq(foodEntries.userId, userId), gte(foodEntries.date, daysAgoISO(90))))
+        .all(),
+    []
+  );
   const loggedBlob = foodRows
     .map((f) => `${f.foodName ?? ''} ${f.freeTextDescription ?? ''}`.toLowerCase())
     .join(' | ');
@@ -183,30 +206,31 @@ export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementS
     : 0;
 
   // ── sleep ──
-  const sleeps = sleepSince(daysAgoISO(30), userId);
-  const bestSleepHours = Math.max(0, ...sleeps.map((s) => s.hours));
-  const sleepDebt = sleepSummary(userId).debt7d;
+  const sleeps = safe(() => sleepSince(daysAgoISO(30), userId), []);
+  const bestSleepHours = maxOf(sleeps.map((s) => s.hours));
+  const sleepDebt = safe(() => sleepSummary(userId).debt7d, 0);
 
   // ── smoking ──
-  const smk = smokingImpact(userId);
+  const smk = safe(() => smokingImpact(userId), null);
 
   // ── alcohol ──
-  const alc = alcoholImpact(userId);
-  // dry streak: consecutive most-recent days with 0 g (from 30-day series would be better; use 7-day series tail)
+  const alc = safe(() => alcoholImpact(userId), null);
   let dryStreak = 0;
-  for (let i = alc.series.length - 1; i >= 0; i--) {
-    if (alc.series[i].grams === 0) dryStreak++;
-    else break;
+  if (alc) {
+    for (let i = alc.series.length - 1; i >= 0; i--) {
+      if (alc.series[i].grams === 0) dryStreak++;
+      else break;
+    }
   }
 
   // ── faith ──
-  const fasting = fastingStats(userId);
+  const fasting = safe(() => fastingStats(userId), { streak: 0, fastedLast30: 0, loggedToday: false });
 
   // ── micros / supplements ──
-  const micros = dayMicros(todayISO(), userId);
-  const microRdiMetCount = MICRO_KEYS.filter((k) => percentRdi(micros.totals[k], k, sex) >= 100).length;
-  const microGapsCount = MICRO_KEYS.filter((k) => k !== 'sodium_mg' && percentRdi(micros.totals[k], k, sex) < 50).length;
-  const stack = getStack(userId);
+  const micros = safe(() => dayMicros(todayISO(), userId), null);
+  const microRdiMetCount = micros ? MICRO_KEYS.filter((k) => percentRdi(micros.totals[k], k, sex) >= 100).length : 0;
+  const microGapsCount = micros ? MICRO_KEYS.filter((k) => k !== 'sodium_mg' && percentRdi(micros.totals[k], k, sex) < 50).length : MICRO_KEYS.length - 1;
+  const stack = safe(() => getStack(userId), []);
   const hasStrongSupp = stack.some((s) => SUPPLEMENTS.find((d) => d.key === s.key)?.evidenceLevel === 'strong');
 
   // ── card ──
@@ -223,7 +247,7 @@ export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementS
   }
 
   return {
-    appStreakBest: usage.longest,
+    appStreakBest,
     bestStepDay,
     best10kStreak,
     monthDistanceKm,
@@ -249,26 +273,49 @@ export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementS
     tunisianShare7d,
     bestSleepHours,
     sleepDebt,
-    smokingEnabled: isSmokingEnabled(userId),
+    smokingEnabled: safe(() => isSmokingEnabled(userId), false),
     smokeFreeStreak: smk?.smokeFreeStreak ?? 0,
     smokeFreeHours: smk?.smokeFreeHours ?? 0,
-    dryDays7d: alc.dryDays7d,
+    dryDays7d: alc?.dryDays7d ?? 0,
     dryStreak,
-    alcoholWeekGrams: alc.weekGrams,
-    alcoholLimitG: alc.weeklyLimitG,
+    alcoholWeekGrams: alc?.weekGrams ?? 0,
+    alcoholLimitG: alc?.weeklyLimitG ?? 100,
     fastingStreak: fasting.streak,
     fastedLast30: fasting.fastedLast30,
-    prayersEnabled: !!getPrayerSettings()?.enabled,
-    prayersToday: prayersDone(todayISO(), userId).size,
+    prayersEnabled: safe(() => !!getPrayerSettings()?.enabled, false),
+    prayersToday: safe(() => prayersDone(todayISO(), userId).size, 0),
     microRdiMetCount,
     microGapsCount,
-    hasMicroData: micros.foodEntriesWithMicros > 0 || micros.supplementCount > 0,
+    hasMicroData: !!micros && (micros.foodEntriesWithMicros > 0 || micros.supplementCount > 0),
     suppStackCount: stack.length,
     hasStrongSupp,
-    creatineStreak: supplementStreak('creatine', userId),
-    ashwaStreak: supplementStreak('ashwagandha', userId),
+    creatineStreak: safe(() => supplementStreak('creatine', userId), 0),
+    ashwaStreak: safe(() => supplementStreak('ashwagandha', userId), 0),
     cardOverall,
     cardEND,
     cardDIS,
   };
+}
+
+/** Fully zeroed stats — returned if the whole computation somehow fails. */
+const ZERO_STATS: AchievementStats = {
+  appStreakBest: 0, bestStepDay: 0, best10kStreak: 0, monthDistanceKm: 0, bestRunKcal: 0, bestRunMinutes: 0,
+  sessionCount: 0, maxVolumeKg: 0, fullBodyDone: false, prCount: 0, routineCount: 0, customExerciseCount: 0, maxSetsThisWeek: 0,
+  tdeeCalculated: false, proteinPerKgToday: 0, nutritionLogStreak: 0, loggedDaysCount: 0, caloriesAdherentDays: 0, macroHitsToday: 0,
+  waterGoalStreak: 0, caffeineUnderStreak: 0, loggedBlob: '', tunisianSalads: 0, tunisianShare7d: 0,
+  bestSleepHours: 0, sleepDebt: 0, smokingEnabled: false, smokeFreeStreak: 0, smokeFreeHours: 0,
+  dryDays7d: 0, dryStreak: 0, alcoholWeekGrams: 0, alcoholLimitG: 100,
+  fastingStreak: 0, fastedLast30: 0, prayersEnabled: false, prayersToday: 0,
+  microRdiMetCount: 0, microGapsCount: 0, hasMicroData: false, suppStackCount: 0, hasStrongSupp: false, creatineStreak: 0, ashwaStreak: 0,
+  cardOverall: 0, cardEND: 0, cardDIS: 0,
+};
+
+/** Public entry — never throws; a failure yields zeroed stats, not a white screen. */
+export function achievementStats(userId: number = PRIMARY_USER_ID): AchievementStats {
+  try {
+    return computeAchievementStats(userId);
+  } catch (e) {
+    console.warn('[achievements] stats computation failed:', e);
+    return ZERO_STATS;
+  }
 }

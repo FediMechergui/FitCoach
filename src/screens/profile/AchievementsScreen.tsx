@@ -19,12 +19,20 @@ export function AchievementsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setStats(achievementStats());
+      try {
+        setStats(achievementStats());
+      } catch (e) {
+        console.warn('[achievements] failed to load stats:', e);
+        setStats(null);
+      }
     }, [])
   );
 
   const evaluated = useMemo(() => {
-    if (!stats) return [];
+    // If stats failed to load, still show every badge (criteria-only) rather than a blank screen.
+    if (!stats) {
+      return ACHIEVEMENTS.map((a) => ({ def: a, p: { current: 0, target: 1, unlocked: false, tracked: false } }));
+    }
     return ACHIEVEMENTS.map((a) => ({ def: a, p: evaluateAchievement(a, stats) }));
   }, [stats]);
 

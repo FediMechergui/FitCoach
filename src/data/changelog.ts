@@ -19,13 +19,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '2.4.1',
+    version: '2.4.2',
     date: '2026-07-20',
-    title: 'Fix: Achievements screen',
+    title: 'Fix: Achievements screen (for real this time)',
     highlights: [
-      'Fixed the Achievements screen crashing (white screen) on devices with lots of existing data — the progress reader is now fully crash-guarded and never blocks the screen.',
-      'Badges render more safely; a single problem badge can no longer take down the whole screen.',
-      'If you can read this in "What\'s new", the fix is live on your device.',
+      'Root-caused the Achievements white screen to native SVG rendering of the 100 badges — the kind of crash no in-app error handler can catch.',
+      'Badges now render as pure medallions using each badge\'s own colours (no SVG engine), so the screen can no longer crash there.',
+      'Tap any Walk or Run in History → see its full details and drawn GPS route.',
+      'If you can read this, you\'re on the fixed build (v2.4.2).',
     ],
   },
   {

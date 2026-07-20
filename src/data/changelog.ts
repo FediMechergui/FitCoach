@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.4.1',
+    date: '2026-07-20',
+    title: 'Fix: Achievements screen',
+    highlights: [
+      'Fixed the Achievements screen crashing (white screen) on devices with lots of existing data — the progress reader is now fully crash-guarded and never blocks the screen.',
+      'Badges render more safely; a single problem badge can no longer take down the whole screen.',
+      'If you can read this in "What\'s new", the fix is live on your device.',
+    ],
+  },
+  {
     version: '2.4',
     date: '2026-07-20',
     title: 'Achievements — 100 badges',

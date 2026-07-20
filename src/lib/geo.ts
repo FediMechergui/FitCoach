@@ -33,12 +33,18 @@ export function routeDistanceM(route: LatLng[]): number {
  */
 export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y: number }> } | null {
   if (route.length < 2) return null;
-  const lats = route.map((p) => p[0]);
-  const lngs = route.map((p) => p[1]);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
+  // reduce instead of Math.min(...spread): a long route (thousands of GPS fixes)
+  // can overflow the call stack when spread on Hermes.
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  for (const [lat, lng] of route) {
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+  }
   const midLat = (minLat + maxLat) / 2;
 
   // Metres from the min corner (longitude corrected for latitude).

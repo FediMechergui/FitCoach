@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pedometer } from 'expo-sensors';
@@ -60,6 +60,14 @@ export function WalkScreen() {
   const start = async () => {
     setSummary(null);
     await walk.start(initialMode);
+    // If a run couldn't start GPS, say so loudly instead of silently counting steps.
+    const perms = useWalkStore.getState().permissions;
+    if (initialMode === 'run' && perms && !perms.gps) {
+      Alert.alert(
+        'Location off — no route map',
+        'This run is being tracked by steps only. To draw your route, enable Location for FitCoach (set it to “Allow all the time”, or at least “While using the app”) in Android Settings → Apps → FitCoach → Permissions, then start the run again.'
+      );
+    }
   };
   const stop = () => {
     const routeAtStop = walk.route;

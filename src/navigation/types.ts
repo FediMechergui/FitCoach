@@ -23,6 +23,7 @@ export type RootStackParamList = {
   Walk: { mode: 'walk' | 'run' } | undefined;
   SessionHistory: undefined;
   SessionDetail: { sessionId: number };
+  WalkDetail: { walkId: number };
 
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
   Micronutrients: undefined;

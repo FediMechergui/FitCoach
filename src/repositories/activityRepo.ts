@@ -146,6 +146,14 @@ export function listWalkSessions(limit = 30, userId: number = PRIMARY_USER_ID): 
     .all();
 }
 
+export function getWalkSession(id: number): WalkSession | undefined {
+  return db.select().from(walkSessions).where(eq(walkSessions.id, id)).get();
+}
+
+export function deleteWalkSession(id: number): void {
+  db.delete(walkSessions).where(eq(walkSessions.id, id)).run();
+}
+
 // ── Daily passive step counter ───────────────────────────────────────────────
 export function getDailySteps(date: string = todayISO(), userId: number = PRIMARY_USER_ID): DailyStepLog | undefined {
   return db

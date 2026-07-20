@@ -82,26 +82,32 @@ export function SessionHistoryScreen() {
           keyExtractor={(w) => `w${w.id}`}
           contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 40 }}
           ListEmptyComponent={<EmptyState icon="cardio.walk" title="No walks yet" />}
-          renderItem={({ item }) => (
-            <Card accent={theme.colors.accent}>
-              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                  <Icon icon={item.mode === 'run' ? 'cardio.running' : 'cardio.walk'} size={22} color={theme.colors.accent} />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="bodyStrong">
-                      {item.mode === 'run' ? 'Run' : 'Walk'} · {item.steps.toLocaleString()} steps
-                    </Text>
-                    <Text variant="caption" color="textMuted">
-                      {friendlyDate(item.startTime)} · {formatDurationLong(item.durationS)} · {formatDistance(item.distanceM, 'metric')}
-                    </Text>
-                  </View>
-                </Row>
-                <Text variant="caption" color="textMuted">
-                  {Math.round(item.caloriesBurned)} kcal
-                </Text>
-              </Row>
-            </Card>
-          )}
+          renderItem={({ item }) => {
+            const hasRoute = !!item.routeJson && item.routeJson.length > 4;
+            return (
+              <Pressable onPress={() => navigation.navigate('WalkDetail', { walkId: item.id })}>
+                <Card accent={item.mode === 'run' ? theme.colors.outdoor : theme.colors.accent}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+                      <Icon icon={item.mode === 'run' ? 'cardio.running' : 'cardio.walk'} size={22} color={item.mode === 'run' ? theme.colors.outdoor : theme.colors.accent} />
+                      <View style={{ flex: 1 }}>
+                        <Row gap={6} style={{ alignItems: 'center' }}>
+                          <Text variant="bodyStrong">
+                            {item.mode === 'run' ? 'Run' : 'Walk'} · {item.steps.toLocaleString()} steps
+                          </Text>
+                          {hasRoute && <Icon icon="cardio.gps" size={13} color={theme.colors.outdoor} />}
+                        </Row>
+                        <Text variant="caption" color="textMuted">
+                          {friendlyDate(item.startTime)} · {formatDurationLong(item.durationS)} · {formatDistance(item.distanceM, 'metric')} · {Math.round(item.caloriesBurned)} kcal
+                        </Text>
+                      </View>
+                    </Row>
+                    <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+                  </Row>
+                </Card>
+              </Pressable>
+            );
+          }}
         />
       )}
     </SafeAreaView>

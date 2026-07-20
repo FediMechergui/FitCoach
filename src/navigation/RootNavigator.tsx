@@ -14,6 +14,7 @@ import { SessionRecapScreen } from '@/screens/train/SessionRecapScreen';
 import { WalkScreen } from '@/screens/train/WalkScreen';
 import { SessionHistoryScreen } from '@/screens/train/SessionHistoryScreen';
 import { SessionDetailScreen } from '@/screens/train/SessionDetailScreen';
+import { WalkDetailScreen } from '@/screens/train/WalkDetailScreen';
 import { AddFoodScreen } from '@/screens/nutrition/AddFoodScreen';
 import { MicronutrientsScreen } from '@/screens/nutrition/MicronutrientsScreen';
 import { SupplementsScreen } from '@/screens/nutrition/SupplementsScreen';
@@ -99,6 +100,7 @@ export function RootNavigator() {
             component={SessionDetailScreen}
             options={{ title: 'Session' }}
           />
+          <Stack.Screen name="WalkDetail" component={WalkDetailScreen} options={{ title: 'Walk / Run' }} />
           <Stack.Screen
             name="AddFood"
             component={AddFoodScreen}

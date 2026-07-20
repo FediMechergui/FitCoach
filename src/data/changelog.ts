@@ -19,14 +19,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '2.4.2',
+    version: '2.4.3',
     date: '2026-07-20',
-    title: 'Fix: Achievements screen (for real this time)',
+    title: 'Achievements: real badge art restored',
     highlights: [
-      'Root-caused the Achievements white screen to native SVG rendering of the 100 badges — the kind of crash no in-app error handler can catch.',
-      'Badges now render as pure medallions using each badge\'s own colours (no SVG engine), so the screen can no longer crash there.',
+      'The 100 achievement badges now show their full, colourful art again — pre-rendered as images so they look exactly like the originals but can never crash the screen (the earlier white-screen was native SVG rendering).',
       'Tap any Walk or Run in History → see its full details and drawn GPS route.',
-      'If you can read this, you\'re on the fixed build (v2.4.2).',
     ],
   },
   {

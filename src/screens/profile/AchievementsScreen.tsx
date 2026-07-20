@@ -101,9 +101,9 @@ function AchievementRow({ def, p }: { def: AchievementDef; p: AchievementProgres
       style={{ gap: 8, opacity: p.unlocked ? 1 : 0.96 }}
     >
       <Row gap={12} style={{ alignItems: 'center' }}>
-        {/* Badge art — full colour when unlocked, dimmed when locked */}
+        {/* Badge art (pre-rendered PNG) — full colour when unlocked, dimmed when locked */}
         <View style={{ opacity: p.unlocked ? 1 : 0.35 }}>
-          <BadgeSvg svg={def.svg} size={48} />
+          <BadgeSvg id={def.id} svg={def.svg} size={48} />
         </View>
         <View style={{ flex: 1 }}>
           <Row gap={6} style={{ alignItems: 'center' }}>

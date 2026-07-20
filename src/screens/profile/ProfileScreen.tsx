@@ -174,6 +174,8 @@ export function ProfileScreen() {
       <Card style={{ gap: 0 }}>
         <LinkRow icon="card.trophy" label="Athlete card" onPress={() => navigation.navigate('ProfileCard')} />
         <Divider />
+        <LinkRow icon="card.star" label="Achievements" onPress={() => navigation.navigate('Achievements')} />
+        <Divider />
         <LinkRow icon="report.pdf" label="Export PDF reports" onPress={() => navigation.navigate('Reports')} />
       </Card>
 

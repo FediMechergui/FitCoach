@@ -24,6 +24,9 @@ import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS 
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
 import { generateDietPlan } from '../src/lib/dietPlan';
 import { EXERCISE_LIBRARY as EXLIB, PRAYER_EXERCISE_MINUTES } from '../src/data/exercises';
+import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../src/data/achievements';
+import { evaluateAchievement, TRACKED_ACHIEVEMENT_COUNT } from '../src/lib/achievementRules';
+import type { AchievementStats } from '../src/repositories/achievementsRepo';
 import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 
@@ -299,6 +302,29 @@ console.log('\nPrayer exercises:');
 const prayerSlugs = ['prayer-fajr', 'prayer-dhuhr', 'prayer-asr', 'prayer-maghrib', 'prayer-isha'];
 check('5 prayers are meditation exercises', prayerSlugs.every((s) => EXLIB.find((e) => e.slug === s)?.sessionType === 'meditation'));
 check('Each prayer has an approximate duration', prayerSlugs.every((s) => (PRAYER_EXERCISE_MINUTES[s] ?? 0) > 0));
+
+console.log('\nAchievements:');
+check('Exactly 100 badges, all with SVG art', ACHIEVEMENTS.length === 100 && ACHIEVEMENTS.every((a) => a.svg.startsWith('<svg') && a.svg.endsWith('</svg>')));
+check('10 categories, 10 badges each', ACHIEVEMENT_CATEGORIES.length === 10 && [1,2,3,4,5,6,7,8,9,10].every((c) => ACHIEVEMENTS.filter((a) => a.category === c).length === 10));
+check('Every badge has criteria text', ACHIEVEMENTS.every((a) => a.criteria.length > 0));
+check('A good share of badges are auto-tracked', TRACKED_ACHIEVEMENT_COUNT >= 50, `${TRACKED_ACHIEVEMENT_COUNT}`);
+// Build a zeroed stats object and a maxed one to exercise the rules.
+const zeroStats: AchievementStats = {
+  appStreakBest: 0, bestStepDay: 0, best10kStreak: 0, monthDistanceKm: 0, bestRunKcal: 0, bestRunMinutes: 0,
+  sessionCount: 0, maxVolumeKg: 0, fullBodyDone: false, prCount: 0, routineCount: 0, customExerciseCount: 0, maxSetsThisWeek: 0,
+  tdeeCalculated: false, proteinPerKgToday: 0, nutritionLogStreak: 0, loggedDaysCount: 0, caloriesAdherentDays: 0, macroHitsToday: 0,
+  waterGoalStreak: 0, caffeineUnderStreak: 0, loggedBlob: '', tunisianSalads: 0, tunisianShare7d: 0,
+  bestSleepHours: 0, sleepDebt: 10, smokingEnabled: false, smokeFreeStreak: 0, smokeFreeHours: 0,
+  dryDays7d: 0, dryStreak: 0, alcoholWeekGrams: 999, alcoholLimitG: 100,
+  fastingStreak: 0, fastedLast30: 0, prayersEnabled: false, prayersToday: 0,
+  microRdiMetCount: 0, microGapsCount: 5, hasMicroData: false, suppStackCount: 0, hasStrongSupp: false, creatineStreak: 0, ashwaStreak: 0,
+  cardOverall: 0, cardEND: 0, cardDIS: 0,
+};
+const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
+check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
+check('The Spark unlocks at a 3-day streak', evaluateAchievement(ACHIEVEMENTS[0], maxed).unlocked === true);
+check('Untracked badge (Scouted #7) reports tracked=false', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 7)!, zeroStats).tracked === false);
+check('Heavy Metal (#20) needs 10,000kg', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 20)!, { ...zeroStats, maxVolumeKg: 10500 }).unlocked === true);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

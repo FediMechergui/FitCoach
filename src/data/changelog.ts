@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.4',
+    date: '2026-07-20',
+    title: 'Achievements — 100 badges',
+    highlights: [
+      '100 achievement badges across 10 categories (streaks, strength, movement, nutrition, Tunisian heritage, quitting smoking, sleep, alcohol, faith & fasting, micronutrients), each with its own SVG art.',
+      'New Achievements screen in Profile → Card & Reports: see every badge and, for 60 of them, exactly how far you are from unlocking — read straight from your own data.',
+      'Overall progress counter and per-category tallies.',
+    ],
+  },
+  {
     version: '2.3',
     date: '2026-07-19',
     title: 'Diet planner, self-care & prayer check-ins, smoother tracking',

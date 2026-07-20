@@ -107,7 +107,7 @@ Pure, unit-testable TypeScript — the "insight" half of the app:
 - **`time.ts`** — time-range math for logging sleep/work as bedtime→wake (handles
   overnight spans and `HH:MM` parsing).
 
-Every formula above is exercised by `npm run verify:engines` (**117 checks**), which
+Every formula above is exercised by `npm run verify:engines` (**125 checks**), which
 asserts them against known values (BMR, TDEE, 1RM, MET, BAC, FFMI, cycle dates,
 time ranges…) and validates library/split integrity.
 
@@ -381,7 +381,7 @@ titled, "Latest"-badged entry (not just a bare tag). Add a new entry to the top 
 | `npm run start` | Expo dev server |
 | `npm run android` | Launch on Android |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify:engines` | Run the 117 pure-domain formula checks |
+| `npm run verify:engines` | Run the 125 pure-domain formula checks |
 | `npm run db:generate` | Generate Drizzle SQL migrations (optional; runtime uses a bootstrap DDL) |
 | `npm run build:apk` | EAS preview APK |
 | `npm run build:aab` | EAS production AAB |

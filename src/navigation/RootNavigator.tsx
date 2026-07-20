@@ -37,6 +37,7 @@ import { PrayersScreen } from '@/screens/faith/PrayersScreen';
 import { FastingScreen } from '@/screens/faith/FastingScreen';
 import { BodyScreen } from '@/screens/profile/BodyScreen';
 import { ProfileCardScreen } from '@/screens/profile/ProfileCardScreen';
+import { AchievementsScreen } from '@/screens/profile/AchievementsScreen';
 import { ReportsScreen } from '@/screens/profile/ReportsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -127,6 +128,7 @@ export function RootNavigator() {
           <Stack.Screen name="Hormones" component={HormonesScreen} options={{ title: 'Hormones' }} />
           <Stack.Screen name="Body" component={BodyScreen} options={{ title: 'Body' }} />
           <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: 'Athlete Card' }} />
+          <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: 'Achievements' }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
           <Stack.Screen name="Growth" component={GrowthScreen} options={{ title: 'Muscle Growth' }} />
           <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: "What's New" }} />

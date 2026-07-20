@@ -10,6 +10,16 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.4 — 2026-07-20 · Achievements — 100 badges
+- **100 achievement badges** across 10 categories (Consistency, Strength, Movement, Nutrition,
+  Tunisian & Mediterranean Heritage, Smoking Cessation, Sleep & Work, Alcohol, Faith & Fasting,
+  Micronutrients), each with its own inline **SVG** art.
+- New **Achievements** screen (Profile → Card & Reports): every badge with, for **60** of them,
+  a live progress readout showing exactly how close you are — computed from your own data
+  (streaks, workouts, steps, nutrition, sleep, smoking/alcohol, fasting, micros…).
+- Overall unlocked counter and per-category tallies. Event-based badges (e.g. exporting your
+  card) are shown honestly as "unlocks when you do it".
+
 ## v2.3 — 2026-07-19 · Diet planner, self-care & prayer check-ins, smoother tracking
 - **Diet plan generator**: auto-builds a day of meals that hits your calorie & macro targets,
   with 5 styles (balanced, high-protein, low-carb, vegetarian, mediterranean) and a **Shuffle**

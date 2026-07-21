@@ -54,6 +54,10 @@ export const users = sqliteTable('users', {
 });
 
 // ── WeighIn ──────────────────────────────────────────────────────────────────
+// Everything except `weightKg` is an OPTIONAL measured input (typically read off
+// a bio-impedance scale or a tape measure). Derived values (BMI, fat weight,
+// lean mass, percentages, obesity degree…) are NOT stored — they're computed
+// from these by lib/bodyComposition so history can never disagree with itself.
 export const weighIns = sqliteTable('weigh_ins', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -63,10 +67,59 @@ export const weighIns = sqliteTable('weigh_ins', {
   // Detailed body composition (all optional; entered if the user knows them).
   fatMassKg: real('fat_mass_kg'),
   muscleMassKg: real('muscle_mass_kg'),
-  bodyWaterPct: real('body_water_pct'), // total body water / retained water
+  bodyWaterPct: real('body_water_pct'), // total body water
   boneMassKg: real('bone_mass_kg'),
+  /** skeletal (voluntary) muscle mass — scales report this separately */
+  skeletalMuscleKg: real('skeletal_muscle_kg'),
+  /** visceral fat rating (scale index, ~1–59; ≤9 healthy) */
+  visceralFatRating: real('visceral_fat_rating'),
+  proteinPct: real('protein_pct'),
+  /** the scale's own "metabolism"/BMR reading, kcal */
+  bmrKcal: real('bmr_kcal'),
+  /** retained / trapped water, kg (oedema-style reading on some scales) */
+  trappedWaterKg: real('trapped_water_kg'),
+  // ── Circumference measurements (cm) ──
   waistCm: real('waist_cm'),
   hipCm: real('hip_cm'),
+  neckCm: real('neck_cm'),
+  shoulderCm: real('shoulder_cm'),
+  chestCm: real('chest_cm'),
+  upperAbdomenCm: real('upper_abdomen_cm'),
+  lowerAbdomenCm: real('lower_abdomen_cm'),
+  armUpperLCm: real('arm_upper_l_cm'),
+  armUpperRCm: real('arm_upper_r_cm'),
+  armLowerLCm: real('arm_lower_l_cm'),
+  armLowerRCm: real('arm_lower_r_cm'),
+  thighLCm: real('thigh_l_cm'),
+  thighRCm: real('thigh_r_cm'),
+  calfLCm: real('calf_l_cm'),
+  calfRCm: real('calf_r_cm'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+// ── GoalHistory (every goal change / target recalculation, like weigh-ins) ────
+export const goalHistory = sqliteTable('goal_history', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  goal: text('goal', { enum: ['lose_fat', 'maintain', 'build_muscle'] }).notNull(),
+  rateOfChange: text('rate_of_change', { enum: ['slow', 'moderate', 'aggressive'] }).notNull(),
+  targetWeightKg: real('target_weight_kg'),
+  /** snapshot of the targets this goal produced */
+  calorieTarget: real('calorie_target').notNull(),
+  proteinG: real('protein_g').notNull(),
+  carbsG: real('carbs_g').notNull(),
+  fatG: real('fat_g').notNull(),
+  tdee: real('tdee'),
+  bmr: real('bmr'),
+  /** which BMR formula was used: 'katch' (lean mass known) or 'mifflin' */
+  basis: text('basis'),
+  /** the weight/body-fat this was calculated from, for context */
+  atWeightKg: real('at_weight_kg'),
+  atBodyFatPct: real('at_body_fat_pct'),
+  notes: text('notes'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -670,6 +723,8 @@ export const coachTips = sqliteTable('coach_tips', {
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type WeighIn = typeof weighIns.$inferSelect;
+export type NewWeighIn = typeof weighIns.$inferInsert;
+export type GoalHistory = typeof goalHistory.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type ExerciseLog = typeof exerciseLogs.$inferSelect;

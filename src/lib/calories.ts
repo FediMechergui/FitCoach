@@ -42,6 +42,8 @@ export interface CalorieInputs {
   goal: Goal;
   rate: RateOfChange;
   bodyFatPct?: number | null;
+  /** measured fat-free mass — when present, BMR uses Katch-McArdle instead */
+  leanMassKg?: number | null;
 }
 
 export interface MacroTargets {
@@ -56,12 +58,23 @@ export interface CalorieResult {
   calorieTarget: number;
   macros: MacroTargets;
   goalOffsetPct: number;
+  /** which BMR formula produced `bmr` */
+  bmrBasis: 'mifflin' | 'katch';
 }
 
 /** Mifflin-St Jeor Basal Metabolic Rate. */
 export function calculateBMR(sex: Sex, weightKg: number, heightCm: number, age: number): number {
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
   return Math.round(base + (sex === 'male' ? 5 : -161));
+}
+
+/**
+ * Katch-McArdle BMR from measured fat-free mass. Preferred over Mifflin when
+ * body composition is actually measured, because it accounts for how much of
+ * your weight is metabolically active tissue rather than assuming it.
+ */
+export function calculateBMRFromLeanMass(leanMassKg: number): number {
+  return Math.round(370 + 21.6 * leanMassKg);
 }
 
 /** BMR × activity multiplier. */
@@ -112,15 +125,21 @@ export function calculateMacros(
   return { protein, carbs, fat };
 }
 
-/** Full calculation pipeline. */
+/**
+ * Full calculation pipeline. When measured lean mass is supplied (from a body
+ * composition weigh-in), BMR comes from Katch-McArdle; otherwise Mifflin-St Jeor.
+ */
 export function computeTargets(input: CalorieInputs): CalorieResult {
-  const bmr = calculateBMR(input.sex, input.weightKg, input.heightCm, input.age);
+  const useKatch = input.leanMassKg != null && input.leanMassKg > 0;
+  const bmr = useKatch
+    ? calculateBMRFromLeanMass(input.leanMassKg as number)
+    : calculateBMR(input.sex, input.weightKg, input.heightCm, input.age);
   const tdee = calculateTDEE(bmr, input.activityLevel);
   const offset = goalOffsetPct(input.goal, input.rate);
   // Never prescribe below BMR for safety.
   const calorieTarget = Math.max(bmr, Math.round(tdee * (1 + offset)));
   const macros = calculateMacros(calorieTarget, input.weightKg, input.goal, input.bodyFatPct);
-  return { bmr, tdee, calorieTarget, macros, goalOffsetPct: offset };
+  return { bmr, tdee, calorieTarget, macros, goalOffsetPct: offset, bmrBasis: useKatch ? 'katch' : 'mifflin' };
 }
 
 /**

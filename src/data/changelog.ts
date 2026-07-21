@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.6',
+    date: '2026-07-21',
+    title: 'Full body composition & measurements',
+    highlights: [
+      'Track 15 tape measurements (neck, shoulders, chest, waist, upper/lower abdomen, hips, both arms & forearms, both thighs & calves) — all kept in history.',
+      'Log everything your scale reports: body fat, water, muscle & skeletal muscle, bone, protein %, visceral fat, retained water and its BMR reading.',
+      'Clear split between what you enter and what FitCoach calculates: BMI, fat weight, lean mass, muscle & skeletal-muscle %, water weight, bone %, protein weight, obesity degree, waist-to-hip, waist-to-height, FFMI and BMR.',
+      'Your calories now follow your composition — with body fat measured, BMR uses Katch-McArdle (lean mass) instead of a height/weight formula, and protein is anchored to lean mass.',
+      'Set or adjust your goal any time; every change is saved to a goal history alongside your measurement history.',
+    ],
+  },
+  {
     version: '2.5',
     date: '2026-07-21',
     title: 'Spirulina, shilajit & a goal-based supplement plan',

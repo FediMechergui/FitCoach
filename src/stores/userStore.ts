@@ -12,6 +12,8 @@ import {
   type WeighInExtra,
 } from '@/repositories/userRepo';
 import { computeTargets, recommendedWaterMl, type CalorieInputs } from '@/lib/calories';
+import { computeBodyComp } from '@/lib/bodyComposition';
+import { recordGoalChange } from '@/repositories/goalHistoryRepo';
 import { estimateBodyType } from '@/lib/bodyType';
 import { ageFromBirthdate } from '@/lib/date';
 import { CAFFEINE_SOFT_LIMIT_MG } from '@/data/beverages';
@@ -25,8 +27,16 @@ interface UserState {
   load: () => void;
   updateProfile: (patch: Partial<User>) => void;
   logWeight: (weightKg: number, extra?: WeighInExtra) => void;
-  recalcTargets: () => NutritionGoal | null;
+  /** Recompute targets; logs a goal-history entry when the targets change. */
+  recalcTargets: (opts?: RecalcOptions) => NutritionGoal | null;
   completeOnboarding: (data: OnboardingData) => void;
+}
+
+export interface RecalcOptions {
+  /** force a history entry even if the numbers didn't move */
+  record?: boolean;
+  targetWeightKg?: number | null;
+  notes?: string | null;
 }
 
 export interface OnboardingData {
@@ -44,7 +54,22 @@ export interface OnboardingData {
   rate: User['rateOfChange'];
 }
 
+/**
+ * Build calorie inputs, folding in measured body composition when the latest
+ * weigh-in has it: lean mass switches BMR to Katch-McArdle and body-fat % anchors
+ * the protein target, so targets track your composition, not just your weight.
+ */
 function inputsFor(user: User, weightKg: number): CalorieInputs {
+  const w = latestWeight();
+  const comp = w
+    ? computeBodyComp({
+        weightKg,
+        heightCm: user.heightCm,
+        bodyFatPct: w.bodyFatPct,
+        fatMassKg: w.fatMassKg,
+        sex: user.sex,
+      })
+    : null;
   return {
     sex: user.sex,
     age: ageFromBirthdate(user.birthdate),
@@ -53,6 +78,8 @@ function inputsFor(user: User, weightKg: number): CalorieInputs {
     activityLevel: user.activityLevel,
     goal: user.goal,
     rate: user.rateOfChange,
+    bodyFatPct: comp?.bodyFatPct ?? null,
+    leanMassKg: comp?.leanMassKg ?? null,
   };
 }
 
@@ -81,21 +108,54 @@ export const useUserStore = create<UserState>((set, get) => ({
     get().recalcTargets();
   },
 
-  recalcTargets: () => {
+  recalcTargets: (opts) => {
     const user = get().user ?? getUser();
     const weightKg = get().currentWeightKg ?? latestWeight()?.weightKg;
     if (!user || !weightKg || !user.heightCm) return get().goal;
-    const result = computeTargets(inputsFor(user, weightKg));
+    const inputs = inputsFor(user, weightKg);
+    const result = computeTargets(inputs);
+    const previous = get().goal;
     const goal = upsertNutritionGoal({
       calorieTarget: result.calorieTarget,
       proteinG: result.macros.protein,
       carbsG: result.macros.carbs,
       fatG: result.macros.fat,
-      waterGoalMl: get().goal?.waterGoalMl ?? recommendedWaterMl(weightKg),
-      caffeineSoftLimitMg: get().goal?.caffeineSoftLimitMg ?? CAFFEINE_SOFT_LIMIT_MG,
+      // Water scales with bodyweight; keep a user override unless weight moved.
+      waterGoalMl: recommendedWaterMl(weightKg),
+      caffeineSoftLimitMg: previous?.caffeineSoftLimitMg ?? CAFFEINE_SOFT_LIMIT_MG,
       tdee: result.tdee,
     });
     set({ goal });
+
+    // Log the change so targets have a history, like weigh-ins do. Only when
+    // something actually moved (or the caller explicitly asked to record).
+    const changed =
+      !previous ||
+      previous.calorieTarget !== goal.calorieTarget ||
+      previous.proteinG !== goal.proteinG ||
+      previous.carbsG !== goal.carbsG ||
+      previous.fatG !== goal.fatG;
+    if (changed || opts?.record) {
+      try {
+        recordGoalChange({
+          goal: user.goal,
+          rateOfChange: user.rateOfChange,
+          targetWeightKg: opts?.targetWeightKg ?? null,
+          calorieTarget: goal.calorieTarget,
+          proteinG: goal.proteinG,
+          carbsG: goal.carbsG,
+          fatG: goal.fatG,
+          tdee: result.tdee,
+          bmr: result.bmr,
+          basis: result.bmrBasis,
+          atWeightKg: weightKg,
+          atBodyFatPct: inputs.bodyFatPct ?? null,
+          notes: opts?.notes ?? null,
+        });
+      } catch {
+        // history is best-effort — never block a recalculation
+      }
+    }
     return goal;
   },
 

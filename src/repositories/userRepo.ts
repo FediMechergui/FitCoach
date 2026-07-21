@@ -42,16 +42,45 @@ export function isOnboarded(id: number = PRIMARY_USER_ID): boolean {
 }
 
 // ── Weigh-ins ────────────────────────────────────────────────────────────────
+/** Every optional MEASURED field of a weigh-in (nothing derived is stored). */
 export interface WeighInExtra {
+  // composition readings
   bodyFatPct?: number | null;
   fatMassKg?: number | null;
   muscleMassKg?: number | null;
+  skeletalMuscleKg?: number | null;
   bodyWaterPct?: number | null;
+  trappedWaterKg?: number | null;
   boneMassKg?: number | null;
+  visceralFatRating?: number | null;
+  proteinPct?: number | null;
+  bmrKcal?: number | null;
+  // circumferences (cm)
+  neckCm?: number | null;
+  shoulderCm?: number | null;
+  chestCm?: number | null;
   waistCm?: number | null;
+  upperAbdomenCm?: number | null;
+  lowerAbdomenCm?: number | null;
   hipCm?: number | null;
+  armUpperLCm?: number | null;
+  armUpperRCm?: number | null;
+  armLowerLCm?: number | null;
+  armLowerRCm?: number | null;
+  thighLCm?: number | null;
+  thighRCm?: number | null;
+  calfLCm?: number | null;
+  calfRCm?: number | null;
   date?: string;
 }
+
+const WEIGH_IN_FIELDS: Array<keyof WeighInExtra> = [
+  'bodyFatPct', 'fatMassKg', 'muscleMassKg', 'skeletalMuscleKg', 'bodyWaterPct', 'trappedWaterKg',
+  'boneMassKg', 'visceralFatRating', 'proteinPct', 'bmrKcal',
+  'neckCm', 'shoulderCm', 'chestCm', 'waistCm', 'upperAbdomenCm', 'lowerAbdomenCm', 'hipCm',
+  'armUpperLCm', 'armUpperRCm', 'armLowerLCm', 'armLowerRCm',
+  'thighLCm', 'thighRCm', 'calfLCm', 'calfRCm',
+];
 
 export function addWeighIn(
   weightKg: number,
@@ -59,22 +88,22 @@ export function addWeighIn(
   userId: number = PRIMARY_USER_ID
 ): void {
   const date = extra.date ?? todayISO();
-  // One weigh-in per day: replace an existing same-day entry.
+  // One weigh-in per day. Carry forward any measurement the user didn't re-enter
+  // today, so a quick weight-only log never wipes last entry's tape numbers.
+  const previous = db
+    .select()
+    .from(weighIns)
+    .where(and(eq(weighIns.userId, userId), eq(weighIns.date, date)))
+    .get();
+
+  const values: Record<string, unknown> = { userId, date, weightKg };
+  for (const f of WEIGH_IN_FIELDS) {
+    const given = extra[f];
+    values[f] = given ?? (previous ? (previous as Record<string, unknown>)[f] ?? null : null);
+  }
+
   db.delete(weighIns).where(and(eq(weighIns.userId, userId), eq(weighIns.date, date))).run();
-  db.insert(weighIns)
-    .values({
-      userId,
-      date,
-      weightKg,
-      bodyFatPct: extra.bodyFatPct ?? null,
-      fatMassKg: extra.fatMassKg ?? null,
-      muscleMassKg: extra.muscleMassKg ?? null,
-      bodyWaterPct: extra.bodyWaterPct ?? null,
-      boneMassKg: extra.boneMassKg ?? null,
-      waistCm: extra.waistCm ?? null,
-      hipCm: extra.hipCm ?? null,
-    })
-    .run();
+  db.insert(weighIns).values(values as never).run();
 }
 
 export function latestWeight(userId: number = PRIMARY_USER_ID): WeighIn | undefined {

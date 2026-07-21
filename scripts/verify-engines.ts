@@ -8,7 +8,7 @@ import { lifeMinutesLost, moneyCost, aerobicPenaltyPct, currentQuitMilestone, DE
 import { generateCoachTips, type CoachContext } from '../src/lib/recommendations';
 import { estimateFromDescription } from '../src/data/foods';
 import { computeDrink, estimateBAC, alcoholGrams } from '../src/lib/alcohol';
-import { computeBodyComp, ffmiCategory } from '../src/lib/bodyComposition';
+import { computeBodyComp, ffmiCategory, MEASUREMENT_FIELDS } from '../src/lib/bodyComposition';
 import { computeCycle } from '../src/lib/cycle';
 import { computeRating } from '../src/lib/rating';
 import { assessNight, sleepDebt } from '../src/lib/sleep';
@@ -303,6 +303,39 @@ console.log('\nPrayer exercises:');
 const prayerSlugs = ['prayer-fajr', 'prayer-dhuhr', 'prayer-asr', 'prayer-maghrib', 'prayer-isha'];
 check('5 prayers are meditation exercises', prayerSlugs.every((s) => EXLIB.find((e) => e.slug === s)?.sessionType === 'meditation'));
 check('Each prayer has an approximate duration', prayerSlugs.every((s) => (PRAYER_EXERCISE_MINUTES[s] ?? 0) > 0));
+
+console.log('\nBody composition — derived metrics:');
+const full = computeBodyComp({
+  weightKg: 80, heightCm: 180, bodyFatPct: 20, muscleMassKg: 36, skeletalMuscleKg: 33,
+  bodyWaterPct: 55, boneMassKg: 3.2, proteinPct: 17, visceralFatRating: 8, trappedWaterKg: 1.4,
+  waistCm: 84, hipCm: 100, sex: 'male',
+});
+check('BMI 80kg/180cm = 24.7', near(full.bmi!, 24.7, 0.1), `${full.bmi}`);
+check('BMI category Normal', full.bmiCategory === 'Normal', full.bmiCategory!);
+check('Fat weight = 16kg at 20% of 80kg', full.fatMassKg === 16, `${full.fatMassKg}`);
+check('Lean mass = 64kg', full.leanMassKg === 64, `${full.leanMassKg}`);
+check('Muscle % of weight = 45%', near(full.musclePct!, 45, 0.1), `${full.musclePct}`);
+check('Skeletal muscle % = 41.3%', near(full.skeletalMusclePct!, 41.3, 0.1), `${full.skeletalMusclePct}`);
+check('Water weight = 44kg at 55%', near(full.bodyWaterKg!, 44, 0.1), `${full.bodyWaterKg}`);
+check('Bone % = 4%', near(full.bonePct!, 4, 0.1), `${full.bonePct}`);
+check('Protein weight = 13.6kg at 17%', near(full.proteinKg!, 13.6, 0.1), `${full.proteinKg}`);
+check('Visceral rating 8 → healthy', full.visceralStatus === 'healthy');
+// ideal at BMI22 = 22*1.8^2 = 71.28 → (80-71.28)/71.28 = +12.2%
+check('Obesity degree vs BMI-22 ideal ≈ +12.2%', near(full.obesityDegreePct!, 12.2, 0.2), `${full.obesityDegreePct}`);
+check('Waist-to-hip = 0.84', near(full.waistToHip!, 0.84, 0.01), `${full.waistToHip}`);
+check('Waist-to-height = 0.47', near(full.waistToHeight!, 0.47, 0.01), `${full.waistToHeight}`);
+// Katch-McArdle: 370 + 21.6*64 = 1752
+check('BMR uses Katch-McArdle from lean mass (1752)', full.bmrKcal === 1752 && full.bmrBasis === 'katch', `${full.bmrKcal}/${full.bmrBasis}`);
+const noComp = computeBodyComp({ weightKg: 80, heightCm: 180, sex: 'male' });
+check('Without body fat, derived fields stay null (nothing invented)', noComp.fatMassKg === null && noComp.leanMassKg === null && noComp.bmrKcal === null);
+check('BMI still computed without body fat', noComp.bmi != null);
+check('15 tape measurements defined', MEASUREMENT_FIELDS.length === 15, `${MEASUREMENT_FIELDS.length}`);
+// Targets should follow composition: Katch when lean mass known, Mifflin otherwise.
+const tKatch = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'lose_fat', rate: 'moderate', bodyFatPct: 20, leanMassKg: 64 });
+const tMifflin = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'lose_fat', rate: 'moderate' });
+check('computeTargets uses Katch when lean mass supplied', tKatch.bmrBasis === 'katch' && tKatch.bmr === 1752, `${tKatch.bmr}`);
+check('computeTargets falls back to Mifflin', tMifflin.bmrBasis === 'mifflin' && tMifflin.bmr === 1780, `${tMifflin.bmr}`);
+check('Never prescribes below BMR', tKatch.calorieTarget >= tKatch.bmr && tMifflin.calorieTarget >= tMifflin.bmr);
 
 console.log('\nSupplements — spirulina / shilajit / ashwagandha:');
 const spir = findSupplement('spirulina')!;

@@ -7,7 +7,7 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -38,6 +38,25 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'set_entries', column: 'distance_m', ddl: 'REAL' },
   { table: 'walk_sessions', column: 'route_json', ddl: 'TEXT' },
   { table: 'live_walks', column: 'route_json', ddl: 'TEXT' },
+  // v8 — body composition inputs + circumference measurements
+  { table: 'weigh_ins', column: 'skeletal_muscle_kg', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'visceral_fat_rating', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'protein_pct', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'bmr_kcal', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'trapped_water_kg', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'neck_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'shoulder_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'chest_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'upper_abdomen_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'lower_abdomen_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'arm_upper_l_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'arm_upper_r_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'arm_lower_l_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'arm_lower_r_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'thigh_l_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'thigh_r_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'calf_l_cm', ddl: 'REAL' },
+  { table: 'weigh_ins', column: 'calf_r_cm', ddl: 'REAL' },
 ];
 
 function ensureColumns(): void {
@@ -80,11 +99,50 @@ CREATE TABLE IF NOT EXISTS weigh_ins (
   muscle_mass_kg REAL,
   body_water_pct REAL,
   bone_mass_kg REAL,
+  skeletal_muscle_kg REAL,
+  visceral_fat_rating REAL,
+  protein_pct REAL,
+  bmr_kcal REAL,
+  trapped_water_kg REAL,
   waist_cm REAL,
   hip_cm REAL,
+  neck_cm REAL,
+  shoulder_cm REAL,
+  chest_cm REAL,
+  upper_abdomen_cm REAL,
+  lower_abdomen_cm REAL,
+  arm_upper_l_cm REAL,
+  arm_upper_r_cm REAL,
+  arm_lower_l_cm REAL,
+  arm_lower_r_cm REAL,
+  thigh_l_cm REAL,
+  thigh_r_cm REAL,
+  calf_l_cm REAL,
+  calf_r_cm REAL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_weigh_ins_user_date ON weigh_ins(user_id, date);
+
+CREATE TABLE IF NOT EXISTS goal_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  goal TEXT NOT NULL,
+  rate_of_change TEXT NOT NULL,
+  target_weight_kg REAL,
+  calorie_target REAL NOT NULL,
+  protein_g REAL NOT NULL,
+  carbs_g REAL NOT NULL,
+  fat_g REAL NOT NULL,
+  tdee REAL,
+  bmr REAL,
+  basis TEXT,
+  at_weight_kg REAL,
+  at_body_fat_pct REAL,
+  notes TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_goal_history_user_date ON goal_history(user_id, date);
 
 CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

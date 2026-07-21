@@ -29,6 +29,7 @@ import { evaluateAchievement, TRACKED_ACHIEVEMENT_COUNT } from '../src/lib/achie
 import type { AchievementStats } from '../src/repositories/achievementsRepo';
 import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
+import { buildIntakePlan } from '../src/lib/supplementPlan';
 
 let pass = 0;
 let fail = 0;
@@ -302,6 +303,35 @@ console.log('\nPrayer exercises:');
 const prayerSlugs = ['prayer-fajr', 'prayer-dhuhr', 'prayer-asr', 'prayer-maghrib', 'prayer-isha'];
 check('5 prayers are meditation exercises', prayerSlugs.every((s) => EXLIB.find((e) => e.slug === s)?.sessionType === 'meditation'));
 check('Each prayer has an approximate duration', prayerSlugs.every((s) => (PRAYER_EXERCISE_MINUTES[s] ?? 0) > 0));
+
+console.log('\nSupplements — spirulina / shilajit / ashwagandha:');
+const spir = findSupplement('spirulina')!;
+check('Spirulina portion is 1 g (3 capsules)', /1 g/.test(spir.defaultDose) && /3 capsules/.test(spir.defaultDose), spir.defaultDose);
+// per-100 g figures ÷ 100 for the 1 g portion
+check('Spirulina minerals scaled from per-100g', near(spir.micros!.calcium_mg!, 1.2, 0.01) && near(spir.micros!.iron_mg!, 0.285, 0.01) && near(spir.micros!.magnesium_mg!, 1.95, 0.01) && near(spir.micros!.phosphorus_mg!, 1.18, 0.01) && near(spir.micros!.potassium_mg!, 13.6, 0.05));
+check('Spirulina B-vitamins scaled from per-100g', near(spir.micros!.thiamin_mg!, 0.0238, 0.002) && near(spir.micros!.riboflavin_mg!, 0.0367, 0.002) && near(spir.micros!.niacin_mg!, 0.128, 0.002));
+// Vitamin A stored as RAE (beta-carotene ÷12), so a stack can't trip a false toxicity flag.
+check('Spirulina vitamin A stored as RAE (~117µg), not raw 1400µg', spir.micros!.vitaminA_ug! > 90 && spir.micros!.vitaminA_ug! < 150, `${spir.micros!.vitaminA_ug}`);
+const heavyA = sumMicros([findSupplement('multivitamin')!.micros!, spir.micros!, spir.micros!]);
+check('Multivitamin + 2 spirulina stays under vitamin A upper limit', microStatus(heavyA.vitaminA_ug, 'vitaminA_ug', 'male') !== 'over', `${heavyA.vitaminA_ug}µg`);
+check('Ashwagandha portion is 400 mg extract (2 capsules)', /400 mg/.test(findSupplement('ashwagandha')!.defaultDose) && /2 capsules/.test(findSupplement('ashwagandha')!.defaultDose));
+check('Shilajit present, honestly rated, no invented micros', findSupplement('shilajit')?.evidenceLevel === 'limited' && !findSupplement('shilajit')?.micros);
+
+console.log('\nSupplement plan engine:');
+const planA = buildIntakePlan(['athletic_performance', 'sleep_quality'], { caffeineMgPerDay: 320 });
+check('Plan produces time-slotted items', planA.slots.length >= 2 && planA.slots.every((s) => s.items.length > 0));
+check('Caffeine + sleep goal raises a conflict warning', planA.notes.some((n) => n.severity === 'warning' && /caffeine/i.test(n.text)));
+const planQuit = buildIntakePlan(['quit_smoking'], { smokes: true });
+check('Quit-smoking plan states supplements do not treat dependence', planQuit.notes.some((n) => n.severity === 'warning' && /nicotine dependence/i.test(n.text)));
+const planWB = buildIntakePlan(['general_wellbeing'], { smokes: true });
+check('Smoker + beta-carotene caution fires (ATBC/CARET)', planWB.notes.some((n) => /beta-carotene/i.test(n.text)));
+const planThy = buildIntakePlan(['stress_recovery'], { conditions: ['hypothyroidism'] });
+check('Thyroid condition escalates ashwagandha to a warning', planThy.notes.some((n) => n.severity === 'warning' && /thyroid/i.test(n.text)));
+check('Every plan carries a not-medical-advice note', [planA, planQuit, planWB].every((p) => p.notes.some((n) => /not medical advice/i.test(n.text))));
+// A supplement wanted by two goals must appear once, not twice.
+const dup = buildIntakePlan(['sleep_quality', 'stress_recovery']);
+const allKeys = dup.slots.flatMap((s) => s.items.map((i) => i.key));
+check('Overlapping goals de-duplicate supplements', new Set(allKeys).size === allKeys.length, allKeys.join(','));
 
 console.log('\nAchievements:');
 check('Exactly 100 badges, all with SVG art', ACHIEVEMENTS.length === 100 && ACHIEVEMENTS.every((a) => a.svg.startsWith('<svg') && a.svg.endsWith('</svg>')));

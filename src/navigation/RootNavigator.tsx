@@ -18,6 +18,7 @@ import { WalkDetailScreen } from '@/screens/train/WalkDetailScreen';
 import { AddFoodScreen } from '@/screens/nutrition/AddFoodScreen';
 import { MicronutrientsScreen } from '@/screens/nutrition/MicronutrientsScreen';
 import { SupplementsScreen } from '@/screens/nutrition/SupplementsScreen';
+import { SupplementPlanScreen } from '@/screens/nutrition/SupplementPlanScreen';
 import { DietPlanScreen } from '@/screens/nutrition/DietPlanScreen';
 import { ExerciseStatsScreen } from '@/screens/stats/ExerciseStatsScreen';
 import { EditProfileScreen } from '@/screens/profile/EditProfileScreen';
@@ -108,6 +109,7 @@ export function RootNavigator() {
           />
           <Stack.Screen name="Micronutrients" component={MicronutrientsScreen} options={{ title: 'Micronutrients' }} />
           <Stack.Screen name="Supplements" component={SupplementsScreen} options={{ title: 'Supplements' }} />
+          <Stack.Screen name="SupplementPlan" component={SupplementPlanScreen} options={{ title: 'Supplement Plan' }} />
           <Stack.Screen name="DietPlan" component={DietPlanScreen} options={{ title: 'Diet Plan' }} />
           <Stack.Screen
             name="ExerciseStats"

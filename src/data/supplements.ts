@@ -65,6 +65,22 @@ export const SUPPLEMENTS: SupplementDef[] = [
   { key: 'omega-3', label: 'Omega-3 Fish Oil', category: 'micronutrient', icon: 'supp.oil', defaultDose: '1000 mg EPA+DHA', timing: 'With a meal', micros: { omega3_mg: 1000, vitaminD_ug: 2 } },
   { key: 'calcium', label: 'Calcium', category: 'micronutrient', icon: 'supp.mineral', defaultDose: '500 mg', timing: 'Split doses; with food', micros: { calcium_mg: 500 } },
   { key: 'folate', label: 'Folic Acid', category: 'micronutrient', icon: 'supp.pill', defaultDose: '400 µg', timing: 'Important pre/early pregnancy', micros: { folate_ug: 400 } },
+  {
+    key: 'spirulina', label: 'Spirulina', category: 'micronutrient', icon: 'supp.leaf',
+    defaultDose: '1 g (3 capsules)', timing: 'With a meal; not late (mildly energising)',
+    // Per-100 g composition ÷ 100 for the 1 g (1000 mg) portion.
+    //   Ca 120 → 1.2 · Fe 28.5 → 0.29 · Mg 195 → 1.95 · P 118 → 1.18 · K 1360 → 13.6
+    //   B1 2.38 → 0.024 · B2 3.67 → 0.037 · B3 12.8 → 0.128
+    // Vitamin A: spirulina's activity is provitamin-A (beta-carotene), not retinol.
+    // 140 mg/100 g → 1400 µg per 1 g portion → ÷12 (µg beta-carotene per µg RAE)
+    // ≈ 117 µg RAE. Stored as RAE so it can't trigger false retinol-toxicity flags.
+    micros: {
+      calcium_mg: 1.2, iron_mg: 0.285, magnesium_mg: 1.95, phosphorus_mg: 1.18, potassium_mg: 13.6,
+      vitaminA_ug: 117, thiamin_mg: 0.024, riboflavin_mg: 0.037, niacin_mg: 0.128,
+    },
+    evidenceLevel: 'limited',
+    evidence: 'A nutrient-dense algae — a genuine source of iron, B-vitamins and provitamin-A carotenoids, but at a 1 g dose the amounts are small next to food. Claims beyond "a modest nutrient top-up" are not well supported. Buy from a tested brand: poorly sourced algae can carry heavy metals or microcystins.',
+  },
 
   // ── Ergogenic / wellness (tracked; honest evidence) ────────────────────────
   {
@@ -99,9 +115,15 @@ export const SUPPLEMENTS: SupplementDef[] = [
   },
   {
     key: 'ashwagandha', label: 'Ashwagandha', category: 'ergogenic', icon: 'supp.leaf',
-    defaultDose: '300–600 mg (KSM-66/root extract)', timing: 'Daily; often evening',
+    defaultDose: '400 mg extract (2 capsules)', timing: 'Daily; evening suits sleep/stress goals',
     evidenceLevel: 'moderate',
-    evidence: 'Moderate evidence that it lowers perceived stress and cortisol and may improve sleep. Some small studies show minor strength/recovery benefits, but that evidence is weaker and mixed. Not a stimulant. Avoid with thyroid meds or pregnancy without medical advice.',
+    evidence: 'Moderate evidence that it lowers perceived stress and cortisol and may improve sleep. Your portion (400 mg of extract, 2 capsules) sits inside the 300–600 mg/day range used in most trials. Some small studies show minor strength/recovery benefits, but that evidence is weaker and mixed. Not a stimulant. Avoid with thyroid medication or in pregnancy without medical advice.',
+  },
+  {
+    key: 'shilajit', label: 'Shilajit', category: 'ergogenic', icon: 'supp.mineral',
+    defaultDose: '250–500 mg (purified resin/extract)', timing: 'Daily, morning with food',
+    evidenceLevel: 'limited',
+    evidence: 'Limited evidence — small trials suggest reduced fatigue and modest testosterone/recovery effects, but studies are few and often small or industry-funded. Purity is the real issue: unpurified shilajit can contain heavy metals (lead, arsenic) and mycotoxins, so only use a brand with third-party heavy-metal testing. No reliable micronutrient breakdown exists — mineral content varies hugely by source — so FitCoach deliberately does not add it to your vitamin/mineral totals rather than invent numbers.',
   },
   {
     key: 'l-theanine', label: 'L-Theanine', category: 'ergogenic', icon: 'supp.leaf',

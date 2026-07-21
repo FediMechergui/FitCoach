@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { View, Pressable } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -20,6 +22,7 @@ import {
 
 export function SupplementsScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { stack, today, load, log, removeLog, addToStack, removeFromStack } = useSupplementsStore();
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -45,6 +48,24 @@ export function SupplementsScreen() {
         totals; performance supplements are tracked for dose and consistency with honest
         evidence. None of this changes your calories or macros.
       </Text>
+
+      {/* Goal-based plan builder */}
+      <Pressable onPress={() => navigation.navigate('SupplementPlan')}>
+        <Card accent={theme.colors.accent}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="stats.coachTip" size={20} color={theme.colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Build a plan for my goals</Text>
+                <Text variant="caption" color="textMuted">
+                  Performance, sleep, cutting down smoking… get a timed plan with safe doses
+                </Text>
+              </View>
+            </Row>
+            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+          </Row>
+        </Card>
+      </Pressable>
 
       {/* Your stack — one-tap logging */}
       {stack.length > 0 && (

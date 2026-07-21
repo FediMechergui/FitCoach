@@ -28,6 +28,7 @@ export type RootStackParamList = {
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
   Micronutrients: undefined;
   Supplements: undefined;
+  SupplementPlan: undefined;
   DietPlan: undefined;
 
   ExerciseStats: { exerciseId: number; name: string };

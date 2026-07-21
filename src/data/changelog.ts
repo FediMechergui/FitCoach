@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.5',
+    date: '2026-07-21',
+    title: 'Spirulina, shilajit & a goal-based supplement plan',
+    highlights: [
+      'Added Spirulina (1 g = 3 capsules) with its real vitamin & mineral content, and Shilajit — plus Ashwagandha now matches your 400 mg (2-capsule) portion.',
+      'New Supplement Plan: pick your goals (performance, sleep, cutting down smoking, stress, wellbeing) and get a timed daily schedule with honest evidence ratings.',
+      'Built-in safety layer: caffeine caps and sleep conflicts, mineral spacing, thyroid and pregnancy cautions, melatonin dosing, shilajit purity — and a clear note that no supplement treats nicotine dependence.',
+      'One tap adds the whole plan to your stack for daily logging.',
+    ],
+  },
+  {
     version: '2.4.3',
     date: '2026-07-20',
     title: 'Achievements: real badge art restored',

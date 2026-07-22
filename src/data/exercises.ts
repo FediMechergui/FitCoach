@@ -1122,6 +1122,39 @@ export const EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'stretching', name: 'Stretching / Mobility', category: 'mindbody', sessionType: 'mindbody', muscleGroups: ['full body', 'flexibility'], primaryMuscle: 'mobility', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.stretch', met: 2.3 },
   { slug: 'foam-rolling', name: 'Foam Rolling', category: 'mindbody', sessionType: 'mindbody', muscleGroups: ['full body', 'recovery'], primaryMuscle: 'mobility', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.stretch', met: 2 },
 
+  // ══════════════════════════ MARTIAL ARTS ══════════════════════════
+  { slug: 'ma-boxing', name: 'Boxing', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.gloves', met: 9.5 },
+  { slug: 'ma-muay-thai', name: 'Muay Thai', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 10 },
+  { slug: 'ma-kickboxing', name: 'Kickboxing', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 9.8 },
+  { slug: 'ma-bjj', name: 'Brazilian Jiu-Jitsu', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 9 },
+  { slug: 'ma-judo', name: 'Judo', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 10 },
+  { slug: 'ma-wrestling', name: 'Wrestling', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 10.5 },
+  { slug: 'ma-karate', name: 'Karate', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.belt', met: 8.5 },
+  { slug: 'ma-taekwondo', name: 'Taekwondo', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['legs', 'full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.belt', met: 9 },
+  { slug: 'ma-mma', name: 'MMA', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.spar', met: 10.3 },
+  { slug: 'ma-krav-maga', name: 'Krav Maga', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.spar', met: 9 },
+  { slug: 'ma-bag-round', name: 'Heavy Bag Round', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'shoulders'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.bag', met: 8.5 },
+  { slug: 'ma-pad-round', name: 'Pad Round', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.gloves', met: 9 },
+  { slug: 'ma-shadow-round', name: 'Shadow Boxing Round', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 6.5 },
+  { slug: 'ma-sparring-round', name: 'Sparring Round', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.spar', met: 10.5 },
+  { slug: 'ma-rolling-round', name: 'Rolling Round', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 9.5 },
+  { slug: 'ma-skipping', name: 'Skipping / Jump Rope', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['calves', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.running', met: 11 },
+
+  // ══════════════════════════ MORE CARDIO VARIATIONS ══════════════════════════
+  { slug: 'jump-rope', name: 'Jump Rope', category: 'cardio', sessionType: 'cardio', muscleGroups: ['calves', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.running', met: 11 },
+  { slug: 'assault-bike', name: 'Assault / Air Bike', category: 'cardio', sessionType: 'cardio', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.cycling', met: 9 },
+  { slug: 'ski-erg', name: 'Ski Erg', category: 'cardio', sessionType: 'cardio', muscleGroups: ['back', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.rowing', met: 9 },
+  { slug: 'sled-push', name: 'Sled Push / Drag', category: 'cardio', sessionType: 'cardio', muscleGroups: ['quads', 'glutes'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.treadmill', met: 9.5 },
+  { slug: 'battle-ropes', name: 'Battle Ropes', category: 'cardio', sessionType: 'cardio', muscleGroups: ['shoulders', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.rowing', met: 8 },
+  { slug: 'incline-walk', name: 'Incline Treadmill Walk', category: 'cardio', sessionType: 'cardio', muscleGroups: ['legs', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.walk', met: 6 },
+  { slug: 'swimming-laps', name: 'Swimming (laps)', category: 'cardio', sessionType: 'cardio', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration_distance', icon: 'cardio.swimming', met: 8.3 },
+
+  // ══════════════════════════ MORE SPORTS ══════════════════════════
+  { slug: 'handball', name: 'Handball', category: 'sport', sessionType: 'sport', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'sport.basketball', met: 8 },
+  { slug: 'table-tennis', name: 'Table Tennis', category: 'sport', sessionType: 'sport', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'sport.padel', met: 4 },
+  { slug: 'squash', name: 'Squash', category: 'sport', sessionType: 'sport', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'sport.tennis', met: 7.3 },
+  { slug: 'climbing', name: 'Climbing / Bouldering', category: 'sport', sessionType: 'sport', muscleGroups: ['back', 'forearms'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.hiking', met: 8 },
+
   // ══════════════════════════ MEDITATION ══════════════════════════
   { slug: 'guided-meditation', name: 'Guided Meditation', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.meditation', met: 1.3 },
   { slug: 'breathwork', name: 'Breathwork', category: 'meditation', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.breath', met: 1.3 },

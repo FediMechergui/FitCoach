@@ -23,11 +23,25 @@ export interface SupplementDef {
   category: SupplementCategory;
   icon: string;
   defaultDose: string;
+  /**
+   * How many physical units make ONE serving, and what to call them. Capsule
+   * products are counted in pills (what you actually swallow), with the mass
+   * shown only as context — e.g. spirulina is "3 capsules (1 g)".
+   */
+  unitsPerServing?: number;
+  unitLabel?: 'capsule' | 'tablet' | 'softgel' | 'scoop';
   /** per-dose micronutrient contribution (micronutrient pills only) */
   micros?: Partial<MicroProfile>;
   timing?: string;
   evidenceLevel?: EvidenceLevel; // ergogenics
   evidence?: string;
+}
+
+/** "3 capsules" / "2 tablets" — the count you actually take, for logging. */
+export function servingUnits(def: SupplementDef): string | null {
+  if (!def.unitsPerServing || !def.unitLabel) return null;
+  const n = def.unitsPerServing;
+  return `${n} ${def.unitLabel}${n === 1 ? '' : 's'}`;
 }
 
 export const EVIDENCE_LABEL: Record<EvidenceLevel, string> = {
@@ -67,7 +81,8 @@ export const SUPPLEMENTS: SupplementDef[] = [
   { key: 'folate', label: 'Folic Acid', category: 'micronutrient', icon: 'supp.pill', defaultDose: '400 µg', timing: 'Important pre/early pregnancy', micros: { folate_ug: 400 } },
   {
     key: 'spirulina', label: 'Spirulina', category: 'micronutrient', icon: 'supp.leaf',
-    defaultDose: '1 g (3 capsules)', timing: 'With a meal; not late (mildly energising)',
+    defaultDose: '3 capsules (1 g)', unitsPerServing: 3, unitLabel: 'capsule',
+    timing: 'With a meal; not late (mildly energising)',
     // Per-100 g composition ÷ 100 for the 1 g (1000 mg) portion.
     //   Ca 120 → 1.2 · Fe 28.5 → 0.29 · Mg 195 → 1.95 · P 118 → 1.18 · K 1360 → 13.6
     //   B1 2.38 → 0.024 · B2 3.67 → 0.037 · B3 12.8 → 0.128
@@ -115,13 +130,15 @@ export const SUPPLEMENTS: SupplementDef[] = [
   },
   {
     key: 'ashwagandha', label: 'Ashwagandha', category: 'ergogenic', icon: 'supp.leaf',
-    defaultDose: '400 mg extract (2 capsules)', timing: 'Daily; evening suits sleep/stress goals',
+    defaultDose: '2 capsules (400 mg extract)', unitsPerServing: 2, unitLabel: 'capsule',
+    timing: 'Daily; evening suits sleep/stress goals',
     evidenceLevel: 'moderate',
     evidence: 'Moderate evidence that it lowers perceived stress and cortisol and may improve sleep. Your portion (400 mg of extract, 2 capsules) sits inside the 300–600 mg/day range used in most trials. Some small studies show minor strength/recovery benefits, but that evidence is weaker and mixed. Not a stimulant. Avoid with thyroid medication or in pregnancy without medical advice.',
   },
   {
     key: 'shilajit', label: 'Shilajit', category: 'ergogenic', icon: 'supp.mineral',
-    defaultDose: '250–500 mg (purified resin/extract)', timing: 'Daily, morning with food',
+    defaultDose: '1 capsule (250–500 mg)', unitsPerServing: 1, unitLabel: 'capsule',
+    timing: 'Daily, morning with food',
     evidenceLevel: 'limited',
     evidence: 'Limited evidence — small trials suggest reduced fatigue and modest testosterone/recovery effects, but studies are few and often small or industry-funded. Purity is the real issue: unpurified shilajit can contain heavy metals (lead, arsenic) and mycotoxins, so only use a brand with third-party heavy-metal testing. No reliable micronutrient breakdown exists — mineral content varies hugely by source — so FitCoach deliberately does not add it to your vitamin/mineral totals rather than invent numbers.',
   },

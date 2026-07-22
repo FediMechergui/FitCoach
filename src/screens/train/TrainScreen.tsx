@@ -51,10 +51,10 @@ export function TrainScreen() {
     ]);
   };
 
-  const quickStart = (type: (typeof SESSION_TYPE_META)[number]) => {
-    begin(type.type);
-    const id = useSessionStore.getState().activeId!;
-    navigation.navigate('ActiveSession', { sessionId: id });
+  // Tapping a category opens its methods/splits/routines rather than blindly
+  // starting a blank session — the "pick how you're training" step.
+  const openCategory = (type: (typeof SESSION_TYPE_META)[number]) => {
+    navigation.navigate('MethodPicker', { sessionType: type.type });
   };
 
   return (
@@ -152,12 +152,12 @@ export function TrainScreen() {
         </>
       )}
 
-      <SectionHeader title="Quick Start" />
+      <SectionHeader title="Train by category" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>
         {SESSION_TYPE_META.map((m) => (
           <Pressable
             key={m.type}
-            onPress={() => quickStart(m)}
+            onPress={() => openCategory(m)}
             style={{ width: '47%', flexGrow: 1 }}
           >
             <Card accent={m.color} style={{ gap: 8 }}>

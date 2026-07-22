@@ -32,6 +32,7 @@ import { CycleScreen } from '@/screens/health/CycleScreen';
 import { ConditionsScreen } from '@/screens/health/ConditionsScreen';
 import { HormonesScreen } from '@/screens/health/HormonesScreen';
 import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
+import { MethodPickerScreen } from '@/screens/train/MethodPickerScreen';
 import { GrowthScreen } from '@/screens/stats/GrowthScreen';
 import { ChangelogScreen } from '@/screens/profile/ChangelogScreen';
 import { TrendsScreen } from '@/screens/stats/TrendsScreen';
@@ -75,6 +76,7 @@ export function RootNavigator() {
           />
           <Stack.Screen name="LogSession" component={LogSessionScreen} options={{ title: 'Log Past Session', presentation: 'modal' }} />
           <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: 'Training Split' }} />
+          <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: 'Training Methods' }} />
           <Stack.Screen
             name="ActiveSession"
             component={ActiveSessionScreen}

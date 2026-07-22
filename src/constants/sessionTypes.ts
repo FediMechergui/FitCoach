@@ -54,6 +54,14 @@ export const SESSION_TYPE_META: SessionTypeMeta[] = [
     flow: 'cardio',
   },
   {
+    type: 'martial_arts',
+    label: 'Martial Arts',
+    icon: sessionTypeIcon('martial_arts'),
+    color: SESSION_TYPE_COLORS.martial_arts,
+    blurb: 'Boxing, Muay Thai, BJJ, karate…',
+    flow: 'cardio',
+  },
+  {
     type: 'mindbody',
     label: 'Mind-Body',
     icon: sessionTypeIcon('mindbody'),

@@ -132,6 +132,7 @@ export const SESSION_TYPES = [
   'cardio',
   'outdoor',
   'sport',
+  'martial_arts',
   'mindbody',
   'meditation',
   'custom',

@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { LineChart } from '@/components/charts/LineChart';
+import { DualLineChart } from '@/components/charts/DualLineChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader } from '@/components/ui/misc';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -18,6 +19,8 @@ import {
   type WeekPoint,
 } from '@/repositories/trendsRepo';
 import { BODY_TYPE_LABELS } from '@/lib/bodyType';
+import { compositionProjection, type CompositionProjection } from '@/repositories/projectionRepo';
+import { explainGap } from '@/lib/projection';
 import { fmtNum } from '@/lib/format';
 
 /**
@@ -30,6 +33,7 @@ export function TrendsScreen() {
   const [granularity, setGranularity] = useState<Granularity>('weekly');
   const [page, setPage] = useState(0);
   const [data, setData] = useState<TrendsData | null>(null);
+  const [proj, setProj] = useState<CompositionProjection | null>(null);
 
   const reload = useCallback(
     (g: Granularity, p: number) => setData(trendsData({ granularity: g, page: p })),
@@ -39,6 +43,11 @@ export function TrendsScreen() {
   useFocusEffect(
     useCallback(() => {
       reload(granularity, page);
+      try {
+        setProj(compositionProjection(60));
+      } catch {
+        setProj(null);
+      }
     }, [reload, granularity, page])
   );
 
@@ -97,6 +106,55 @@ export function TrendsScreen() {
         <ChartCard title={`Body weight (kg, avg per ${per})`} color={theme.colors.info}>
           <LineChart data={line(data.weight)} color={theme.colors.info} yFormat={(v) => v.toFixed(0)} />
         </ChartCard>
+      )}
+
+      {/* Expectation vs reality — the model against the measurements */}
+      {proj && (
+        <>
+          <SectionHeader title="Expected vs reality" />
+          {!proj.hasEnoughData ? (
+            <Card accent={theme.colors.textFaint}>
+              <Row gap={10} style={{ alignItems: 'flex-start' }}>
+                <Icon icon="core.info" size={18} color={theme.colors.textFaint} />
+                <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+                  Needs at least two weigh-ins and about a week of logged food in the last 60 days.
+                  Until then there's nothing honest to compare — so nothing is shown.
+                </Text>
+              </Row>
+            </Card>
+          ) : (
+            <>
+              <Text variant="caption" color="textFaint">
+                The dashed line is where energy balance, protein, training, sleep and smoking say you
+                should be. The solid line is what you actually measured. The gap is the interesting part.
+              </Text>
+              {proj.series.map((s) => (
+                <Card key={s.metric} style={{ gap: 6 }}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text variant="bodyStrong">{s.label} ({s.unit})</Text>
+                    {s.gap != null && (
+                      <Text variant="caption" color={Math.abs(s.gap) < 1 ? 'success' : 'warning'}>
+                        {s.gap > 0 ? '+' : ''}{fmtNum(s.gap)}{s.unit} vs model
+                      </Text>
+                    )}
+                  </Row>
+                  <DualLineChart
+                    data={s.points}
+                    actualColor={theme.colors.primary}
+                    expectedColor={theme.colors.textFaint}
+                    unit={s.unit}
+                  />
+                  <Text variant="caption" color="textMuted">{explainGap(s)}</Text>
+                </Card>
+              ))}
+              <Text variant="caption" color="textFaint">
+                Model basis: 7700 kcal ≈ 1 kg, maintenance {proj.tdee} kcal. Unlogged days count as
+                maintenance rather than being guessed, and training isn't double-counted (your TDEE
+                already includes an activity multiplier).
+              </Text>
+            </>
+          )}
+        </>
       )}
 
       {/* Fat distribution by body type */}

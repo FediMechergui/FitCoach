@@ -16,6 +16,8 @@ export type RootStackParamList = {
   SessionTypePicker: undefined;
   LogSession: undefined;
   SplitPicker: undefined;
+  /** per-category methods / splits / routines */
+  MethodPicker: { sessionType: SessionType };
   ActiveSession: { sessionId: number };
   /** pick=true selects exercises; sessionId targets a specific (e.g. finished) session */
   ExerciseLibrary: { pick?: boolean; sessionId?: number } | undefined;

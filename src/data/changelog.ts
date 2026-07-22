@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.7',
+    date: '2026-07-22',
+    title: 'Expected vs reality, training methods & martial arts',
+    highlights: [
+      'Trends now shows expected vs reality: a dashed model line (from your calories, protein, training, sleep and smoking) against your actual measured weight, fat mass, lean mass and body fat — plus a plain-language read on why they differ.',
+      'New Martial Arts category — boxing, Muay Thai, BJJ, judo, wrestling, karate, taekwondo, MMA, Krav Maga — with bag, pads, drilling, sparring, rolling, forms and fight-conditioning protocols.',
+      'Every category now has real training methods, not just a blank session: 5x5, 5/3/1, hypertrophy, German Volume, pyramids, clusters; EMOM, AMRAP, circuits, progressions; Zone-2, LISS, HIIT, intervals, tempo, fartlek; long runs, hill repeats, rucks; vinyasa, yin, mobility; breathwork and more.',
+      'Tap a category on Train to pick how you are training — splits, your routines, or a method — and each session is tagged so progress compares like-for-like.',
+      'More cardio and sport variations (jump rope, air bike, ski erg, sled, battle ropes, swimming, squash, climbing, handball, table tennis).',
+      'Spirulina, ashwagandha and shilajit are now dosed in capsules rather than grams.',
+    ],
+  },
+  {
     version: '2.6',
     date: '2026-07-21',
     title: 'Full body composition & measurements',

@@ -17,6 +17,7 @@ export const SESSION_TYPE_MET: Record<string, number> = {
   cardio: 7,
   outdoor: 9,
   sport: 7,
+  martial_arts: 9.5,
   mindbody: 3,
   meditation: 1.3,
   custom: 4,

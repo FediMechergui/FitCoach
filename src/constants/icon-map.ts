@@ -79,6 +79,16 @@ export const ICONS = {
     pace: def('MaterialCommunityIcons', 'speedometer'),
     elevation: def('MaterialCommunityIcons', 'image-filter-hdr'),
   },
+  // Martial arts & combat sports
+  martial: {
+    gloves: def('MaterialCommunityIcons', 'boxing-glove'),
+    strike: def('MaterialCommunityIcons', 'karate'),
+    grapple: def('MaterialCommunityIcons', 'human-handsup'),
+    bag: def('MaterialCommunityIcons', 'bag-personal-outline'),
+    belt: def('MaterialCommunityIcons', 'medal-outline'),
+    spar: def('MaterialCommunityIcons', 'sword-cross'),
+  },
+
   sport: {
     soccer: def('MaterialCommunityIcons', 'soccer'),
     tennis: def('MaterialCommunityIcons', 'tennis'),
@@ -286,6 +296,8 @@ export function sessionTypeIcon(type: string): string {
       return 'cardio.running';
     case 'sport':
       return 'sport.soccer';
+    case 'martial_arts':
+      return 'martial.gloves';
     case 'mindbody':
       return 'mindbody.yoga';
     case 'meditation':

@@ -10,6 +10,57 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.7 — 2026-07-22 · Expected vs reality, training methods & martial arts
+- **Expected vs reality** in Trends: every composition metric (weight, fat mass, lean mass,
+  body fat %) now draws a **dashed modelled line against your solid measured line**. The model
+  runs on energy balance (7 700 kcal/kg) for *weight*, then partitions fat vs lean using what
+  actually moves partitioning — protein intake, hard sets, sleep and cigarettes. Days you didn't
+  log are treated as **maintenance**, never invented, and training isn't double-counted (your
+  TDEE already carries an activity multiplier). Each chart says, in plain language, why the two
+  lines diverge.
+- **Martial Arts** is now a first-class category: boxing, Muay Thai, kickboxing, BJJ (gi & no-gi),
+  judo, wrestling, karate, taekwondo, MMA and Krav Maga — with bag work, pad rounds, shadow
+  boxing, technical drilling, sparring, positional rolling, forms and fight conditioning.
+- **Training methods everywhere.** Tap a category on Train and pick *how* you're training:
+  splits and your saved routines for lifting, plus 30+ named protocols across all categories —
+  5×5, 5/3/1, hypertrophy, German Volume, pyramids, clusters; skill progressions, EMOM, AMRAP,
+  circuits; Zone-2, LISS, HIIT, VO₂max intervals, tempo, fartlek; long runs, hill repeats, rucks;
+  vinyasa, yin, mobility; breathwork and body scan. Each states its structure, typical duration
+  and **how progress is measured in it** (load, reps, duration, distance, rounds or intensity),
+  and tags the session so progress compares like-for-like.
+- More cardio & sport variations: jump rope, air bike, ski erg, sled push, battle ropes, rowing
+  intervals, swimming, squash, climbing, handball, table tennis.
+- **Supplements by pill**: spirulina, ashwagandha and shilajit are dosed in **capsules**
+  (3 / 2 / 1 per serving) rather than grams, with the mass shown only as context.
+
+## v2.6 — 2026-07-21 · Full body composition & measurements
+- **15 tape measurements** in cm (neck, shoulders, chest, waist, upper & lower abdomen, hips,
+  both upper arms & forearms, both thighs & calves) — each kept in full history.
+- **Log everything your smart scale reports**: body fat %, water %, muscle %, skeletal muscle %,
+  bone mass, protein %, visceral fat, retained water and the scale's own BMR reading.
+- Clean split between **what you enter** and **what FitCoach calculates**: BMI & category, fat
+  weight, lean mass, muscle & skeletal-muscle weights, water weight, bone %, protein weight,
+  obesity degree, waist-to-hip, waist-to-height, FFMI and BMR.
+- **Composition now drives your calories**: with body fat measured, BMR switches from
+  Mifflin-St Jeor to **Katch-McArdle** (lean mass), and protein anchors to lean mass.
+- Set or adjust your **goal** any time — every change is saved to a goal history beside your
+  measurement history.
+
+## v2.5 — 2026-07-21 · Spirulina, shilajit & a goal-based supplement plan
+- Added **Spirulina** (1 g = 3 capsules) with its real vitamin & mineral profile, and **Shilajit**.
+  Ashwagandha now matches a 400 mg extract portion (2 capsules).
+- New **Supplement Plan**: choose goals (athletic performance, sleep quality, cutting down
+  smoking, stress, general wellbeing) and get a timed daily schedule with honest evidence ratings.
+- **Safety layer**: caffeine caps and sleep conflicts, mineral spacing (iron/zinc/calcium),
+  magnesium duplication, thyroid & pregnancy cautions, melatonin low-dose guidance, shilajit
+  purity, and a clear statement that **no supplement treats nicotine dependence**.
+
+## v2.4.3 — 2026-07-20 · Achievements: real badge art restored
+- The 100 badges show their full art again — **pre-rendered as images**, so they look identical
+  to the originals but can't crash the screen (the earlier white-screen was a native SVG crash,
+  invisible to JavaScript error boundaries).
+- Tap any **Walk or Run in History** to see its full detail and the **drawn GPS route**.
+
 ## v2.4 — 2026-07-20 · Achievements — 100 badges
 - **100 achievement badges** across 10 categories (Consistency, Strength, Movement, Nutrition,
   Tunisian & Mediterranean Heritage, Smoking Cessation, Sleep & Work, Alcohol, Faith & Fasting,

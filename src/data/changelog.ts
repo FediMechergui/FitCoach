@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.8',
+    date: '2026-07-22',
+    title: 'Programs for every activity, 97 new exercises, recomp goal',
+    highlights: [
+      'The exercise library grew from 260 to 357. Cardio machines are all there now — StairMaster, spin & recumbent bikes, arc trainer, VersaClimber, curved treadmill, arm bike — plus jump rope (bounce, boxer skip, high knees, double-unders, crossovers) and no-equipment conditioning.',
+      'Martial arts went from 16 entries to 47: technical drills for striking, footwork, defence, clinch, takedowns, guard work, escapes, submissions, forms, mitt and bag work, plus Aikido, Capoeira, Sambo, Kung Fu and fencing.',
+      '19 pre-built programs — a whole planned week for every category, not just lifting. Each day says what it is for, what to do, and what tells you it is working.',
+      'New goal: Build muscle & burn fat. Near-maintenance calories with the highest protein of any goal, a matching 4-day training program, and a coach tip that reads a flat scale as success instead of a stall.',
+      'Also new: athletic-performance goal, 32 more training methods (Tabata, 30-20-10, MAF, rep ladders, greasing the groove, positional sparring, hill and track work, box breathing…), calisthenics skill holds, and more sports and mind-body work.',
+      'Fixed: new exercises were only reaching fresh installs. Everything added in 2.7 and 2.8 now lands on existing accounts too — and a custom exercise of yours can no longer be overwritten by a built-in of the same name.',
+    ],
+  },
+  {
     version: '2.7',
     date: '2026-07-22',
     title: 'Expected vs reality, training methods & martial arts',

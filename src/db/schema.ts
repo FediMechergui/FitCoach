@@ -32,7 +32,7 @@ export const users = sqliteTable('users', {
     .notNull()
     .default('moderate'),
   goal: text('goal', {
-    enum: ['lose_fat', 'maintain', 'build_muscle'],
+    enum: ['lose_fat', 'maintain', 'build_muscle', 'recomp', 'performance'],
   })
     .notNull()
     .default('maintain'),
@@ -104,7 +104,7 @@ export const goalHistory = sqliteTable('goal_history', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   date: text('date').notNull(),
-  goal: text('goal', { enum: ['lose_fat', 'maintain', 'build_muscle'] }).notNull(),
+  goal: text('goal', { enum: ['lose_fat', 'maintain', 'build_muscle', 'recomp', 'performance'] }).notNull(),
   rateOfChange: text('rate_of_change', { enum: ['slow', 'moderate', 'aggressive'] }).notNull(),
   targetWeightKg: real('target_weight_kg'),
   /** snapshot of the targets this goal produced */

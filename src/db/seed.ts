@@ -21,7 +21,10 @@ export function seedExerciseLibrary(): void {
   const byName = new Map<string, number>();
   for (const row of existing) {
     if (row.slug) bySlug.set(row.slug, row.id);
-    byName.set(row.name.toLowerCase(), row.id);
+    // Only built-in rows are name-matchable. A user's custom "Burpees" must
+    // never be silently converted into the built-in one when the library later
+    // adds that name — that would overwrite their exercise and flip isCustom.
+    if (!row.isCustom) byName.set(row.name.toLowerCase(), row.id);
   }
 
   for (const e of EXERCISE_LIBRARY) {

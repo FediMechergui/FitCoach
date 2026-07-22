@@ -8,7 +8,7 @@ import { clamp } from './format';
 
 export type Sex = 'male' | 'female';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-export type Goal = 'lose_fat' | 'maintain' | 'build_muscle';
+export type Goal = 'lose_fat' | 'maintain' | 'build_muscle' | 'recomp' | 'performance';
 export type RateOfChange = 'slow' | 'moderate' | 'aggressive';
 
 export const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
@@ -31,6 +31,35 @@ export const GOAL_LABELS: Record<Goal, string> = {
   lose_fat: 'Lose fat',
   maintain: 'Maintain',
   build_muscle: 'Build muscle',
+  recomp: 'Build muscle & burn fat',
+  performance: 'Athletic performance',
+};
+
+/** Display order for goal pickers — new goals go last, never in the middle. */
+export const GOAL_ORDER: Goal[] = ['lose_fat', 'maintain', 'build_muscle', 'recomp', 'performance'];
+
+export const GOAL_BLURBS: Record<Goal, string> = {
+  lose_fat: 'Calorie deficit, protein-forward',
+  maintain: 'Hold your current weight',
+  build_muscle: 'Slight surplus, progressive overload',
+  recomp: 'Near maintenance with very high protein and hard lifting — the scale barely moves while composition does',
+  performance: 'Fuelled for training: maintenance-plus, carb-forward',
+};
+
+/**
+ * An honest note per goal — mostly so "recomp" is not sold as magic. Shown in
+ * the goal pickers.
+ */
+export const GOAL_NOTES: Record<Goal, string> = {
+  lose_fat: 'Fastest way down, but some lean mass goes with it unless protein and lifting stay high.',
+  maintain: 'Useful between pushes, and after a cut to let intake normalise.',
+  build_muscle: 'A surplus builds muscle fastest — and some fat comes with it. That is the trade.',
+  recomp:
+    'Real, but slow, and it works best for beginners, returners and people carrying more fat. '
+    + 'It needs three things at once: protein around 2.4 g per kg of lean mass, hard progressive '
+    + 'lifting, and enough sleep. Watch your lifts and the tape — not the scale, which is supposed '
+    + 'to stay roughly flat.',
+  performance: 'Prioritises fuelling and recovery over body composition. Weight may drift up slightly.',
 };
 
 export interface CalorieInputs {
@@ -84,14 +113,24 @@ export function calculateTDEE(bmr: number, activityLevel: ActivityLevel): number
 
 /**
  * Goal offset as a fraction of TDEE (spec §3.6.4).
- * Fat loss: −15–20%, maintenance: 0, muscle gain: +10–15%. Magnitude scales
+ * Fat loss: −12–22%, maintenance: 0, muscle gain: +8–15%. Magnitude scales
  * with the chosen rate of change.
+ *
+ * Recomposition sits deliberately close to maintenance: a small deficit is
+ * enough to lose fat while still leaving the energy to build. Go steeper and it
+ * stops being a recomp and becomes a cut. Performance runs at or just above
+ * maintenance because under-fuelling is what wrecks training quality.
  */
 export function goalOffsetPct(goal: Goal, rate: RateOfChange): number {
   if (goal === 'maintain') return 0;
   const loss = { slow: -0.12, moderate: -0.17, aggressive: -0.22 };
   const gain = { slow: 0.08, moderate: 0.12, aggressive: 0.15 };
-  return goal === 'lose_fat' ? loss[rate] : gain[rate];
+  const recomp = { slow: -0.03, moderate: -0.07, aggressive: -0.1 };
+  const performance = { slow: 0, moderate: 0.03, aggressive: 0.05 };
+  if (goal === 'lose_fat') return loss[rate];
+  if (goal === 'recomp') return recomp[rate];
+  if (goal === 'performance') return performance[rate];
+  return gain[rate];
 }
 
 /**
@@ -108,14 +147,21 @@ export function calculateMacros(
   goal: Goal,
   bodyFatPct?: number | null
 ): MacroTargets {
-  const proteinPerKg = goal === 'maintain' ? 1.8 : goal === 'lose_fat' ? 2.2 : 2.0;
+  // Recomp gets the highest protein of any goal — it is the single lever that
+  // makes building and losing at the same time possible. Performance runs
+  // lower protein and higher carbs, because fuel is the limiter there.
+  const PROTEIN_PER_KG: Record<Goal, number> = {
+    maintain: 1.8, lose_fat: 2.2, build_muscle: 2.0, recomp: 2.4, performance: 1.8,
+  };
+  const proteinPerKg = PROTEIN_PER_KG[goal] ?? 2.0;
   const proteinBasisKg =
     bodyFatPct && bodyFatPct > 0 && bodyFatPct < 60
       ? weightKg * (1 - bodyFatPct / 100) * 1.15 // ~lean mass, mildly padded
       : weightKg;
   const protein = Math.round(proteinPerKg * proteinBasisKg);
 
-  const fatPctOfCals = goal === 'lose_fat' ? 0.25 : 0.28;
+  const fatPctOfCals =
+    goal === 'lose_fat' || goal === 'recomp' ? 0.25 : goal === 'performance' ? 0.22 : 0.28;
   const fat = Math.round((calorieTarget * fatPctOfCals) / 9);
 
   const proteinCals = protein * 4;

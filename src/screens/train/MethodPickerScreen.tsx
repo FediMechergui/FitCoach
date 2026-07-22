@@ -13,6 +13,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { metaFor } from '@/constants/sessionTypes';
 import { methodsFor, EFFORT_LABEL, type TrainingMethod } from '@/data/trainingMethods';
 import { SPLITS } from '@/data/splits';
+import { programsFor } from '@/data/programs';
 import { listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import { useSessionStore } from '@/stores/sessionStore';
 
@@ -37,7 +38,7 @@ export function MethodPickerScreen() {
   );
 
   const methods = methodsFor(sessionType);
-  const isLifting = meta.flow === 'lifting';
+  const programs = programsFor(sessionType);
 
   const startMethod = (m: TrainingMethod) => {
     // `style` tags the session with the method so progress can be compared
@@ -69,8 +70,8 @@ export function MethodPickerScreen() {
         </View>
       </Row>
 
-      {/* Splits — lifting only */}
-      {isLifting && (
+      {/* Splits — strength only, since a split is a muscle-group rotation */}
+      {sessionType === 'strength' && (
         <>
           <SectionHeader title="Training splits" />
           <Pressable onPress={() => navigation.navigate('SplitPicker')}>
@@ -89,6 +90,35 @@ export function MethodPickerScreen() {
               </Row>
             </Card>
           </Pressable>
+        </>
+      )}
+
+      {/* Programs — the equivalent of a split for every other category */}
+      {programs.length > 0 && (
+        <>
+          <SectionHeader title="Programs" />
+          <Pressable onPress={() => navigation.navigate('ProgramPicker', { sessionType })}>
+            <Card accent={meta.color}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+                  <Icon icon="core.calendar" size={20} color={meta.color} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="bodyStrong">
+                      {programs.length} pre-built {programs.length === 1 ? 'program' : 'programs'}
+                    </Text>
+                    <Text variant="caption" color="textMuted" numberOfLines={1}>
+                      {programs.map((p) => p.name).join(' · ')}
+                    </Text>
+                  </View>
+                </Row>
+                <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+              </Row>
+            </Card>
+          </Pressable>
+          <Text variant="caption" color="textFaint">
+            A whole week planned out — each day says what it's for, what to do, and what tells you
+            it's working.
+          </Text>
         </>
       )}
 

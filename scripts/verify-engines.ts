@@ -1,5 +1,5 @@
 /* Smoke-test the pure domain engines against known values. Run: npx tsx scripts/verify-engines.ts */
-import { calculateBMR, calculateTDEE, computeTargets, refineTDEE } from '../src/lib/calories';
+import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, GOAL_BLURBS, GOAL_NOTES, GOAL_ORDER } from '../src/lib/calories';
 import { epley1RM, brzycki1RM, estimate1RM } from '../src/lib/oneRepMax';
 import { caloriesFromMet, walkRunMet } from '../src/lib/met';
 import { estimateBodyType, bmi } from '../src/lib/bodyType';
@@ -31,7 +31,8 @@ import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
-import { TRAINING_METHODS, methodsFor } from '../src/data/trainingMethods';
+import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
+import { PROGRAMS, programsFor } from '../src/data/programs';
 
 let pass = 0;
 let fail = 0;
@@ -331,6 +332,41 @@ check('Methods declare how progress is measured', TRAINING_METHODS.every((m) => 
 check('Martial arts exercises seeded', EXLIB.filter((e) => e.sessionType === 'martial_arts').length >= 10, `${EXLIB.filter((e) => e.sessionType === 'martial_arts').length}`);
 check('Method keys unique', new Set(TRAINING_METHODS.map((m) => m.key)).size === TRAINING_METHODS.length);
 check('Pill-based supplements report capsule counts', ['spirulina','ashwagandha','shilajit'].every((k) => (findSupplement(k)?.unitsPerServing ?? 0) > 0 && findSupplement(k)!.defaultDose.startsWith(String(findSupplement(k)!.unitsPerServing))));
+
+console.log('\nPrograms & library integrity:');
+const ALL_SLUGS = new Set(EXLIB.map((e) => e.slug));
+// Every prefill in the app must resolve to a real exercise, or a program day
+// silently starts an empty session.
+const badProgramSlugs = PROGRAMS.flatMap((p) => p.days.flatMap((d) => d.exercises.filter((s) => !ALL_SLUGS.has(s))));
+const badMethodSlugs = TRAINING_METHODS.flatMap((m) => (m.prefillSlugs ?? []).filter((s) => !ALL_SLUGS.has(s)));
+const badSplitSlugs = SPLITS.flatMap((sp) => sp.days.flatMap((d) => d.exercises.filter((s) => !ALL_SLUGS.has(s))));
+check('Every program exercise slug exists', badProgramSlugs.length === 0, badProgramSlugs.join(', '));
+check('Every method prefill slug exists', badMethodSlugs.length === 0, badMethodSlugs.join(', '));
+check('Every split slug exists', badSplitSlugs.length === 0, badSplitSlugs.join(', '));
+check('Every program method reference exists', PROGRAMS.every((p) => p.days.every((d) => !d.method || !!findMethod(d.method))));
+// Slugs are the seed's natural key — a duplicate would make the upsert
+// non-deterministic and could repoint existing logs.
+check('Exercise slugs unique', new Set(EXLIB.map((e) => e.slug)).size === EXLIB.length, `${EXLIB.length} exercises`);
+check('Program keys unique', new Set(PROGRAMS.map((p) => p.key)).size === PROGRAMS.length, `${PROGRAMS.length} programs`);
+check('Program day keys unique within each program', PROGRAMS.every((p) => new Set(p.days.map((d) => d.key)).size === p.days.length));
+check('Programs cover every trainable category', (['strength','calisthenics','cardio','outdoor','sport','martial_arts','mindbody','meditation'] as const).every((t) => programsFor(t).length > 0));
+check('Program days declare purpose, prescription and duration', PROGRAMS.every((p) => p.days.every((d) => d.purpose.length > 10 && d.prescription.length > 5 && d.minutes > 0)));
+check('Cardio machines cover treadmill, bike, stairs and rope', ['treadmill-run','stationary-bike','stairmaster','jump-rope-basic','rowing-machine','elliptical'].every((s) => ALL_SLUGS.has(s)));
+check('Martial arts library covers styles and drills', EXLIB.filter((e) => e.sessionType === 'martial_arts').length >= 40, `${EXLIB.filter((e) => e.sessionType === 'martial_arts').length}`);
+
+console.log('\nGoals — recomposition & performance:');
+const recompTargets = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'recomp', rate: 'moderate' });
+const cutTargets = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'lose_fat', rate: 'moderate' });
+const bulkTargets = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'build_muscle', rate: 'moderate' });
+const perfTargets = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'performance', rate: 'moderate' });
+check('Recomp sits between a cut and maintenance', recompTargets.calorieTarget > cutTargets.calorieTarget && recompTargets.calorieTarget < recompTargets.tdee, `${recompTargets.calorieTarget} kcal vs cut ${cutTargets.calorieTarget}, tdee ${recompTargets.tdee}`);
+check('Recomp prescribes the highest protein of any goal', recompTargets.macros.protein > cutTargets.macros.protein && recompTargets.macros.protein > bulkTargets.macros.protein, `${recompTargets.macros.protein}g vs cut ${cutTargets.macros.protein}g, bulk ${bulkTargets.macros.protein}g`);
+check('Performance fuels at or above maintenance', perfTargets.calorieTarget >= perfTargets.tdee, `${perfTargets.calorieTarget} vs tdee ${perfTargets.tdee}`);
+check('Performance is the most carb-forward goal', perfTargets.macros.carbs > recompTargets.macros.carbs && perfTargets.macros.carbs > cutTargets.macros.carbs, `${perfTargets.macros.carbs}g carbs`);
+check('Every goal has a label, blurb and honest note', GOAL_ORDER.every((g) => !!GOAL_LABELS[g] && !!GOAL_BLURBS[g] && GOAL_NOTES[g].length > 30));
+// Regression guard: adding goals must not shift the ones people already use.
+// 2759 × 0.83 = 2290 (cut), 2759 × 1.12 = 3090 (bulk).
+check('Existing goals unchanged by the new ones', cutTargets.calorieTarget === 2290 && bulkTargets.calorieTarget === 3090, `cut ${cutTargets.calorieTarget}, bulk ${bulkTargets.calorieTarget}`);
 
 console.log('\nBody composition — derived metrics:');
 const full = computeBodyComp({

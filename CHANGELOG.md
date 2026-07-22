@@ -10,6 +10,48 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.8 — 2026-07-22 · Programs for every activity, 97 new exercises, recomposition goal
+- **Exercise library: 260 → 357.** Cardio now covers the whole gym floor — StairMaster/stepmill,
+  spin and recumbent bikes, arc trainer, VersaClimber, curved treadmill, arm ergometer, plus
+  interval variants of every machine. Jump rope is a progression in its own right (basic bounce →
+  boxer skip → high knees → crossovers → double-unders), and there is a full set of no-equipment
+  conditioning (burpees, mountain climbers, shuttle runs, agility ladder, box jumps, bear crawls).
+- **Martial arts: 16 → 47 entries.** Beyond the styles, the technical drills that actually make up
+  a session: jab–cross and combination drills, footwork, defence (slip/roll/parry), counters, kicks,
+  knees and elbows, clinch work, takedown entries, sprawls, shrimping, bridging, guard passing and
+  retention, escapes, submission drills, positional sparring, flow rolling, forms/kata, mitt work,
+  double-end and speed bag, neck conditioning. Plus Aikido, Capoeira, Sambo, Kung Fu and fencing.
+- **19 pre-built programs** ([src/data/programs.ts](src/data/programs.ts)) — the equivalent of a
+  training split, for every category. Bodyweight Foundations, Skill & Strength, No-Equipment
+  Minimalist; Aerobic Base Builder, Gym Machine Rotation, Fat-Loss Conditioning, Jump Rope
+  Progression; Striking Fundamentals, Fight Camp, Grappling Foundations, Traditional Practice;
+  Recomposition and Beginner Barbell; Couch-to-5K, 10K Builder, Hills & Trails; Sport Athlete Week;
+  Mobility Reset; and an eight-week meditation starter. Every day states its **purpose**, its
+  **prescription**, and the program states **what tells you it's working**.
+- **New goal — "Build muscle & burn fat".** A deliberately small deficit (3–10% under TDEE, not
+  15–22%) with the highest protein of any goal (2.4 g/kg of lean mass), because partitioning is what
+  makes recomposition possible, not the deficit. Ships with a matching 4-day training program and a
+  coach tip that treats a flat scale as **success** rather than a stall. The goal picker states
+  plainly that recomp is real but slow, and works best for beginners, returners and people carrying
+  more fat.
+- **New goal — "Athletic performance"**: maintenance-to-slightly-above with the most carbs, for when
+  training quality matters more than the scale.
+- **32 more training methods**: Tabata, 30-20-10, pyramid intervals, stair climbs, bike sprints,
+  machine circuits, MAF heart-rate-capped work, recovery spins; rep ladders, greasing the groove,
+  tempo negatives, skill practice; footwork, defence & counters, clinch & takedowns, positional
+  sparring, flow rolling, solo drills; sport conditioning and small-sided games; tempo, track,
+  sprint and rucking; power yoga, recovery & rolling, tai chi; box breathing, walking meditation and
+  loving-kindness.
+- **Calisthenics skill holds** are now first-class: handstand, wall handstand, L-sit, front and back
+  lever progressions, tuck planche, planche lean, human flag, dragon flag, skin-the-cat.
+- **Fixed — new exercises never reached existing installs.** The library seed is gated on the schema
+  version, which v2.7 didn't bump, so its 27 new exercises only ever appeared on fresh installs.
+  Bumping to 9 lands both releases' additions everywhere. Re-seeding remains non-destructive: it
+  upserts by slug and never deletes, so every logged set keeps pointing at the same exercise.
+- **Fixed — a custom exercise could be overwritten by a built-in of the same name.** The seed's
+  name-based fallback (there for pre-slug databases) now skips custom rows, so your own "Burpees"
+  survives the library gaining one.
+
 ## v2.7 — 2026-07-22 · Expected vs reality, training methods & martial arts
 - **Expected vs reality** in Trends: every composition metric (weight, fat mass, lean mass,
   body fat %) now draws a **dashed modelled line against your solid measured line**. The model

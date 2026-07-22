@@ -9,7 +9,7 @@ import type { CoachCategory, SessionType } from '@/db/schema';
 
 export interface CoachContext {
   today: string; // ISO date
-  goal: 'lose_fat' | 'maintain' | 'build_muscle';
+  goal: 'lose_fat' | 'maintain' | 'build_muscle' | 'recomp' | 'performance';
 
   // Training / recovery
   daysSinceLastSession: number | null;
@@ -162,6 +162,15 @@ export function generateCoachTips(ctx: CoachContext): CoachTipDraft[] {
         title: 'Not gaining yet',
         message: `You're aiming to build but weight isn't rising (${fmtTrend(trend)}/wk). A small +150 kcal bump should get the scale moving.`,
         ruleKey: `nutrition.stall.gain.${WEEK}`,
+      });
+    } else if (ctx.goal === 'recomp' && Math.abs(trend) > 0.35) {
+      tips.push({
+        category: 'nutrition',
+        title: trend > 0 ? 'Drifting into a bulk' : 'Drifting into a cut',
+        message: `Recomposition wants the scale roughly flat, and you're at ${fmtTrend(trend)}/wk. ${
+          trend > 0 ? 'Trim' : 'Add'
+        } ~150 kcal — the composition change should come from protein and training, not from the energy balance.`,
+        ruleKey: `nutrition.recomp.drift.${WEEK}`,
       });
     } else if (ctx.goal === 'lose_fat' && trend < -1.0) {
       tips.push({

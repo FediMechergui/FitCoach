@@ -11,7 +11,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row } from '@/components/ui/misc';
 import { useUserStore, type OnboardingData } from '@/stores/userStore';
-import { ACTIVITY_LABELS, GOAL_LABELS, computeTargets } from '@/lib/calories';
+import { ACTIVITY_LABELS, GOAL_BLURBS, GOAL_LABELS, GOAL_ORDER, GOAL_NOTES, computeTargets } from '@/lib/calories';
 import { estimateBodyType, BODY_TYPE_BLURB, BODY_TYPE_LABELS } from '@/lib/bodyType';
 import { ageFromBirthdate } from '@/lib/date';
 
@@ -211,21 +211,16 @@ export function OnboardingScreen() {
           {step === 3 && (
             <View style={{ gap: theme.spacing.md }}>
               <Text variant="h1">Your goal</Text>
-              {(Object.keys(GOAL_LABELS) as Array<keyof typeof GOAL_LABELS>).map((key) => (
+              {GOAL_ORDER.map((key) => (
                 <SelectCard
                   key={key}
                   active={goal === key}
                   title={GOAL_LABELS[key]}
-                  subtitle={
-                    key === 'lose_fat'
-                      ? 'Calorie deficit, protein-forward'
-                      : key === 'build_muscle'
-                        ? 'Slight surplus, progressive overload'
-                        : 'Hold your current weight'
-                  }
+                  subtitle={GOAL_BLURBS[key]}
                   onPress={() => setGoal(key)}
                 />
               ))}
+              <Text variant="caption" color="textMuted">{GOAL_NOTES[goal]}</Text>
               {goal !== 'maintain' && (
                 <View style={{ marginTop: 4 }}>
                   <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>

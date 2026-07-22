@@ -78,6 +78,11 @@ export const ICONS = {
     gps: def('Ionicons', 'map-outline'),
     pace: def('MaterialCommunityIcons', 'speedometer'),
     elevation: def('MaterialCommunityIcons', 'image-filter-hdr'),
+    stairs: def('MaterialCommunityIcons', 'stairs-up'),
+    jumpRope: def('MaterialCommunityIcons', 'jump-rope'),
+    interval: def('MaterialCommunityIcons', 'timer-sand'),
+    agility: def('MaterialCommunityIcons', 'arrow-decision'),
+    plyo: def('MaterialCommunityIcons', 'arrow-expand-up'),
   },
   // Martial arts & combat sports
   martial: {
@@ -87,6 +92,12 @@ export const ICONS = {
     bag: def('MaterialCommunityIcons', 'bag-personal-outline'),
     belt: def('MaterialCommunityIcons', 'medal-outline'),
     spar: def('MaterialCommunityIcons', 'sword-cross'),
+    kick: def('MaterialCommunityIcons', 'karate'),
+    footwork: def('MaterialCommunityIcons', 'shoe-print'),
+    defense: def('MaterialCommunityIcons', 'shield-outline'),
+    clinch: def('MaterialCommunityIcons', 'account-switch'),
+    forms: def('MaterialCommunityIcons', 'vector-square'),
+    weapon: def('MaterialCommunityIcons', 'fencing'),
   },
 
   sport: {
@@ -96,6 +107,11 @@ export const ICONS = {
     basketball: def('MaterialCommunityIcons', 'basketball'),
     volleyball: def('MaterialCommunityIcons', 'volleyball'),
     badminton: def('MaterialCommunityIcons', 'badminton'),
+    handball: def('MaterialCommunityIcons', 'handball'),
+    tableTennis: def('MaterialCommunityIcons', 'table-tennis'),
+    skate: def('MaterialCommunityIcons', 'skate'),
+    ski: def('MaterialCommunityIcons', 'ski'),
+    surf: def('MaterialCommunityIcons', 'sail-boat'),
   },
 
   // §8.4 Mind-Body & Meditation

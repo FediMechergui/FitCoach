@@ -7,7 +7,19 @@ import { seedExerciseLibrary } from './seed';
  * drizzle-kit migration bundles, which keeps the managed Expo build simple and
  * avoids the Metro .sql transformer. `PRAGMA user_version` guards re-seeding.
  */
-const SCHEMA_VERSION = 8;
+/**
+ * Bump this whenever the schema changes **or** `EXERCISE_LIBRARY` gains entries.
+ * The seed is version-gated, so without a bump new exercises reach fresh
+ * installs only and existing users silently never see them. Re-seeding is
+ * always safe: `seedExerciseLibrary()` upserts by slug and never deletes, so
+ * logged sets keep pointing at the same exercise ids.
+ *
+ *   8 → 9  v2.8: +111 exercises (cardio machines, martial-arts drills,
+ *                calisthenics skill holds, sports, outdoor, mind-body).
+ *                Also lands v2.7's 27 exercises, which were added without a
+ *                bump and so had only ever reached fresh installs.
+ */
+const SCHEMA_VERSION = 9;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

@@ -15,7 +15,7 @@ import { useUserStore } from '@/stores/userStore';
 import { latestWeight, weighInHistory, type WeighInExtra } from '@/repositories/userRepo';
 import { goalHistoryList } from '@/repositories/goalHistoryRepo';
 import { computeBodyComp, ffmiCategory, MEASUREMENT_FIELDS, type BodyComp } from '@/lib/bodyComposition';
-import { GOAL_LABELS, type Goal, type RateOfChange } from '@/lib/calories';
+import { GOAL_LABELS, GOAL_NOTES, GOAL_ORDER, type Goal, type RateOfChange } from '@/lib/calories';
 import { fmtNum } from '@/lib/format';
 
 /** Composition readings a bio-impedance scale gives you (all optional). */
@@ -254,10 +254,16 @@ export function BodyScreen() {
       <Card style={{ gap: theme.spacing.md }}>
         <SegmentedControl
           scrollable
-          options={(['lose_fat', 'maintain', 'build_muscle'] as Goal[]).map((g) => ({ value: g, label: GOAL_LABELS[g] }))}
+          options={GOAL_ORDER.map((g) => ({ value: g, label: GOAL_LABELS[g] }))}
           value={goal}
           onChange={(v) => setGoal(v as Goal)}
         />
+        <Text variant="caption" color="textMuted">{GOAL_NOTES[goal]}</Text>
+        {goal === 'recomp' && (
+          <Text variant="caption" color="textFaint">
+            Train → Strength → Programs has a matching "Recomposition" plan built for these numbers.
+          </Text>
+        )}
         <SegmentedControl
           options={(['slow', 'moderate', 'aggressive'] as RateOfChange[]).map((r) => ({ value: r, label: r[0].toUpperCase() + r.slice(1) }))}
           value={rate}

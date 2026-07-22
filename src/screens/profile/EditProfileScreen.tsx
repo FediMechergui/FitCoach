@@ -12,7 +12,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
-import { ACTIVITY_LABELS, GOAL_LABELS, type ActivityLevel, type Goal } from '@/lib/calories';
+import { ACTIVITY_LABELS, GOAL_LABELS, GOAL_NOTES, GOAL_ORDER, type ActivityLevel, type Goal } from '@/lib/calories';
 import { BODY_TYPE_BLURB, BODY_TYPE_LABELS, type BodyType } from '@/lib/bodyType';
 import type { Gender } from '@/db/schema';
 
@@ -176,10 +176,12 @@ export function EditProfileScreen() {
       <Card accent={theme.colors.primary} style={{ gap: 10 }}>
         <Text variant="h3">Your goal</Text>
         <SegmentedControl
-          options={(Object.keys(GOAL_LABELS) as Goal[]).map((k) => ({ value: k, label: GOAL_LABELS[k] }))}
+          scrollable
+          options={GOAL_ORDER.map((k) => ({ value: k, label: GOAL_LABELS[k] }))}
           value={goal}
           onChange={setGoal}
         />
+        <Text variant="caption" color="textMuted">{GOAL_NOTES[goal]}</Text>
         {goal !== 'maintain' && (
           <>
             <Text variant="label" color="textMuted">Pace</Text>

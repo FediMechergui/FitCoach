@@ -18,6 +18,8 @@ export type RootStackParamList = {
   SplitPicker: undefined;
   /** per-category methods / splits / routines */
   MethodPicker: { sessionType: SessionType };
+  /** pre-built weekly programs for a category */
+  ProgramPicker: { sessionType: SessionType };
   ActiveSession: { sessionId: number };
   /** pick=true selects exercises; sessionId targets a specific (e.g. finished) session */
   ExerciseLibrary: { pick?: boolean; sessionId?: number } | undefined;

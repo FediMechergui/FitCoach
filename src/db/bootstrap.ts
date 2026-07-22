@@ -18,8 +18,9 @@ import { seedExerciseLibrary } from './seed';
  *                calisthenics skill holds, sports, outdoor, mind-body).
  *                Also lands v2.7's 27 exercises, which were added without a
  *                bump and so had only ever reached fresh installs.
+ *   9 → 10 v2.9: +124 exercises (sport, outdoor, mind-body, meditation)
  */
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

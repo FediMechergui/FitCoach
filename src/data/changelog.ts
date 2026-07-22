@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.9',
+    date: '2026-07-22',
+    title: 'Sport, outdoor, mind-body & meditation — all built out',
+    highlights: [
+      'Sport went from 17 to 62: team and ball games, racket sports, water and winter sports, gymnastics, dance, riding, archery — plus the practice that is not the match (shooting, passing, serve reps, wall work, footwork, plyometrics and a proper RAMP warm-up).',
+      'Outdoor went from 13 to 37: easy, long, recovery, progression, fartlek, cross-country, sand and hill running; gravel, commuting, hill and time-trial cycling; Nordic walking, trekking, mountaineering, orienteering, paddleboarding, cross-country skiing and brick sessions.',
+      'Mind-body went from 11 to 38: hatha, ashtanga, hot, restorative, kundalini and chair yoga; reformer and mat Pilates, barre, qigong, somatics; ankle, wrist, hamstring, adductor and spinal routines; CARs, PNF stretching, balance training and desk-break drills.',
+      'Meditation went from 9 to 37: noting, open awareness, loving-kindness, self-compassion, gratitude, journaling, visualization, mantra, zazen, vipassana, mindful eating, yoga nidra/NSDR and progressive relaxation — plus box, 4-7-8, coherent, alternate-nostril and physiological-sigh breathing.',
+      'Faith practices now sit alongside the five prayers: dhikr/tasbih, Qur\'an recitation, du\'a and contemplative reflection, with a Faith Practice program built around them.',
+      '15 more programs — Off-Season Build, In-Season Maintenance, Racket Sport Player, Team Pre-Season; Half Marathon, Cycling Base, Triathlon Starter, Trek & Altitude Prep; Yoga Foundations, Lifter\'s Mobility, Desk-Worker Reset; Stress Reduction, Sleep & Wind-Down, Focus & Performance and Faith Practice — plus 35 more methods.',
+    ],
+  },
+  {
     version: '2.8',
     date: '2026-07-22',
     title: 'Programs for every activity, 97 new exercises, recomp goal',

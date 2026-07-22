@@ -10,6 +10,46 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.9 — 2026-07-22 · Sport, outdoor, mind-body & meditation built out
+The same treatment 2.8 gave cardio and martial arts, applied to the four categories that were
+still thin. **Library 357 → 481.** No category now has fewer than 30 exercises, 6 methods or
+2 programs — asserted in the test suite so it stays that way.
+
+- **Sport: 17 → 62.** Team and ball (American football, cricket, baseball/softball, field and ice
+  hockey, lacrosse, netball, ultimate, beach volleyball and soccer, dodgeball), racket (pickleball,
+  racquetball, beach tennis), water (kayaking, crew rowing, sailing, windsurfing, scuba, snorkelling,
+  water aerobics), winter (ice skating, snowshoeing, curling), and individual (gymnastics, trampoline,
+  parkour, track & field, archery, bowling, disc golf, riding, skateboarding, BMX, ballroom, hip-hop
+  and ballet). Plus **the practice that isn't the match**: shooting and passing drills, counted serve
+  reps, wall rallies, keeper work, footwork, plyometrics and a RAMP warm-up.
+- **Outdoor: 13 → 37.** Running by purpose (easy, recovery, long, progression, fartlek,
+  cross-country, sand, hill sprints), cycling (gravel, commuting, hill climbs, time trial),
+  walking (brisk, Nordic, trekking, mountaineering), plus orienteering, obstacle-course and park
+  circuits, paddleboarding, cross-country skiing, ski touring and brick sessions.
+- **Mind-body: 11 → 38.** Yoga by style (hatha, ashtanga, hot, restorative, kundalini, chair, sun
+  salutations), Pilates and barre, qigong and somatics, and the mobility work that actually limits
+  lifts — ankles, wrists, hamstrings, adductors, spinal segmentation, deep squat and couch stretch —
+  plus joint CARs, PNF stretching, dynamic warm-ups, balance training and desk-break drills.
+- **Meditation: 9 → 37.** Noting, open awareness, loving-kindness, self-compassion, gratitude,
+  journaling, mental rehearsal, mantra, zazen, vipassana, walking, mindful eating, yoga nidra/NSDR,
+  progressive relaxation and autogenic training — plus box, 4-7-8, coherent, alternate-nostril,
+  humming and physiological-sigh breathing. Cyclic hyperventilation ships with its real safety
+  warning (never in or near water) and a test that asserts the warning is present.
+- **Faith practices** alongside the five prayers: dhikr/tasbih, Qur'an recitation, du'a and
+  contemplative reflection — with a **Faith Practice** program built around the daily prayers.
+- **15 new programs**: Off-Season Build, In-Season Maintenance, Racket Sport Player, Team Sport
+  Pre-Season; Half Marathon Build, Cycling Base, Triathlon Starter (sprint), Trek & Altitude Prep;
+  Yoga Foundations, Lifter's Mobility, Desk-Worker Reset; Stress Reduction (8 weeks), Sleep &
+  Wind-Down, Focus & Performance, Faith Practice.
+- **35 new methods**: technical repetition, deliberate practice, speed & agility, plyometrics,
+  in-season, off-season and return-to-play; easy/progression/recovery runs, hill sprints, long
+  rides, bricks, commute-as-training and adventure; hatha, ashtanga, restorative, CARs, PNF,
+  dynamic warm-up, balance, barre, qigong and desk breaks; noting, open awareness, yoga nidra,
+  progressive relaxation, wind-down, coherent breathing, 60-second resets, mental rehearsal,
+  gratitude and dhikr.
+- Schema bumped 9 → 10 so all of it reaches existing installs. Verified against a simulated
+  database with logs: 479 inserted, 2 updated, 0 orphaned logs, no duplicate slugs.
+
 ## v2.8 — 2026-07-22 · Programs for every activity, 97 new exercises, recomposition goal
 - **Exercise library: 260 → 357.** Cardio now covers the whole gym floor — StairMaster/stepmill,
   spin and recumbent bikes, arc trainer, VersaClimber, curved treadmill, arm ergometer, plus

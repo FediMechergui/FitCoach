@@ -31,6 +31,7 @@ import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
+import { distributeSessionCalories, activeSecondsFor, caloriesForReference } from '../src/lib/exerciseCalories';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 
@@ -324,6 +325,33 @@ check('Unlogged days are treated as maintenance, not invented', unlogged[unlogge
 const cmp = compareToActual(cut, [{ date: '2026-07-01', weightKg: 80, fatMassKg: 16 }, { date: '2026-07-28', weightKg: 79, fatMassKg: 15 }], 'weightKg');
 check('Comparison pairs expected with actual and reports the gap', cmp.gap != null && near(cmp.gap, 79 - cutLast.weightKg, 0.05), `${cmp.gap}`);
 check('Gap is explained in plain language', explainGap(cmp).length > 30);
+// Muscle mass tracks the modelled lean change, from a measured anchor.
+const musc = projectComposition({ startWeightKg: 80, startFatMassKg: 16, startMuscleMassKg: 36, tdee: 2700, bodyweightKg: 80, days: mkDays(28) });
+const muscLast = musc[musc.length - 1];
+check('Muscle mass line only appears with a measured anchor', cut[0].muscleMassKg === null && musc[0].muscleMassKg === 36);
+check('Muscle mass moves with lean, not fat', near((36 - muscLast.muscleMassKg!), (64 - muscLast.leanMassKg!), 0.01), `muscle -${(36 - muscLast.muscleMassKg!).toFixed(2)}, lean -${(64 - muscLast.leanMassKg!).toFixed(2)}`);
+const muscleCmp = compareToActual(musc, [{ date: '2026-07-01', weightKg: 80, muscleMassKg: 36 }, { date: '2026-07-28', weightKg: 79, muscleMassKg: 36.5 }], 'muscleMassKg');
+check('Muscle mass compares expected vs measured', muscleCmp.gap != null && muscleCmp.label === 'Muscle mass', `${muscleCmp.gap}`);
+check('Fat weight is a first-class metric', compareToActual(cut, [{ date: '2026-07-28', weightKg: 79, fatMassKg: 15 }], 'fatMassKg').label === 'Fat weight');
+
+console.log('\nPer-exercise calories (real MET per movement):');
+// Uniform-MET session reduces exactly to the flat session-type estimate.
+const uniform = distributeSessionCalories({ durationS: 3600, weightKg: 80, fallbackMet: 5, exercises: [ { met: 5, trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] }, { met: 5, trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] } ] });
+check('Uniform MET reduces to the flat session estimate', uniform.total === caloriesFromMet(5, 80, 3600), `${uniform.total} vs ${caloriesFromMet(5, 80, 3600)}`);
+// Mixed session: the higher-MET movement earns a larger share for equal work.
+const mixed = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 6, exercises: [ { met: 11, trackingType: 'duration', sets: [{ durationS: 600, completed: true }] }, { met: 3, trackingType: 'duration', sets: [{ durationS: 600, completed: true }] } ] });
+check('Higher-MET movement earns a bigger share', mixed.perExercise[0] > mixed.perExercise[1] * 3, `${mixed.perExercise[0]} vs ${mixed.perExercise[1]}`);
+check('Per-exercise shares sum to the session total', Math.abs(mixed.perExercise[0] + mixed.perExercise[1] - mixed.total) < 1);
+check('Jump rope really does burn more than stretching', mixed.perExercise[0] > 120);
+// No set-level timing (a past session) still splits evenly by MET.
+const past = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 6, exercises: [ { met: 10, trackingType: 'duration', sets: [] }, { met: 4, trackingType: 'duration', sets: [] } ] });
+check('Past session with no sets splits evenly by MET', past.basis === 'per-exercise' && past.perExercise[0] > past.perExercise[1]);
+// No exercises at all → session-type fallback over the whole duration.
+const none = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 7, exercises: [] });
+check('No exercises falls back to session-type MET', none.total === caloriesFromMet(7, 80, 1800) && none.basis === 'session-met');
+check('Reps become active seconds (10 reps ≈ 30s)', activeSecondsFor({ trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] }) === 30);
+check('Skipped sets do not count', activeSecondsFor({ trackingType: 'reps_weight', sets: [{ reps: 10, completed: false }] }) === 0);
+check('Library reference kcal matches the MET formula', caloriesForReference(11, 80, 10) === caloriesFromMet(11, 80, 600));
 
 console.log('\nTraining methods & martial arts:');
 check('Every session type has at least one method', (['strength','calisthenics','cardio','outdoor','sport','martial_arts','mindbody','meditation'] as const).every((t) => methodsFor(t).length > 0));

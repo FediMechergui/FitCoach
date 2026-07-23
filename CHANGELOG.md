@@ -10,6 +10,28 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.10 — 2026-07-23 · Real calories per exercise · muscle mass vs the model
+Two accuracy fixes aimed squarely at "show me the *real* numbers".
+
+- **Per-exercise calories.** The session total used to burn one flat session-type MET across the
+  whole session, so MET-11 jump rope and MET-3 stretching in the same session looked identical.
+  New `lib/exerciseCalories.ts` attributes the burn to each movement using **its own MET and the
+  time it took**, then normalises those shares across the full session duration so rest and
+  transitions aren't lost. When every exercise shares one MET this reduces *exactly* to the old
+  flat number — no drift on a pure-strength or single-activity session — but a mixed session finally
+  reflects its mix. Open any **session → Exercises** to see the kcal each movement earned; it's
+  recomputed on read, so it works on **past sessions** too.
+- **Real value in the library.** Every exercise row now shows **≈ kcal / 10 min and kcal/min at
+  your bodyweight**, so you can see the cost of each movement and variation before you even start.
+- **Expected vs reality now covers muscle mass and fat weight.** The projection models a
+  **muscle-mass** trajectory (muscle carries the modelled lean change — bone and organ mass barely
+  move over weeks) anchored to your scale's measured muscle reading, and charts it against reality
+  like the other metrics. Fat mass is relabelled **Fat weight**. The muscle explanation reminds you
+  that scale muscle readings swing with hydration, so the trend matters more than any single reading.
+  Muscle mass only appears once you've logged it at least twice.
+- No schema change — ships over-the-air. verify-engines **199 → 212** (uniform-MET reduction,
+  mixed-session weighting, past-session split, muscle-tracks-lean, and fat-weight all asserted).
+
 ## v2.9 — 2026-07-22 · Sport, outdoor, mind-body & meditation built out
 The same treatment 2.8 gave cardio and martial arts, applied to the four categories that were
 still thin. **Library 357 → 481.** No category now has fewer than 30 exercises, 6 methods or

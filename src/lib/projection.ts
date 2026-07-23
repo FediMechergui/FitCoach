@@ -42,6 +42,8 @@ export interface ProjectionParams {
   startWeightKg: number;
   /** measured fat mass at the start; without it only weight is projected */
   startFatMassKg?: number | null;
+  /** measured muscle mass at the start; projects a muscle-mass line when present */
+  startMuscleMassKg?: number | null;
   /** maintenance calories (already includes the activity multiplier) */
   tdee: number;
   /** bodyweight used for the protein-per-kg gate */
@@ -54,6 +56,12 @@ export interface ProjectedPoint {
   weightKg: number;
   fatMassKg: number | null;
   leanMassKg: number | null;
+  /**
+   * Expected muscle mass. Muscle is the trainable part of lean mass — bone and
+   * organ mass barely move over weeks — so it tracks the modelled lean change,
+   * anchored to the starting muscle measurement. Null until that anchor exists.
+   */
+  muscleMassKg: number | null;
   /** running energy balance in kcal, for explanation */
   cumulativeKcal: number;
 }
@@ -113,6 +121,7 @@ export function projectComposition(p: ProjectionParams): ProjectedPoint[] {
   let cumulativeKcal = 0;
   let fat = p.startFatMassKg ?? null;
   let lean = p.startFatMassKg != null ? p.startWeightKg - p.startFatMassKg : null;
+  let muscle = p.startMuscleMassKg ?? null;
 
   for (let i = 0; i < p.days.length; i++) {
     const d = p.days[i];
@@ -130,6 +139,7 @@ export function projectComposition(p: ProjectionParams): ProjectedPoint[] {
     const cigs = trailingAvg(p.days, i, 7, (x) => x.cigarettes ?? 0) ?? 0;
 
     if (fat != null && lean != null && deltaKg !== 0) {
+      const leanBefore = lean;
       if (deltaKg < 0) {
         const ff = fatLossFraction({ proteinPerKg, hardSetsPerWeek: setsPerWeek, sleepHours: sleep });
         fat = Math.max(0, fat + deltaKg * ff);
@@ -139,6 +149,8 @@ export function projectComposition(p: ProjectionParams): ProjectedPoint[] {
         lean += deltaKg * lf;
         fat += deltaKg * (1 - lf);
       }
+      // Muscle carries the lean change (bone/organ mass is effectively fixed).
+      if (muscle != null) muscle = Math.max(0, muscle + (lean - leanBefore));
     }
 
     const weightKg = p.startWeightKg + cumulativeKcal / KCAL_PER_KG;
@@ -147,13 +159,14 @@ export function projectComposition(p: ProjectionParams): ProjectedPoint[] {
       weightKg: r2(weightKg),
       fatMassKg: fat != null ? r2(fat) : null,
       leanMassKg: lean != null ? r2(lean) : null,
+      muscleMassKg: muscle != null ? r2(muscle) : null,
       cumulativeKcal: Math.round(cumulativeKcal),
     });
   }
   return out;
 }
 
-export type CompositionMetric = 'weightKg' | 'fatMassKg' | 'leanMassKg' | 'bodyFatPct';
+export type CompositionMetric = 'weightKg' | 'fatMassKg' | 'leanMassKg' | 'muscleMassKg' | 'bodyFatPct';
 
 export interface ComparisonPoint {
   date: string;
@@ -172,8 +185,9 @@ export interface ComparisonSeries {
 
 export const METRIC_META: Record<CompositionMetric, { label: string; unit: string }> = {
   weightKg: { label: 'Weight', unit: 'kg' },
-  fatMassKg: { label: 'Fat mass', unit: 'kg' },
+  fatMassKg: { label: 'Fat weight', unit: 'kg' },
   leanMassKg: { label: 'Lean mass', unit: 'kg' },
+  muscleMassKg: { label: 'Muscle mass', unit: 'kg' },
   bodyFatPct: { label: 'Body fat', unit: '%' },
 };
 
@@ -182,6 +196,7 @@ export interface ActualPoint {
   weightKg: number;
   fatMassKg?: number | null;
   leanMassKg?: number | null;
+  muscleMassKg?: number | null;
   bodyFatPct?: number | null;
 }
 
@@ -228,7 +243,8 @@ export function explainGap(series: ComparisonSeries): string {
       ? `You're ${g}${series.unit} above the model. Usually this means intake is under-logged, your real TDEE is lower than estimated, or water retention — check a 7-day average before changing anything.`
       : `You're ${Math.abs(g)}${series.unit} below the model. Either your real TDEE is higher than estimated, or you're eating less than logged. Faster isn't automatically better if lean mass is falling too.`;
   }
+  const tissue = series.metric === 'muscleMassKg' ? 'Muscle mass' : 'Lean mass';
   return g > 0
-    ? `Lean mass is ${g}${series.unit} above the model — protein, lifting and sleep are doing their job.`
-    : `Lean mass is ${Math.abs(g)}${series.unit} below the model — check protein, hard sets per muscle, and sleep first.`;
+    ? `${tissue} is ${g}${series.unit} above the model — protein, lifting and sleep are doing their job. (Scale muscle readings swing with hydration, so trust the trend over any one reading.)`
+    : `${tissue} is ${Math.abs(g)}${series.unit} below the model — check protein, hard sets per muscle, and sleep first. (Scale muscle readings swing with hydration, so trust the trend over any one reading.)`;
 }

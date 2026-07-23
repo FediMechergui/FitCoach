@@ -18,6 +18,7 @@ import {
   deleteSession,
   getSessionDetail,
   removeExerciseLog,
+  sessionCalorieBreakdown,
   type ExerciseLogView,
   type SessionDetail,
 } from '@/repositories/sessionRepo';
@@ -55,6 +56,7 @@ export function SessionDetailScreen() {
   const route = useRoute<DetailRoute>();
   const sessionId = route.params.sessionId;
   const unit = useUserStore((s) => s.user?.unitPreference ?? 'metric');
+  const bodyKg = useUserStore((s) => s.currentWeightKg) ?? 75;
   const [detail, setDetail] = useState<SessionDetail>(() => getSessionDetail(sessionId));
   const [editing, setEditing] = useState(false);
 
@@ -64,6 +66,8 @@ export function SessionDetailScreen() {
   const { session, logs } = detail;
   const meta = metaFor(session.sessionType);
   const isLifting = meta.flow === 'lifting';
+  // Real per-exercise calorie split, recomputed on read from each movement's MET.
+  const burn = sessionCalorieBreakdown(detail, bodyKg);
 
   const confirmDelete = () => {
     Alert.alert('Delete session?', 'This permanently removes it from your history and stats.', [
@@ -168,8 +172,13 @@ export function SessionDetailScreen() {
                   <Icon icon={lv.iconKey} size={18} color={theme.colors.primary} />
                   <Text variant="bodyStrong" style={{ flex: 1 }}>{lv.exerciseName}</Text>
                 </Row>
+                {burn.byLogId[lv.log.id] > 0 && (
+                  <Text variant="caption" color={theme.colors.calories} style={{ fontVariant: ['tabular-nums'] }}>
+                    {Math.round(burn.byLogId[lv.log.id])} kcal
+                  </Text>
+                )}
                 {editing && (
-                  <Pressable onPress={() => { removeExerciseLog(lv.log.id); reload(); }} hitSlop={8}>
+                  <Pressable onPress={() => { removeExerciseLog(lv.log.id); reload(); }} hitSlop={8} style={{ marginLeft: 8 }}>
                     <Icon icon="core.delete" size={16} color={theme.colors.textFaint} />
                   </Pressable>
                 )}
@@ -199,6 +208,12 @@ export function SessionDetailScreen() {
             />
           )}
         </Card>
+      )}
+      {burn.basis === 'per-exercise' && logs.length > 0 && !editing && (
+        <Text variant="caption" color="textFaint" style={{ marginTop: -4 }}>
+          Calories are attributed to each movement from its own effort (MET) and time at your
+          bodyweight — so heavier, harder work shows its real share.
+        </Text>
       )}
 
       <Button title="Delete Session" variant="ghost" icon="core.delete" onPress={confirmDelete} color={theme.colors.danger} />

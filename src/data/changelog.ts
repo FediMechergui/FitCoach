@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.10',
+    date: '2026-07-23',
+    title: 'Real calories per exercise · muscle mass vs the model',
+    highlights: [
+      'Every exercise now shows its real calorie cost. The library lists kcal per 10 minutes (and per minute) at your bodyweight for each movement and variation — jump rope reads far higher than stretching, because it is.',
+      'Session calories are now attributed per exercise from each movement\'s own effort (MET) and time, not one flat rate for the whole session. Open any session to see how much each exercise actually burned — and it works retroactively on your past sessions too.',
+      'Expected vs reality now covers muscle mass and fat weight. The muscle-mass line tracks what your training, protein and sleep should be building, against your scale\'s measured muscle reading — with a reminder that scale muscle swings with hydration, so trust the trend.',
+      'A mixed session (say a run plus some lifting) finally reflects its mix instead of averaging everything to one number — while a straight single-activity session reads exactly as before.',
+    ],
+  },
+  {
     version: '2.9',
     date: '2026-07-22',
     title: 'Sport, outdoor, mind-body & meditation — all built out',

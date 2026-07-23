@@ -67,6 +67,11 @@ export function compositionProjection(
   const startComp = first
     ? computeBodyComp({ weightKg: first.weightKg, bodyFatPct: first.bodyFatPct, fatMassKg: first.fatMassKg })
     : null;
+  // Muscle mass is a directly measured scale reading (fall back to skeletal
+  // muscle when that's what the scale reports).
+  const measuredMuscle = (w: { muscleMassKg?: number | null; skeletalMuscleKg?: number | null }) =>
+    w.muscleMassKg ?? w.skeletalMuscleKg ?? null;
+  const startMuscleMassKg = first ? measuredMuscle(first) : null;
 
   const dayInputs: DayInput[] = dates.map((date) => ({
     date,
@@ -80,6 +85,7 @@ export function compositionProjection(
   const projected = projectComposition({
     startWeightKg,
     startFatMassKg: startComp?.fatMassKg ?? null,
+    startMuscleMassKg,
     tdee,
     bodyweightKg: startWeightKg || 75,
     days: dayInputs,
@@ -92,13 +98,18 @@ export function compositionProjection(
       weightKg: w.weightKg,
       fatMassKg: c.fatMassKg,
       leanMassKg: c.leanMassKg,
+      muscleMassKg: measuredMuscle(w),
       bodyFatPct: c.bodyFatPct,
     };
   });
 
+  // Only show muscle mass when it's actually been measured more than once —
+  // otherwise there's nothing real to hold the model against.
+  const muscleReadings = weighIns.filter((w) => measuredMuscle(w) != null).length;
   const metrics: CompositionMetric[] = startComp?.fatMassKg != null
     ? ['weightKg', 'fatMassKg', 'leanMassKg', 'bodyFatPct']
     : ['weightKg'];
+  if (startMuscleMassKg != null && muscleReadings >= 2) metrics.push('muscleMassKg');
   const series = metrics.map((m) => compareToActual(projected, actuals, m));
 
   const loggedDays = dayInputs.filter((d) => d.intakeKcal != null).length;

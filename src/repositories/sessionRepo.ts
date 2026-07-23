@@ -12,6 +12,7 @@ import {
   type TrackingType,
 } from '@/db/schema';
 import { caloriesFromMet, SESSION_TYPE_MET } from '@/lib/met';
+import { distributeSessionCalories, type BurnExercise } from '@/lib/exerciseCalories';
 import { estimate1RM } from '@/lib/oneRepMax';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -30,6 +31,8 @@ export interface ExerciseLogView {
   iconKey: string;
   primaryMuscle: string | null;
   trackingType: TrackingType;
+  /** the exercise's own MET, for real per-exercise calorie attribution */
+  metValue: number | null;
   sets: SetEntry[];
 }
 
@@ -187,11 +190,20 @@ export function finalizeSession(
     }
   }
 
-  // Calorie estimate: MET-based, using the session-type default MET.
+  // Calorie estimate. When there are logged exercises we attribute the burn per
+  // movement using each one's real MET; otherwise fall back to the session-type
+  // MET. A caller-provided figure (e.g. a GPS run) always wins.
   const bodyKg = opts.weightKg ?? 75;
   const providedCals = opts.activity?.caloriesBurned ?? null;
-  const met = SESSION_TYPE_MET[session.sessionType] ?? 4;
-  const caloriesBurned = providedCals ?? caloriesFromMet(met, bodyKg, durationS);
+  const fallbackMet = SESSION_TYPE_MET[session.sessionType] ?? 4;
+  const caloriesBurned =
+    providedCals ??
+    distributeSessionCalories({
+      durationS,
+      weightKg: bodyKg,
+      fallbackMet,
+      exercises: logsToBurn(detail.logs),
+    }).total;
 
   db.update(sessions)
     .set({
@@ -280,9 +292,24 @@ export function logPastSession(
   userId: number = PRIMARY_USER_ID
 ): Session {
   const durationS = Math.max(1, Math.round((input.endTime - input.startTime) / 1000));
-  const met = SESSION_TYPE_MET[input.sessionType] ?? 4;
+  const fallbackMet = SESSION_TYPE_MET[input.sessionType] ?? 4;
   const bodyKg = input.weightKg ?? 75;
-  const caloriesBurned = caloriesFromMet(met, bodyKg, durationS);
+  // Value each listed exercise at its own MET (evenly over the elapsed time,
+  // since a past session carries no set-level timing); fall back to the
+  // session-type MET when nothing was listed.
+  const pastBurn = (input.exerciseIds ?? []).length
+    ? db
+        .select({ metValue: exercises.metValue, trackingType: exercises.trackingType })
+        .from(exercises)
+        .where(inArray(exercises.id, input.exerciseIds!))
+        .all()
+    : [];
+  const caloriesBurned = distributeSessionCalories({
+    durationS,
+    weightKg: bodyKg,
+    fallbackMet,
+    exercises: pastBurn.map((e) => ({ met: e.metValue, trackingType: e.trackingType, sets: [] })),
+  }).total;
   const pace =
     input.distanceM && input.distanceM > 0 ? durationS / (input.distanceM / 1000) : null;
 
@@ -310,6 +337,53 @@ export function logPastSession(
   return getSession(id)!;
 }
 
+/** Adapt exercise-log views into the shape the calorie distributor expects. */
+function logsToBurn(logs: ExerciseLogView[]): BurnExercise[] {
+  return logs.map((lv) => ({
+    met: lv.metValue,
+    trackingType: lv.trackingType,
+    sets: lv.sets.map((s) => ({
+      reps: s.reps,
+      durationS: s.durationS,
+      distanceM: s.distanceM,
+      completed: s.completed,
+    })),
+  }));
+}
+
+export interface SessionCalorieBreakdown {
+  /** kcal per exercise-log id */
+  byLogId: Record<number, number>;
+  total: number;
+  basis: 'per-exercise' | 'session-met';
+}
+
+/**
+ * Recompute the per-exercise calorie split for a session on read, so the real
+ * value of each movement is available even for sessions logged before this
+ * existed. Uses the session's stored duration and the user's weight at the time
+ * (falls back to 75 kg when unknown).
+ */
+export function sessionCalorieBreakdown(
+  detail: SessionDetail,
+  bodyKg = 75
+): SessionCalorieBreakdown {
+  const { session, logs } = detail;
+  const durationS = session.durationS ?? 0;
+  const fallbackMet = SESSION_TYPE_MET[session.sessionType] ?? 4;
+  const dist = distributeSessionCalories({
+    durationS,
+    weightKg: bodyKg,
+    fallbackMet,
+    exercises: logsToBurn(logs),
+  });
+  const byLogId: Record<number, number> = {};
+  logs.forEach((lv, i) => {
+    byLogId[lv.log.id] = dist.perExercise[i] ?? 0;
+  });
+  return { byLogId, total: dist.total, basis: dist.basis };
+}
+
 // ── Queries ──────────────────────────────────────────────────────────────────
 export function getSession(sessionId: number): Session | undefined {
   return db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
@@ -325,6 +399,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
       iconKey: exercises.iconKey,
       primaryMuscle: exercises.primaryMuscle,
       trackingType: exercises.trackingType,
+      metValue: exercises.metValue,
     })
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
@@ -338,6 +413,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
     iconKey: r.iconKey,
     primaryMuscle: r.primaryMuscle,
     trackingType: r.trackingType,
+    metValue: r.metValue,
     sets: db
       .select()
       .from(setEntries)

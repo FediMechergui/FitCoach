@@ -22,6 +22,9 @@ import {
 } from '@/repositories/exerciseRepo';
 import { addExerciseToSession, getSession } from '@/repositories/sessionRepo';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useUserStore } from '@/stores/userStore';
+import { caloriesForReference } from '@/lib/exerciseCalories';
+import { SESSION_TYPE_MET } from '@/lib/met';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { Chip } from '@/components/ui/Chip';
 import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
@@ -56,6 +59,7 @@ export function ExerciseLibraryScreen() {
   const targetSessionId = route.params?.sessionId;
   const addExercise = useSessionStore((s) => s.addExercise);
   const activeType = useSessionStore((s) => s.sessionType);
+  const bodyKg = useUserStore((s) => s.currentWeightKg) ?? 75;
   // When targeting a specific (e.g. finished) session, default the filter to its type.
   const targetType = targetSessionId ? getSession(targetSessionId)?.sessionType : undefined;
 
@@ -124,7 +128,10 @@ export function ExerciseLibraryScreen() {
             message="Try a different filter, or create a custom exercise."
           />
         }
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const met = item.metValue && item.metValue > 0 ? item.metValue : SESSION_TYPE_MET[item.sessionType] ?? 4;
+          const kcalPer10 = caloriesForReference(met, bodyKg, 10);
+          return (
           <Pressable onPress={() => onSelect(item)}>
             <Card>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -146,6 +153,9 @@ export function ExerciseLibraryScreen() {
                         .filter(Boolean)
                         .join(' · ') || item.category}
                     </Text>
+                    <Text variant="caption" color={theme.colors.calories} numberOfLines={1} style={{ marginTop: 1 }}>
+                      ≈ {kcalPer10} kcal / 10 min · {Math.round(kcalPer10 / 10)} kcal/min
+                    </Text>
                   </View>
                 </Row>
                 {/* In pick mode, still let the user open the how-to guide. */}
@@ -164,7 +174,8 @@ export function ExerciseLibraryScreen() {
               </Row>
             </Card>
           </Pressable>
-        )}
+          );
+        }}
       />
 
       <View style={{ position: 'absolute', bottom: 24, left: 16, right: 16 }}>

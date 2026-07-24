@@ -1,5 +1,5 @@
 import { db } from '@/db/client';
-import { beverageEntries, foodEntries } from '@/db/schema';
+import { beverageEntries, foodEntries, napLogs, prayerLogs, selfCareLogs } from '@/db/schema';
 import { and, eq, gte } from 'drizzle-orm';
 import { BEVERAGE_PRESETS } from '@/data/beverages';
 import { usageStreak } from './usageRepo';
@@ -15,12 +15,12 @@ import { fastingStats, getPrayerSettings, prayersDone } from './faithRepo';
 import { dayMicros } from './microsRepo';
 import { getStack, supplementStreak } from './supplementsRepo';
 import { dayNutrition, dailyIntakeSince } from './nutritionRepo';
-import { getNutritionGoal, getUser, latestWeight, PRIMARY_USER_ID } from './userRepo';
+import { getNutritionGoal, getUser, latestWeight, weighInHistory, PRIMARY_USER_ID } from './userRepo';
 import { growthReport } from './growthRepo';
 import { computeCardRating } from './cardRepo';
 import { MICRO_KEYS, percentRdi } from '@/lib/micros';
 import { SUPPLEMENTS } from '@/data/supplements';
-import { daysAgoISO, lastNDates, todayISO } from '@/lib/date';
+import { daysAgoISO, lastNDates, todayISO, toISODate } from '@/lib/date';
 
 export interface AchievementStats {
   // streaks / usage
@@ -81,6 +81,25 @@ export interface AchievementStats {
   cardOverall: number;
   cardEND: number;
   cardDIS: number;
+  // self-care & devotion
+  brushBestDay: number;
+  hygieneFullBest: number; // 0/1 — a day with all check-ins done
+  hygieneStreak: number;
+  prayersBestDay: number;
+  allPrayersStreak: number;
+  fajrLogged: boolean;
+  napCount: number;
+  meditationSessions: number;
+  meditationMinutes7d: number;
+  balancedDayDone: number; // 0/1
+  // body mastery & special ops
+  hasBodyFat: boolean;
+  hasAllMeasurements: boolean;
+  weighInCount: number;
+  goalIsRecompOrPerf: boolean;
+  specialSessionCount: number;
+  distinctSpecialPrograms: number;
+  distinctSessionTypes: number;
 }
 
 /** Longest run of consecutive true days ending at the most recent (today, else yesterday). */
@@ -233,6 +252,76 @@ function computeAchievementStats(userId: number): AchievementStats {
   const stack = safe(() => getStack(userId), []);
   const hasStrongSupp = stack.some((s) => SUPPLEMENTS.find((d) => d.key === s.key)?.evidenceLevel === 'strong');
 
+  // ── self-care / hygiene (per-day counts over last 30 days) ──
+  const scRows = safe(
+    () => db.select().from(selfCareLogs).where(and(eq(selfCareLogs.userId, userId), gte(selfCareLogs.date, daysAgoISO(30)))).all(),
+    []
+  );
+  const scByDate = new Map<string, Record<string, number>>();
+  for (const r of scRows) {
+    const m = scByDate.get(r.date) ?? {};
+    m[r.key] = r.count;
+    scByDate.set(r.date, m);
+  }
+  const brushBestDay = maxOf([...scByDate.values()].map((m) => m.brush ?? 0));
+  const hygieneFullBest = [...scByDate.values()].some((m) => (m.brush ?? 0) >= 3 && (m.shower ?? 0) >= 1 && (m.relax ?? 0) >= 1) ? 1 : 0;
+  const hygieneStreak = trailingStreak((d) => {
+    const m = scByDate.get(d);
+    return !!m && Object.values(m).some((v) => v > 0);
+  });
+
+  // ── prayers (per-day sets over last 30 days) ──
+  const prayerRows = safe(
+    () => db.select().from(prayerLogs).where(and(eq(prayerLogs.userId, userId), gte(prayerLogs.date, daysAgoISO(30)))).all(),
+    []
+  );
+  const prayersByDate = new Map<string, Set<string>>();
+  for (const r of prayerRows) {
+    const s = prayersByDate.get(r.date) ?? new Set<string>();
+    s.add(r.prayer);
+    prayersByDate.set(r.date, s);
+  }
+  const prayersBestDay = maxOf([...prayersByDate.values()].map((s) => s.size));
+  const allPrayersStreak = trailingStreak((d) => (prayersByDate.get(d)?.size ?? 0) >= 5);
+  const fajrLogged = prayerRows.some((r) => r.prayer === 'fajr');
+
+  // ── naps ──
+  const napCount = safe(() => db.select().from(napLogs).where(eq(napLogs.userId, userId)).all().length, 0);
+
+  // ── meditation & special-programme sessions (from the sessions already loaded) ──
+  const weekAgoMs = Date.now() - 7 * 86_400_000;
+  const meditationSessions = sessions.filter((s) => s.sessionType === 'meditation').length;
+  const meditationMinutes7d = sessions
+    .filter((s) => s.sessionType === 'meditation' && s.startTime >= weekAgoMs)
+    .reduce((sum, s) => sum + (s.durationS ?? 0) / 60, 0);
+  const specialSessions = sessions.filter((s) => (s.style ?? '').startsWith('special:'));
+  const specialSessionCount = specialSessions.length;
+  const distinctSpecialPrograms = new Set(specialSessions.map((s) => (s.style ?? '').split(':')[1])).size;
+  const distinctSessionTypes = new Set(sessions.map((s) => s.sessionType)).size;
+
+  // ── body composition ──
+  const weighIns = safe(() => weighInHistory(userId), []);
+  const weighInCount = weighIns.length;
+  const hasBodyFat = weighIns.some((w) => w.bodyFatPct != null);
+  const MEASURE_FIELDS = [
+    'neckCm', 'shoulderCm', 'chestCm', 'waistCm', 'upperAbdomenCm', 'lowerAbdomenCm', 'hipCm',
+    'armUpperLCm', 'armUpperRCm', 'armLowerLCm', 'armLowerRCm', 'thighLCm', 'thighRCm', 'calfLCm', 'calfRCm',
+  ] as const;
+  const hasAllMeasurements = weighIns.some((w) =>
+    MEASURE_FIELDS.every((f) => (w as unknown as Record<string, number | null>)[f] != null)
+  );
+  const goalType = safe(() => getUser(userId)?.goal, undefined);
+  const goalIsRecompOrPerf = goalType === 'recomp' || goalType === 'performance';
+
+  // ── balanced day: trained + ate + hydrated + a self-care check-in, same day ──
+  const trainDays = new Set(sessions.map((s) => toISODate(new Date(s.startTime))));
+  const balancedDayDone = [...scByDate.keys()].some((d) => {
+    const sc = Object.values(scByDate.get(d) ?? {}).some((v) => v > 0);
+    const ate = (intakeByDate.get(d)?.calories ?? 0) > 0;
+    const hydrated = (waterByDate.get(d) ?? 0) >= waterGoal * 0.5;
+    return sc && ate && hydrated && trainDays.has(d);
+  }) ? 1 : 0;
+
   // ── card ──
   let cardOverall = 0;
   let cardEND = 0;
@@ -294,6 +383,23 @@ function computeAchievementStats(userId: number): AchievementStats {
     cardOverall,
     cardEND,
     cardDIS,
+    brushBestDay,
+    hygieneFullBest,
+    hygieneStreak,
+    prayersBestDay,
+    allPrayersStreak,
+    fajrLogged,
+    napCount,
+    meditationSessions,
+    meditationMinutes7d,
+    balancedDayDone,
+    hasBodyFat,
+    hasAllMeasurements,
+    weighInCount,
+    goalIsRecompOrPerf,
+    specialSessionCount,
+    distinctSpecialPrograms,
+    distinctSessionTypes,
   };
 }
 
@@ -308,6 +414,10 @@ const ZERO_STATS: AchievementStats = {
   fastingStreak: 0, fastedLast30: 0, prayersEnabled: false, prayersToday: 0,
   microRdiMetCount: 0, microGapsCount: 0, hasMicroData: false, suppStackCount: 0, hasStrongSupp: false, creatineStreak: 0, ashwaStreak: 0,
   cardOverall: 0, cardEND: 0, cardDIS: 0,
+  brushBestDay: 0, hygieneFullBest: 0, hygieneStreak: 0, prayersBestDay: 0, allPrayersStreak: 0, fajrLogged: false,
+  napCount: 0, meditationSessions: 0, meditationMinutes7d: 0, balancedDayDone: 0,
+  hasBodyFat: false, hasAllMeasurements: false, weighInCount: 0, goalIsRecompOrPerf: false,
+  specialSessionCount: 0, distinctSpecialPrograms: 0, distinctSessionTypes: 0,
 };
 
 /** Public entry — never throws; a failure yields zeroed stats, not a white screen. */

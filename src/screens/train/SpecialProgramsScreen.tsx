@@ -26,7 +26,7 @@ const LEVEL_COLOR: Record<string, string> = {
   advanced: '#E5533D',
 };
 
-const CATEGORY_ORDER: SpecialCategory[] = ['military', 'historical', 'lifestyle'];
+const CATEGORY_ORDER: SpecialCategory[] = ['military', 'historical', 'superhero', 'lifestyle'];
 
 export function SpecialProgramsScreen() {
   const theme = useTheme();

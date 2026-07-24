@@ -20,8 +20,9 @@ import { seedExerciseLibrary } from './seed';
  *                bump and so had only ever reached fresh installs.
  *   9 → 10 v2.9: +124 exercises (sport, outdoor, mind-body, meditation)
  *   10 → 11 v2.11: +27 tactical & heritage exercises (Special Programmes)
+ *   11 → 12 v2.12: +2 exercises (one-arm push-up, speed bag) for new programmes
  */
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

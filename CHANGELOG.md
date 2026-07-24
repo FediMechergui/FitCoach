@@ -10,6 +10,34 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.12 — 2026-07-24 · Superhero training, more programmes & 20 new achievements
+Two additions on top of v2.11's Special Programmes, plus an achievements expansion.
+
+**Special Programmes → 24, in 4 sections.** New **Superheroes & Screen Legends** section:
+- **One Punch Man (Saitama)** — the canonical 100 push-ups, 100 sit-ups, 100 squats and 10 km run
+  every day, flagged clearly as fictional and *not* an optimal plan (the real lesson is consistency).
+- **Batman (Bruce Wayne)** — martial arts, peak strength, gymnastics, conditioning and the detective's mind.
+- **Bruce Lee** — his genuinely documented training: roadwork, obsessive core (the dragon flag), grip
+  and forearm work, functional strength and JKD striking.
+- **Rocky Balboa** — dawn roadwork, one-arm push-ups, heavy & speed bag, and a reminder to cook the eggs.
+- **The Super-Soldier (Captain America)** — the real actor-transformation hypertrophy split and clean bulk.
+
+New in the other sections: **Mongol Horde**, **Roman Gladiator** (the barley-fed *hordearii*),
+**Shinobi (Ninja)**, **Firefighter CPAT**, and **The Cell Workout** (Convict Conditioning's Big Six).
+Each keeps its own training week and diet. +2 exercises (one-arm push-up, speed bag); library **508 → 510**.
+
+**Achievements → 120 badges in 12 categories.** Two new sections, all reading your real data:
+- **Self-Care & Devotion** — brush all three times in a day, complete every self-care check-in, a
+  7-day hygiene streak, all five daily prayers (and a 7-day streak), a dawn Fajr, your first nap,
+  10 meditation sessions, 60 meditation minutes in a week, and a fully balanced day.
+- **Body Mastery & Special Ops** — your first body-fat weigh-in, all 15 tape measurements, four
+  weigh-ins (enough for expected-vs-reality), a recomposition/performance goal, a 3- and 5-supplement
+  stack, your first Special Programme session, three different programmes, ten sessions, and training
+  in all eight categories. 80 of the 120 badges now show live progress from your data.
+
+tsc clean; verify-engines **225 → 234**. Ships over-the-air (schema already bumped to 12 in v2.11's
+line for the new exercises).
+
 ## v2.11 — 2026-07-24 · Special Programmes — soldier, monk, legionary
 A new **Special Programmes** section on Train: 14 themed programmes, each with its real history,
 a full multi-discipline training week (every day picks its own session type), and the diet those

@@ -101,6 +101,30 @@ const RULES: Record<number, Rule> = {
   94: (s) => ({ current: s.creatineStreak, target: 7 }),
   95: (s) => ({ current: s.ashwaStreak, target: 14 }),
   96: (s) => bool(s.hasMicroData && s.microGapsCount === 0),
+
+  // 11. Self-Care & Devotion
+  101: (s) => ({ current: s.brushBestDay, target: 3 }),
+  102: (s) => bool(s.hygieneFullBest === 1),
+  103: (s) => ({ current: s.hygieneStreak, target: 7 }),
+  104: (s) => ({ current: s.prayersBestDay, target: 5 }),
+  105: (s) => ({ current: s.allPrayersStreak, target: 7 }),
+  106: (s) => bool(s.fajrLogged),
+  107: (s) => ({ current: s.napCount, target: 1 }),
+  108: (s) => ({ current: s.meditationSessions, target: 10 }),
+  109: (s) => ({ current: Math.round(s.meditationMinutes7d), target: 60 }),
+  110: (s) => bool(s.balancedDayDone === 1),
+
+  // 12. Body Mastery & Special Ops
+  111: (s) => bool(s.hasBodyFat),
+  112: (s) => bool(s.hasAllMeasurements),
+  113: (s) => ({ current: s.weighInCount, target: 4 }),
+  114: (s) => bool(s.goalIsRecompOrPerf),
+  115: (s) => ({ current: s.suppStackCount, target: 3 }),
+  116: (s) => ({ current: s.suppStackCount, target: 5 }),
+  117: (s) => ({ current: s.specialSessionCount, target: 1 }),
+  118: (s) => ({ current: s.distinctSpecialPrograms, target: 3 }),
+  119: (s) => ({ current: s.specialSessionCount, target: 10 }),
+  120: (s) => ({ current: s.distinctSessionTypes, target: 8 }),
 };
 
 export function evaluateAchievement(def: AchievementDef, s: AchievementStats): AchievementProgress {

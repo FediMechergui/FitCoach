@@ -406,10 +406,14 @@ check('Special-programme keys are unique', new Set(SPECIAL_PROGRAMS.map((p) => p
 check('Every programme has origin, ethos and an authenticity note', SPECIAL_PROGRAMS.every((p) => p.origin.length > 40 && p.ethos.length > 10 && p.authenticityNote.length > 30));
 check('Every programme ships a diet with a sample day and notes', SPECIAL_PROGRAMS.every((p) => p.diet.approach.length > 40 && p.diet.sampleDay.length >= 3 && p.diet.notes.length >= 1));
 check('Every day declares a session type, focus and prescription', SPECIAL_PROGRAMS.every((p) => p.days.length >= 3 && p.days.every((d) => !!d.sessionType && d.focus.length > 10 && d.prescription.length > 5 && d.minutes > 0)));
-check('All three categories are populated', (['military','historical','lifestyle'] as const).every((c) => specialProgramsFor(c).length >= 2));
-check('The named programmes are all present', ['mil-army-acft','mil-seal-prep','mil-spetsnaz','his-roman-legion','his-spartan-agoge','his-shaolin','his-dagestan','his-aztec','life-office','life-morning'].every((k) => !!findSpecialProgram(k)));
+check('All four categories are populated', (['military','historical','superhero','lifestyle'] as const).every((c) => specialProgramsFor(c).length >= 2));
+check('The named programmes are all present', ['mil-army-acft','mil-seal-prep','mil-spetsnaz','mil-firefighter','his-roman-legion','his-spartan-agoge','his-shaolin','his-dagestan','his-aztec','his-mongol','his-gladiator','his-ninja','life-office','life-morning','life-prison'].every((k) => !!findSpecialProgram(k)));
+check('Superhero section covers Saitama, Batman, Bruce Lee, Rocky and the super-soldier', ['hero-saitama','hero-batman','hero-bruce-lee','hero-rocky','hero-captain'].every((k) => findSpecialProgram(k)?.category === 'superhero'));
 // The demanding ones must carry a safety note.
-check('Demanding programmes carry a safety note', ['mil-seal-prep','mil-commando','his-spartan-agoge','his-shaolin','his-dagestan'].every((k) => (findSpecialProgram(k)?.safetyNote ?? '').length > 20));
+check('Demanding programmes carry a safety note', ['mil-seal-prep','mil-commando','mil-firefighter','his-spartan-agoge','his-shaolin','his-dagestan','hero-saitama','hero-batman','life-prison'].every((k) => (findSpecialProgram(k)?.safetyNote ?? '').length > 20));
+// Fictional / risky ones must be honest in their authenticity note.
+check('Saitama routine is flagged as fictional, not optimal', /fiction|not.*optimal|not an optimal/i.test(findSpecialProgram('hero-saitama')?.authenticityNote ?? ''));
+check('Rocky reminds you to cook the eggs', /cook|salmonella/i.test((findSpecialProgram('hero-rocky')?.authenticityNote ?? '') + JSON.stringify(findSpecialProgram('hero-rocky')?.diet.notes)));
 // Iron-body / neck-bridge conditioning must warn about gradual progression.
 const ironBody = EXLIB.find((e) => e.slug === 'iron-body-conditioning');
 check('Body-conditioning drills warn to progress gradually', (ironBody?.instructions ?? []).some((i) => /month|gradual|pain/i.test(i)));
@@ -492,10 +496,12 @@ const allKeys = dup.slots.flatMap((s) => s.items.map((i) => i.key));
 check('Overlapping goals de-duplicate supplements', new Set(allKeys).size === allKeys.length, allKeys.join(','));
 
 console.log('\nAchievements:');
-check('Exactly 100 badges, all with SVG art', ACHIEVEMENTS.length === 100 && ACHIEVEMENTS.every((a) => a.svg.startsWith('<svg') && a.svg.endsWith('</svg>')));
-check('10 categories, 10 badges each', ACHIEVEMENT_CATEGORIES.length === 10 && [1,2,3,4,5,6,7,8,9,10].every((c) => ACHIEVEMENTS.filter((a) => a.category === c).length === 10));
+check('Exactly 120 badges, all with SVG art', ACHIEVEMENTS.length === 120 && ACHIEVEMENTS.every((a) => a.svg.startsWith('<svg') && a.svg.endsWith('</svg>')));
+check('12 categories, 10 badges each', ACHIEVEMENT_CATEGORIES.length === 12 && [1,2,3,4,5,6,7,8,9,10,11,12].every((c) => ACHIEVEMENTS.filter((a) => a.category === c).length === 10));
 check('Every badge has criteria text', ACHIEVEMENTS.every((a) => a.criteria.length > 0));
-check('A good share of badges are auto-tracked', TRACKED_ACHIEVEMENT_COUNT >= 50, `${TRACKED_ACHIEVEMENT_COUNT}`);
+check('Badge ids are unique and contiguous 1..120', new Set(ACHIEVEMENTS.map((a) => a.id)).size === 120 && Math.min(...ACHIEVEMENTS.map((a) => a.id)) === 1 && Math.max(...ACHIEVEMENTS.map((a) => a.id)) === 120);
+check('Category matches ceil(id/10) for every badge', ACHIEVEMENTS.every((a) => a.category === Math.ceil(a.id / 10)));
+check('A good share of badges are auto-tracked', TRACKED_ACHIEVEMENT_COUNT >= 70, `${TRACKED_ACHIEVEMENT_COUNT}`);
 // Build a zeroed stats object and a maxed one to exercise the rules.
 const zeroStats: AchievementStats = {
   appStreakBest: 0, bestStepDay: 0, best10kStreak: 0, monthDistanceKm: 0, bestRunKcal: 0, bestRunMinutes: 0,
@@ -507,12 +513,24 @@ const zeroStats: AchievementStats = {
   fastingStreak: 0, fastedLast30: 0, prayersEnabled: false, prayersToday: 0,
   microRdiMetCount: 0, microGapsCount: 5, hasMicroData: false, suppStackCount: 0, hasStrongSupp: false, creatineStreak: 0, ashwaStreak: 0,
   cardOverall: 0, cardEND: 0, cardDIS: 0,
+  brushBestDay: 0, hygieneFullBest: 0, hygieneStreak: 0, prayersBestDay: 0, allPrayersStreak: 0, fajrLogged: false,
+  napCount: 0, meditationSessions: 0, meditationMinutes7d: 0, balancedDayDone: 0,
+  hasBodyFat: false, hasAllMeasurements: false, weighInCount: 0, goalIsRecompOrPerf: false,
+  specialSessionCount: 0, distinctSpecialPrograms: 0, distinctSessionTypes: 0,
 };
 const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
 check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
 check('The Spark unlocks at a 3-day streak', evaluateAchievement(ACHIEVEMENTS[0], maxed).unlocked === true);
 check('Untracked badge (Scouted #7) reports tracked=false', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 7)!, zeroStats).tracked === false);
 check('Heavy Metal (#20) needs 10,000kg', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 20)!, { ...zeroStats, maxVolumeKg: 10500 }).unlocked === true);
+// New categories 11 & 12 are tracked and read real data.
+check('Hygiene badge (#101) tracks tooth-brushing', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 101)!, { ...zeroStats, brushBestDay: 3 }).unlocked === true && evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 101)!, zeroStats).tracked === true);
+check('Salat badge (#104) needs all five prayers', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 104)!, { ...zeroStats, prayersBestDay: 5 }).unlocked === true && evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 104)!, { ...zeroStats, prayersBestDay: 4 }).unlocked === false);
+check('Nap badge (#107) unlocks on first nap', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 107)!, { ...zeroStats, napCount: 1 }).unlocked === true);
+check('Body-comp badge (#111) needs a body-fat weigh-in', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 111)!, { ...zeroStats, hasBodyFat: true }).unlocked === true);
+check('Special-programme badge (#117) unlocks on first session', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 117)!, { ...zeroStats, specialSessionCount: 1 }).unlocked === true);
+check('Complete Athlete (#120) needs all 8 categories', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 120)!, { ...zeroStats, distinctSessionTypes: 7 }).unlocked === false && evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 120)!, { ...zeroStats, distinctSessionTypes: 8 }).unlocked === true);
+check('New badges are auto-tracked (101-120)', [101,104,107,111,117,120].every((id) => evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === id)!, zeroStats).tracked === true));
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.12',
+    date: '2026-07-24',
+    title: 'Superhero training, 10 more programmes & 20 new achievements',
+    highlights: [
+      'New Superheroes & Screen Legends section: train like One Punch Man (Saitama\'s 100-100-100 + 10 km), Batman, Bruce Lee, Rocky Balboa and the super-soldier (Captain America) — each honest about what\'s real vs fictional.',
+      'More Special Programmes: Mongol Horde, Roman Gladiator, Shinobi (Ninja), Firefighter CPAT and The Cell Workout (Convict Conditioning) — every one with its own training week and diet.',
+      'Special Programmes now span 24 programmes across 4 sections (Military & Service, Warriors of History, Superheroes & Screen Legends, Everyday Special Ops).',
+      'Achievements expanded from 100 to 120 badges across 12 categories — two new sections: Self-Care & Devotion (tooth-brushing, showers, the five daily prayers, naps, meditation) and Body Mastery & Special Ops (body-composition logging, all-15 measurements, recomposition goal, supplement stacks, Special Programme sessions).',
+      'The new badges read your real data — brush all three times, complete the five prayers, log your first nap or body-fat weigh-in, finish a Special Programme session — and show exactly how close you are.',
+    ],
+  },
+  {
     version: '2.11',
     date: '2026-07-24',
     title: 'Special Programmes — train like a soldier, a monk, a legionary',

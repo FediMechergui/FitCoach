@@ -16,7 +16,7 @@ import { evaluateAchievement, type AchievementProgress } from '@/lib/achievement
 export function AchievementsScreen() {
   const theme = useTheme();
   const [stats, setStats] = useState<AchievementStats | null>(null);
-  // Categories are collapsible so we never mount all 100 badge SVGs at once
+  // Categories are collapsible so we never mount every badge image at once
   // (first category open by default).
   const [open, setOpen] = useState<Record<number, boolean>>({ 1: true });
 
@@ -83,8 +83,8 @@ export function AchievementsScreen() {
       })}
 
       <Text variant="caption" color="textFaint" center style={{ marginTop: 4 }}>
-        100 badges across 10 categories — grounded in your real streaks, workouts, nutrition,
-        sleep and health data.
+        {ACHIEVEMENTS.length} badges across {ACHIEVEMENT_CATEGORIES.length} categories — grounded in
+        your real streaks, workouts, nutrition, sleep, self-care, faith and health data.
       </Text>
     </Screen>
   );

@@ -25,7 +25,7 @@ A **daily check-in streak meter** on the Home dashboard rewards you for opening 
 app every day — with a flame count, a 7-day dot row, your best streak, and progress
 toward the next milestone.
 
-It ships with a **508-exercise library** split by muscle group, **individual muscle**
+It ships with a **510-exercise library** split by muscle group, **individual muscle**
 (lats, traps, front/side/rear delts, upper/lower abs, obliques…) and equipment — each
 with a beginner illustration, step-by-step form cues and a **mandatory warm-up** — plus
 one-tap **training splits** (Push/Pull/Legs, Upper/Lower, Bro, Full-Body, Arnold),
@@ -107,7 +107,7 @@ Pure, unit-testable TypeScript — the "insight" half of the app:
 - **`time.ts`** — time-range math for logging sleep/work as bedtime→wake (handles
   overnight spans and `HH:MM` parsing).
 
-Every formula above is exercised by `npm run verify:engines` (**222 checks**), which
+Every formula above is exercised by `npm run verify:engines` (**234 checks**), which
 asserts them against known values (BMR, TDEE, 1RM, MET, BAC, FFMI, cycle dates,
 time ranges…) and validates library/split integrity.
 
@@ -166,7 +166,7 @@ Stats and Coach Tips:
 
 ## v2 update highlights
 
-- **Per-muscle library (508 exercises)** — every muscle individually: traps (shrugs, high
+- **Per-muscle library (510 exercises)** — every muscle individually: traps (shrugs, high
   pulls), lower back (back extensions, good mornings, bird-dog), glutes (hip thrust,
   kickbacks, abduction machine), each delt head, upper/lower abs and obliques — split by
   barbell / dumbbell / machine-cable / bodyweight, with a `sub_muscle` filter.
@@ -199,7 +199,7 @@ Stats and Coach Tips:
 
 ## Exercise library, splits & beginner guides
 
-- **508 exercises** ([src/data/exercises.ts](src/data/exercises.ts)) organized by muscle
+- **510 exercises** ([src/data/exercises.ts](src/data/exercises.ts)) organized by muscle
   group and split by equipment family. The library screen filters by **session type ·
   muscle · equipment** and searches by name.
 - **Beginner how-to**: each exercise detail shows an SVG **movement illustration**
@@ -398,7 +398,7 @@ cleanly.
 **upserted by a stable `slug`** (falling back to name for older databases) rather
 than deleted and re-inserted — see [src/db/seed.ts](src/db/seed.ts). Because
 `exercise_logs.exercise_id` references those rows, this keeps every past workout
-pointing at the right exercise even as the library grows from 46 to 508 entries.
+pointing at the right exercise even as the library grows from 46 to 510 entries.
 Nutrition/alcohol/session logs likewise store their values denormalized at log
 time, so editing a food or exercise definition never rewrites history.
 
@@ -423,7 +423,7 @@ defers to your clinician.
   calculator, onboarding, local storage, EAS APK — **plus** the health & wellness
   suite: smoking, sleep, alcohol, body composition, gender & menstrual-cycle
   tracking, chronic conditions, the athlete card (PNG), and PDF reports — plus a
-  508-exercise library with beginner guides, training splits, a Tunisian food
+  510-exercise library with beginner guides, training splits, a Tunisian food
   database, habit & work-hours trackers, and a daily check-in streak.
 - **Phase 2:** dynamic TDEE auto-tuning, barcode scanning, cloud sync, routine
   builder, GPS route maps.

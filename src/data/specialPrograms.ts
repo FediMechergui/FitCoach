@@ -18,15 +18,15 @@ import type { ProgramLevel } from './programs';
  * adding is always safe. Every `exercises` slug must exist in the library.
  */
 
-export type SpecialCategory = 'military' | 'historical' | 'lifestyle';
+export type SpecialCategory = 'military' | 'historical' | 'superhero' | 'lifestyle';
 
 export const SPECIAL_CATEGORY_META: Record<
   SpecialCategory,
   { label: string; blurb: string; icon: string }
 > = {
   military: {
-    label: 'Military & Special Forces',
-    blurb: 'Selection-style preparation from real armed-forces fitness tests.',
+    label: 'Military, Tactical & Service',
+    blurb: 'Selection-style preparation from real armed-forces and first-responder tests.',
     icon: 'mindbody.military',
   },
   historical: {
@@ -34,9 +34,14 @@ export const SPECIAL_CATEGORY_META: Record<
     blurb: 'How legendary fighting cultures actually built their bodies.',
     icon: 'mindbody.samurai',
   },
+  superhero: {
+    label: 'Superheroes & Screen Legends',
+    blurb: 'Training inspired by heroes and the icons — real and fictional — behind them.',
+    icon: 'mindbody.hero',
+  },
   lifestyle: {
     label: 'Everyday Special Ops',
-    blurb: 'Short, equipment-light routines for real life — desk, dawn, travel.',
+    blurb: 'Short, equipment-light routines for real life — desk, dawn, travel, a single cell.',
     icon: 'mindbody.morning',
   },
 };
@@ -517,8 +522,377 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
       notes: ['"One soup, three sides" is a genuinely balanced template worth keeping.'],
     },
   },
+  {
+    key: 'his-mongol',
+    category: 'historical',
+    name: 'Mongol Horde',
+    tagline: 'The three manly skills — wrestling, riding, archery — and endless endurance.',
+    origin:
+      'Genghis Khan\'s warriors conquered the largest contiguous empire in history on horseback. Trained from childhood in the "three manly skills" of wrestling (Bökh), horsemanship and archery, they could ride for days, shoot a bow accurately at full gallop, and live off their herds. Stamina, grip and durability over bulk.',
+    ethos: 'Ride further, endure longer, loose the arrow true. The steppe rewards the relentless.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.mongol',
+    accent: '#7A4B2A',
+    authenticityNote:
+      'Built on the documented "three manly skills" plus the Mongols\' legendary endurance. Standing archery and club/rein work stand in for horseback shooting; you don\'t need a horse, but do build the grip and the miles.',
+    days: [
+      { key: 'archery', label: 'Archery & draw strength', sessionType: 'strength', focus: 'The bow at the heart of the Mongol war machine — back and shoulder endurance.', exercises: ['archery', 'band-pull-apart', 'rear-delt-fly', 'dead-hang'], prescription: 'Archery practice + high-rep pulling, 35 min', minutes: 35 },
+      { key: 'endurance', label: 'Steppe endurance', sessionType: 'outdoor', focus: 'Riding for days becomes running and rucking for hours.', exercises: ['long-run', 'rucking', 'trail-run'], prescription: 'Long, steady distance', minutes: 70 },
+      { key: 'bokh', label: 'Bökh wrestling', sessionType: 'martial_arts', focus: 'Mongolian wrestling — grip, hips and balance.', exercises: ['wrestling-shots', 'sprawl-drill', 'ma-rolling-round', 'neck-bridge'], prescription: 'Drilling + rounds, 35 min', minutes: 35 },
+      { key: 'grip', label: 'Rein & grip strength', sessionType: 'strength', focus: 'Hands and forearms that never tire — reins, bow and blade.', exercises: ['farmers-carry', 'dead-hang', 'club-swing-drill', 'overhead-carry'], prescription: 'Carries + hangs + swings, 30 min', minutes: 30 },
+      { key: 'mobility', label: 'Saddle mobility', sessionType: 'mindbody', focus: 'Hips and back kept supple for a life in the saddle.', exercises: ['hip-mobility', 'deep-squat-hold', 'thoracic-mobility'], prescription: 'Long holds, 25 min', minutes: 25 },
+    ],
+    diet: {
+      name: 'The nomad\'s herd',
+      approach:
+        'The Mongols ate almost entirely from their animals: dried meat (borts) ground fine, curd and cheese (aaruul), and fermented mare\'s milk (airag). Very high in protein and fat, very low in carbohydrate — the original portable nomad diet, built for the saddle rather than the plough.',
+      macroSlant: 'Very high protein and fat (meat, dairy), minimal carbohydrate.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Milk tea with dried curd (aaruul).' },
+        { label: 'On the move', detail: 'Borts — dried, powdered meat rehydrated in water.' },
+        { label: 'Evening', detail: 'Boiled mutton and offal, cheese, fermented mare\'s milk.' },
+      ],
+      notes: ['A very high-protein, low-carb template — add vegetables and be sensible about saturated fat.'],
+    },
+  },
+  {
+    key: 'his-gladiator',
+    category: 'historical',
+    name: 'Roman Gladiator',
+    tagline: 'Weapon drills, a barley belly and the arena.',
+    origin:
+      'Gladiators trained at a school (ludus) under a lanista, drilling weapons endlessly against the wooden post. They were nicknamed hordearii — "barley men" — for a mostly plant-based barley-and-bean diet, and analysis of the Ephesus gladiator cemetery confirmed it, along with an ash-and-bone tonic drunk for recovery. They deliberately carried a layer of fat over their muscle as protection against cuts.',
+    ethos: 'Trained to fight, fed to survive. Skill with the blade, a body built to take a hit.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.gladiator',
+    accent: '#9C6B1E',
+    authenticityNote:
+      'Follows the ludus pattern — heavy weapon drills at the post, carrying and conditioning — and the genuinely documented barley-and-legume "hordearii" diet. Weapons become sword, spear and shield drills with a weighted stick.',
+    days: [
+      { key: 'armatura', label: 'Weapon drill (armatura)', sessionType: 'martial_arts', focus: 'Cuts, thrusts and guards at the post — the gladiator\'s daily work.', exercises: ['sword-swing-drill', 'shield-carry-march', 'spear-thrust-drill', 'ma-shadow-round'], prescription: 'Rounds of weapon drills, weighted stick, 40 min', minutes: 40 },
+      { key: 'strength', label: 'Arena strength', sessionType: 'strength', focus: 'Full-body strength to move an opponent and heavy kit.', exercises: ['deadlift', 'atlas-stone-lift', 'sandbag-clean-press', 'overhead-carry'], prescription: 'Heavy lifts + carries, 50 min', minutes: 50 },
+      { key: 'spar', label: 'Sparring', sessionType: 'martial_arts', focus: 'Live-ish combat practice against a partner or bag.', exercises: ['ma-bag-round', 'ma-sparring-round', 'wrestling-shots'], prescription: 'Controlled rounds, 30 min', minutes: 30 },
+      { key: 'conditioning', label: 'Sand & carry', sessionType: 'strength', focus: 'Work capacity in the arena sand.', exercises: ['sandbag-carry', 'farmers-carry', 'tire-flip', 'sledgehammer-swing'], prescription: '5 rounds of stations', minutes: 30 },
+      { key: 'legs', label: 'Footwork & legs', sessionType: 'calisthenics', focus: 'The legs and footwork that keep you off the blade.', exercises: ['walking-lunge', 'step-ups', 'agility-ladder', 'bodyweight-squat'], prescription: 'Footwork + leg circuit, 30 min', minutes: 30 },
+    ],
+    diet: {
+      name: 'Barley men (hordearii)',
+      approach:
+        'Gladiators ate a mostly plant-based, carbohydrate-heavy diet of barley, beans and dried fruit — deliberately, to build an insulating layer of fat over the muscle that could absorb a cut. Modern bone analysis backs the barley-and-legume staple and a calcium-rich ash tonic for recovery.',
+      macroSlant: 'Very high carb (barley, beans), plant protein, calcium emphasis.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Barley porridge (puls) with beans.' },
+        { label: 'Midday', detail: 'Bean and lentil stew, barley bread, dried fruit.' },
+        { label: 'Recovery', detail: 'A calcium-rich drink (they used ash; you have milk/dairy).' },
+        { label: 'Evening', detail: 'More barley and legumes; meat occasionally.' },
+      ],
+      notes: [
+        'The historical goal was carrying fat as armour — not what most people want today.',
+        'The barley-and-bean base is a genuinely solid, cheap endurance diet.',
+      ],
+    },
+  },
+  {
+    key: 'his-ninja',
+    category: 'historical',
+    name: 'Shinobi (Ninja)',
+    tagline: 'Stealth, agility, climbing and endurance over brute force.',
+    origin:
+      'The shinobi of feudal Japan trained for covert work, not the battlefield: extraordinary endurance (they were said to cover huge distances on foot), climbing and balance, swimming, agility and quiet movement, breath control, and just enough combat to escape. Lightness, control and stamina over size.',
+    ethos: 'Unseen, unheard, untiring. The body as a tool for getting there and getting away.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.ninja',
+    accent: '#2B2B3A',
+    authenticityNote:
+      'Reflects the shinobi emphasis on endurance, agility, climbing, balance and breath control rather than raw strength. Climbing and rope work stand in for wall-scaling; the covert lore is left as flavour.',
+    days: [
+      { key: 'agility', label: 'Agility & balance', sessionType: 'calisthenics', focus: 'Quiet feet, quick change of direction, control on unstable ground.', exercises: ['agility-ladder', 'balance-training', 'low-crawl', 'shuttle-runs'], prescription: 'Agility + balance circuit, 30 min', minutes: 30 },
+      { key: 'endurance', label: 'Long-distance travel', sessionType: 'outdoor', focus: 'The shinobi\'s legendary ability to cover ground on foot.', exercises: ['long-run', 'trail-run'], prescription: 'Long, steady run', minutes: 60 },
+      { key: 'climb', label: 'Climb & grip', sessionType: 'calisthenics', focus: 'Scaling walls — rope climbs, hangs and pulling strength.', exercises: ['rope-climb', 'climbing', 'pull-up', 'dead-hang'], prescription: 'Climbs + grip work, 30 min', minutes: 30 },
+      { key: 'combat', label: 'Escape combat', sessionType: 'martial_arts', focus: 'Just enough striking and grappling to break free.', exercises: ['ma-shadow-round', 'wrestling-shots', 'sprawl-drill'], prescription: 'Drills + rounds, 30 min', minutes: 30 },
+      { key: 'breath', label: 'Breath & stillness', sessionType: 'meditation', focus: 'Breath control and calm — staying hidden means staying still.', exercises: ['box-breathing', 'coherent-breathing', 'body-scan'], prescription: '20 min breath + stillness', minutes: 20 },
+    ],
+    diet: {
+      name: 'Light and portable',
+      approach:
+        'Shinobi ate to stay light, quiet and energised: rice and millet, umeboshi (pickled plum) for stamina and against fatigue, miso, sesame, tofu and small dried rations that travelled well. Modest portions, plant-forward, nothing heavy to slow the body down.',
+      macroSlant: 'Grain carbs, soy and sesame protein, very light on fat.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Rice with umeboshi and miso soup.' },
+        { label: 'On the move', detail: 'Dried rice balls, sesame, pickled plum.' },
+        { label: 'Evening', detail: 'Rice or millet, tofu, vegetables, small portions.' },
+      ],
+      notes: ['Umeboshi and light, portable grains — the lesson is eating to stay agile, not full.'],
+    },
+  },
+
+  // ═══════════════════════════ SUPERHERO & SCREEN LEGENDS ═══════════════════════════
+  {
+    key: 'hero-saitama',
+    category: 'superhero',
+    name: 'One Punch Man (Saitama)',
+    tagline: '100 push-ups, 100 sit-ups, 100 squats, 10 km run — every single day.',
+    origin:
+      'In One Punch Man, Saitama becomes the strongest hero alive through one absurdly simple routine done every day without fail for three years: 100 push-ups, 100 sit-ups, 100 squats and a 10 km run — no air conditioning, no heating, three meals a day (a banana in the morning). The manga\'s joke is that there is no secret technique. The lesson is ruthless consistency.',
+    ethos: 'No secret, no shortcut. Show up every single day and never stop. (Also: he went bald.)',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'mindbody.saitama',
+    accent: '#F2C200',
+    authenticityNote:
+      'This is a fictional routine and it is NOT an optimal training plan — 100 daily reps and a 10 km run every day is enormous volume with no progressive overload. Its one real, valuable lesson is consistency. Treat it as a fun challenge to build up to, not a science-based programme.',
+    safetyNote:
+      'Do not attempt the full 100/100/100 + 10 km on day one — that is an overuse injury waiting to happen. Start with the scaled version, take genuine rest days despite the "every day" mythology, and stop if joints (not muscles) hurt.',
+    days: [
+      { key: 'hundred', label: 'The Daily Hundred', sessionType: 'calisthenics', focus: 'The canonical routine, once you\'ve earned the volume.', exercises: ['push-up', 'sit-up', 'bodyweight-squat', 'long-run'], prescription: '100 push-ups · 100 sit-ups · 100 squats · then a 10 km run', minutes: 90 },
+      { key: 'scaled', label: 'Scaled Hundred (build-up)', sessionType: 'calisthenics', focus: 'For mortals working toward it — broken into sets, shorter run.', exercises: ['push-up', 'sit-up', 'bodyweight-squat', 'easy-run'], prescription: 'Reach 100 of each across the day in sets · 3–5 km run', minutes: 45 },
+      { key: 'recovery', label: 'Active recovery', sessionType: 'mindbody', focus: 'Even a fictional hero\'s joints need this. Mobility on tired legs.', exercises: ['static-stretch-routine', 'hip-mobility', 'foam-rolling'], prescription: '20–30 min easy mobility', minutes: 25 },
+    ],
+    diet: {
+      name: 'Three meals (and a banana)',
+      approach:
+        'Saitama\'s diet is a running joke — "three meals a day" and a banana before training — but the honest takeaway for this volume is simple, sufficient eating: enough total calories to fuel 100s of reps and 10 km daily, enough protein to recover, and no fussing. Under-eating, not over-eating, would break this routine.',
+      macroSlant: 'Enough of everything — plenty of carbs for the volume, adequate protein.',
+      sampleDay: [
+        { label: 'Pre-run', detail: 'A banana (as canon demands) and water.' },
+        { label: 'Breakfast', detail: 'Rice or oats, eggs, fruit after the session.' },
+        { label: 'Lunch', detail: 'A full plate — protein, rice, vegetables.' },
+        { label: 'Dinner', detail: 'Another balanced meal; you earned it.' },
+      ],
+      notes: ['With this much daily volume, the real risk is eating too little to recover.'],
+    },
+  },
+  {
+    key: 'hero-batman',
+    category: 'superhero',
+    name: 'Batman (Bruce Wayne)',
+    tagline: 'Peak human: martial arts, strength, gymnastics and a trained mind.',
+    origin:
+      'In the comics, Bruce Wayne spent years travelling the world to become the peak of human ability: a master of many martial arts, elite raw strength, gymnastic agility, and the disciplined, detective mind to use it all. The "become Batman" ideal is total: fight, lift, move and think at the highest level.',
+    ethos: 'It\'s not who I am underneath, but what I do that defines me. Train everything; master yourself.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 16,
+    icon: 'mindbody.batman',
+    accent: '#2C2C34',
+    authenticityNote:
+      'A blend of the disciplines the comics attribute to Batman — martial arts, heavy strength, gymnastics/agility, conditioning and mental training. Demanding by design; treat it as a long-term pursuit, not a six-week fix.',
+    safetyNote: 'This is a lot of hard training across many disciplines. Sleep, eat and recover like it is part of the programme — because it is.',
+    days: [
+      { key: 'martial', label: 'Martial arts', sessionType: 'martial_arts', focus: 'Striking and grappling — the Bat is a master of many styles.', exercises: ['ma-shadow-round', 'ma-bag-round', 'wrestling-shots', 'ma-rolling-round'], prescription: 'Technical rounds, 45 min', minutes: 45 },
+      { key: 'strength', label: 'Peak strength', sessionType: 'strength', focus: 'Heavy compound lifting for real-world power.', exercises: ['deadlift', 'back-squat', 'bench-press-barbell', 'pull-up'], prescription: '5×5 on the big lifts', minutes: 60 },
+      { key: 'gymnastics', label: 'Gymnastics & agility', sessionType: 'calisthenics', focus: 'Bodyweight mastery — move like the cape is real.', exercises: ['muscle-up', 'handstand-hold', 'pistol-squat', 'box-jumps', 'l-sit'], prescription: 'Skill + power work, 40 min', minutes: 40 },
+      { key: 'conditioning', label: 'Night conditioning', sessionType: 'cardio', focus: 'The engine for rooftop chases.', exercises: ['sprint-repeats', 'battle-ropes', 'shuttle-runs', 'burpees'], prescription: 'HIIT, 25–30 min', minutes: 30 },
+      { key: 'endurance', label: 'Roadwork', sessionType: 'outdoor', focus: 'Base endurance underneath the power.', exercises: ['easy-run', 'trail-run'], prescription: '40–50 min steady', minutes: 45 },
+      { key: 'mind', label: 'The detective\'s mind', sessionType: 'meditation', focus: 'Focus, calm and mental rehearsal — half of what makes the Bat.', exercises: ['visualization', 'box-breathing', 'zazen'], prescription: '20 min focus + breath', minutes: 20 },
+    ],
+    diet: {
+      name: 'Peak-human fuelling',
+      approach:
+        'To train this hard while staying lean and agile, the plate is high in protein, built on whole foods, and timed around training — a clean, performance-first diet with enough carbohydrate to fuel the volume and enough discipline to stay fight-lean. (The actors who played him used exactly this: clean bulk to build, then lean out.)',
+      macroSlant: 'High protein, whole-food carbs around training, controlled fats.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Eggs, oats and berries — protein and slow carbs.' },
+        { label: 'Lunch', detail: 'Chicken or fish, rice, big vegetables.' },
+        { label: 'Pre/post training', detail: 'Protein + fruit around the session.' },
+        { label: 'Dinner', detail: 'Lean red meat or fish, potatoes, greens.' },
+      ],
+      notes: ['Recovery is a training variable here — sleep and food are non-negotiable at this volume.'],
+    },
+  },
+  {
+    key: 'hero-bruce-lee',
+    category: 'superhero',
+    name: 'Bruce Lee',
+    tagline: 'Roadwork, obsessive core, grip and the fastest hands alive.',
+    origin:
+      'Bruce Lee trained with scientific obsession, documented in The Art of Expressing the Human Body: daily roadwork (running), enormous core work (he believed the midsection was central to everything — sit-ups, leg raises, the "flag"), grip and forearm training, isometrics and functional strength, extreme flexibility, and of course his own art, Jeet Kune Do — built around speed, directness and the famous one-inch punch.',
+    ethos: 'Be like water. Absorb what is useful, discard what is not, add what is uniquely your own.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'mindbody.brucelee',
+    accent: '#C0392B',
+    authenticityNote:
+      'Drawn from Bruce Lee\'s genuinely documented training — daily running, very high-volume core work, grip and forearm training, functional strength and JKD striking. The "flag" here is the dragon flag he helped make famous.',
+    days: [
+      { key: 'jkd', label: 'JKD striking & speed', sessionType: 'martial_arts', focus: 'Directness and blinding speed — the heart of Jeet Kune Do.', exercises: ['ma-shadow-round', 'ma-bag-round', 'speed-bag', 'ma-jab-cross'], prescription: 'Speed-focused rounds, 40 min', minutes: 40 },
+      { key: 'core', label: 'The core obsession', sessionType: 'calisthenics', focus: 'Lee trained abs daily and hard — the engine of every strike.', exercises: ['dragon-flag', 'hanging-leg-raise', 'sit-up', 'flutter-kicks', 'l-sit'], prescription: 'High-volume core circuit, 25 min', minutes: 25 },
+      { key: 'roadwork', label: 'Roadwork', sessionType: 'outdoor', focus: 'Daily running — the base of his famous conditioning.', exercises: ['easy-run', 'sprint-repeats'], prescription: '30–40 min run + strides', minutes: 40 },
+      { key: 'strength', label: 'Functional strength & grip', sessionType: 'strength', focus: 'Isometrics, forearms and the grip behind the one-inch punch.', exercises: ['pull-up', 'farmers-carry', 'dead-hang', 'wall-sit', 'overhead-carry'], prescription: 'Strength + isometric holds + grip, 35 min', minutes: 35 },
+      { key: 'flexibility', label: 'Flexibility', sessionType: 'mindbody', focus: 'The mobility behind his high kicks and fluid movement.', exercises: ['pnf-stretching', 'hamstring-routine', 'hip-mobility', 'adductor-routine'], prescription: 'Long holds, PNF where safe, 30 min', minutes: 30 },
+    ],
+    diet: {
+      name: 'Lean, frequent, protein-first',
+      approach:
+        'Lee ate to stay lean and explosive: small, frequent meals, a Chinese-influenced diet of rice, vegetables and lean protein, protein shakes and even blended raw-food drinks, plenty of tea, and a firm avoidance of refined, empty carbohydrate. The result was one of the most defined physiques of his era.',
+      macroSlant: 'Protein-first, moderate rice carbs, minimal refined sugar.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Protein shake, tea, a little fruit.' },
+        { label: 'Lunch', detail: 'Rice, stir-fried vegetables, lean meat or fish.' },
+        { label: 'Snacks', detail: 'Small frequent portions rather than big meals.' },
+        { label: 'Dinner', detail: 'Vegetables and lean protein, light on refined carbs.' },
+      ],
+      notes: ['Small frequent meals and avoiding empty carbs — the lean-and-fast template.'],
+    },
+  },
+  {
+    key: 'hero-rocky',
+    category: 'superhero',
+    name: 'Rocky Balboa',
+    tagline: 'Pre-dawn roadwork, one-arm push-ups and the heavy bag.',
+    origin:
+      'The Rocky montages are pure old-school fighter grit: pre-dawn roadwork up the museum steps, one-arm push-ups, heavy bag and speed bag, jump rope, chasing a chicken for agility, pounding sides of beef in the meat locker, sit-ups and pull-ups, and (infamously) raw eggs. No machines, no science — just relentless, gritty work.',
+    ethos: 'It ain\'t about how hard you hit — it\'s about how hard you can get hit and keep moving forward.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.rocky',
+    accent: '#7D5A3C',
+    authenticityNote:
+      'A faithful, gritty take on the training montages — roadwork, boxing, one-arm push-ups, sit-ups, pull-ups, jump rope and explosive step work. Please cook your eggs; raw eggs are a salmonella risk and no better than cooked for protein.',
+    days: [
+      { key: 'roadwork', label: 'Dawn roadwork', sessionType: 'outdoor', focus: 'The pre-dawn run that opens every montage.', exercises: ['easy-run', 'hill-sprints'], prescription: '30–40 min run + the steps (hills)', minutes: 40 },
+      { key: 'boxing', label: 'Bag & speed bag', sessionType: 'martial_arts', focus: 'Heavy bag power and speed-bag rhythm.', exercises: ['ma-bag-round', 'speed-bag', 'ma-shadow-round', 'jump-rope'], prescription: 'Boxing rounds + rope, 35 min', minutes: 35 },
+      { key: 'grit', label: 'Gritty strength', sessionType: 'calisthenics', focus: 'One-arm push-ups, sit-ups, pull-ups — no machines.', exercises: ['one-arm-pushup', 'push-up', 'sit-up', 'pull-up'], prescription: 'Old-school circuit to failure, 30 min', minutes: 30 },
+      { key: 'power', label: 'Explosive & agility', sessionType: 'cardio', focus: 'Box jumps and the "chicken chase" agility.', exercises: ['box-jumps', 'shuttle-runs', 'agility-ladder', 'burpees'], prescription: 'Explosive circuit, 25 min', minutes: 25 },
+      { key: 'meat', label: 'Odd-object power', sessionType: 'strength', focus: 'Pounding the meat locker — raw rotational and swing power.', exercises: ['sledgehammer-swing', 'sandbag-clean-press', 'tire-flip'], prescription: '5 rounds of heavy work', minutes: 30 },
+    ],
+    diet: {
+      name: 'Old-school fighter food',
+      approach:
+        'The Rocky diet is simple, cheap fighter fare: lean meat, eggs (cooked!), whole grains and plenty of it, with weight-cut discipline before a fight. The lesson is whole-food sufficiency and hard training, not the raw-egg theatrics.',
+      macroSlant: 'High protein, honest whole-food carbs, low on frills.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Eggs (cooked) and oats before roadwork.' },
+        { label: 'Lunch', detail: 'Lean beef or chicken, rice or potatoes, greens.' },
+        { label: 'Snack', detail: 'Cottage cheese or milk — cheap protein.' },
+        { label: 'Dinner', detail: 'Meat or fish, pasta, vegetables.' },
+      ],
+      notes: ['Cook the eggs. Raw eggs carry a salmonella risk and offer no protein advantage.'],
+    },
+  },
+  {
+    key: 'hero-captain',
+    category: 'superhero',
+    name: 'The Super-Soldier (Captain America)',
+    tagline: 'The actor-transformation build: heavy hypertrophy, clean bulk.',
+    origin:
+      'To turn a slim actor into Steve Rogers on screen, trainers use a classic physique-transformation blueprint: a hypertrophy split of heavy compound and accessory work, some athletic/gymnastic movement, and a high-protein calorie surplus (a "clean bulk"). It\'s the archetype of every "how the hero got jacked" magazine feature.',
+    ethos: 'The serum was fiction; the work isn\'t. Progressive overload, protein and patience.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 12,
+    icon: 'mindbody.shield',
+    accent: '#1F3A93',
+    authenticityNote:
+      'A realistic hypertrophy transformation split — the actual method behind the on-screen superhero physiques — rather than anything super-serum. Progress the loads and eat in a surplus; that is the whole trick.',
+    days: [
+      { key: 'push', label: 'Push (chest/shoulders/triceps)', sessionType: 'strength', focus: 'Pressing volume for the chest and shoulders.', exercises: ['bench-press-barbell', 'overhead-press', 'db-incline-press', 'lateral-raise', 'triceps-pushdown'], prescription: '4×8–12, 1–2 from failure', minutes: 55 },
+      { key: 'pull', label: 'Pull (back/biceps)', sessionType: 'strength', focus: 'The back width and thickness that fills the suit.', exercises: ['pull-up', 'barbell-row', 'seated-cable-row', 'barbell-curl', 'rear-delt-fly'], prescription: '4×8–12', minutes: 55 },
+      { key: 'legs', label: 'Legs', sessionType: 'strength', focus: 'Don\'t skip them — the base of the whole physique.', exercises: ['back-squat', 'romanian-deadlift', 'walking-lunge', 'calf-raise-step'], prescription: '4×8–12', minutes: 55 },
+      { key: 'athletic', label: 'Athletic day', sessionType: 'calisthenics', focus: 'Move like a hero, not just look like one.', exercises: ['muscle-up', 'box-jumps', 'plank', 'sprint-repeats'], prescription: 'Gymnastic + power work, 35 min', minutes: 35 },
+      { key: 'arms', label: 'Arms & core', sessionType: 'strength', focus: 'The detail work — arms and midsection.', exercises: ['barbell-curl', 'overhead-cable-extension', 'hanging-leg-raise', 'cable-crunch'], prescription: '3–4×10–15', minutes: 40 },
+    ],
+    diet: {
+      name: 'The clean bulk',
+      approach:
+        'Building the super-soldier look means a modest calorie surplus with high protein (around 2 g/kg), carbohydrate to fuel heavy lifting, and mostly whole foods so the gain is muscle rather than fluff. Eat consistently above maintenance and let progressive overload do the rest.',
+      macroSlant: 'Calorie surplus, high protein (~2 g/kg), plenty of carbs.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Eggs, oats, whole milk, fruit.' },
+        { label: 'Lunch', detail: 'Chicken or beef, rice, vegetables — big portion.' },
+        { label: 'Post-workout', detail: 'Protein shake + banana.' },
+        { label: 'Dinner', detail: 'Salmon or steak, potatoes, greens; dairy before bed.' },
+      ],
+      notes: ['Surplus + protein + progressive overload is the whole method — patience does the rest.'],
+    },
+  },
+
+  // ═══════════════════════════ MILITARY / SERVICE (more) ═══════════════════════════
+  {
+    key: 'mil-firefighter',
+    category: 'military',
+    name: 'Firefighter CPAT',
+    tagline: 'Loaded stairs, hose drags and forcible entry — the entry test.',
+    origin:
+      'The Candidate Physical Ability Test is the standardised entry test for firefighters: a stair climb in a weighted vest (plus extra shoulder weight), hose drag, equipment carry, ladder raise and extension, forcible entry (a sledge striking a beam), a search crawl, a victim drag and a ceiling breach — all in sequence, against the clock, in protective gear.',
+    ethos: 'Someone\'s worst day is your job. Be strong enough to carry them out.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.firefighter',
+    accent: '#C0392B',
+    authenticityNote:
+      'Each day maps to CPAT events — loaded stairs, drags and carries, forcible entry, and the search crawl — plus the strength base underneath them. Use a weighted vest or pack to make it real.',
+    safetyNote: 'Train loaded stair and drag work progressively; the combination of load, heat gear and speed is exactly where real candidates get hurt.',
+    days: [
+      { key: 'stairs', label: 'Loaded stair climb', sessionType: 'cardio', focus: 'The signature CPAT event — stairs under a heavy vest.', exercises: ['stairmaster', 'incline-walk', 'step-ups'], prescription: '20–30 min stairs with a weighted vest/pack', minutes: 30 },
+      { key: 'drag', label: 'Drag & carry', sessionType: 'cardio', focus: 'Hose drag, equipment carry, victim drag.', exercises: ['sled-push', 'sandbag-carry', 'farmers-carry', 'sprint-drag-carry'], prescription: '5 rounds of drags and carries', minutes: 30 },
+      { key: 'entry', label: 'Forcible entry & overhead', sessionType: 'strength', focus: 'Sledge strikes and ladder-raise overhead strength.', exercises: ['sledgehammer-swing', 'overhead-carry', 'overhead-press', 'tire-flip'], prescription: 'Strike + overhead work, 35 min', minutes: 35 },
+      { key: 'crawl', label: 'Search crawl & core', sessionType: 'calisthenics', focus: 'The low search crawl and the core that survives it.', exercises: ['low-crawl', 'bear-crawl', 'plank', 'hanging-leg-raise'], prescription: 'Crawl circuit + core, 25 min', minutes: 25 },
+      { key: 'strength', label: 'Strength base', sessionType: 'strength', focus: 'The raw strength under every rescue.', exercises: ['deadlift', 'back-squat', 'pull-up', 'sandbag-clean-press'], prescription: '5×5 on the big lifts', minutes: 50 },
+    ],
+    diet: {
+      name: 'Shift-worker fuelling',
+      approach:
+        'Firehouse life means long shifts, broken sleep and the temptation of communal comfort food. The working diet is protein-forward to hold muscle through irregular hours, steady carbohydrate for energy on call, real hydration, and planning around shifts rather than grazing on whatever\'s in the kitchen.',
+      macroSlant: 'High protein, steady carbs, hydration-first, planned around shifts.',
+      sampleDay: [
+        { label: 'Shift start', detail: 'Protein + slow carbs (eggs, oats) to last.' },
+        { label: 'Mid-shift', detail: 'Prepared meal: lean protein, rice, vegetables.' },
+        { label: 'Call-ready snack', detail: 'Nuts, fruit, yoghurt — not the firehouse cake.' },
+        { label: 'Post-shift', detail: 'A proper recovery meal and real hydration.' },
+      ],
+      notes: ['Sleep and hydration are the two levers shift work breaks — protect both.'],
+    },
+  },
 
   // ═══════════════════════════ LIFESTYLE ═══════════════════════════
+  {
+    key: 'life-prison',
+    category: 'lifestyle',
+    name: 'The Cell Workout',
+    tagline: 'Serious strength from bodyweight alone, in a tiny space.',
+    origin:
+      'With no equipment and a few square metres, incarcerated people have long built remarkable strength through high-volume calisthenics and progressions — popularised as "Convict Conditioning" and its "Big Six": push-up, squat, pull-up, leg raise, bridge and handstand push-up, each taken from an easy version to a brutally hard one. Proof that a gym is optional.',
+    ethos: 'No weights, no machines, no excuses. Master your own bodyweight, one progression at a time.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 12,
+    icon: 'mindbody.prison',
+    accent: '#5C6670',
+    authenticityNote:
+      'Structured around the "Big Six" bodyweight progressions that make this style work. Every movement scales: start at a version you can do cleanly for reps, and only progress when it\'s easy. A pull-up bar (or a sturdy edge) is the one thing worth improvising.',
+    safetyNote: 'Progress one step at a time and earn each harder variation — bridges and handstand work especially reward patience and punish rushing.',
+    days: [
+      { key: 'push', label: 'Push progression', sessionType: 'calisthenics', focus: 'Push-up to one-arm push-up — the upper-body press with no bar.', exercises: ['push-up', 'incline-pushup', 'one-arm-pushup', 'chair-dip'], prescription: 'Work your hardest clean variation, 4–5 sets', minutes: 30 },
+      { key: 'legs', label: 'Squat progression', sessionType: 'calisthenics', focus: 'Bodyweight squat to pistol — single-leg strength anywhere.', exercises: ['bodyweight-squat', 'bulgarian-split-squat', 'pistol-squat', 'wall-sit'], prescription: 'Progressions, 4–5 sets', minutes: 30 },
+      { key: 'pull', label: 'Pull progression', sessionType: 'calisthenics', focus: 'Rows to pull-ups to muscle-ups — you need something to hang from.', exercises: ['inverted-row', 'pull-up', 'chin-up', 'dead-hang'], prescription: 'Hardest clean variation, 4–5 sets', minutes: 30 },
+      { key: 'core', label: 'Core & bridge', sessionType: 'calisthenics', focus: 'Leg raises and bridges — the Convict Conditioning spine work.', exercises: ['hanging-leg-raise', 'l-sit', 'superman-hold', 'plank'], prescription: 'Leg-raise + bridge progressions, 4 sets', minutes: 25 },
+      { key: 'skill', label: 'Handstand & finisher', sessionType: 'calisthenics', focus: 'The handstand progression, then a high-volume finisher.', exercises: ['handstand-hold', 'pike-push-up', 'burpees', 'eight-count-bodybuilder'], prescription: 'Skill work + burpee finisher', minutes: 30 },
+    ],
+    diet: {
+      name: 'Cheap, simple, protein-stretched',
+      approach:
+        'Training with nothing pairs with eating on nearly nothing: cheap, filling, protein-adequate staples — beans and rice, eggs, tinned fish, oats, peanut butter, milk powder. It proves you don\'t need supplements or expensive food to build a strong body, just enough protein and enough total calories.',
+      macroSlant: 'Cheap protein (beans, eggs, tinned fish), grain carbs, minimal cost.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Oats with milk and peanut butter.' },
+        { label: 'Lunch', detail: 'Rice and beans with tinned fish or eggs.' },
+        { label: 'Snack', detail: 'Eggs or a scoop of milk powder — cheap protein.' },
+        { label: 'Dinner', detail: 'More rice and beans, vegetables where you can.' },
+      ],
+      notes: ['Beans + rice is a complete-protein, dirt-cheap base — the whole diet can be built on it.'],
+    },
+  },
   {
     key: 'life-office',
     category: 'lifestyle',

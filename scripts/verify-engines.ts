@@ -34,6 +34,7 @@ import { projectComposition, compareToActual, explainGap, fatLossFraction, leanG
 import { distributeSessionCalories, activeSecondsFor, caloriesForReference } from '../src/lib/exerciseCalories';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
+import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
 
 let pass = 0;
 let fail = 0;
@@ -397,6 +398,22 @@ check('Faith practices sit alongside the five prayers', ['dhikr','quran-recitati
 const wimhof = EXLIB.find((e) => e.slug === 'wim-hof-breathing');
 check('Cyclic hyperventilation carries a water/fainting warning', /water/i.test(wimhof?.description ?? '') && (wimhof?.instructions ?? []).some((i) => /water|faint/i.test(i)));
 check('Martial arts library covers styles and drills', EXLIB.filter((e) => e.sessionType === 'martial_arts').length >= 40, `${EXLIB.filter((e) => e.sessionType === 'martial_arts').length}`);
+
+console.log('\nSpecial Programmes:');
+const badSpecialSlugs = SPECIAL_PROGRAMS.flatMap((p) => p.days.flatMap((d) => d.exercises.filter((s) => !ALL_SLUGS.has(s))));
+check('Every special-programme exercise slug exists', badSpecialSlugs.length === 0, badSpecialSlugs.slice(0, 5).join(', '));
+check('Special-programme keys are unique', new Set(SPECIAL_PROGRAMS.map((p) => p.key)).size === SPECIAL_PROGRAMS.length, `${SPECIAL_PROGRAMS.length} programmes`);
+check('Every programme has origin, ethos and an authenticity note', SPECIAL_PROGRAMS.every((p) => p.origin.length > 40 && p.ethos.length > 10 && p.authenticityNote.length > 30));
+check('Every programme ships a diet with a sample day and notes', SPECIAL_PROGRAMS.every((p) => p.diet.approach.length > 40 && p.diet.sampleDay.length >= 3 && p.diet.notes.length >= 1));
+check('Every day declares a session type, focus and prescription', SPECIAL_PROGRAMS.every((p) => p.days.length >= 3 && p.days.every((d) => !!d.sessionType && d.focus.length > 10 && d.prescription.length > 5 && d.minutes > 0)));
+check('All three categories are populated', (['military','historical','lifestyle'] as const).every((c) => specialProgramsFor(c).length >= 2));
+check('The named programmes are all present', ['mil-army-acft','mil-seal-prep','mil-spetsnaz','his-roman-legion','his-spartan-agoge','his-shaolin','his-dagestan','his-aztec','life-office','life-morning'].every((k) => !!findSpecialProgram(k)));
+// The demanding ones must carry a safety note.
+check('Demanding programmes carry a safety note', ['mil-seal-prep','mil-commando','his-spartan-agoge','his-shaolin','his-dagestan'].every((k) => (findSpecialProgram(k)?.safetyNote ?? '').length > 20));
+// Iron-body / neck-bridge conditioning must warn about gradual progression.
+const ironBody = EXLIB.find((e) => e.slug === 'iron-body-conditioning');
+check('Body-conditioning drills warn to progress gradually', (ironBody?.instructions ?? []).some((i) => /month|gradual|pain/i.test(i)));
+check('Session style tag namespaces the programme and day', specialStyleTag(SPECIAL_PROGRAMS[0], SPECIAL_PROGRAMS[0].days[0]).startsWith('special:'));
 
 console.log('\nGoals — recomposition & performance:');
 const recompTargets = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'recomp', rate: 'moderate' });

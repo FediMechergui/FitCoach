@@ -19,8 +19,9 @@ import { seedExerciseLibrary } from './seed';
  *                Also lands v2.7's 27 exercises, which were added without a
  *                bump and so had only ever reached fresh installs.
  *   9 → 10 v2.9: +124 exercises (sport, outdoor, mind-body, meditation)
+ *   10 → 11 v2.11: +27 tactical & heritage exercises (Special Programmes)
  */
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

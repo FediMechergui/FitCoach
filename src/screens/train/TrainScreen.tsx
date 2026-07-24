@@ -104,6 +104,24 @@ export function TrainScreen() {
         onPress={() => navigation.navigate('LogSession')}
       />
 
+      {/* Themed military / historical / lifestyle programmes */}
+      <Pressable onPress={() => navigation.navigate('SpecialPrograms')}>
+        <Card accent={theme.colors.accent} style={{ gap: 6 }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="mindbody.special" size={24} color={theme.colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Special Programmes</Text>
+                <Text variant="caption" color="textMuted" numberOfLines={1}>
+                  Military, Shaolin, Roman, Spartan, Dagestan… + their diets
+                </Text>
+              </View>
+            </Row>
+            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+          </Row>
+        </Card>
+      </Pressable>
+
       <Row>
         <Button
           title="Walk"

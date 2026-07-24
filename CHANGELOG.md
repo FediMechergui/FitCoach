@@ -10,6 +10,34 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.11 — 2026-07-24 · Special Programmes — soldier, monk, legionary
+A new **Special Programmes** section on Train: 14 themed programmes, each with its real history,
+a full multi-discipline training week (every day picks its own session type), and the diet those
+people actually ate. Every one is honest about **what's real and what's adapted**, and carries a
+safety note where the training is demanding. Backed by **27 new tactical & heritage exercises**
+(rope climb, sandbag carry/clean, atlas-stone lift, tyre flip, sledgehammer, hand-release push-up,
+eight-count bodybuilder, sprint-drag-carry, low crawl, horse & bow stance, sword/spear/club drills,
+sprawls, takedown shots, neck bridge, iron-body conditioning, deskside mobility…). Library **481 → 508**.
+
+- **Military & Special Forces** — Army Combat Fitness (built around the six ACFT events), Navy SEAL
+  Prep (fin swims, calisthenics pyramids, timed runs), Spetsnaz Conditioning (kettlebell + Combat
+  Sambo), Royal Marines Commando (load-carriage "yomps" and the endurance course).
+- **Warriors of History** — Roman Legionary (the iter march, drill at the palus, pilum, camp work,
+  straight from Vegetius), Spartan Agoge (running, pankration, hoplite strength — the cruelty
+  deliberately dropped), Shaolin Warrior Monk (horse stance, forms, conditioning, Chan meditation &
+  qigong), Dagestan Wrestler (mountain runs, rope climbs, relentless wrestling), Aztec Eagle &
+  Jaguar (courier runs, macuahuitl & atlatl drills), Viking Strength (stone lifting, rowing, glíma),
+  Samurai Bushidō (suburi sword cuts, jūjutsu, Zen).
+- **Everyday Special Ops** — Office Quick Ops (deskside, 5–15 min "exercise snacks"), Home Morning
+  Kickstart (10–20 min, no kit), Hotel & Travel WOD (a full workout in a hotel room).
+- **Each carries its own diet** with the historical approach, a macro slant, a sample day and honest
+  notes (the legionary grain-and-legume ration, the Shaolin monastery vegetarian table, the Norse
+  skyr-and-fish table, the Aztec maize-and-beans complete protein, and so on) — plus a one-tap
+  "build a day at my macros" into the diet generator.
+- Every day pre-loads its exercises and tags the session `special:<programme>:<day>` so progress
+  groups like-for-like. Schema bumped 10 → 11; re-verified non-destructive against a database with
+  logs (506 inserted, 2 updated, 0 orphaned). verify-engines **212 → 222**.
+
 ## v2.10 — 2026-07-23 · Real calories per exercise · muscle mass vs the model
 Two accuracy fixes aimed squarely at "show me the *real* numbers".
 

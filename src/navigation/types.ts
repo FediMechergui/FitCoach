@@ -20,6 +20,9 @@ export type RootStackParamList = {
   MethodPicker: { sessionType: SessionType };
   /** pre-built weekly programs for a category */
   ProgramPicker: { sessionType: SessionType };
+  /** themed military / historical / lifestyle programmes */
+  SpecialPrograms: undefined;
+  SpecialProgramDetail: { programKey: string };
   ActiveSession: { sessionId: number };
   /** pick=true selects exercises; sessionId targets a specific (e.g. finished) session */
   ExerciseLibrary: { pick?: boolean; sessionId?: number } | undefined;

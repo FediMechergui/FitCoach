@@ -34,6 +34,8 @@ import { HormonesScreen } from '@/screens/health/HormonesScreen';
 import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
 import { MethodPickerScreen } from '@/screens/train/MethodPickerScreen';
 import { ProgramPickerScreen } from '@/screens/train/ProgramPickerScreen';
+import { SpecialProgramsScreen } from '@/screens/train/SpecialProgramsScreen';
+import { SpecialProgramDetailScreen } from '@/screens/train/SpecialProgramDetailScreen';
 import { GrowthScreen } from '@/screens/stats/GrowthScreen';
 import { ChangelogScreen } from '@/screens/profile/ChangelogScreen';
 import { TrendsScreen } from '@/screens/stats/TrendsScreen';
@@ -79,6 +81,8 @@ export function RootNavigator() {
           <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: 'Training Split' }} />
           <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: 'Training Methods' }} />
           <Stack.Screen name="ProgramPicker" component={ProgramPickerScreen} options={{ title: 'Programs' }} />
+          <Stack.Screen name="SpecialPrograms" component={SpecialProgramsScreen} options={{ title: 'Special Programmes' }} />
+          <Stack.Screen name="SpecialProgramDetail" component={SpecialProgramDetailScreen} options={{ title: 'Programme' }} />
           <Stack.Screen
             name="ActiveSession"
             component={ActiveSessionScreen}

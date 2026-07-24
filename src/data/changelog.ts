@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.11',
+    date: '2026-07-24',
+    title: 'Special Programmes — train like a soldier, a monk, a legionary',
+    highlights: [
+      'New Special Programmes section on Train: 14 themed programmes, each with its real history, a full multi-discipline training week, and the diet those people actually ate.',
+      'Military & Special Forces: Army Combat Fitness (the six ACFT events), Navy SEAL Prep (swim/run/pyramids), Spetsnaz Conditioning (kettlebell & combat sambo), Royal Marines Commando (load-carriage yomps).',
+      'Warriors of History: Roman Legionary (march, drill at the post, dig), Spartan Agoge, Shaolin Warrior Monk (stances, forms, Chan meditation), Dagestan Wrestler (mountain runs, rope climbs), Aztec Eagle & Jaguar, Viking Strength, Samurai Bushidō.',
+      'Everyday Special Ops: Office Quick Ops (deskside, 5–15 min), Home Morning Kickstart, and a Hotel & Travel WOD for zero-equipment days.',
+      'Each programme is honest about what\'s real and what\'s adapted, carries a safety note where the training is demanding, and 27 new tactical & heritage exercises back them up (rope climb, sandbag work, horse stance, sword cuts, sprawls and more).',
+      'Every day pre-loads its exercises and tags the session so your progress groups like-for-like — start any day in one tap.',
+    ],
+  },
+  {
     version: '2.10',
     date: '2026-07-23',
     title: 'Real calories per exercise · muscle mass vs the model',

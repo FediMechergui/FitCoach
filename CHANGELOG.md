@@ -10,6 +10,26 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.13 — 2026-07-24 · Programme diets → real, loggable nutrition
+The Special Programme diets were prose. Now every meal is built from **real foods** in the database,
+carrying full **macros and micronutrients**, and can be logged straight into the Nutrition diary.
+
+- New **`specialDietPlans.ts`**: each of the ~90 programme meals maps to concrete FOOD_DB components
+  (ids + servings), aligned index-for-index with the programme's sample day. Nothing invents
+  nutrition — the numbers come from the food database and its micronutrient layer.
+- New **`lib/specialDiet.ts`** resolves a meal or a whole day into real macros + summed micros, and
+  converts a meal into precise diary rows (per-serving macros + micros, scaled on insert).
+- New **Programme meals** screen in the **Nutrition tab**: all 24 diets, grouped by section, each
+  meal showing its calories/protein and food breakdown with one-tap **Log**, plus **Log the whole day**.
+- On a programme's page, the diet section now shows each meal's real calories and foods, with
+  per-meal logging and a **"Log this whole day to my diary"** button.
+- Added 6 whole-food staples the historical diets needed — **barley, buckwheat (grechka), amaranth,
+  corn tortillas, miso soup, dried apricots** — with real per-serving macros. Hydration-only notes
+  (plain water/coffee) log nothing.
+- verify-engines **234 → 242**: every component resolves to a real food, builds align with sample
+  days, every day has real calories, macros reconcile with calories (±15%), 86/87 meals carry
+  micronutrients, and the logging path yields valid diary rows. Ships over-the-air (no schema change).
+
 ## v2.12 — 2026-07-24 · Superhero training, more programmes & 20 new achievements
 Two additions on top of v2.11's Special Programmes, plus an achievements expansion.
 

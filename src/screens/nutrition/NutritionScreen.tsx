@@ -138,6 +138,24 @@ export function NutritionScreen() {
         </Card>
       </Pressable>
 
+      {/* Special-programme meals — loggable with real macros & micros */}
+      <Pressable onPress={() => navigation.navigate('ProgrammeMeals')}>
+        <Card accent={theme.colors.accent}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="mindbody.special" size={20} color={theme.colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Programme meals</Text>
+                <Text variant="caption" color="textMuted">
+                  Eat like a legionary, a monk or a hero — log any meal with real macros & micros
+                </Text>
+              </View>
+            </Row>
+            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+          </Row>
+        </Card>
+      </Pressable>
+
       {/* Micronutrients & supplements */}
       <Pressable onPress={() => navigation.navigate('Micronutrients')}>
         <Card accent={theme.colors.accent}>

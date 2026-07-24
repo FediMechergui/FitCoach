@@ -54,6 +54,13 @@ const GENERIC_FOODS: FoodItem[] = [
   { id: 'orange', name: 'Orange (medium)', serving: '1 (131g)', calories: 62, protein: 1.2, carbs: 15, fat: 0.2, fiber: 3.1 },
   { id: 'blueberries', name: 'Blueberries', serving: '1 cup (148g)', calories: 84, protein: 1.1, carbs: 21, fat: 0.5, fiber: 3.6 },
   { id: 'protein-bar', name: 'Protein Bar (typical)', serving: '1 bar (60g)', calories: 220, protein: 20, carbs: 22, fat: 7, fiber: 8 },
+  // Whole-food staples used by the Special Programme diets (real per-serving macros).
+  { id: 'barley-cooked', name: 'Barley (cooked)', serving: '1 cup (157g)', calories: 193, protein: 3.5, carbs: 44, fat: 0.7, fiber: 6 },
+  { id: 'buckwheat-cooked', name: 'Buckwheat / Grechka (cooked)', serving: '1 cup (168g)', calories: 155, protein: 5.7, carbs: 33, fat: 1, fiber: 4.5 },
+  { id: 'amaranth-cooked', name: 'Amaranth (cooked)', serving: '1 cup (246g)', calories: 251, protein: 9.3, carbs: 46, fat: 3.9, fiber: 5.2 },
+  { id: 'corn-tortilla', name: 'Corn Tortillas', serving: '2 small (52g)', calories: 120, protein: 3, carbs: 24, fat: 1.5, fiber: 3 },
+  { id: 'miso-soup', name: 'Miso Soup', serving: '1 bowl (240g)', calories: 40, protein: 3, carbs: 4, fat: 1.5, fiber: 1 },
+  { id: 'dried-apricot', name: 'Dried Apricots', serving: '40g (~8)', calories: 96, protein: 1.4, carbs: 25, fat: 0.2, fiber: 3 },
 ];
 
 /** The searchable catalogue: generic staples + the Tunisian reference. */

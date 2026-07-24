@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.13',
+    date: '2026-07-24',
+    title: 'Programme diets are now real, loggable nutrition',
+    highlights: [
+      'Every Special Programme meal is now built from real foods with full macros and micronutrients — no more prose-only diets.',
+      'New "Programme meals" screen in the Nutrition tab: browse all 24 programme diets, see each meal\'s calories, protein and food breakdown, and log any meal — or a whole day — straight to your diary.',
+      'On a programme\'s page, tap any meal to log it, or "Log this whole day" — it adds the real component foods so your macros and vitamins/minerals update exactly like normal food logging.',
+      'Added a few whole-food staples the historical diets needed (barley, buckwheat/grechka, amaranth, corn tortillas, miso soup, dried apricots) with real per-serving macros.',
+    ],
+  },
+  {
     version: '2.12',
     date: '2026-07-24',
     title: 'Superhero training, 10 more programmes & 20 new achievements',

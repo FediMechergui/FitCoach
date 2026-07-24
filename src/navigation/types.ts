@@ -37,6 +37,7 @@ export type RootStackParamList = {
   Supplements: undefined;
   SupplementPlan: undefined;
   DietPlan: undefined;
+  ProgrammeMeals: undefined;
 
   ExerciseStats: { exerciseId: number; name: string };
   EditProfile: undefined;

@@ -35,6 +35,9 @@ import { distributeSessionCalories, activeSecondsFor, caloriesForReference } fro
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
+import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
+import { dietNutrition, mealToDiaryInputs } from '../src/lib/specialDiet';
+import { FOOD_DB as SPECIAL_FOOD_DB } from '../src/data/foods';
 
 let pass = 0;
 let fail = 0;
@@ -418,6 +421,25 @@ check('Rocky reminds you to cook the eggs', /cook|salmonella/i.test((findSpecial
 const ironBody = EXLIB.find((e) => e.slug === 'iron-body-conditioning');
 check('Body-conditioning drills warn to progress gradually', (ironBody?.instructions ?? []).some((i) => /month|gradual|pain/i.test(i)));
 check('Session style tag namespaces the programme and day', specialStyleTag(SPECIAL_PROGRAMS[0], SPECIAL_PROGRAMS[0].days[0]).startsWith('special:'));
+
+console.log('\nSpecial Programme diets (loggable, real nutrition):');
+const specialFoodIds = new Set(SPECIAL_FOOD_DB.map((f) => f.id));
+const badDietIds = Object.values(SPECIAL_DIET_BUILDS).flatMap((b) => b.flatMap((m) => m.components.map((c) => c.id))).filter((id) => !specialFoodIds.has(id));
+check('Every meal component maps to a real food', badDietIds.length === 0, badDietIds.slice(0, 5).join(', '));
+check('Every programme has a diet build', SPECIAL_PROGRAMS.every((p) => !!SPECIAL_DIET_BUILDS[p.key]));
+check('Builds align with each programme\'s sample day', SPECIAL_PROGRAMS.every((p) => (SPECIAL_DIET_BUILDS[p.key]?.length ?? -1) === p.diet.sampleDay.length));
+const dietsN = SPECIAL_PROGRAMS.map((p) => dietNutrition(p));
+check('Every programme day has real calories from its foods', dietsN.every((d) => d.calories > 0));
+check('Diet macros are consistent with calories (±15%)', dietsN.every((d) => { const kcal = d.protein * 4 + d.carbs * 4 + d.fat * 9; return kcal === 0 || Math.abs(kcal - d.calories) <= d.calories * 0.15; }));
+// Micros must actually flow through: most non-hydration meals carry vitamins/minerals.
+const allMeals = dietsN.flatMap((d) => d.meals).filter((m) => !m.hydrationOnly);
+const mealsWithMicros = allMeals.filter((m) => MICRO_KEYS.some((k) => (m.micros[k] ?? 0) > 0)).length;
+check('The large majority of meals carry micronutrients', mealsWithMicros >= allMeals.length * 0.9, `${mealsWithMicros}/${allMeals.length}`);
+// Logging path yields precise diary rows with per-serving macros + micros.
+const sampleMeal = dietNutrition(findSpecialProgram('his-roman-legion')!).meals[0];
+const rows = mealToDiaryInputs(sampleMeal);
+check('A meal converts to precise diary rows with macros', rows.length >= 1 && rows.every((r) => r.calories >= 0 && r.foodName.length > 0 && !!r.mealType));
+check('Hydration-only meals log nothing', mealToDiaryInputs(dietNutrition(findSpecialProgram('life-morning')!).meals[0]).length === 0);
 
 console.log('\nGoals — recomposition & performance:');
 const recompTargets = computeTargets({ sex: 'male', age: 30, heightCm: 180, weightKg: 80, activityLevel: 'moderate', goal: 'recomp', rate: 'moderate' });

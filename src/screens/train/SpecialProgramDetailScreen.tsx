@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -21,6 +21,8 @@ import {
 } from '@/data/specialPrograms';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { useSessionStore } from '@/stores/sessionStore';
+import { dietNutrition, mealToDiaryInputs, type MealNutrition } from '@/lib/specialDiet';
+import { addPreciseFood } from '@/repositories/nutritionRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DetailRoute = RouteProp<RootStackParamList, 'SpecialProgramDetail'>;
@@ -41,6 +43,8 @@ export function SpecialProgramDetailScreen() {
     );
   }
 
+  const diet = dietNutrition(program);
+
   const startDay = (day: SpecialDay) => {
     begin(day.sessionType, {
       label: `${program.name} · ${day.label}`,
@@ -49,6 +53,18 @@ export function SpecialProgramDetailScreen() {
     });
     const id = useSessionStore.getState().activeId!;
     navigation.replace('ActiveSession', { sessionId: id });
+  };
+
+  const logMeal = (meal: MealNutrition) => {
+    const inputs = mealToDiaryInputs(meal);
+    inputs.forEach((f) => addPreciseFood(f));
+    Alert.alert('Logged', `${meal.label} (${meal.calories} kcal) added to today's ${meal.mealType}.`);
+  };
+
+  const logDay = () => {
+    const loggable = diet.meals.filter((m) => !m.hydrationOnly);
+    loggable.flatMap((m) => mealToDiaryInputs(m)).forEach((f) => addPreciseFood(f));
+    Alert.alert('Logged', `${program.diet.name} — ${diet.calories} kcal across ${loggable.length} meals added to today's diary.`);
   };
 
   return (
@@ -169,7 +185,7 @@ export function SpecialProgramDetailScreen() {
         );
       })}
 
-      {/* The diet */}
+      {/* The diet — with real, loggable macros/micros per meal */}
       <SectionHeader title={program.diet.name} />
       <Card accent={theme.colors.calories} style={{ gap: 8 }}>
         <Text variant="body" color="textMuted">{program.diet.approach}</Text>
@@ -180,12 +196,32 @@ export function SpecialProgramDetailScreen() {
           </Text>
         </Row>
         <Divider />
-        <Text variant="label" color="textMuted">A day of eating</Text>
-        {program.diet.sampleDay.map((meal) => (
-          <Row key={meal.label} gap={8} style={{ alignItems: 'flex-start' }}>
-            <Text variant="caption" color={theme.colors.calories} style={{ width: 96 }}>{meal.label}</Text>
-            <Text variant="caption" color="textMuted" style={{ flex: 1 }}>{meal.detail}</Text>
-          </Row>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="label" color="textMuted">A day of eating</Text>
+          <Text variant="caption" color={theme.colors.calories}>
+            ≈ {diet.calories} kcal · {Math.round(diet.protein)}P {Math.round(diet.carbs)}C {Math.round(diet.fat)}F
+          </Text>
+        </Row>
+        {diet.meals.map((meal, i) => (
+          <View key={i} style={{ gap: 3, paddingVertical: 2 }}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="bodyStrong" style={{ flex: 1 }}>{meal.label}</Text>
+              {!meal.hydrationOnly && (
+                <Pressable onPress={() => logMeal(meal)} hitSlop={8}>
+                  <Row gap={4} style={{ alignItems: 'center' }}>
+                    <Text variant="caption" color={theme.colors.calories}>{meal.calories} kcal</Text>
+                    <Icon icon="core.add" size={16} color={theme.colors.calories} />
+                  </Row>
+                </Pressable>
+              )}
+            </Row>
+            <Text variant="caption" color="textMuted">{meal.detail}</Text>
+            {meal.foods.length > 0 && (
+              <Text variant="caption" color="textFaint">
+                {meal.foods.map((f) => (f.servings !== 1 ? `${f.name} ×${f.servings}` : f.name)).join(' · ')}
+              </Text>
+            )}
+          </View>
         ))}
         {program.diet.notes.map((n, i) => (
           <Row key={i} gap={8} style={{ alignItems: 'flex-start' }}>
@@ -194,12 +230,15 @@ export function SpecialProgramDetailScreen() {
           </Row>
         ))}
         <Button
-          title="Build a day at my macros"
+          title="Log this whole day to my diary"
           icon="nutrition.calories"
-          variant="secondary"
           size="sm"
-          onPress={() => navigation.navigate('DietPlan')}
+          color={theme.colors.calories}
+          onPress={logDay}
         />
+        <Text variant="caption" color="textFaint" center>
+          Meals log as their real foods, with full macros and micronutrients.
+        </Text>
       </Card>
 
       <Text variant="caption" color="textFaint" center>

@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.15',
+    date: '2026-07-25',
+    title: 'Legion, ancient warriors, bodybuilders & quick urge-counters',
+    highlights: [
+      'New Special Programmes — French Foreign Legion (GCP) in Military; Early Islamic Cavalry, Chinese Dynastic Warrior, Zulu Impi and Ancient Egyptian Warrior in Warriors of History.',
+      'Bodybuilding legends join Superheroes & Legends: Arnold (Golden-Era volume), Ronnie Coleman (heavy mass) and Dorian Yates (Blood & Guts HIT) — each with its real training split and diet.',
+      'New Quick Counters & Urge-Busters section: on-demand 2–10 minute protocols to ride out a nicotine craving, reset a compulsive impulse, or shift your focus — using standard, non-judgemental behavioural tools (urge surfing, the 10-minute rule, movement redirection, grounding, HALT).',
+      'Seven new quick-counter exercises (burst redirect, 10-minute rule, 5-4-3-2-1 grounding, cold-water splash, change environment, HALT check, keep-hands-busy).',
+      'Every new programme still logs its diet into Nutrition with real macros & micros.',
+    ],
+  },
+  {
     version: '2.14',
     date: '2026-07-25',
     title: 'Grip work, easier alternatives, sub-muscles & composition trends',

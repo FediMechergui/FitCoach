@@ -11,7 +11,7 @@ import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, type SpecialCategory } from '@
 import { dietNutrition, mealToDiaryInputs, type MealNutrition } from '@/lib/specialDiet';
 import { addPreciseFood } from '@/repositories/nutritionRepo';
 
-const CATEGORY_ORDER: SpecialCategory[] = ['military', 'historical', 'superhero', 'lifestyle'];
+const CATEGORY_ORDER: SpecialCategory[] = ['military', 'historical', 'superhero', 'counters', 'lifestyle'];
 
 /**
  * Every Special Programme diet, meal by meal, loggable straight into the diary

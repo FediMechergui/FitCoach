@@ -10,6 +10,33 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.15 — 2026-07-25 · Legion, ancient warriors, bodybuilders & quick urge-counters
+Special Programmes grow to **35 across 5 sections**, including a new on-demand urge/focus toolkit.
+
+- **Military:** **French Foreign Legion — GCP** (Groupement des Commandos Parachutistes): ruck
+  marches, runs, obstacle/climb, combat swim and close combat, on the Legion's load-carriage base.
+- **Warriors of History (+4):** **Early Islamic Cavalry** (furusiyya — archery, sword, desert
+  endurance), **Chinese Dynastic Warrior** (crossbow, spear, dao, imperial-exam stone strength),
+  **Zulu Impi** (barefoot distance running, iklwa & shield, the "horns" encirclement), and
+  **Ancient Egyptian Warrior** (chariot archery, khopesh & spear, Nile rowing). Each with its
+  authentic diet (dates & dairy, millet & soy, maize & amasi, bread-beans-fish).
+- **Superheroes, Legends & Bodybuilders:** the greatest bodybuilders — **Arnold (Golden-Era**
+  volume & chest/back supersets), **Ronnie Coleman** (heavy-plus-high-volume mass) and **Dorian
+  Yates** (Blood & Guts one-set-to-failure HIT) — each with its real split and mass diet, and honest
+  safety notes about volume, load and failure training.
+- **New section — Quick Counters & Urge-Busters:** on-demand 2–10 minute protocols, not weekly
+  plans. **Nicotine Urge Buster** (the 4 Ds, urge surfing, oral substitutes), **Impulse Reset**
+  (redirect the energy, change environment, 10-minute rule, urge surfing, HALT — for any compulsive
+  habit you've decided to change, framed neutrally and evidence-based, no moralising or
+  pseudoscience) and **Focus Shift** (physiological sigh, grounding, movement snack, the 2-minute
+  start). Each carries a light "supportive nutrition" note (steady blood sugar, hydration, caffeine
+  timing).
+- **+7 exercises:** burst redirect, the 10-minute rule, 5-4-3-2-1 grounding, cold-water splash,
+  change your environment, HALT check-in, keep-the-hands-busy (library now 550).
+- All 11 new programmes log their diet into the Nutrition tab with real macros & micros, like the
+  rest. Schema bumped 13 → 14 for the new exercises; re-verified non-destructive. tsc clean;
+  verify-engines **256 → 260**. Ships over-the-air.
+
 ## v2.14 — 2026-07-25 · Grip work, easier alternatives, sub-muscles & composition trends
 A training-depth and body-insight pass across the library, sessions and Trends.
 

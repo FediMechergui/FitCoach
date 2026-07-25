@@ -22,8 +22,9 @@ import { seedExerciseLibrary } from './seed';
  *   10 → 11 v2.11: +27 tactical & heritage exercises (Special Programmes)
  *   11 → 12 v2.12: +2 exercises (one-arm push-up, speed bag) for new programmes
  *   12 → 13 v2.14: +30 exercises (grip/forearm, advanced calisthenics, wellness)
+ *   13 → 14 v2.15: +7 quick-counter exercises (urge/focus protocols)
  */
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

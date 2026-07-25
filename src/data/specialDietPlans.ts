@@ -179,6 +179,73 @@ export const SPECIAL_DIET_BUILDS: Record<string, MealBuild[]> = {
     M('snack', [['almonds', 1], ['banana', 1]]),
     M('dinner', [['salmon', 1], ['tn-potato', 1], ['broccoli', 1]]),
   ],
+
+  // ── Historical (more) ──
+  'his-islamic-conquest': [
+    M('breakfast', [['tn-date-deglet', 3], ['milk', 1], ['tn-pain-complet', 1]]),
+    M('lunch', [['tn-pain-complet', 2], ['tn-olive-oil-tbsp', 1], ['tn-beef-lean', 1], ['greek-yogurt', 1]]),
+    M('dinner', [['tn-lamb', 1.5], ['barley-cooked', 1], ['tn-date-deglet', 2]]),
+  ],
+  'his-chinese-warrior': [
+    M('breakfast', [['white-rice', 1], ['tn-torshi', 1]]),
+    M('lunch', [['white-rice', 1.5], ['tofu', 1], ['tn-spinach', 1]]),
+    M('dinner', [['tn-pasta-plain', 1], ['tn-beef-lean', 1], ['broccoli', 1]]),
+  ],
+  'his-zulu-impi': [
+    M('breakfast', [['amaranth-cooked', 1], ['greek-yogurt', 1]]),
+    M('lunch', [['tn-kidney-beans', 1.5], ['tn-spinach', 1], ['corn-tortilla', 1]]),
+    M('dinner', [['amaranth-cooked', 1], ['tn-beef-lean', 1], ['tn-carrot', 1]]),
+  ],
+  'his-egypt-warrior': [
+    M('breakfast', [['tn-pain-complet', 1], ['tn-onion', 0.5], ['tn-date-deglet', 2], ['tn-fig-dried', 2]]),
+    M('lunch', [['tn-fava-beans', 1.5], ['tn-pain-complet', 1]]),
+    M('dinner', [['tn-sea-bream', 1], ['tn-pain-complet', 1], ['broccoli', 1]]),
+  ],
+
+  // ── Bodybuilders ──
+  'hero-arnold': [
+    M('breakfast', [['egg', 3], ['oats', 1.5], ['tn-milk-whole', 1], ['banana', 1]]),
+    M('lunch', [['tn-beef-lean', 1.5], ['white-rice', 1.5], ['broccoli', 1]]),
+    M('snack', [['whey', 1], ['milk', 1]]),
+    M('dinner', [['salmon', 1.5], ['tn-potato', 1.5], ['tn-spinach', 1]]),
+  ],
+  'hero-ronnie': [
+    M('breakfast', [['egg', 3], ['oats', 1.5], ['tn-milk-whole', 1]]),
+    M('lunch', [['chicken-breast', 2], ['white-rice', 2], ['broccoli', 1]]),
+    M('snack', [['whey', 1], ['banana', 1]]),
+    M('dinner', [['tn-beef-lean', 1.5], ['tn-potato', 1.5], ['tn-spinach', 1]]),
+  ],
+  'hero-dorian': [
+    M('breakfast', [['egg', 3], ['oats', 1]]),
+    M('lunch', [['chicken-breast', 1.5], ['white-rice', 1.5], ['broccoli', 1]]),
+    M('snack', [['whey', 1], ['apple', 1]]),
+    M('dinner', [['tn-beef-lean', 1.5], ['tn-potato', 1.5], ['tn-spinach', 1]]),
+  ],
+
+  // ── Military (more) ──
+  'mil-france-legion': [
+    M('breakfast', [['tn-pain-complet', 1], ['cheddar', 1], ['egg', 2]]),
+    M('lunch', [['pasta', 1.5], ['tuna', 1]]),
+    M('snack', [['whey', 1], ['banana', 1]]),
+    M('dinner', [['salmon', 1], ['tn-potato', 1.5], ['broccoli', 1]]),
+  ],
+
+  // ── Counters — one supportive snack; the rest are hydration/principle notes ──
+  'ctr-nicotine': [
+    M('snack', [['tn-carrot', 1], ['tn-celery', 1], ['sd-sunflower', 1]]),
+    M('snack', []),
+    M('snack', []),
+  ],
+  'ctr-urge-reset': [
+    M('snack', [['greek-yogurt', 1], ['almonds', 1]]),
+    M('snack', []),
+    M('snack', []),
+  ],
+  'ctr-focus-shift': [
+    M('breakfast', [['egg', 2], ['oats', 1]]),
+    M('snack', []),
+    M('snack', []),
+  ],
 };
 
 export function dietBuildFor(programKey: string): MealBuild[] | undefined {

@@ -18,7 +18,7 @@ import type { ProgramLevel } from './programs';
  * adding is always safe. Every `exercises` slug must exist in the library.
  */
 
-export type SpecialCategory = 'military' | 'historical' | 'superhero' | 'lifestyle';
+export type SpecialCategory = 'military' | 'historical' | 'superhero' | 'lifestyle' | 'counters';
 
 export const SPECIAL_CATEGORY_META: Record<
   SpecialCategory,
@@ -35,14 +35,19 @@ export const SPECIAL_CATEGORY_META: Record<
     icon: 'mindbody.samurai',
   },
   superhero: {
-    label: 'Superheroes & Screen Legends',
-    blurb: 'Training inspired by heroes and the icons — real and fictional — behind them.',
+    label: 'Superheroes, Legends & Bodybuilders',
+    blurb: 'Training inspired by heroes, screen icons and the greatest bodybuilders — real and fictional.',
     icon: 'mindbody.hero',
   },
   lifestyle: {
     label: 'Everyday Special Ops',
     blurb: 'Short, equipment-light routines for real life — desk, dawn, travel, a single cell.',
     icon: 'mindbody.morning',
+  },
+  counters: {
+    label: 'Quick Counters & Urge-Busters',
+    blurb: 'On-demand 2–10 minute protocols to ride out a craving or impulse and shift your focus.',
+    icon: 'mindbody.focus',
   },
 };
 
@@ -631,6 +636,147 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
       notes: ['Umeboshi and light, portable grains — the lesson is eating to stay agile, not full.'],
     },
   },
+  {
+    key: 'his-islamic-conquest',
+    category: 'historical',
+    name: 'Early Islamic Cavalry',
+    tagline: 'The horse-archer, the sword and the endurance of the early conquests.',
+    origin:
+      'The armies of the early Islamic conquests (7th century) prized the "furusiyya" martial arts — horsemanship, archery and swordsmanship — alongside enormous endurance across desert distances. Warriors trained the bow from the saddle, the sword and spear on foot, wrestling for close quarters, and could cover punishing marches on little.',
+    ethos: 'Discipline, mobility and endurance. Skill of the horseman, patience of the desert.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.islamic',
+    accent: '#1B7A5A',
+    authenticityNote:
+      'Built on the documented furusiyya skills — archery, swordsmanship, wrestling and long-distance endurance. Standing archery and stick drills stand in for mounted work; you don\'t need a horse to build the bow arm and the miles.',
+    days: [
+      { key: 'archery', label: 'Archery & bow arm', sessionType: 'strength', focus: 'The bow was the decisive weapon — back and shoulder endurance to draw it all day.', exercises: ['archery', 'band-pull-apart', 'rear-delt-fly', 'dead-hang'], prescription: 'Archery practice + high-rep pulling, 35 min', minutes: 35 },
+      { key: 'sword', label: 'Sword & spear', sessionType: 'martial_arts', focus: 'Cuts, thrusts and guards — the close-quarters skills.', exercises: ['sword-swing-drill', 'spear-thrust-drill', 'ma-shadow-round'], prescription: 'Weapon drills with a stick, 35 min', minutes: 35 },
+      { key: 'endurance', label: 'Desert endurance', sessionType: 'outdoor', focus: 'Covering ground — the mobility that won campaigns.', exercises: ['long-run', 'rucking', 'trail-run'], prescription: 'Long steady distance, some loaded', minutes: 70 },
+      { key: 'wrestle', label: 'Wrestling & grip', sessionType: 'martial_arts', focus: 'Close combat and the grip that holds reins, bow and blade.', exercises: ['wrestling-shots', 'sprawl-drill', 'farmers-carry', 'dead-hang'], prescription: 'Grappling drills + grip work, 30 min', minutes: 30 },
+      { key: 'strength', label: 'Functional strength', sessionType: 'strength', focus: 'The base under every weapon and every mile.', exercises: ['deadlift', 'back-squat', 'overhead-carry', 'pull-up'], prescription: '5×5 on the main lifts', minutes: 50 },
+    ],
+    diet: {
+      name: 'The desert table',
+      approach:
+        'The early Arabian diet was simple and portable: dates, barley and wheat breads, milk and yoghurt (laban), dried and fresh meat, and olive oil — foods that travelled and sustained long campaigns. Dates in particular were the perfect march ration: dense, quick energy with minerals.',
+      macroSlant: 'Date & grain carbs, dairy and meat protein, olive oil fats.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Dates and milk or laban, barley bread.' },
+        { label: 'Midday', detail: 'Bread with olive oil, dried meat, yoghurt.' },
+        { label: 'Evening', detail: 'Grilled or stewed meat, barley, dates to finish.' },
+      ],
+      notes: ['Dates + dairy is a genuinely excellent, portable endurance snack to borrow.'],
+    },
+  },
+  {
+    key: 'his-chinese-warrior',
+    category: 'historical',
+    name: 'Chinese Dynastic Warrior',
+    tagline: 'Crossbow, spear, dao and the discipline of the imperial armies.',
+    origin:
+      'From the Qin and Han armies to later dynasties, the Chinese soldier drilled the crossbow (the era-defining weapon), the spear (qiang), the sabre (dao) and the staff, within rigid formation discipline. Military exams tested strength — drawing heavy bows, lifting weighted stones and wielding the long guandao — alongside skill.',
+    ethos: 'Discipline in formation, mastery of the weapon, strength you can prove.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.chinese',
+    accent: '#B23B3B',
+    authenticityNote:
+      'Reflects the weapons and the imperial military-exam strength tests (heavy bow pulls, stone lifting, the weighted guandao). Crossbow becomes archery/pulling; the guandao becomes club and staff drills.',
+    days: [
+      { key: 'crossbow', label: 'Crossbow & pulling', sessionType: 'strength', focus: 'The crossbow decided battles — heavy pulling strength to span and hold it.', exercises: ['archery', 'pull-up', 'barbell-row', 'dead-hang'], prescription: 'Archery + heavy rows and pulls, 40 min', minutes: 40 },
+      { key: 'polearm', label: 'Spear & staff', sessionType: 'martial_arts', focus: 'The qiang and the staff — reach, footwork and endurance.', exercises: ['spear-thrust-drill', 'club-swing-drill', 'ma-shadow-round'], prescription: 'Polearm drills with a staff, 35 min', minutes: 35 },
+      { key: 'stone', label: 'Stone & exam strength', sessionType: 'strength', focus: 'The imperial exams tested lifting weighted stones and the guandao overhead.', exercises: ['atlas-stone-lift', 'deadlift', 'overhead-carry', 'sandbag-clean-press'], prescription: 'Heavy lifts + carries, 50 min', minutes: 50 },
+      { key: 'sabre', label: 'Dao & formation', sessionType: 'martial_arts', focus: 'Sabre cuts and the conditioning to hold a line.', exercises: ['sword-swing-drill', 'wrestling-shots', 'ma-bag-round'], prescription: 'Sabre drills + rounds, 30 min', minutes: 30 },
+      { key: 'conditioning', label: 'March & conditioning', sessionType: 'outdoor', focus: 'Formation marches over distance.', exercises: ['rucking', 'long-run'], prescription: 'Loaded march building distance', minutes: 60 },
+    ],
+    diet: {
+      name: 'The soldier\'s grain',
+      approach:
+        'The staple of the Chinese armies was grain — millet and rice — supplemented with soy (tofu, fermented beans), vegetables, and meat when available. High in carbohydrate to fuel marching and drilling, with plant and some animal protein. Tea throughout.',
+      macroSlant: 'Millet & rice carbs, soy and meat protein, vegetables.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Rice or millet congee with pickled vegetables.' },
+        { label: 'Midday', detail: 'Rice, tofu or meat, stir-fried greens.' },
+        { label: 'Evening', detail: 'Noodles or rice with vegetables and some meat.' },
+      ],
+      notes: ['Grain-and-soy is a cheap, effective base for high training volume.'],
+    },
+  },
+  {
+    key: 'his-zulu-impi',
+    category: 'historical',
+    name: 'Zulu Impi Warrior',
+    tagline: 'Barefoot speed, the short spear and Shaka\'s brutal conditioning.',
+    origin:
+      'Shaka Zulu forged the impi into one of history\'s most formidable forces through relentless conditioning: warriors ran barefoot over rough ground for miles (reputedly 50+ km a day), fought at close range with the iklwa short stabbing spear and cowhide shield, and drilled the "horns of the buffalo" encirclement until it was instinct. Speed, endurance and close-combat aggression.',
+    ethos: 'Outrun, encircle, close the distance. Conditioning as a weapon.',
+    level: 'advanced',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.tribe',
+    accent: '#8A5A2B',
+    authenticityNote:
+      'Built on the impi\'s documented hallmarks — extreme running endurance, barefoot/minimal footwork, the iklwa-and-shield close combat and fast encirclement drills. Barefoot running is optional and must be built into very gradually; keep shoes if in doubt.',
+    safetyNote: 'The historical conditioning was brutal and sometimes lethal by design. Build running volume gradually, and progress barefoot/minimalist work over months, not days — the Achilles and calves need time.',
+    days: [
+      { key: 'run', label: 'Distance running', sessionType: 'outdoor', focus: 'The impi\'s superpower — covering huge distances on foot, fast.', exercises: ['long-run', 'trail-run', 'beach-sand-run'], prescription: 'Long steady runs, build distance patiently', minutes: 75 },
+      { key: 'spear', label: 'Iklwa & shield', sessionType: 'martial_arts', focus: 'The short stabbing spear at close range behind the shield.', exercises: ['spear-thrust-drill', 'shield-carry-march', 'ma-shadow-round'], prescription: 'Stab-and-shield drills, 35 min', minutes: 35 },
+      { key: 'agility', label: 'Footwork & speed', sessionType: 'cardio', focus: 'The fast, agile encirclement — the "horns" closing.', exercises: ['sprint-repeats', 'shuttle-runs', 'agility-ladder'], prescription: 'Sprints + agility, full recovery, 30 min', minutes: 30 },
+      { key: 'strength', label: 'Warrior strength', sessionType: 'calisthenics', focus: 'Bodyweight and carry strength for the shield arm and the charge.', exercises: ['push-up', 'pull-up', 'overhead-carry', 'walking-lunge'], prescription: 'Bodyweight + carries, 4 rounds', minutes: 35 },
+      { key: 'wrestle', label: 'Close combat', sessionType: 'martial_arts', focus: 'Grappling for when the spear is too close.', exercises: ['wrestling-shots', 'sprawl-drill', 'neck-bridge'], prescription: 'Grappling drills, 30 min', minutes: 30 },
+    ],
+    diet: {
+      name: 'The homestead diet',
+      approach:
+        'The Zulu diet centred on maize (and earlier sorghum) as porridge, amasi (fermented soured milk — a prized staple), beans and vegetables, with beef reserved for feasts and ceremony. High in carbohydrate for the running, with fermented dairy and legume protein.',
+      macroSlant: 'Maize/sorghum carbs, fermented dairy (amasi) and legume protein.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Maize or sorghum porridge with soured milk (amasi).' },
+        { label: 'Midday', detail: 'Beans, greens and maize.' },
+        { label: 'Evening', detail: 'Maize porridge, vegetables, meat on feast days.' },
+      ],
+      notes: ['Fermented milk (amasi/kefir-style) plus maize and beans — a solid high-carb endurance base.'],
+    },
+  },
+  {
+    key: 'his-egypt-warrior',
+    category: 'historical',
+    name: 'Ancient Egyptian Warrior',
+    tagline: 'The chariot archer, the khopesh and the spearmen of the Nile.',
+    origin:
+      'The New Kingdom Egyptian army combined fast chariot archers — the elite arm — with disciplined infantry wielding the khopesh (sickle-sword), spears and shields. Depictions show soldiers training with archery, wrestling, stick-fighting and rowing on the Nile. Scribes recorded harsh, systematic drill from a young age.',
+    ethos: 'Order and discipline under the sun. The archer\'s eye, the spearman\'s wall.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.egypt',
+    accent: '#C79A3B',
+    authenticityNote:
+      'Reflects the documented Egyptian military skills — archery, the khopesh and spear, wrestling (well attested in tomb art), stick-fighting and Nile rowing. The khopesh becomes a curved-stick sword drill; the chariot bow becomes standing archery.',
+    days: [
+      { key: 'archery', label: 'Chariot archery', sessionType: 'strength', focus: 'The elite arm — the composite bow, drawn again and again.', exercises: ['archery', 'band-pull-apart', 'rear-delt-fly', 'pull-up'], prescription: 'Archery + pulling endurance, 35 min', minutes: 35 },
+      { key: 'khopesh', label: 'Khopesh & spear', sessionType: 'martial_arts', focus: 'The sickle-sword and spear of the infantry.', exercises: ['sword-swing-drill', 'spear-thrust-drill', 'shield-carry-march'], prescription: 'Weapon drills with a stick, 35 min', minutes: 35 },
+      { key: 'wrestle', label: 'Wrestling & stick', sessionType: 'martial_arts', focus: 'Wrestling and stick-fighting — both vividly recorded in tomb paintings.', exercises: ['wrestling-shots', 'sprawl-drill', 'ma-shadow-round'], prescription: 'Grappling + stick drills, 30 min', minutes: 30 },
+      { key: 'row', label: 'Nile rowing', sessionType: 'cardio', focus: 'Rowing the Nile — the army moved and trained on the river.', exercises: ['rowing-machine', 'battle-ropes'], prescription: '30–40 min rowing intervals', minutes: 40 },
+      { key: 'strength', label: 'Builder\'s strength', sessionType: 'strength', focus: 'The carrying and lifting strength of a hard-labouring society.', exercises: ['deadlift', 'sandbag-carry', 'overhead-carry', 'back-squat'], prescription: 'Lifts + carries, 45 min', minutes: 45 },
+    ],
+    diet: {
+      name: 'Bread and beer of the Nile',
+      approach:
+        'The Egyptian staple was emmer-wheat bread and barley beer (thick, low-alcohol, nourishing), with onions, garlic, pulses (fava beans, lentils), fish from the Nile, and fruit like dates and figs. Very high in carbohydrate, moderate plant and fish protein — the fuel of a grain civilisation.',
+      macroSlant: 'Wheat & barley carbs, legume and fish protein, dates & figs.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Emmer bread with onions, dates and figs.' },
+        { label: 'Midday', detail: 'Fava beans or lentils, bread, garlic.' },
+        { label: 'Evening', detail: 'Grilled Nile fish, bread, vegetables.' },
+      ],
+      notes: ['Bread, beans and fish is a genuinely balanced ancient template; skip the beer for training.'],
+    },
+  },
 
   // ═══════════════════════════ SUPERHERO & SCREEN LEGENDS ═══════════════════════════
   {
@@ -815,6 +961,118 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
       notes: ['Surplus + protein + progressive overload is the whole method — patience does the rest.'],
     },
   },
+  {
+    key: 'hero-arnold',
+    category: 'superhero',
+    name: 'Arnold — Golden Era',
+    tagline: 'Sky-high volume, chest & back supersets, the pump.',
+    origin:
+      'Arnold Schwarzenegger built the most famous physique of the Golden Era on enormous volume and frequency — often twice-a-day training, six days a week, with punishing chest-and-back supersets, high sets and a relentless pursuit of "the pump". Full-body twice over across a split, and an almost artistic focus on shape and symmetry.',
+    ethos: 'The pump is everything. Volume, frequency and a love of the work itself.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'mindbody.bodybuilder',
+    accent: '#C0A02C',
+    authenticityNote:
+      'Modelled on Arnold\'s documented Golden-Era volume split (chest/back supersets, big arms and legs, high sets). This is a LOT of volume — scale the sets down if you\'re not near-advanced or can\'t recover from it.',
+    safetyNote: 'Golden-Era volume assumes years of training and near-full-time recovery. Cut the set count until your sleep, food and joints can keep up — soreness is not the goal.',
+    days: [
+      { key: 'chestback', label: 'Chest & Back (supersets)', sessionType: 'strength', focus: 'The signature superset — antagonists back to back for the ultimate pump.', exercises: ['bench-press-barbell', 'barbell-row', 'db-incline-press', 'pull-up', 'db-fly', 'db-pullover'], prescription: 'Superset chest/back · 4–5 sets × 8–12', minutes: 70 },
+      { key: 'legs', label: 'Legs', sessionType: 'strength', focus: 'Squat-led leg volume.', exercises: ['back-squat', 'leg-press', 'romanian-deadlift', 'leg-extension', 'leg-curl-machine', 'standing-calf-machine'], prescription: '5 sets × 8–12, squats deep', minutes: 65 },
+      { key: 'shoulders', label: 'Shoulders & Arms', sessionType: 'strength', focus: 'Boulder shoulders and the 21-inch arms.', exercises: ['overhead-press', 'lateral-raise', 'barbell-curl', 'skullcrusher', 'incline-db-curl', 'triceps-pushdown'], prescription: '4–5 sets each, high reps to the pump', minutes: 65 },
+      { key: 'chestback2', label: 'Chest & Back (again)', sessionType: 'strength', focus: 'Golden-Era frequency — hit it twice a week.', exercises: ['db-incline-press', 'seated-cable-row', 'cable-crossover', 'lat-pulldown', 'push-up'], prescription: 'Superset · 4 sets × 10–12', minutes: 60 },
+      { key: 'legs2', label: 'Legs & Calves', sessionType: 'strength', focus: 'Second leg hit; calves to failure.', exercises: ['front-squat', 'walking-lunge', 'seated-leg-curl', 'standing-calf-machine', 'seated-calf-machine'], prescription: '4–5 sets × 10–15', minutes: 55 },
+      { key: 'arms2', label: 'Arms & Core', sessionType: 'strength', focus: 'More arms — you can never have enough, per Arnold.', exercises: ['ez-bar-curl', 'db-overhead-extension', 'hammer-curl', 'single-arm-pushdown', 'hanging-leg-raise', 'cable-crunch'], prescription: '4 sets × 10–15', minutes: 50 },
+    ],
+    diet: {
+      name: 'Golden-Era bulk',
+      approach:
+        'The Golden-Era approach was a high-protein, whole-food surplus — plenty of meat, eggs, milk and dairy, with rice, potatoes and bread for the carbohydrate to fuel twice-daily training. Big, frequent meals; protein at every one; enough to grow.',
+      macroSlant: 'High protein, high whole-food carbs, calorie surplus.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Eggs, oats, whole milk, fruit.' },
+        { label: 'Lunch', detail: 'Beef or chicken, rice, vegetables — big portion.' },
+        { label: 'Snack', detail: 'Milk and a protein shake between sessions.' },
+        { label: 'Dinner', detail: 'Steak or fish, potatoes, greens; dairy before bed.' },
+      ],
+      notes: ['Whole-food surplus with protein at every meal — the timeless mass template.'],
+    },
+  },
+  {
+    key: 'hero-ronnie',
+    category: 'superhero',
+    name: 'Ronnie Coleman — Mass Monster',
+    tagline: 'Heavy weight, high volume. "Yeah buddy, light weight!"',
+    origin:
+      'Ronnie Coleman won eight Mr. Olympia titles by pairing heavy powerlifting-style loads with bodybuilding volume — famously squatting and deadlifting weights most powerlifters wouldn\'t, for reps, on a high-frequency split. The mantra "everybody wanna be a bodybuilder but don\'t nobody wanna lift no heavy-ass weight" was the whole philosophy.',
+    ethos: 'Heavy AND high-volume. Move serious weight, then do it again.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'mindbody.bodybuilder',
+    accent: '#2E5E3A',
+    authenticityNote:
+      'Modelled on Ronnie\'s heavy-plus-high-volume style. His loads were exceptional and hard-earned over decades — chase the structure and progression, not his numbers, and never his infamous injuries. Form before ego, always.',
+    safetyNote: 'Ronnie\'s later joint problems are a cautionary tale. Do NOT chase maximal loads at high volume without impeccable form and long build-up — that combination is exactly what wears joints out.',
+    days: [
+      { key: 'back', label: 'Back (heavy)', sessionType: 'strength', focus: 'Deadlifts and heavy rows — the foundation of his frame.', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'seated-cable-row', 'straight-arm-pulldown'], prescription: 'Work up heavy, then 4×8–10', minutes: 70 },
+      { key: 'legs', label: 'Legs (heavy)', sessionType: 'strength', focus: 'Squats and presses with serious plates.', exercises: ['back-squat', 'leg-press', 'hack-squat', 'leg-extension', 'leg-curl-machine'], prescription: 'Heavy squats, then 4–5×10', minutes: 70 },
+      { key: 'chest', label: 'Chest & Shoulders', sessionType: 'strength', focus: 'Heavy pressing volume.', exercises: ['bench-press-barbell', 'db-incline-press', 'overhead-press', 'lateral-raise', 'cable-crossover'], prescription: '4–5 sets × 8–12', minutes: 60 },
+      { key: 'arms', label: 'Arms', sessionType: 'strength', focus: 'Heavy curls and extensions.', exercises: ['barbell-curl', 'skullcrusher', 'hammer-curl', 'triceps-pushdown', 'reverse-curl'], prescription: '4 sets × 10–12', minutes: 50 },
+      { key: 'back2', label: 'Back & Traps', sessionType: 'strength', focus: 'Second back day — width and thickness.', exercises: ['barbell-row', 'pull-up', 'seated-cable-row', 'barbell-wrist-curl'], prescription: '4 sets × 10', minutes: 55 },
+      { key: 'legs2', label: 'Legs & Calves', sessionType: 'strength', focus: 'Second leg day; hamstrings and calves.', exercises: ['romanian-deadlift', 'walking-lunge', 'seated-leg-curl', 'standing-calf-machine'], prescription: '4–5 sets × 10–12', minutes: 55 },
+    ],
+    diet: {
+      name: 'Mass-monster fuelling',
+      approach:
+        'Ronnie ate for enormous size: very high protein spread across many daily meals, steady carbohydrate to fuel brutal sessions, and a big calorie surplus in the off-season. The principle for a normal lifter is the same at a saner scale — enough protein and enough total food to support the work.',
+      macroSlant: 'Very high protein across many meals, high carbs, surplus.',
+      sampleDay: [
+        { label: 'Meal 1', detail: 'Eggs, grits/oats, whole milk.' },
+        { label: 'Meal 2', detail: 'Chicken or beef, rice, vegetables.' },
+        { label: 'Meal 3', detail: 'Protein shake + banana between sessions.' },
+        { label: 'Meal 4', detail: 'Steak or fish, potatoes, greens.' },
+      ],
+      notes: ['Protein spread across frequent meals + a surplus — scale the portions to your own size.'],
+    },
+  },
+  {
+    key: 'hero-dorian',
+    category: 'superhero',
+    name: 'Dorian Yates — Blood & Guts',
+    tagline: 'Low volume, brutal intensity. One all-out set to failure.',
+    origin:
+      'Dorian Yates won six Mr. Olympias with the opposite of Golden-Era volume: HIT (High-Intensity Training) — few sets, but each warm-up-then-ONE all-out working set taken to true failure, often beyond with forced reps. Brief, infrequent, savage sessions and long recovery. His "Blood & Guts" training redefined how much a single set could do.',
+    ethos: 'One set, everything you have, then grow. Intensity over volume.',
+    level: 'advanced',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.bodybuilder',
+    accent: '#4A2E6E',
+    authenticityNote:
+      'Modelled on Dorian\'s documented HIT split — thorough warm-ups then one all-out working set per exercise to genuine failure. Training to true failure is demanding on joints and recovery; a spotter and a real warm-up are non-negotiable.',
+    safetyNote: 'One-set-to-failure only works with a full warm-up and good form under fatigue. Use a spotter on the big lifts, and don\'t take grinding, form-breaking reps — that\'s how the failure set turns into an injury.',
+    days: [
+      { key: 'chestbis', label: 'Chest & Biceps', sessionType: 'strength', focus: 'Warm up, then one all-out set each.', exercises: ['db-incline-press', 'chest-press-machine', 'cable-crossover', 'ez-bar-curl', 'incline-db-curl'], prescription: 'Warm-ups + 1 working set to failure each', minutes: 45 },
+      { key: 'back', label: 'Back & Rear Delts', sessionType: 'strength', focus: 'The body part he was famous for — brutal, brief.', exercises: ['lat-pulldown', 'barbell-row', 'seated-cable-row', 'rear-delt-fly', 'deadlift'], prescription: 'Warm-ups + 1 all-out set each', minutes: 50 },
+      { key: 'shoulderstri', label: 'Shoulders & Triceps', sessionType: 'strength', focus: 'Press and isolate, one hard set apiece.', exercises: ['db-shoulder-press', 'lateral-raise', 'rear-delt-fly', 'triceps-pushdown', 'skullcrusher'], prescription: 'Warm-ups + 1 working set to failure', minutes: 45 },
+      { key: 'legs', label: 'Legs', sessionType: 'strength', focus: 'The hardest session — one everything-you-have set on the big lifts.', exercises: ['leg-extension', 'leg-press', 'hack-squat', 'seated-leg-curl', 'standing-calf-machine'], prescription: 'Warm-ups + 1 all-out set each', minutes: 55 },
+    ],
+    diet: {
+      name: 'Lean-mass HIT fuelling',
+      approach:
+        'Dorian ate for quality mass: high protein, controlled carbohydrate timed around his brief, brutal sessions, and enough total food to recover from failure training without excess fat. Fewer, harder sessions still need real protein and real recovery fuel.',
+      macroSlant: 'High protein, carbs timed around training, controlled surplus.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Eggs, oats, protein.' },
+        { label: 'Lunch', detail: 'Chicken or turkey, rice, vegetables.' },
+        { label: 'Pre/post', detail: 'Protein + fruit around the session.' },
+        { label: 'Dinner', detail: 'Lean beef or fish, potatoes, greens.' },
+      ],
+      notes: ['Fewer sessions still demand full protein and recovery — intensity raises the recovery bill.'],
+    },
+  },
 
   // ═══════════════════════════ MILITARY / SERVICE (more) ═══════════════════════════
   {
@@ -852,6 +1110,43 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
         { label: 'Post-shift', detail: 'A proper recovery meal and real hydration.' },
       ],
       notes: ['Sleep and hydration are the two levers shift work breaks — protect both.'],
+    },
+  },
+  {
+    key: 'mil-france-legion',
+    category: 'military',
+    name: 'French Foreign Legion — GCP',
+    tagline: 'Marches, ruck loads and the airborne-commando standard.',
+    origin:
+      'The French Foreign Legion is legendary for its foot-marches and load-carriage endurance — culminating in the képi blanc march and, for the paratroopers (2e REP) and the elite GCP commandos (Groupement des Commandos Parachutistes), airborne insertion, long ruck marches, combat swimming, climbing and close combat. Their conditioning is built on carrying weight, over distance, without complaint.',
+    ethos: 'March or die — the Legion\'s old motto turned into relentless load-bearing endurance.',
+    level: 'advanced',
+    daysPerWeek: 5,
+    blockWeeks: 12,
+    icon: 'mindbody.legion',
+    accent: '#2A3D66',
+    authenticityNote:
+      'Built on the Legion / GCP hallmarks — ruck marching, running, combat swimming, climbing, obstacle work and close combat. The airborne and live parts are left out; what remains is the load-carriage and endurance base that underpins them.',
+    safetyNote: 'Ruck marching under load is where most injuries happen — add distance OR weight, never both at once, and look after your feet obsessively.',
+    days: [
+      { key: 'ruck', label: 'Long ruck march', sessionType: 'outdoor', focus: 'The Legion\'s signature — carrying a heavy pack over long distance.', exercises: ['rucking', 'trekking'], prescription: 'Build 8→20 km with a 15–25 kg pack, steady', minutes: 120 },
+      { key: 'run', label: 'Runs & intervals', sessionType: 'outdoor', focus: 'Base speed and staying power on foot.', exercises: ['long-run', 'track-intervals', 'hill-repeats'], prescription: 'Alternate long run / 8×400 m / hill reps', minutes: 45 },
+      { key: 'obstacle', label: 'Obstacle & climb', sessionType: 'calisthenics', focus: 'The commando course — climbing, crawling, hauling yourself over.', exercises: ['rope-climb', 'pull-up', 'low-crawl', 'box-jumps', 'bear-crawl'], prescription: 'Obstacle-style circuit, 4 rounds', minutes: 40 },
+      { key: 'swim', label: 'Combat swim', sessionType: 'cardio', focus: 'Water confidence and endurance — core to the commando standard.', exercises: ['swimming-laps'], prescription: '30–45 min continuous, mixed strokes', minutes: 40 },
+      { key: 'combat', label: 'Strength & close combat', sessionType: 'strength', focus: 'Load-bearing strength and hand-to-hand.', exercises: ['deadlift', 'sandbag-clean-press', 'overhead-carry', 'wrestling-shots', 'ma-bag-round'], prescription: 'Lifts + carries + combat rounds, 50 min', minutes: 50 },
+    ],
+    diet: {
+      name: 'Field-ration fuelling',
+      approach:
+        'Legion field feeding is dense and practical — bread, pasta and rice for carbohydrate, tinned and fresh meat and fish for protein, cheese and olive oil for fat, built to fuel long days on foot under load. Plenty of everything, hydration first.',
+      macroSlant: 'High carbs for load-carriage, solid protein, generous fats.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Bread, cheese, eggs, coffee before a march.' },
+        { label: 'Field meal', detail: 'Pasta or rice with tinned meat or fish.' },
+        { label: 'Recovery', detail: 'Protein + carbs and real hydration after the ruck.' },
+        { label: 'Dinner', detail: 'Meat or fish, potatoes/pasta, vegetables.' },
+      ],
+      notes: ['Carbohydrate and hydration are what keep you moving under load — don\'t under-fuel a ruck.'],
     },
   },
 
@@ -993,6 +1288,115 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
         { label: 'Dinner', detail: 'Enjoy the local food — just lead with protein and veg.' },
       ],
       notes: ['A litre of water per flight leg fixes half of "travel fatigue".'],
+    },
+  },
+
+  // ═══════════════════════════ QUICK COUNTERS & URGE-BUSTERS ═══════════════════════════
+  // Not weekly plans — pick the counter that fits the moment. The "days" are the
+  // individual 2–10 minute tools; run one when the urge or the drift hits.
+  {
+    key: 'ctr-nicotine',
+    category: 'counters',
+    name: 'Nicotine Urge Buster',
+    tagline: 'Ride out the 5-minute craving — it always passes.',
+    origin:
+      'A nicotine craving feels urgent but it is short: most peak and fade within 3–5 minutes whether or not you smoke. The evidence-based way through is the "4 Ds" — Delay, Deep-breathe, Drink water, Distract — plus movement and an oral substitute. You don\'t have to beat the urge, just outlast it.',
+    ethos: 'Not "no" — "not now". Outlast the wave; each one you ride makes the next one weaker.',
+    level: 'beginner',
+    daysPerWeek: 7,
+    blockWeeks: 12,
+    icon: 'mindbody.lungs',
+    accent: '#C0392B',
+    authenticityNote:
+      'These are standard, evidence-based smoking-cessation coping tools (the "4 Ds", urge surfing, physical activity, oral substitutes). They help you get through a craving — for quitting for good, combine them with proper support or nicotine-replacement therapy.',
+    days: [
+      { key: 'walk', label: 'Craving walk (the 4 Ds)', sessionType: 'cardio', focus: 'Delay + distract + move — the single most reliable counter to a craving.', exercises: ['craving-buster-walk', 'ten-minute-delay'], prescription: 'Walk briskly 5 min the moment the urge hits', minutes: 5 },
+      { key: 'breathe', label: 'Urge-surf breathing', sessionType: 'meditation', focus: 'Deep-breathe and watch the craving crest and fall.', exercises: ['urge-surf-breathing', 'box-breathing'], prescription: '2–3 min slow breathing', minutes: 3 },
+      { key: 'water', label: 'Water & cold splash', sessionType: 'meditation', focus: 'Drink water; a cold splash resets the moment.', exercises: ['cold-water-splash'], prescription: 'A glass of water + cold splash', minutes: 2 },
+      { key: 'hands', label: 'Hands & mouth busy', sessionType: 'mindbody', focus: 'An oral/hand substitute for the ritual — gum, water, a toothpick, a task.', exercises: ['hands-busy-task'], prescription: 'Keep hands and mouth occupied 5 min', minutes: 5 },
+      { key: 'halt', label: 'HALT check', sessionType: 'meditation', focus: 'Is it really nicotine — or hunger, stress, boredom, tiredness?', exercises: ['halt-check'], prescription: 'Run the HALT check, meet the real need', minutes: 3 },
+    ],
+    diet: {
+      name: 'Craving-proof snacking',
+      approach:
+        'Quitting is easier on a steady blood sugar and a busy mouth. Keep crunchy, low-calorie substitutes to hand (carrot and celery sticks, sunflower seeds, sugar-free gum), drink water, and don\'t let yourself get too hungry — a blood-sugar dip feels a lot like a nicotine craving.',
+      macroSlant: 'Steady blood sugar, crunchy oral substitutes, plenty of water.',
+      sampleDay: [
+        { label: 'Keep to hand', detail: 'Carrot & celery sticks, sunflower seeds — a crunchy substitute for the hand-to-mouth ritual.' },
+        { label: 'Every craving', detail: 'A big glass of water first.' },
+        { label: 'Meals', detail: 'Protein + fibre at each meal so blood sugar (and cravings) stay level.' },
+      ],
+      notes: ['A blood-sugar dip mimics a nicotine craving — regular balanced meals blunt both.'],
+    },
+  },
+  {
+    key: 'ctr-urge-reset',
+    category: 'counters',
+    name: 'Impulse Reset',
+    tagline: 'A compulsive urge hits — redirect it and let it pass.',
+    origin:
+      'Any compulsive urge — porn/masturbation, doom-scrolling, a bad snack, a habit you\'re trying to change — works the same way: a cue triggers a craving that peaks and fades. You can\'t always stop the craving, but you can change what you do with it. The tools are neutral and behavioural: interrupt the cue, redirect the energy, delay, and let the wave pass.',
+    ethos: 'The urge is not a command. Interrupt, redirect, delay — you\'re changing a habit, not fighting yourself.',
+    level: 'beginner',
+    daysPerWeek: 7,
+    blockWeeks: 12,
+    icon: 'mindbody.focus',
+    accent: '#5E35B1',
+    authenticityNote:
+      'These are standard, non-judgemental habit-change and impulse-control tools (urge surfing, physical redirection, the 10-minute rule, changing your environment, HALT). They apply to any compulsive habit you\'ve decided you want to change. No moralising and no pseudoscience — just what actually helps ride out an urge.',
+    days: [
+      { key: 'move', label: 'Redirect the energy', sessionType: 'calisthenics', focus: 'Channel the impulse into a short hard burst — it breaks the loop fast.', exercises: ['burst-redirect'], prescription: '20 push-ups / squats / burpees, right now', minutes: 3 },
+      { key: 'leave', label: 'Change your environment', sessionType: 'cardio', focus: 'Most urges are tied to a place and a screen — get up and leave it.', exercises: ['environment-change'], prescription: 'Stand up, change rooms or go outside, 5 min', minutes: 5 },
+      { key: 'delay', label: 'The 10-minute rule', sessionType: 'meditation', focus: 'Not "no" — "not yet". Set a timer and let the wave pass.', exercises: ['ten-minute-delay', 'grounding-54321'], prescription: 'Set a 10-min timer, do something else', minutes: 10 },
+      { key: 'surf', label: 'Urge surfing', sessionType: 'meditation', focus: 'Watch the urge like a wave — it rises, peaks and falls without you acting.', exercises: ['urge-surf-breathing'], prescription: '3–5 min observing the urge, breathing slow', minutes: 5 },
+      { key: 'halt', label: 'HALT check', sessionType: 'meditation', focus: 'Compulsions spike on unmet needs — Hungry, Angry, Lonely, Tired?', exercises: ['halt-check', 'cold-water-splash'], prescription: 'Run HALT; meet the real need', minutes: 3 },
+    ],
+    diet: {
+      name: 'Steady-state support',
+      approach:
+        'Impulse control is weakest when you\'re tired, hungry or running on sugar highs and crashes. Eating for steady energy — protein, fibre, not too much refined sugar — and staying hydrated makes urges quieter and your "no, not now" easier to hold.',
+      macroSlant: 'Steady energy: protein + fibre, limit sugar spikes, hydrate.',
+      sampleDay: [
+        { label: 'Principle', detail: 'Protein + fibre at meals so energy (and willpower) stays level.' },
+        { label: 'Avoid', detail: 'Big sugar spikes and crashes — they sap self-control.' },
+        { label: 'Hydration', detail: 'Water regularly; mild dehydration frays focus and patience.' },
+      ],
+      notes: ['Willpower is partly physiological — sleep, steady blood sugar and hydration all strengthen it.'],
+    },
+  },
+  {
+    key: 'ctr-focus-shift',
+    category: 'counters',
+    name: 'Focus Shift',
+    tagline: 'Distracted or spiralling — snap attention back in a couple of minutes.',
+    origin:
+      'When attention drifts, procrastination bites, or a thought loop won\'t let go, you don\'t need willpower — you need a pattern-break. A physiological sigh calms the body in seconds; grounding pulls you into the present; a two-minute movement snack resets the brain; and the "just start for 2 minutes" rule beats procrastination by shrinking the task.',
+    ethos: 'Don\'t wait to feel focused — act, and focus follows. Small resets, on demand.',
+    level: 'beginner',
+    daysPerWeek: 7,
+    blockWeeks: 12,
+    icon: 'mindbody.focus',
+    accent: '#1565C0',
+    authenticityNote:
+      'A toolkit of quick, well-supported attention resets — physiological sighs, sensory grounding, brief movement, and the two-minute start rule. Use one when you notice you\'ve drifted; none takes more than a few minutes.',
+    days: [
+      { key: 'sigh', label: 'Physiological sigh', sessionType: 'meditation', focus: 'Two double-inhales and long exhales — the fastest way to drop arousal and refocus.', exercises: ['energy-reset-breath', 'box-breathing'], prescription: '3–5 breaths, then back to the task', minutes: 2 },
+      { key: 'ground', label: '5-4-3-2-1 grounding', sessionType: 'meditation', focus: 'Pull attention out of the loop and into the room.', exercises: ['grounding-54321'], prescription: 'Work through the five senses, 2–3 min', minutes: 3 },
+      { key: 'move', label: 'Movement snack', sessionType: 'calisthenics', focus: 'A two-minute burst re-oxygenates the brain and breaks the stall.', exercises: ['burst-redirect', 'desk-mobility-flow'], prescription: '2 min of movement, then start', minutes: 3 },
+      { key: 'start', label: 'The 2-minute start', sessionType: 'meditation', focus: 'Beat procrastination by promising just two minutes — starting is the hard part.', exercises: ['ten-minute-delay'], prescription: 'Commit to 2 minutes on the task; usually you continue', minutes: 2 },
+      { key: 'reset', label: 'Power-pose reset', sessionType: 'mindbody', focus: 'Reset posture and state before a task you\'re avoiding.', exercises: ['power-pose-reset'], prescription: '2 min standing tall, then begin', minutes: 2 },
+    ],
+    diet: {
+      name: 'Fuel for focus',
+      approach:
+        'Attention runs on steady glucose, hydration and well-timed caffeine. Avoid the big-lunch crash, keep water in reach, and use caffeine early rather than late (and not so much it wrecks your sleep, which is where focus really comes from).',
+      macroSlant: 'Steady glucose, hydration, caffeine used early not late.',
+      sampleDay: [
+        { label: 'Focus blocks', detail: 'Protein + slow carbs beforehand — avoid the heavy, crash-inducing meal.' },
+        { label: 'Hydration', detail: 'Water within reach; even mild dehydration dents concentration.' },
+        { label: 'Caffeine', detail: 'Earlier in the day, moderate — late caffeine steals the sleep that focus depends on.' },
+      ],
+      notes: ['The biggest focus lever is sleep — no reset beats being rested.'],
     },
   },
 ];

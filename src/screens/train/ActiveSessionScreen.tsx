@@ -16,6 +16,8 @@ import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
 import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS } from '@/data/exercises';
 import { formatDuration } from '@/lib/format';
 import type { ExerciseLogView } from '@/repositories/sessionRepo';
+import { getExercise, listExercises } from '@/repositories/exerciseRepo';
+import { findEasierAlternatives } from '@/lib/exerciseAlternatives';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const REST_PRESETS = [60, 90, 120, 180];
@@ -322,6 +324,8 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
     return parts.join(' · ') || 'logged';
   };
 
+  const [showAlts, setShowAlts] = useState(false);
+
   return (
     <Card accent={accent} style={{ gap: 10 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -331,10 +335,22 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
             {lv.exerciseName}
           </Text>
         </Row>
+        <Pressable onPress={() => setShowAlts((v) => !v)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <Icon icon="core.swap" size={18} color={showAlts ? accent : theme.colors.textFaint} />
+        </Pressable>
         <Pressable onPress={() => store.removeExercise(lv.log.id)} hitSlop={8}>
           <Icon icon="core.delete" size={18} color={theme.colors.textFaint} />
         </Pressable>
       </Row>
+
+      {showAlts && (
+        <AlternativePicker
+          logId={lv.log.id}
+          exerciseId={lv.log.exerciseId}
+          accent={accent}
+          onDone={() => setShowAlts(false)}
+        />
+      )}
 
       {lv.sets.length > 0 && (
         <View style={{ gap: 4 }}>
@@ -426,6 +442,65 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
         </Row>
       )}
     </Card>
+  );
+}
+
+/**
+ * "Find an easier alternative" — same-muscle exercises ranked easier than the
+ * current one, so a hard movement can be swapped mid-session without breaking
+ * the flow. Difficulty is estimated (equipment + name), not stored.
+ */
+function AlternativePicker({
+  logId,
+  exerciseId,
+  accent,
+  onDone,
+}: {
+  logId: number;
+  exerciseId: number;
+  accent: string;
+  onDone: () => void;
+}) {
+  const theme = useTheme();
+  const store = useSessionStore();
+  const alts = useMemo(() => {
+    const target = getExercise(exerciseId);
+    if (!target) return [];
+    return findEasierAlternatives(target, listExercises({}));
+  }, [exerciseId]);
+
+  const swap = (newId: number) => {
+    store.swapExercise(logId, newId);
+    onDone();
+  };
+
+  return (
+    <View style={{ gap: 6, backgroundColor: theme.colors.surfaceAlt, borderRadius: theme.radius.md, padding: 10 }}>
+      <Text variant="label" color="textMuted">Too hard? Swap for an easier one — same muscle</Text>
+      {alts.length === 0 ? (
+        <Text variant="caption" color="textFaint">No easier alternative found for this muscle.</Text>
+      ) : (
+        alts.map((a) => (
+          <Pressable key={a.id} onPress={() => swap(a.id)}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
+              <Text variant="body" style={{ flex: 1 }} numberOfLines={1}>{a.name}</Text>
+              <Row gap={4} style={{ alignItems: 'center' }}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      width: 5, height: 5, borderRadius: 3,
+                      backgroundColor: i < a.difficulty ? accent : theme.colors.border,
+                    }}
+                  />
+                ))}
+                <Icon icon="core.swap" size={15} color={accent} />
+              </Row>
+            </Row>
+          </Pressable>
+        ))
+      )}
+    </View>
   );
 }
 

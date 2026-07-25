@@ -141,7 +141,8 @@ export function SessionRecapScreen() {
         </Card>
       )}
 
-      {isLifting && logs.length > 0 && <SaveAsRoutine sessionId={session.id} defaultName={session.label} />}
+      {/* Any session with exercises can be saved as a reusable routine. */}
+      {logs.length > 0 && <SaveAsRoutine sessionId={session.id} defaultName={session.label} />}
 
       <Button title="Done" icon="core.check" onPress={() => navigation.navigate('Main')} />
     </Screen>

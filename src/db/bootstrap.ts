@@ -21,8 +21,9 @@ import { seedExerciseLibrary } from './seed';
  *   9 → 10 v2.9: +124 exercises (sport, outdoor, mind-body, meditation)
  *   10 → 11 v2.11: +27 tactical & heritage exercises (Special Programmes)
  *   11 → 12 v2.12: +2 exercises (one-arm push-up, speed bag) for new programmes
+ *   12 → 13 v2.14: +30 exercises (grip/forearm, advanced calisthenics, wellness)
  */
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

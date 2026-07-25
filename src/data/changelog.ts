@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.14',
+    date: '2026-07-25',
+    title: 'Grip work, easier alternatives, sub-muscles & composition trends',
+    highlights: [
+      'Find alternative: in a session, tap the swap icon on any exercise to switch a hard movement for an easier one that works the same muscle.',
+      'Any session you assemble — free, custom, any type — can now be saved as a reusable routine, not just lifting.',
+      'Sub-muscles everywhere: filter a muscle to drill into its regions (Back → Lats vs Mid-Back), and every exercise now shows the sub-muscle it emphasises.',
+      'Bigger library: hand-grip & forearm training, advanced calisthenics (archer/ring/planche/lever work) and wellness protocols for cutting down smoking, hormones and energy.',
+      'Bro split gains an Abs day, and Arm day now includes forearms.',
+      'Trends: a Body composition section charts your measured fat mass and muscle mass over time, and tells you in plain language why each is rising or falling.',
+      'More foods: dried fruits, mloukhia variations (beef/chicken/veg), pâté, droô, assidat boufriwa, and homemade Eid cookies (ghraïba, samsa, baklawa, kaâk…).',
+    ],
+  },
+  {
     version: '2.13',
     date: '2026-07-24',
     title: 'Programme diets are now real, loggable nutrition',

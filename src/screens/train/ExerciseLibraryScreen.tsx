@@ -28,6 +28,7 @@ import { SESSION_TYPE_MET } from '@/lib/met';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { Chip } from '@/components/ui/Chip';
 import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
+import { subMuscleOf, subMusclesFor } from '@/lib/subMuscle';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
@@ -66,12 +67,13 @@ export function ExerciseLibraryScreen() {
   const [search, setSearch] = useState('');
   const [type, setType] = useState<SessionType | 'all'>(targetType ?? (pick && activeType ? activeType : 'all'));
   const [muscle, setMuscle] = useState<string>('all');
+  const [subMuscle, setSubMuscle] = useState<string>('all');
   const [equip, setEquip] = useState<EquipmentType | 'all'>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<ExerciseView | null>(null);
   const [refresh, setRefresh] = useState(0);
 
-  const items = useMemo(
+  const muscleItems = useMemo(
     () =>
       listExercises({
         sessionType: type === 'all' ? undefined : type,
@@ -80,6 +82,18 @@ export function ExerciseLibraryScreen() {
         search,
       }),
     [type, muscle, equip, search, refresh]
+  );
+
+  // Sub-muscles present for the selected muscle, so you can drill in (e.g. Back →
+  // Lats vs Mid-Back). Uses recorded sub-muscle, falling back to an inferred one.
+  const subOptions = useMemo(() => {
+    if (muscle === 'all') return [] as string[];
+    return subMusclesFor(muscleItems);
+  }, [muscle, muscleItems]);
+
+  const items = useMemo(
+    () => (subMuscle === 'all' ? muscleItems : muscleItems.filter((e) => subMuscleOf(e) === subMuscle)),
+    [muscleItems, subMuscle]
   );
 
   const onSelect = useCallback(
@@ -107,7 +121,22 @@ export function ExerciseLibraryScreen() {
       <View style={{ padding: theme.spacing.lg, gap: theme.spacing.sm }}>
         <Input value={search} onChangeText={setSearch} placeholder="Search exercises & activities" />
         <SegmentedControl scrollable options={TYPE_FILTERS} value={type} onChange={setType} />
-        <SegmentedControl scrollable options={MUSCLE_FILTERS} value={muscle} onChange={setMuscle} accent={theme.colors.accent} />
+        <SegmentedControl
+          scrollable
+          options={MUSCLE_FILTERS}
+          value={muscle}
+          onChange={(m) => { setMuscle(m); setSubMuscle('all'); }}
+          accent={theme.colors.accent}
+        />
+        {subOptions.length > 0 && (
+          <SegmentedControl
+            scrollable
+            options={[{ value: 'all', label: 'All parts' }, ...subOptions.map((s) => ({ value: s, label: SUB_MUSCLE_LABELS[s] ?? s }))]}
+            value={subMuscle}
+            onChange={setSubMuscle}
+            accent={theme.colors.primary}
+          />
+        )}
         <SegmentedControl scrollable options={EQUIP_FILTERS} value={equip} onChange={setEquip} accent={theme.colors.warning} />
       </View>
 
@@ -143,11 +172,15 @@ export function ExerciseLibraryScreen() {
                     </Text>
                     <Text variant="caption" color="textMuted" numberOfLines={1}>
                       {[
-                        item.subMuscle
-                          ? SUB_MUSCLE_LABELS[item.subMuscle] ?? item.subMuscle
-                          : item.primaryMuscle
-                            ? MUSCLE_LABELS[item.primaryMuscle] ?? item.primaryMuscle
-                            : null,
+                        (() => {
+                          const sm = subMuscleOf(item);
+                          const muscleLabel = item.primaryMuscle ? MUSCLE_LABELS[item.primaryMuscle] ?? item.primaryMuscle : null;
+                          if (sm) {
+                            const smLabel = SUB_MUSCLE_LABELS[sm] ?? sm;
+                            return muscleLabel && !item.subMuscle ? `${muscleLabel} · ${smLabel}` : smLabel;
+                          }
+                          return muscleLabel;
+                        })(),
                         item.equipmentType ? EQUIPMENT_LABELS[item.equipmentType] : null,
                       ]
                         .filter(Boolean)

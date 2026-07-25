@@ -57,6 +57,8 @@ interface SessionState {
   editSet: (setId: number, patch: SetDraft) => void;
   removeSet: (setId: number) => void;
   removeExercise: (logId: number) => void;
+  /** Replace an exercise with an easier alternative (removes old log, adds new). */
+  swapExercise: (logId: number, newExerciseId: number) => number | null;
   startRest: (seconds: number) => void;
   clearRest: () => void;
   finish: (opts?: { moodAfter?: number | null; activity?: ActivityDetail; notes?: string | null }) => FinalizeResult | null;
@@ -161,6 +163,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   removeExercise: (logId) => {
     removeExerciseLog(logId);
     get().refresh();
+  },
+
+  swapExercise: (logId, newExerciseId) => {
+    const id = get().activeId;
+    if (!id) return null;
+    removeExerciseLog(logId);
+    const newLogId = addExerciseToSession(id, newExerciseId);
+    get().refresh();
+    return newLogId;
   },
 
   startRest: (seconds) => set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds }),

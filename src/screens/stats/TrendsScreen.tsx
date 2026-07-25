@@ -19,7 +19,7 @@ import {
   type WeekPoint,
 } from '@/repositories/trendsRepo';
 import { BODY_TYPE_LABELS } from '@/lib/bodyType';
-import { compositionProjection, type CompositionProjection } from '@/repositories/projectionRepo';
+import { compositionProjection, compositionTrend, type CompositionProjection, type CompositionTrend } from '@/repositories/projectionRepo';
 import { explainGap } from '@/lib/projection';
 import { fmtNum } from '@/lib/format';
 
@@ -34,6 +34,7 @@ export function TrendsScreen() {
   const [page, setPage] = useState(0);
   const [data, setData] = useState<TrendsData | null>(null);
   const [proj, setProj] = useState<CompositionProjection | null>(null);
+  const [comp, setComp] = useState<CompositionTrend | null>(null);
 
   const reload = useCallback(
     (g: Granularity, p: number) => setData(trendsData({ granularity: g, page: p })),
@@ -47,6 +48,11 @@ export function TrendsScreen() {
         setProj(compositionProjection(60));
       } catch {
         setProj(null);
+      }
+      try {
+        setComp(compositionTrend(90));
+      } catch {
+        setComp(null);
       }
     }, [reload, granularity, page])
   );
@@ -106,6 +112,51 @@ export function TrendsScreen() {
         <ChartCard title={`Body weight (kg, avg per ${per})`} color={theme.colors.info}>
           <LineChart data={line(data.weight)} color={theme.colors.info} yFormat={(v) => v.toFixed(0)} />
         </ChartCard>
+      )}
+
+      {/* Body composition — the measured trend of fat & muscle mass, with a reason */}
+      {comp && comp.hasData && (
+        <>
+          <SectionHeader title="Body composition" />
+          {comp.metrics.map((m) => (
+            <Card key={m.key} style={{ gap: 6 }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text variant="bodyStrong">{m.label} ({m.unit})</Text>
+                {m.change != null && (
+                  <Text
+                    variant="caption"
+                    color={
+                      m.change === 0
+                        ? 'textMuted'
+                        : (m.key === 'fatMassKg' ? m.change < 0 : m.change > 0)
+                          ? 'success'
+                          : 'warning'
+                    }
+                  >
+                    {m.change > 0 ? '+' : ''}{fmtNum(m.change)}{m.unit} · 90d
+                  </Text>
+                )}
+              </Row>
+              {m.points.length >= 2 ? (
+                <LineChart
+                  data={m.points.map((p, i) => ({ x: i, y: p.value, label: p.date }))}
+                  color={m.key === 'fatMassKg' ? theme.colors.warning : theme.colors.primary}
+                  yFormat={(v) => `${Math.round(v * 10) / 10}`}
+                />
+              ) : (
+                <Text variant="caption" color="textFaint">
+                  {m.points.length === 1 ? 'One reading so far — log another to see the trend.' : 'No readings yet.'}
+                </Text>
+              )}
+              <Text variant="caption" color="textMuted">{m.reason}</Text>
+            </Card>
+          ))}
+          <Text variant="caption" color="textFaint">
+            Measured from your weigh-ins. Scale muscle & fat readings swing with hydration — the
+            multi-week trend is what matters, not any single reading. Log body fat / muscle in
+            Profile → Body to fill these in.
+          </Text>
+        </>
       )}
 
       {/* Expectation vs reality — the model against the measurements */}

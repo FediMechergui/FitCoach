@@ -10,6 +10,38 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.14 — 2026-07-25 · Grip work, easier alternatives, sub-muscles & composition trends
+A training-depth and body-insight pass across the library, sessions and Trends.
+
+- **Find an easier alternative.** In a session, the swap icon on any exercise offers same-muscle
+  movements ranked easier (difficulty estimated from equipment + name), and swaps it in one tap —
+  new `lib/exerciseAlternatives.ts`, plus a `swapExercise` store action.
+- **Save any session as a routine.** Routine-save is no longer lifting-only — any assembled session
+  (free, custom, cardio, martial arts…) can be saved and reused from the Train tab.
+- **Sub-muscles for every exercise.** New `lib/subMuscle.ts` records or infers the emphasised
+  sub-region for any movement. The library shows it on each row, and selecting a muscle reveals a
+  sub-muscle filter (Back → Lats / Mid-Back / Traps / Lower Back, Chest → Upper/Mid/Lower, etc.).
+  Sub-muscle taxonomy expanded to chest, arms, forearms, quads, glutes and calves.
+- **Library expansion (+30, now 543):** hand-grip & forearm training (gripper, plate pinch, wrist
+  roller, reverse/behind-the-back curls, farmer holds, towel & fat-bar holds, finger extensions),
+  advanced calisthenics (archer/ring/pseudo-planche/tuck-planche/front-lever/commando/skin-the-cat/
+  sissy/shrimp/hollow-rock/nordic), and **wellness protocols** — craving-buster walk & urge-surf
+  breathing (quit-smoking), heavy-compound circuit & sprint power bursts & morning sunlight
+  (hormone/energy support), cold-exposure, energy-reset breathing and a power-pose reset. Each
+  wellness protocol carries honest, safety-first guidance.
+- **Bro split** gains an **Abs day** (upper/lower/obliques) and **Arm day** now includes forearms.
+- **Trends → Body composition:** measured **fat mass** and **muscle mass** trend lines from your
+  weigh-ins, always shown once there are two readings, each with a **plain-language reason** for the
+  direction (deficit/surplus, protein, hard sets, sleep, smoking) — and the reminder that scale
+  readings swing with hydration, so the multi-week trend is what matters.
+- **Foods (+54, now 321):** dried fruits (raisins, prunes, dried apricot/fig/date/mango/banana/
+  cranberry/pineapple/coconut…), mloukhia variations (beef, chicken, vegetarian) and lesser-known
+  Tunisian dishes (marqet jelbana, loubia, kammounia, marqa hlou, nwasser, mhamsa, chakchouka,
+  osban…), **pâté**, **droô** and assida droô, **assidat boufriwa**, zrir, and homemade **Eid
+  cookies** (ghraïba chickpea/sorghum/flour, baklawa, kaâk warka, samsa, makroudh el louz, debla…).
+- Schema bumped 12 → 13 so the new exercises reach existing installs; re-verified non-destructive
+  against a DB with logs. tsc clean; verify-engines **242 → 253**. Ships over-the-air.
+
 ## v2.13 — 2026-07-24 · Programme diets → real, loggable nutrition
 The Special Programme diets were prose. Now every meal is built from **real foods** in the database,
 carrying full **macros and micronutrients**, and can be logged straight into the Nutrition diary.

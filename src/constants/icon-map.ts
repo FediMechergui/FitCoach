@@ -42,6 +42,7 @@ export const ICONS = {
     forward: def('Ionicons', 'chevron-forward'),
     check: def('Ionicons', 'checkmark-circle'),
     close: def('Ionicons', 'close'),
+    swap: def('MaterialCommunityIcons', 'swap-horizontal'),
     custom: def('MaterialCommunityIcons', 'shape-outline'),
     settings: def('Ionicons', 'settings-outline'),
     info: def('Ionicons', 'information-circle-outline'),

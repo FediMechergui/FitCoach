@@ -36,6 +36,8 @@ import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMe
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
+import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
+import { estimateDifficulty, findEasierAlternatives, type AltExercise } from '../src/lib/exerciseAlternatives';
 import { dietNutrition, mealToDiaryInputs } from '../src/lib/specialDiet';
 import { FOOD_DB as SPECIAL_FOOD_DB } from '../src/data/foods';
 
@@ -553,6 +555,34 @@ check('Body-comp badge (#111) needs a body-fat weigh-in', evaluateAchievement(AC
 check('Special-programme badge (#117) unlocks on first session', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 117)!, { ...zeroStats, specialSessionCount: 1 }).unlocked === true);
 check('Complete Athlete (#120) needs all 8 categories', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 120)!, { ...zeroStats, distinctSessionTypes: 7 }).unlocked === false && evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 120)!, { ...zeroStats, distinctSessionTypes: 8 }).unlocked === true);
 check('New badges are auto-tracked (101-120)', [101,104,107,111,117,120].every((id) => evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === id)!, zeroStats).tracked === true));
+
+console.log('\nSub-muscle resolution & alternatives:');
+check('Every exercise resolves a sub-muscle or a clear reason not to', EXLIB.every((e) => {
+  const sm = subMuscleOf({ name: e.name, primaryMuscle: e.primaryMuscle, subMuscle: e.subMuscle });
+  // Muscles that have a sub-region taxonomy must resolve one; cardio/mind/mobility need not.
+  const taxonomied = ['chest','back','shoulders','biceps','triceps','forearms','quads','hamstrings','glutes','calves','core'];
+  return e.primaryMuscle && taxonomied.includes(e.primaryMuscle) ? !!sm : true;
+}));
+check('Explicit sub-muscle always wins over inference', subMuscleOf({ name: 'Whatever', primaryMuscle: 'back', subMuscle: 'traps' }) === 'traps');
+check('Inference reads the movement (incline press → upper chest)', subMuscleOf({ name: 'Incline Bench Press', primaryMuscle: 'chest' }) === 'upper_chest');
+check('Wrist curl infers wrist flexors', subMuscleOf({ name: 'Barbell Wrist Curl', primaryMuscle: 'forearms' }) === 'wrist_flexors');
+const chestSubs = subMusclesFor(EXLIB.filter((e) => e.primaryMuscle === 'chest').map((e) => ({ name: e.name, primaryMuscle: e.primaryMuscle, subMuscle: e.subMuscle })));
+check('Chest exercises span multiple sub-regions', chestSubs.length >= 2, chestSubs.join(', '));
+// Difficulty + easier-alternative finder.
+const toAlt = (e: typeof EXLIB[number], id: number): AltExercise => ({ id, slug: e.slug, name: e.name, primaryMuscle: e.primaryMuscle, muscleGroups: e.muscleGroups, equipmentType: e.equipmentType, sessionType: e.sessionType });
+const allAlts = EXLIB.map((e, i) => toAlt(e, i));
+check('One-arm push-up is harder than a knee push-up', estimateDifficulty({ id: 1, slug: 'a', name: 'One-Arm Push-Up', primaryMuscle: 'chest', muscleGroups: ['chest'], equipmentType: 'bodyweight', sessionType: 'calisthenics' }) > estimateDifficulty({ id: 2, slug: 'b', name: 'Incline Push-Up', primaryMuscle: 'chest', muscleGroups: ['chest'], equipmentType: 'bodyweight', sessionType: 'calisthenics' }));
+const oneArmIdx = EXLIB.findIndex((e) => e.slug === 'one-arm-pushup');
+const oneArm = allAlts[oneArmIdx];
+const alts = findEasierAlternatives(oneArm, allAlts);
+check('Find-alternative returns easier same-muscle options', alts.length > 0
+  && alts.every((a) => a.difficulty <= estimateDifficulty(oneArm))
+  && alts.every((a) => a.primaryMuscle === oneArm.primaryMuscle || a.muscleGroups.some((m) => oneArm.muscleGroups.includes(m)))
+  && alts.some((a) => a.difficulty < estimateDifficulty(oneArm)));
+check('Bro split now has an Abs day', SPLITS.find((s) => s.key === 'bro')!.days.some((d) => d.key === 'abs'));
+check('Bro Arm day includes forearm work', SPLITS.find((s) => s.key === 'bro')!.days.find((d) => d.key === 'arms')!.exercises.includes('reverse-curl'));
+check('Wellness protocols exist (quit-smoking / hormones / energy)', ['craving-buster-walk','heavy-compound-circuit','morning-sunlight-walk','energy-reset-breath'].every((s) => ALL_SLUGS.has(s)));
+check('Grip & forearm library expanded', EXLIB.filter((e) => e.primaryMuscle === 'forearms').length >= 15, `${EXLIB.filter((e) => e.primaryMuscle === 'forearms').length}`);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -557,11 +557,14 @@ check('Complete Athlete (#120) needs all 8 categories', evaluateAchievement(ACHI
 check('New badges are auto-tracked (101-120)', [101,104,107,111,117,120].every((id) => evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === id)!, zeroStats).tracked === true));
 
 console.log('\nSub-muscle resolution & alternatives:');
+const TAXONOMIED = ['chest','back','shoulders','biceps','triceps','forearms','quads','hamstrings','glutes','calves','core'];
+const taxExlib = EXLIB.filter((e) => e.primaryMuscle && TAXONOMIED.includes(e.primaryMuscle));
+check('Every taxonomied exercise carries an EXPLICIT sub-muscle (pinned, not inferred)', taxExlib.every((e) => !!e.subMuscle), `${taxExlib.filter((e) => !e.subMuscle).length} untagged`);
+check('Hand corrections applied (reverse wrist curl → extensors)', EXLIB.find((e) => e.slug === 'barbell-reverse-wrist-curl')?.subMuscle === 'wrist_extensors' && EXLIB.find((e) => e.slug === 'db-reverse-wrist-curl')?.subMuscle === 'wrist_extensors');
+check('Rotational core drills tagged obliques, stone lift lower-back', EXLIB.find((e) => e.slug === 'sledgehammer-swing')?.subMuscle === 'obliques' && EXLIB.find((e) => e.slug === 'atlas-stone-lift')?.subMuscle === 'lower_back');
 check('Every exercise resolves a sub-muscle or a clear reason not to', EXLIB.every((e) => {
   const sm = subMuscleOf({ name: e.name, primaryMuscle: e.primaryMuscle, subMuscle: e.subMuscle });
-  // Muscles that have a sub-region taxonomy must resolve one; cardio/mind/mobility need not.
-  const taxonomied = ['chest','back','shoulders','biceps','triceps','forearms','quads','hamstrings','glutes','calves','core'];
-  return e.primaryMuscle && taxonomied.includes(e.primaryMuscle) ? !!sm : true;
+  return e.primaryMuscle && TAXONOMIED.includes(e.primaryMuscle) ? !!sm : true;
 }));
 check('Explicit sub-muscle always wins over inference', subMuscleOf({ name: 'Whatever', primaryMuscle: 'back', subMuscle: 'traps' }) === 'traps');
 check('Inference reads the movement (incline press → upper chest)', subMuscleOf({ name: 'Incline Bench Press', primaryMuscle: 'chest' }) === 'upper_chest');

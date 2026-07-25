@@ -4,6 +4,7 @@ import type {
   SessionType,
   TrackingType,
 } from '@/db/schema';
+import { SUB_MUSCLE_TAGS } from './subMuscleTags';
 
 /**
  * Built-in exercise & activity library.
@@ -215,7 +216,7 @@ const MC = 'strength.machine';
 const CB = 'strength.cable';
 const BW = 'strength.calisthenics';
 
-export const EXERCISE_LIBRARY: SeedExercise[] = [
+const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   // ══════════════════════════ CHEST ══════════════════════════
   S('bench-press-barbell', 'Barbell Bench Press', 'chest', 'barbell', 'horizontal_push',
     ['chest', 'triceps', 'shoulders'], BB, {
@@ -1529,6 +1530,18 @@ export const EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'energy-reset-breath', name: 'Energy-Reset Breathing', category: 'wellness', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.lungs', met: 1.3, description: 'A short paced-breathing reset for a mid-slump energy lift — a gentle few minutes of slightly quicker breathing followed by calm, steady breaths.', instructions: ['Sit tall. 20–30 slightly deeper, quicker breaths, then return to slow, easy breathing.', 'Stop immediately if you feel lightheaded; never do this standing or near water.', 'Not a substitute for sleep — if you\'re exhausted, rest.'] },
   { slug: 'power-pose-reset', name: 'Power-Pose Reset', category: 'wellness', sessionType: 'mindbody', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.meditation', met: 1.5, description: 'Two minutes standing tall and open before something stressful — the evidence is mostly about feeling more confident, which is reason enough to use it.', instructions: ['Stand tall, shoulders back, chest open, for ~2 minutes.', 'Breathe slowly and evenly.', 'Use it before a task you\'re dreading — the point is the felt shift in confidence.'] },
 ];
+
+/**
+ * The seeded library, with explicit sub-muscle tags merged in for the exercises
+ * whose literal above doesn't already carry one — so every taxonomied exercise
+ * ships a pinned `subMuscle` (see src/data/subMuscleTags.ts) rather than relying
+ * on runtime inference. Literals that already declare a sub-muscle win.
+ */
+export const EXERCISE_LIBRARY: SeedExercise[] = RAW_EXERCISE_LIBRARY.map((e) =>
+  !e.subMuscle && e.slug && SUB_MUSCLE_TAGS[e.slug]
+    ? { ...e, subMuscle: SUB_MUSCLE_TAGS[e.slug] }
+    : e
+);
 
 /** Suggested duration (minutes) for the prayer meditation exercises. */
 export const PRAYER_EXERCISE_MINUTES: Record<string, number> = {

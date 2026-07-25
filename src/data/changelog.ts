@@ -25,7 +25,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     highlights: [
       'Find alternative: in a session, tap the swap icon on any exercise to switch a hard movement for an easier one that works the same muscle.',
       'Any session you assemble — free, custom, any type — can now be saved as a reusable routine, not just lifting.',
-      'Sub-muscles everywhere: filter a muscle to drill into its regions (Back → Lats vs Mid-Back), and every exercise now shows the sub-muscle it emphasises.',
+      'Sub-muscles everywhere: every one of the 263 muscle-group exercises now has its sub-muscle pinned (Back → Lats vs Mid-Back, Chest → Upper/Mid/Lower…). Filter a muscle to drill into its regions, and each exercise shows the part it emphasises.',
       'Bigger library: hand-grip & forearm training, advanced calisthenics (archer/ring/planche/lever work) and wellness protocols for cutting down smoking, hormones and energy.',
       'Bro split gains an Abs day, and Arm day now includes forearms.',
       'Trends: a Body composition section charts your measured fat mass and muscle mass over time, and tells you in plain language why each is rising or falling.',

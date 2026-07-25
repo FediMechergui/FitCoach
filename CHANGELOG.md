@@ -18,10 +18,13 @@ A training-depth and body-insight pass across the library, sessions and Trends.
   new `lib/exerciseAlternatives.ts`, plus a `swapExercise` store action.
 - **Save any session as a routine.** Routine-save is no longer lifting-only — any assembled session
   (free, custom, cardio, martial arts…) can be saved and reused from the Train tab.
-- **Sub-muscles for every exercise.** New `lib/subMuscle.ts` records or infers the emphasised
-  sub-region for any movement. The library shows it on each row, and selecting a muscle reveals a
-  sub-muscle filter (Back → Lats / Mid-Back / Traps / Lower Back, Chest → Upper/Mid/Lower, etc.).
-  Sub-muscle taxonomy expanded to chest, arms, forearms, quads, glutes and calves.
+- **Sub-muscles for every exercise — now pinned, not guessed.** All 263 muscle-group exercises
+  carry an **explicit** sub-muscle (new `src/data/subMuscleTags.ts`, generated then hand-corrected —
+  e.g. reverse wrist curls → extensors, rotational core → obliques, stone lift → lower back), merged
+  into the seeded library so the value is stored, not inferred at runtime. The library shows it on
+  each row, and selecting a muscle reveals a sub-muscle filter (Back → Lats / Mid-Back / Traps /
+  Lower Back, Chest → Upper/Mid/Lower, etc.). `lib/subMuscle.ts` still infers for custom exercises.
+  Taxonomy expanded to chest, arms, forearms, quads, glutes and calves.
 - **Library expansion (+30, now 543):** hand-grip & forearm training (gripper, plate pinch, wrist
   roller, reverse/behind-the-back curls, farmer holds, towel & fat-bar holds, finger extensions),
   advanced calisthenics (archer/ring/pseudo-planche/tuck-planche/front-lever/commando/skin-the-cat/

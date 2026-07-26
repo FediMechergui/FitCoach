@@ -38,6 +38,9 @@ import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleT
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
 import { estimateDifficulty, findEasierAlternatives, type AltExercise } from '../src/lib/exerciseAlternatives';
+import { stepsFromDistance, stepsFromDuration } from '../src/lib/pedometer';
+import { estimateActivitySteps } from '../src/lib/activitySteps';
+import { computeEnergyBalance, trainingLoadFraction } from '../src/lib/energyBalance';
 import { dietNutrition, mealToDiaryInputs } from '../src/lib/specialDiet';
 import { FOOD_DB as SPECIAL_FOOD_DB } from '../src/data/foods';
 
@@ -590,6 +593,33 @@ check('Bro split now has an Abs day', SPLITS.find((s) => s.key === 'bro')!.days.
 check('Bro Arm day includes forearm work', SPLITS.find((s) => s.key === 'bro')!.days.find((d) => d.key === 'arms')!.exercises.includes('reverse-curl'));
 check('Wellness protocols exist (quit-smoking / hormones / energy)', ['craving-buster-walk','heavy-compound-circuit','morning-sunlight-walk','energy-reset-breath'].every((s) => ALL_SLUGS.has(s)));
 check('Grip & forearm library expanded', EXLIB.filter((e) => e.primaryMuscle === 'forearms').length >= 15, `${EXLIB.filter((e) => e.primaryMuscle === 'forearms').length}`);
+
+console.log('\nActivity → steps:');
+// ~5 km run for a 180 cm runner: stride ~0.9 m → ~5,500 steps.
+const runSteps = estimateActivitySteps({ distanceM: 5000, durationSec: 25 * 60, heightCm: 180 });
+check('A 5 km run yields a sensible step count', runSteps.steps > 4500 && runSteps.steps < 7000 && runSteps.mode === 'run', `${runSteps.steps} steps, ${runSteps.mode}`);
+const walk = estimateActivitySteps({ distanceM: 3000, durationSec: 40 * 60, heightCm: 170 });
+check('A slow 3 km is classed as walking', walk.mode === 'walk' && walk.steps > 3500);
+check('Duration-only falls back to cadence', estimateActivitySteps({ durationSec: 30 * 60, heightCm: 170 }).steps > 2500);
+check('No distance or duration → no steps', estimateActivitySteps({ heightCm: 170 }).steps === 0);
+check('stepsFromDistance inverts distanceFromSteps roughly', Math.abs(stepsFromDistance(distanceFromSteps(6000, 175, 'run'), 175, 'run') - 6000) <= 1);
+check('Running cadence beats walking cadence', stepsFromDuration(600, 'run') > stepsFromDuration(600, 'walk'));
+
+console.log('\nEnergy balance & the over-training line:');
+const bmrBase = 1600, tdeeBase = 2480, target = 1980;
+// Fat loss, ate 1500, burned 300 → available 1200 < floor(max(bmr, target-500)=1600) → over-trained.
+const ebCut = computeEnergyBalance({ goal: 'lose_fat', calorieTarget: target, tdee: tdeeBase, bmr: bmrBase, consumedKcal: 1500, exerciseKcal: 300 });
+check('Aggressive deficit + big burn flags over-training', ebCut.status === 'over_trained', `${ebCut.status}, avail ${ebCut.availableAfterExercise}, floor ${ebCut.floorKcal}`);
+check('Left-to-eat is target minus consumed', ebCut.leftToEat === target - 1500);
+// Same day but ate to target and only light burn → on track with headroom.
+const okDay = computeEnergyBalance({ goal: 'lose_fat', calorieTarget: target, tdee: tdeeBase, bmr: bmrBase, consumedKcal: 1980, exerciseKcal: 150 });
+check('Eating to target with light training is on track', okDay.status === 'on_track' && okDay.headroomKcal > 0, `${okDay.status}, head ${okDay.headroomKcal}`);
+// Bulk: surplus wiped by cardio → over-trained, message says eat back.
+const bulk = computeEnergyBalance({ goal: 'build_muscle', calorieTarget: 3000, tdee: 2700, bmr: 1700, consumedKcal: 2900, exerciseKcal: 500 });
+check('A bulk that burns off its surplus is flagged', bulk.status === 'over_trained' && /surplus/i.test(bulk.message));
+check('The line is a burn ceiling, not the calorie target', ebCut.lineKcal >= 0 && okDay.lineKcal === Math.max(0, 1980 - okDay.floorKcal));
+check('Training-load fraction stays within 0..1', [ebCut, okDay, bulk].every((b) => { const f = trainingLoadFraction(b); return f >= 0 && f <= 1; }));
+check('Never lets the floor drop below BMR', computeEnergyBalance({ goal: 'lose_fat', calorieTarget: 1200, tdee: 1800, bmr: 1500, consumedKcal: 1400, exerciseKcal: 0 }).floorKcal >= 1500);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

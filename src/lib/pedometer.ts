@@ -103,3 +103,15 @@ export function estimateStrideLengthM(heightCm: number, mode: 'walk' | 'run' = '
 export function distanceFromSteps(steps: number, heightCm: number, mode: 'walk' | 'run' = 'walk'): number {
   return Math.round(steps * estimateStrideLengthM(heightCm, mode));
 }
+
+/** Steps from a covered distance (the inverse of distanceFromSteps). */
+export function stepsFromDistance(distanceM: number, heightCm: number, mode: 'walk' | 'run' = 'walk'): number {
+  const stride = estimateStrideLengthM(heightCm, mode);
+  return stride > 0 ? Math.round(distanceM / stride) : 0;
+}
+
+/** Steps from a duration when distance is unknown, using a typical cadence. */
+export function stepsFromDuration(durationSec: number, mode: 'walk' | 'run' = 'walk'): number {
+  const stepsPerMin = mode === 'run' ? 160 : 110; // typical run vs walk cadence
+  return Math.round((durationSec / 60) * stepsPerMin);
+}

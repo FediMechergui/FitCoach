@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Pressable, Alert } from 'react-native';
+import { View, Pressable, Alert, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -36,6 +36,7 @@ export function LogSessionScreen() {
   const [start, setStart] = useState('18:00');
   const [end, setEnd] = useState('19:00');
   const [distanceKm, setDistanceKm] = useState('');
+  const [onFoot, setOnFoot] = useState(true);
   const [notes, setNotes] = useState('');
 
   const isCardio = selected?.flow === 'cardio';
@@ -50,7 +51,7 @@ export function LogSessionScreen() {
     // rangeMinutes already wraps past midnight, so derive end from the duration.
     const endTime = startTime + (durationMin as number) * 60_000;
 
-    const session = logPastSession({
+    const { session, stepsAdded } = logPastSession({
       sessionType: selected.type,
       label: selected.label,
       startTime,
@@ -58,12 +59,13 @@ export function LogSessionScreen() {
       distanceM: isCardio && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
       notes: notes.trim() || null,
       weightKg,
+      onFoot: isCardio && onFoot,
     });
     Alert.alert(
       'Session logged ✓',
       `${selected.label} · ${minutesToHM(durationMin as number)}${
         session.caloriesBurned ? ` · ~${Math.round(session.caloriesBurned)} kcal` : ''
-      }`
+      }${stepsAdded > 0 ? `\n+${stepsAdded.toLocaleString()} steps added to your day` : ''}`
     );
     navigation.replace('SessionDetail', { sessionId: session.id });
   };
@@ -118,8 +120,21 @@ export function LogSessionScreen() {
       </Card>
 
       {isCardio && (
-        <Card>
+        <Card style={{ gap: theme.spacing.md }}>
           <Input label="Distance (optional)" value={distanceKm} onChangeText={setDistanceKm} placeholder="0.0" suffix="km" keyboardType="numeric" />
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text variant="bodyStrong">On foot — count as steps</Text>
+              <Text variant="caption" color="textMuted">
+                Adds an estimated step count to your day. Turn off for cycling, swimming or rowing.
+              </Text>
+            </View>
+            <Switch
+              value={onFoot}
+              onValueChange={setOnFoot}
+              trackColor={{ true: theme.colors.primary }}
+            />
+          </Row>
         </Card>
       )}
 

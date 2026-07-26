@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.16',
+    date: '2026-07-26',
+    title: 'Outdoor activities feed your steps + a don\'t-over-train line',
+    highlights: [
+      'On-foot activities now add to your daily steps: log a run, hike or outdoor walk (past or live) with a distance or duration and it folds an estimated step count into your day — with an "On foot" toggle you switch off for cycling, swimming or rowing.',
+      'New "Today\'s energy balance" card after any session: how much you burned in training, how much you\'ve eaten, and how much is left to eat toward your goal.',
+      'The over-training line: a gauge and plain-language warning showing when extra training would start working against the goal you set — losing a bulk\'s surplus, or pushing a cut past a safe deficit (never below your BMR).',
+      'It leans deliberately cautious — your calorie target already assumes everyday activity, so logged training counts on top.',
+    ],
+  },
+  {
     version: '2.15',
     date: '2026-07-25',
     title: 'Legion, ancient warriors, bodybuilders & quick urge-counters',

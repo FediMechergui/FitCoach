@@ -10,6 +10,27 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v2.16 — 2026-07-26 · Outdoor activities feed your steps + a don't-over-train line
+Two connected additions: on-foot activities now contribute to your daily step count, and every
+session shows where today's training leaves your calorie goal.
+
+- **Steps from foot activities.** New `lib/activitySteps.ts` turns a run/hike/outdoor walk's
+  **distance (or duration)** into an approximate step count — picking walk vs run stride/cadence from
+  the pace — and folds it into that day's step total, the way a phone counts a tracked run. Wired
+  into both `finalizeSession` (live) and `logPastSession` (retroactive). An **"On foot — count as
+  steps"** toggle on the cardio/outdoor logger lets you switch it **off for cycling, swimming or
+  rowing**. Steps are added with 0 kcal so the session keeps ownership of the calories (no
+  double-count). `pedometer.ts` gains `stepsFromDistance` / `stepsFromDuration`.
+- **Energy balance + the over-training line.** New `lib/energyBalance.ts` + `energyRepo.ts` compute,
+  from your goal, food and training burn: **calories burned**, **calories left to eat**, and a
+  **line** — the training-burn ceiling beyond which extra work would undercut the goal you set. The
+  new **"Today's energy balance"** card (on the session recap and any session's detail) shows the
+  three numbers, a training-load gauge against the line, and a plain-language read: a bulk warned
+  when cardio erases its surplus, a cut warned when the deficit gets too aggressive — with a hard
+  floor that never lets available energy drop below your **BMR**. It's deliberately cautious: your
+  target already assumes everyday activity, so logged training counts on top.
+- No schema change — pure logic + UI, ships over-the-air. tsc clean; verify-engines **260 → 273**.
+
 ## v2.15 — 2026-07-25 · Legion, ancient warriors, bodybuilders & quick urge-counters
 Special Programmes grow to **35 across 5 sections**, including a new on-demand urge/focus toolkit.
 

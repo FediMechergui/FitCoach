@@ -46,6 +46,7 @@ export const ICONS = {
     custom: def('MaterialCommunityIcons', 'shape-outline'),
     settings: def('Ionicons', 'settings-outline'),
     info: def('Ionicons', 'information-circle-outline'),
+    warning: def('Ionicons', 'warning-outline'),
   },
 
   // §8.2 Strength & Calisthenics

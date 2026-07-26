@@ -13,8 +13,11 @@ import {
 } from '@/db/schema';
 import { caloriesFromMet, SESSION_TYPE_MET } from '@/lib/met';
 import { distributeSessionCalories, type BurnExercise } from '@/lib/exerciseCalories';
+import { estimateActivitySteps } from '@/lib/activitySteps';
 import { estimate1RM } from '@/lib/oneRepMax';
-import { PRIMARY_USER_ID } from './userRepo';
+import { getUser, PRIMARY_USER_ID } from './userRepo';
+import { addSteps } from './activityRepo';
+import { toISODate } from '@/lib/date';
 
 export interface SetDraft {
   reps?: number | null;
@@ -159,6 +162,41 @@ export interface FinalizeResult {
   durationS: number;
   caloriesBurned: number;
   prCount: number;
+  /** steps this on-foot activity contributed to the day's count (0 if none) */
+  stepsAdded: number;
+}
+
+/**
+ * When an on-foot activity (run/walk/hike) has distance or duration, fold an
+ * approximate step count into that day's total — the way a phone counts a
+ * tracked run toward your steps. Calories stay owned by the session, so steps
+ * are added with 0 kcal to avoid double-counting the burn.
+ */
+function contributeSteps(opts: {
+  onFoot?: boolean;
+  distanceM?: number | null;
+  durationS?: number | null;
+  dateISO: string;
+  userId: number;
+}): number {
+  if (!opts.onFoot) return 0;
+  const heightCm = safeHeight(opts.userId);
+  const { steps, distanceM } = estimateActivitySteps({
+    distanceM: opts.distanceM,
+    durationSec: opts.durationS,
+    heightCm,
+  });
+  if (steps <= 0) return 0;
+  addSteps(steps, distanceM, 0, opts.dateISO, opts.userId);
+  return steps;
+}
+
+function safeHeight(userId: number): number {
+  try {
+    return getUser(userId)?.heightCm ?? 170;
+  } catch {
+    return 170;
+  }
 }
 
 /**
@@ -168,7 +206,7 @@ export interface FinalizeResult {
  */
 export function finalizeSession(
   sessionId: number,
-  opts: { moodAfter?: number | null; activity?: ActivityDetail; weightKg?: number; notes?: string | null } = {}
+  opts: { moodAfter?: number | null; activity?: ActivityDetail; weightKg?: number; notes?: string | null; onFoot?: boolean } = {}
 ): FinalizeResult {
   const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!session) throw new Error(`Session ${sessionId} not found`);
@@ -221,12 +259,21 @@ export function finalizeSession(
     .where(eq(sessions.id, sessionId))
     .run();
 
+  const stepsAdded = contributeSteps({
+    onFoot: opts.onFoot,
+    distanceM: opts.activity?.distanceM ?? null,
+    durationS,
+    dateISO: toISODate(new Date(session.startTime)),
+    userId: session.userId,
+  });
+
   return {
     session: db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!,
     totalVolume: Math.round(totalVolume),
     durationS,
     caloriesBurned,
     prCount,
+    stepsAdded,
   };
 }
 
@@ -288,9 +335,11 @@ export function logPastSession(
     notes?: string | null;
     exerciseIds?: number[];
     weightKg?: number;
+    /** on-foot activity (run/walk/hike) — folds an estimated step count into the day */
+    onFoot?: boolean;
   },
   userId: number = PRIMARY_USER_ID
-): Session {
+): { session: Session; stepsAdded: number } {
   const durationS = Math.max(1, Math.round((input.endTime - input.startTime) / 1000));
   const fallbackMet = SESSION_TYPE_MET[input.sessionType] ?? 4;
   const bodyKg = input.weightKg ?? 75;
@@ -334,7 +383,14 @@ export function logPastSession(
   for (const exId of input.exerciseIds ?? []) {
     addExerciseToSession(id, exId);
   }
-  return getSession(id)!;
+  const stepsAdded = contributeSteps({
+    onFoot: input.onFoot,
+    distanceM: input.distanceM,
+    durationS,
+    dateISO: toISODate(new Date(input.startTime)),
+    userId,
+  });
+  return { session: getSession(id)!, stepsAdded };
 }
 
 /** Adapt exercise-log views into the shape the calorie distributor expects. */

@@ -23,6 +23,8 @@ import {
   type SessionDetail,
 } from '@/repositories/sessionRepo';
 import { metaFor, MOOD_EMOJI } from '@/constants/sessionTypes';
+import { EnergyBalanceCard } from '@/components/EnergyBalanceCard';
+import { toISODate } from '@/lib/date';
 import { formatDurationLong, formatDistance, formatPace, formatDuration } from '@/lib/format';
 import type { SetEntry } from '@/db/schema';
 import { useUserStore } from '@/stores/userStore';
@@ -151,6 +153,9 @@ export function SessionDetailScreen() {
           <Text variant="body">{session.notes}</Text>
         </Card>
       ) : null}
+
+      {/* Where this day's training leaves your calorie goal + the over-training line */}
+      <EnergyBalanceCard date={toISODate(new Date(session.startTime))} />
 
       {/* Exercises — editable for any session type (fixes adding to logged/premade sessions) */}
       <SectionHeader

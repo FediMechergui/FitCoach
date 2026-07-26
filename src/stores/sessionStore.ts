@@ -61,7 +61,7 @@ interface SessionState {
   swapExercise: (logId: number, newExerciseId: number) => number | null;
   startRest: (seconds: number) => void;
   clearRest: () => void;
-  finish: (opts?: { moodAfter?: number | null; activity?: ActivityDetail; notes?: string | null }) => FinalizeResult | null;
+  finish: (opts?: { moodAfter?: number | null; activity?: ActivityDetail; notes?: string | null; onFoot?: boolean }) => FinalizeResult | null;
   cancel: () => void;
 }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Pressable, Alert } from 'react-native';
+import { View, Pressable, Alert, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -43,6 +43,7 @@ export function ActiveSessionScreen() {
   const [elevation, setElevation] = useState('');
   const [score, setScore] = useState('');
   const [style, setStyle] = useState('');
+  const [onFoot, setOnFoot] = useState(true);
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
 
   const endSession = () => {
@@ -62,9 +63,10 @@ export function ActiveSessionScreen() {
       moodAfter: flow === 'mindbody' ? moodAfter : null,
       activity,
       notes: style || null,
+      onFoot: flow === 'cardio' && onFoot,
     });
     if (result) {
-      navigation.replace('SessionRecap', { sessionId: result.session.id, prCount: result.prCount });
+      navigation.replace('SessionRecap', { sessionId: result.session.id, prCount: result.prCount, stepsAdded: result.stepsAdded });
     }
   };
 
@@ -144,6 +146,15 @@ export function ActiveSessionScreen() {
           {(sessionType === 'sport') && (
             <Input label="Score / notes (optional)" value={score} onChangeText={setScore} placeholder="e.g. 6-4, 6-3" />
           )}
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text variant="bodyStrong">On foot — count as steps</Text>
+              <Text variant="caption" color="textMuted">
+                Adds an estimated step count to your day. Off for cycling, swimming, rowing.
+              </Text>
+            </View>
+            <Switch value={onFoot} onValueChange={setOnFoot} trackColor={{ true: meta.color }} />
+          </Row>
           <Text variant="caption" color="textFaint">
             Distance & elevation are optional — duration and estimated calories are always
             captured. For a live GPS route map, start a Run from the Train tab.

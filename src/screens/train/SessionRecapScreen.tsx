@@ -14,6 +14,7 @@ import { Row, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { getSessionDetail } from '@/repositories/sessionRepo';
 import { saveRoutine, sessionExerciseIds, findRoutineByName } from '@/repositories/routinesRepo';
+import { EnergyBalanceCard } from '@/components/EnergyBalanceCard';
 import { metaFor, MOOD_EMOJI } from '@/constants/sessionTypes';
 import { formatDurationLong, formatDistance, formatPace } from '@/lib/format';
 import { useUserStore } from '@/stores/userStore';
@@ -140,6 +141,20 @@ export function SessionRecapScreen() {
           })}
         </Card>
       )}
+
+      {route.params.stepsAdded ? (
+        <Card accent={theme.colors.primary}>
+          <Row gap={8} style={{ alignItems: 'center' }}>
+            <Icon icon="cardio.walk" size={18} color={theme.colors.primary} />
+            <Text variant="body" style={{ flex: 1 }}>
+              +{route.params.stepsAdded.toLocaleString()} steps added to today's count
+            </Text>
+          </Row>
+        </Card>
+      ) : null}
+
+      {/* Where today's training leaves your calorie goal — and the over-training line. */}
+      <EnergyBalanceCard />
 
       {/* Any session with exercises can be saved as a reusable routine. */}
       {logs.length > 0 && <SaveAsRoutine sessionId={session.id} defaultName={session.label} />}

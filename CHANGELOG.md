@@ -29,7 +29,10 @@ session shows where today's training leaves your calorie goal.
   when cardio erases its surplus, a cut warned when the deficit gets too aggressive — with a hard
   floor that never lets available energy drop below your **BMR**. It's deliberately cautious: your
   target already assumes everyday activity, so logged training counts on top.
-- No schema change — pure logic + UI, ships over-the-air. tsc clean; verify-engines **260 → 273**.
+- **Home gets a simple 4-value calorie strip** — **eaten · burned · left · restore** — for an
+  at-a-glance read, tapping through to the diary. "Restore" is the eat-back needed to protect your
+  goal (0 when you're fine); the engine gains a `restoreKcal` field for it.
+- No schema change — pure logic + UI, ships over-the-air. tsc clean; verify-engines **260 → 275**.
 
 ## v2.15 — 2026-07-25 · Legion, ancient warriors, bodybuilders & quick urge-counters
 Special Programmes grow to **35 across 5 sections**, including a new on-demand urge/focus toolkit.

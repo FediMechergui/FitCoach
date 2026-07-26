@@ -19,6 +19,7 @@ import { useSleepStore } from '@/stores/sleepStore';
 import { useCycleStore } from '@/stores/cycleStore';
 import { useUsageStore } from '@/stores/usageStore';
 import { StreakMeter } from '@/components/StreakMeter';
+import { EnergyBalanceStrip } from '@/components/EnergyBalanceCard';
 import { PHASE_GUIDANCE } from '@/lib/cycle';
 import { getDailySteps } from '@/repositories/activityRepo';
 import { activeCoachTips, dismissCoachTip, refreshCoachTips } from '@/repositories/coachRepo';
@@ -179,6 +180,9 @@ export function HomeScreen() {
           </View>
         </Row>
       </Card>
+
+      {/* Simple calorie balance: eaten · burned · left · restore */}
+      <EnergyBalanceStrip onPress={() => navigation.navigate('Main', { screen: 'Nutrition' } as never)} />
 
       {/* Quick actions */}
       <Row>

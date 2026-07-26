@@ -43,6 +43,8 @@ export interface EnergyBalance {
   lineKcal: number;
   /** how much more you can burn before crossing the line (≥0) */
   headroomKcal: number;
+  /** kcal to eat back to bring available energy up to the goal floor (0 if fine) */
+  restoreKcal: number;
   status: EnergyStatus;
   message: string;
 }
@@ -83,6 +85,8 @@ export function computeEnergyBalance(i: EnergyBalanceInput): EnergyBalance {
   const lineKcal = Math.max(0, consumed - floor);
   const headroom = Math.max(0, lineKcal - exercise);
   const over = exercise - lineKcal; // >0 means past the line
+  // How much to eat back so available energy returns to the goal floor.
+  const restoreKcal = Math.max(0, Math.round(floor - availableAfterExercise));
 
   let status: EnergyStatus;
   if (over > 0) status = 'over_trained';
@@ -107,6 +111,7 @@ export function computeEnergyBalance(i: EnergyBalanceInput): EnergyBalance {
     floorKcal: floor,
     lineKcal: Math.round(lineKcal),
     headroomKcal: Math.round(headroom),
+    restoreKcal,
     status,
     message,
   };

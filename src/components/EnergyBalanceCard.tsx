@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Card } from './ui/Card';
 import { Text } from './ui/Text';
@@ -86,4 +86,56 @@ export function EnergyBalanceCard({ date }: { date?: string }) {
       </Text>
     </Card>
   );
+}
+
+/**
+ * The four-at-a-glance version for Home: ate · burned · left · restore.
+ * "Restore" is how much to eat back to protect the goal (0 unless you've
+ * under-eaten or over-trained). Tapping opens the nutrition diary.
+ */
+export function EnergyBalanceStrip({ onPress }: { onPress?: () => void }) {
+  const theme = useTheme();
+  const bal = React.useMemo(() => {
+    try {
+      return energyBalanceFor();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  if (!bal) return null;
+
+  const cells: Array<{ label: string; value: number; color: string; sign?: boolean }> = [
+    { label: 'Eaten', value: bal.consumed, color: theme.colors.text },
+    { label: 'Burned', value: bal.exerciseBurned, color: theme.colors.calories },
+    { label: bal.leftToEat >= 0 ? 'Left' : 'Over', value: Math.abs(bal.leftToEat), color: bal.leftToEat >= 0 ? theme.colors.success : theme.colors.warning },
+    { label: 'Restore', value: bal.restoreKcal, color: bal.restoreKcal > 0 ? theme.colors.danger : theme.colors.textFaint },
+  ];
+
+  const body = (
+    <Card style={{ gap: 8 }}>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Row gap={6} style={{ alignItems: 'center' }}>
+          <Icon icon="nutrition.calories" size={15} color={theme.colors.calories} />
+          <Text variant="label" color="textMuted">Calories today</Text>
+        </Row>
+        <Text variant="caption" color="textFaint">kcal</Text>
+      </Row>
+      <Row style={{ justifyContent: 'space-between' }}>
+        {cells.map((c) => (
+          <View key={c.label} style={{ alignItems: 'center', flex: 1 }}>
+            <Text variant="h3" style={{ color: c.color, fontVariant: ['tabular-nums'] }}>{c.value}</Text>
+            <Text variant="caption" color="textMuted">{c.label}</Text>
+          </View>
+        ))}
+      </Row>
+      {bal.restoreKcal > 0 && (
+        <Text variant="caption" color="danger" center>
+          Eat back ~{bal.restoreKcal} kcal to protect your goal.
+        </Text>
+      )}
+    </Card>
+  );
+
+  return onPress ? <Pressable onPress={onPress}>{body}</Pressable> : body;
 }

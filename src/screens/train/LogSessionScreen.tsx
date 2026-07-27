@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Pressable, Alert, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,6 +13,8 @@ import { Row, SectionHeader } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { SESSION_TYPE_META, type SessionTypeMeta } from '@/constants/sessionTypes';
 import { logPastSession } from '@/repositories/sessionRepo';
+import { getExercise, type ExerciseView } from '@/repositories/exerciseRepo';
+import { useExerciseDraftStore } from '@/stores/exerciseDraftStore';
 import { useUserStore } from '@/stores/userStore';
 import { fromISODate, todayISO } from '@/lib/date';
 import { hmToMinutes, rangeMinutes, minutesToHM } from '@/lib/time';
@@ -44,6 +46,17 @@ export function LogSessionScreen() {
   const validTimes = durationMin != null && durationMin > 0;
   const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date);
 
+  // Exercises picked from the library before the session exists.
+  const draftIds = useExerciseDraftStore((s) => s.ids);
+  const removeDraft = useExerciseDraftStore((s) => s.remove);
+  const clearDraft = useExerciseDraftStore((s) => s.clear);
+  // Start each visit with a clean draft list.
+  useEffect(() => clearDraft, [clearDraft]);
+  const draftExercises = useMemo(
+    () => draftIds.map((id) => getExercise(id)).filter((e): e is ExerciseView => !!e),
+    [draftIds]
+  );
+
   const save = () => {
     if (!selected || !validTimes || !validDate) return;
     const startTime = epochFor(date, start);
@@ -60,7 +73,9 @@ export function LogSessionScreen() {
       notes: notes.trim() || null,
       weightKg,
       onFoot: isCardio && onFoot,
+      exerciseIds: draftIds,
     });
+    clearDraft();
     Alert.alert(
       'Session logged ✓',
       `${selected.label} · ${minutesToHM(durationMin as number)}${
@@ -137,6 +152,42 @@ export function LogSessionScreen() {
           </Row>
         </Card>
       )}
+
+      {/* Exercises — available for EVERY session type, outdoor included */}
+      <SectionHeader title="Exercises (optional)" />
+      <Card style={{ gap: 8 }}>
+        {draftExercises.length === 0 ? (
+          <Text variant="caption" color="textMuted">
+            Add the specific exercises or activities you did — the same library as a live session.
+          </Text>
+        ) : (
+          draftExercises.map((ex, i) => (
+            <Row key={ex.id} gap={8} style={{ alignItems: 'center' }}>
+              <Text variant="caption" color="textFaint" style={{ width: 18 }}>{i + 1}.</Text>
+              <Icon icon={ex.iconKey} size={16} color={theme.colors.primary} />
+              <Text variant="body" style={{ flex: 1 }} numberOfLines={1}>{ex.name}</Text>
+              <Pressable onPress={() => removeDraft(ex.id)} hitSlop={8}>
+                <Icon icon="core.close" size={15} color={theme.colors.textFaint} />
+              </Pressable>
+            </Row>
+          ))
+        )}
+        <Button
+          title="Add exercise from library"
+          icon="core.add"
+          variant="secondary"
+          size="sm"
+          onPress={() =>
+            navigation.navigate('ExerciseLibrary', {
+              pick: true,
+              draft: true,
+              // Pre-filter to the type being logged (e.g. Outdoor) so the right
+              // activities are front and centre.
+              sessionType: selected?.type,
+            })
+          }
+        />
+      </Card>
 
       <Card>
         <Input label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="How it went, what you did…" />

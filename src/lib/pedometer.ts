@@ -92,6 +92,9 @@ export class StepDetector {
   }
 }
 
+/** Daily step goal used by the Home rings and the live walk notification. */
+export const DAILY_STEP_GOAL = 8000;
+
 /** Default adult stride length (m) as a fraction of height, by gait. */
 export function estimateStrideLengthM(heightCm: number, mode: 'walk' | 'run' = 'walk'): number {
   const h = heightCm > 0 ? heightCm : 170;

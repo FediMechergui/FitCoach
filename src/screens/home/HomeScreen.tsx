@@ -22,6 +22,7 @@ import { StreakMeter } from '@/components/StreakMeter';
 import { EnergyBalanceStrip } from '@/components/EnergyBalanceCard';
 import { PHASE_GUIDANCE } from '@/lib/cycle';
 import { getDailySteps } from '@/repositories/activityRepo';
+import { DAILY_STEP_GOAL as STEP_GOAL } from '@/lib/pedometer';
 import { activeCoachTips, dismissCoachTip, refreshCoachTips } from '@/repositories/coachRepo';
 import { currentStreak } from '@/repositories/statsRepo';
 import { getSelfCare, bumpSelfCare } from '@/repositories/selfCareRepo';
@@ -32,7 +33,6 @@ import type { CoachTip } from '@/db/schema';
 import { todayISO } from '@/lib/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-const STEP_GOAL = 8000;
 const CATEGORY_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
   training: 'primary',
   nutrition: 'calories',

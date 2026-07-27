@@ -22,6 +22,7 @@ import {
 } from '@/repositories/exerciseRepo';
 import { addExerciseToSession, getSession } from '@/repositories/sessionRepo';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useExerciseDraftStore } from '@/stores/exerciseDraftStore';
 import { useUserStore } from '@/stores/userStore';
 import { caloriesForReference } from '@/lib/exerciseCalories';
 import { SESSION_TYPE_MET } from '@/lib/met';
@@ -58,11 +59,15 @@ export function ExerciseLibraryScreen() {
   const route = useRoute<LibRoute>();
   const pick = route.params?.pick ?? false;
   const targetSessionId = route.params?.sessionId;
+  const isDraft = route.params?.draft ?? false;
+  const addToDraft = useExerciseDraftStore((s) => s.add);
   const addExercise = useSessionStore((s) => s.addExercise);
   const activeType = useSessionStore((s) => s.sessionType);
   const bodyKg = useUserStore((s) => s.currentWeightKg) ?? 75;
-  // When targeting a specific (e.g. finished) session, default the filter to its type.
-  const targetType = targetSessionId ? getSession(targetSessionId)?.sessionType : undefined;
+  // Default the filter to the session's type — either an explicit one (draft
+  // picks while logging a past session) or the targeted session's own type.
+  const targetType = route.params?.sessionType
+    ?? (targetSessionId ? getSession(targetSessionId)?.sessionType : undefined);
 
   const [search, setSearch] = useState('');
   const [type, setType] = useState<SessionType | 'all'>(targetType ?? (pick && activeType ? activeType : 'all'));
@@ -99,16 +104,17 @@ export function ExerciseLibraryScreen() {
   const onSelect = useCallback(
     (ex: ExerciseView) => {
       if (pick) {
-        // Target a specific session (e.g. a finished/logged one) directly, else
-        // the live session via the store.
-        if (targetSessionId) addExerciseToSession(targetSessionId, ex.id);
+        // Three destinations: a draft list (past session being logged), a
+        // specific existing session, or the live session via the store.
+        if (isDraft) addToDraft(ex.id);
+        else if (targetSessionId) addExerciseToSession(targetSessionId, ex.id);
         else addExercise(ex.id);
         navigation.goBack();
       } else {
         navigation.navigate('ExerciseStats', { exerciseId: ex.id, name: ex.name });
       }
     },
-    [pick, targetSessionId, addExercise, navigation]
+    [pick, isDraft, addToDraft, targetSessionId, addExercise, navigation]
   );
 
   const openDetail = useCallback(

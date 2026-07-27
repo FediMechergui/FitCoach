@@ -3,7 +3,9 @@ import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, G
 import { epley1RM, brzycki1RM, estimate1RM } from '../src/lib/oneRepMax';
 import { caloriesFromMet, walkRunMet } from '../src/lib/met';
 import { estimateBodyType, bmi } from '../src/lib/bodyType';
-import { StepDetector, distanceFromSteps } from '../src/lib/pedometer';
+import { StepDetector, distanceFromSteps, stepsFromDistance, stepsFromDuration } from '../src/lib/pedometer';
+import { recoverGapSteps, measuredCadence, MAX_GAP_CREDIT_MIN, MAX_CADENCE, DEFAULT_CADENCE } from '../src/lib/walkRecovery';
+import { progressBar, progressBarWithPct } from '../src/lib/progressBar';
 import { lifeMinutesLost, moneyCost, aerobicPenaltyPct, currentQuitMilestone, DEFAULT_SMOKING_SETTINGS } from '../src/lib/smoking';
 import { generateCoachTips, type CoachContext } from '../src/lib/recommendations';
 import { estimateFromDescription } from '../src/data/foods';
@@ -38,7 +40,6 @@ import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleT
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
 import { estimateDifficulty, findEasierAlternatives, type AltExercise } from '../src/lib/exerciseAlternatives';
-import { stepsFromDistance, stepsFromDuration } from '../src/lib/pedometer';
 import { estimateActivitySteps } from '../src/lib/activitySteps';
 import { computeEnergyBalance, trainingLoadFraction } from '../src/lib/energyBalance';
 import { dietNutrition, mealToDiaryInputs } from '../src/lib/specialDiet';
@@ -623,6 +624,31 @@ check('Never lets the floor drop below BMR', computeEnergyBalance({ goal: 'lose_
 // The Home "restore" value: eat-back needed to reach the floor, 0 when fine.
 check('Restore = eat-back to the floor when over-trained', ebCut.restoreKcal === Math.max(0, ebCut.floorKcal - ebCut.availableAfterExercise) && ebCut.restoreKcal > 0);
 check('Restore is 0 when on track', okDay.restoreKcal === 0);
+
+console.log('\nWalk recovery (screen off / app killed):');
+// GPS is evidence: a traced 5 km run implies far more steps than 100 counted.
+const gpsRec = recoverGapSteps({ mode: 'run', observedSteps: 100, observedMs: 60_000, gapMs: 20 * 60_000, gpsDistanceM: 5000, heightCm: 175 });
+check('GPS distance recovers a killed run', gpsRec.basis === 'gps' && gpsRec.estimated === false && gpsRec.steps > 4000, `${gpsRec.steps}`);
+// Applying it twice must not double count (it raises to a floor, not additive).
+const gpsAgain = recoverGapSteps({ mode: 'run', observedSteps: 100 + gpsRec.steps, observedMs: 60_000, gapMs: 20 * 60_000, gpsDistanceM: 5000, heightCm: 175 });
+check('GPS recovery is idempotent (a floor, never additive)', gpsAgain.steps === 0);
+// No GPS, no hardware: estimate the blind window from measured cadence.
+const cadRec = recoverGapSteps({ mode: 'walk', observedSteps: 1000, observedMs: 10 * 60_000, gapMs: 10 * 60_000, gpsDistanceM: 0, heightCm: 175 });
+check('Cadence fills a blind walk window', cadRec.basis === 'cadence' && cadRec.estimated === true && near(cadRec.steps, 1000, 50), `${cadRec.steps}`);
+check('Short gaps are ignored', recoverGapSteps({ mode: 'walk', observedSteps: 1000, observedMs: 600_000, gapMs: 5_000, heightCm: 175 }).steps === 0);
+// The critical honesty guard: a huge gap can't invent a huge number of steps.
+const hugeGap = recoverGapSteps({ mode: 'walk', observedSteps: 1000, observedMs: 10 * 60_000, gapMs: 12 * 3600_000, gpsDistanceM: 0, heightCm: 175 });
+check('A long gap is capped, not extrapolated forever', hugeGap.steps <= MAX_GAP_CREDIT_MIN * MAX_CADENCE.walk, `${hugeGap.steps}`);
+check('Cadence is capped at a realistic ceiling', measuredCadence(100000, 60_000, 'walk') === MAX_CADENCE.walk);
+check('Cadence falls back to a default with too little data', measuredCadence(0, 1000, 'run') === DEFAULT_CADENCE.run);
+// Steps↔distance round-trip underpins both directions.
+check('stepsFromDistance inverts distanceFromSteps', Math.abs(stepsFromDistance(distanceFromSteps(5000, 175, 'walk'), 175, 'walk') - 5000) <= 1);
+check('Duration-only steps use a plausible cadence', stepsFromDuration(600, 'walk') === 1100 && stepsFromDuration(600, 'run') === 1600);
+
+console.log('\nNotification progress bar:');
+check('Bar renders full/empty blocks at the right ratio', progressBar(0.5, 10) === '█████░░░░░');
+check('Bar clamps out-of-range input', progressBar(-1, 4) === '░░░░' && progressBar(9, 4) === '████');
+check('Bar with percentage reads correctly', progressBarWithPct(0.62, 10) === '██████░░░░ 62%');
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

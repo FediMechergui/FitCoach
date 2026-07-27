@@ -7,7 +7,9 @@ import {
   patchLiveWalk,
   startLiveWalk,
 } from '@/repositories/activityRepo';
-import { StepDetector, distanceFromSteps } from '@/lib/pedometer';
+import { StepDetector, distanceFromSteps, DAILY_STEP_GOAL } from '@/lib/pedometer';
+import { recoverGapSteps, MIN_GAP_SEC } from '@/lib/walkRecovery';
+import { progressBarWithPct } from '@/lib/progressBar';
 import type { LatLng } from '@/lib/geo';
 import { useUserStore } from '@/stores/userStore';
 import {
@@ -70,6 +72,15 @@ const mem = {
   /** GPS route tracking is live for this session */
   usingGps: false,
   dirty: false,
+  /**
+   * When we last actually observed the session. The flush timer refreshes this
+   * every few seconds while JS is running; once the screen goes off or the app
+   * is killed it goes stale, and the difference on return IS the blind window we
+   * need to recover. Seeded from the persisted row after a restart.
+   */
+  lastObservedAt: 0,
+  /** true once any part of the count came from a cadence estimate */
+  estimated: false,
 };
 
 function total(): number {
@@ -150,7 +161,13 @@ export function getLiveSnapshot(): WalkSnapshot | null {
  * the count.
  */
 export async function reconcileSteps(): Promise<void> {
-  if (!mem.active || !mem.hardware || reconciling || stepCountSupported === false) return;
+  if (!mem.active) return;
+
+  // Always try to close a blind window first — this is what actually recovers
+  // steps on Android after the screen was off or the app was killed.
+  catchUpFromGap();
+
+  if (!mem.hardware || reconciling || stepCountSupported === false) return;
   reconciling = true;
   try {
     const res = await Pedometer.getStepCountAsync(new Date(mem.startTime), new Date());
@@ -170,6 +187,55 @@ export async function reconcileSteps(): Promise<void> {
   }
 }
 
+/**
+ * Close the gap between the last moment we observed the session and now.
+ *
+ * Two very different cases, and conflating them would double-count:
+ *  • **GPS run** — the foreground service kept tracing while we were away, so
+ *    the route distance is evidence. We raise the count to what that distance
+ *    implies (a floor, never additive, so this is safe to call repeatedly).
+ *  • **No hardware counter** (accelerometer-only) — the steps are genuinely
+ *    lost, so we estimate the window from the session's own cadence. Applied
+ *    once per gap (we immediately mark the window observed).
+ *
+ * When a hardware counter IS running we deliberately do nothing: `watchStepCount`
+ * delivers the batched background total by itself on resume, and adding an
+ * estimate on top would inflate the count.
+ */
+function catchUpFromGap(): void {
+  const now = Date.now();
+  if (!mem.lastObservedAt) {
+    mem.lastObservedAt = now;
+    return;
+  }
+  const gapMs = now - mem.lastObservedAt;
+  const gpsDistanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
+
+  // A hardware counter self-catches-up; only GPS evidence may adjust it.
+  if (mem.hardware && !(gpsDistanceM > 0)) {
+    mem.lastObservedAt = now;
+    return;
+  }
+  if (gapMs < MIN_GAP_SEC * 1000 && !(gpsDistanceM > 0)) return;
+
+  const heightCm = useUserStore.getState().user?.heightCm ?? 175;
+  const rec = recoverGapSteps({
+    mode: mem.mode,
+    observedSteps: total(),
+    observedMs: Math.max(1, mem.lastObservedAt - mem.startTime),
+    gapMs,
+    gpsDistanceM,
+    heightCm,
+  });
+
+  if (rec.steps > 0) {
+    mem.baseSteps += rec.steps;
+    mem.dirty = true;
+    if (rec.estimated) mem.estimated = true;
+  }
+  mem.lastObservedAt = now;
+}
+
 function attachSensors(): void {
   if (mem.hardware) {
     pedoSub = Pedometer.watchStepCount((result) => {
@@ -187,22 +253,37 @@ function attachSensors(): void {
     });
   }
 
-  // Persist + refresh the live notification every 3 s (and only when changed).
+  // Persist + refresh the live notification every 3 s. `lastObservedAt` is
+  // stamped on every tick: while JS runs it stays current, and the moment the
+  // app is suspended it stops advancing — which is exactly how we detect the
+  // blind window later (see catchUpFromGap).
   flushTimer = setInterval(() => {
-    if (mem.dirty && mem.active) {
+    if (!mem.active) return;
+    mem.lastObservedAt = Date.now();
+    if (mem.dirty) {
       const t = total();
       patchLiveWalk({ steps: t });
       mem.dirty = false;
-      if (!mem.usingGps && t !== lastNotifiedSteps) {
+      if (t !== lastNotifiedSteps) {
         lastNotifiedSteps = t;
-        void updateOngoingNotification(
-          'walk',
-          `FitCoach — ${mem.mode === 'run' ? 'run' : 'walk'} in progress`,
-          `${t.toLocaleString()} steps · tap to return and finish`
-        );
+        void pushWalkNotification(t);
       }
     }
   }, 3000);
+}
+
+/** Live sticky notification: steps, distance, elapsed and a progress bar. */
+async function pushWalkNotification(steps: number, opts: { create?: boolean } = {}): Promise<void> {
+  const heightCm = useUserStore.getState().user?.heightCm ?? 175;
+  const distanceM = mem.usingGps ? getLiveRouteDistanceM() : distanceFromSteps(steps, heightCm, mem.mode);
+  const elapsedMin = Math.max(0, Math.round((Date.now() - mem.startTime) / 60_000));
+  const bar = progressBarWithPct(steps / DAILY_STEP_GOAL);
+  const title = `${mem.mode === 'run' ? '🏃' : '🚶'} ${steps.toLocaleString()} steps · ${(distanceM / 1000).toFixed(2)} km`;
+  const body =
+    `${bar} of ${DAILY_STEP_GOAL.toLocaleString()}\n` +
+    `${elapsedMin} min${mem.estimated ? ' · includes an estimate for time in the background' : ''} · tap to finish`;
+  if (opts.create) await showOngoingNotification('walk', title, body);
+  else await updateOngoingNotification('walk', title, body);
 }
 
 function detachSensors(): void {
@@ -240,21 +321,16 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   mem.steps = 0;
   mem.usingGps = gps;
   mem.dirty = false;
+  mem.lastObservedAt = mem.startTime;
+  mem.estimated = false;
   lastNotifiedSteps = -1;
 
   attachSensors();
 
-  // GPS runs already have the location foreground-service notification; only add
-  // our own sticky (with the live step count) for pedometer/accelerometer walks.
-  if (!gps) {
-    void showOngoingNotification(
-      'walk',
-      `FitCoach — ${mode === 'run' ? 'run' : 'walk'} in progress`,
-      hardware
-        ? 'Steps keep counting, even with the screen off. Return to finish.'
-        : 'Counting with the accelerometer — keep the app open for accuracy.'
-    );
-  }
+  // Sticky notification with a live progress bar, for walks and runs alike. (A
+  // GPS run also carries the location foreground-service notification, which
+  // Android requires for background location — this one is the live counter.)
+  void pushWalkNotification(0, { create: true });
 
   return perms;
 }
@@ -283,6 +359,10 @@ export async function resumeWalkTracking(): Promise<void> {
   mem.steps = 0;
   mem.usingGps = row.source === 'gps' || gpsLive;
   mem.dirty = false;
+  // The persisted row's `updatedAt` is when we last observed the session, so the
+  // window between then and now is what was missed while the app was gone.
+  mem.lastObservedAt = row.updatedAt ?? row.startTime;
+  mem.estimated = false;
   lastNotifiedSteps = -1;
 
   // If it was a GPS run and the foreground service died (rare), restart it.
@@ -291,15 +371,11 @@ export async function resumeWalkTracking(): Promise<void> {
   }
 
   attachSensors();
-  if (hardware) void reconcileSteps();
+  // Recover the blind window (GPS evidence, or a cadence estimate), then let the
+  // hardware counter's own catch-up land on top.
+  await reconcileSteps();
 
-  if (!mem.usingGps) {
-    void showOngoingNotification(
-      'walk',
-      `FitCoach — ${row.mode === 'run' ? 'run' : 'walk'} in progress`,
-      'Session resumed — return to FitCoach to finish.'
-    );
-  }
+  void pushWalkNotification(total(), { create: true });
 }
 
 export interface WalkResult {
@@ -321,6 +397,8 @@ export function stopWalkTracking(): WalkResult | null {
   void dismissOngoingNotification('walk');
   mem.active = false;
   mem.usingGps = false;
+  mem.lastObservedAt = 0;
+  mem.estimated = false;
 
   if (!snapshot) return null;
 

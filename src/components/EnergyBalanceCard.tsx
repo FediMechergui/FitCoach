@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useNutritionStore } from '@/stores/nutritionStore';
 import { Card } from './ui/Card';
 import { Text } from './ui/Text';
 import { Icon } from './ui/Icon';
@@ -16,13 +18,18 @@ import { trainingLoadFraction } from '@/lib/energyBalance';
  */
 export function EnergyBalanceCard({ date }: { date?: string }) {
   const theme = useTheme();
+  // Stay current if food is logged while this screen is open / on return to it.
+  const food = useNutritionStore((s) => s.food);
+  const [tick, setTick] = React.useState(0);
+  useFocusEffect(React.useCallback(() => setTick((t) => t + 1), []));
   const bal = React.useMemo(() => {
     try {
       return energyBalanceFor(date);
     } catch {
       return null;
     }
-  }, [date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, food, tick]);
 
   if (!bal) return null;
 
@@ -95,13 +102,23 @@ export function EnergyBalanceCard({ date }: { date?: string }) {
  */
 export function EnergyBalanceStrip({ onPress }: { onPress?: () => void }) {
   const theme = useTheme();
+  // Recompute whenever the day's food/drink changes (logging a meal updates the
+  // nutrition store) and whenever the screen regains focus — otherwise this card
+  // would compute once on mount and then go stale as you eat.
+  const food = useNutritionStore((s) => s.food);
+  const beverages = useNutritionStore((s) => s.beverages);
+  const nutritionDate = useNutritionStore((s) => s.date);
+  const [tick, setTick] = React.useState(0);
+  useFocusEffect(React.useCallback(() => setTick((t) => t + 1), []));
+
   const bal = React.useMemo(() => {
     try {
       return energyBalanceFor();
     } catch {
       return null;
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [food, beverages, nutritionDate, tick]);
 
   if (!bal) return null;
 

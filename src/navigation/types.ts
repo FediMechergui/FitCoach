@@ -24,8 +24,14 @@ export type RootStackParamList = {
   SpecialPrograms: undefined;
   SpecialProgramDetail: { programKey: string };
   ActiveSession: { sessionId: number };
-  /** pick=true selects exercises; sessionId targets a specific (e.g. finished) session */
-  ExerciseLibrary: { pick?: boolean; sessionId?: number } | undefined;
+  /**
+   * pick=true selects exercises; sessionId targets a specific (e.g. finished)
+   * session; draft=true collects picks for a session that doesn't exist yet
+   * (logging a past session).
+   */
+  ExerciseLibrary:
+    | { pick?: boolean; sessionId?: number; draft?: boolean; sessionType?: SessionType }
+    | undefined;
   SessionRecap: { sessionId: number; prCount?: number; stepsAdded?: number };
   Walk: { mode: 'walk' | 'run' } | undefined;
   SessionHistory: undefined;

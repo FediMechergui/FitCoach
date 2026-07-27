@@ -1,0 +1,7 @@
+{
+  "name": "step-counter",
+  "version": "1.0.0",
+  "description": "Reads Android's hardware TYPE_STEP_COUNTER absolute since-boot value",
+  "main": "index.ts",
+  "private": true
+}

@@ -10,6 +10,7 @@ import {
 import { StepDetector, distanceFromSteps, DAILY_STEP_GOAL } from '@/lib/pedometer';
 import { recoverGapSteps, MIN_GAP_SEC } from '@/lib/walkRecovery';
 import { progressBarWithPct } from '@/lib/progressBar';
+import { getStepsSinceBoot, hasHardwareStepCounter } from '../../modules/step-counter';
 import type { LatLng } from '@/lib/geo';
 import { useUserStore } from '@/stores/userStore';
 import {
@@ -27,22 +28,29 @@ import {
 /**
  * Walk/run tracking.
  *
- * Real-time step source: `Pedometer.watchStepCount` (TYPE_STEP_COUNTER on
- * Android, CMPedometer on iOS). It reports the cumulative step count since the
- * subscription, and because the hardware counter keeps ticking while the app is
- * backgrounded or the screen is off, the listener delivers the batched total the
- * moment it resumes — so background steps catch up. This is the source that
- * actually works on Android.
+ * Steps come from the device's hardware step-counter sensor, through two
+ * complementary channels, plus GPS as independent evidence:
  *
- * `getStepCountAsync` is used ONLY as a best-effort *upward* correction: on iOS
- * it can read the exact count over a date range; on Android it is unavailable
- * and throws, so we swallow the error and rely entirely on the watch counter.
- * (An earlier version made getStepCountAsync the sole source, which silently
- * broke step counting on Android — never do that again.)
+ *  1. **Live counting** — `Pedometer.watchStepCount` (TYPE_STEP_COUNTER on
+ *     Android, CMPedometer on iOS) reports steps since the subscription. The
+ *     sensor keeps ticking while backgrounded, so the batched total lands the
+ *     moment JS resumes.
+ *  2. **Exact recovery** — our native `step-counter` module reads the sensor's
+ *     *absolute* since-boot value, which survives the CPU sleeping and our
+ *     process being killed. Banking that at session start means session steps
+ *     are always (current − baseline), no matter what happened in between. This
+ *     is the only way to be exact after an app kill; expo-sensors can't do it
+ *     (`watchStepCount` is subscription-relative and `getStepCountAsync` is
+ *     iOS-only), which is why the module exists. It's loaded optionally, so a
+ *     build without it degrades to the other channels instead of breaking.
+ *  3. **GPS** — a location foreground service runs for walks *and* runs. It
+ *     survives screen-off and app-kill, giving measured distance from which
+ *     steps are checkpointed into the DB even while we're dead.
  *
- * With no hardware counter we fall back to the accelerometer detector
- * (foreground-only). Runs additionally trace a GPS route via a foreground
- * service (see locationTracking.ts).
+ * The accelerometer detector is only a stopgap for the first moments of a
+ * session, or a device with no step sensor at all; it cannot run in the
+ * background. All recovery paths raise the count as a floor, never lower it, so
+ * they're safe to apply repeatedly and can't double-count.
  */
 
 type Sub = { remove: () => void };
@@ -81,6 +89,11 @@ const mem = {
   lastObservedAt: 0,
   /** true once any part of the count came from a cadence estimate */
   estimated: false,
+  /**
+   * Hardware step counter's absolute since-boot value at session start (null if
+   * unavailable). Lets us recompute exact session steps after an app kill.
+   */
+  bootBaseline: null as number | null,
 };
 
 function total(): number {
@@ -165,8 +178,13 @@ export function getLiveSnapshot(): WalkSnapshot | null {
 export async function reconcileSteps(): Promise<void> {
   if (!mem.active) return;
 
-  // Always try to close a blind window first — this is what actually recovers
-  // steps on Android after the screen was off or the app was killed.
+  // Best evidence first: the hardware counter's absolute since-boot value minus
+  // our session baseline is the EXACT number of steps taken since we started,
+  // regardless of the screen being off or the app having been killed. Applied as
+  // a floor, so it's idempotent and can never lower the count.
+  await reconcileFromHardwareBaseline();
+
+  // Then close any remaining blind window (GPS evidence, else a cadence estimate).
   catchUpFromGap();
 
   if (!mem.hardware || reconciling || stepCountSupported === false) return;
@@ -204,6 +222,31 @@ export async function reconcileSteps(): Promise<void> {
  * delivers the batched background total by itself on resume, and adding an
  * estimate on top would inflate the count.
  */
+/**
+ * Exact recovery from the hardware step counter.
+ *
+ * `getStepsSinceBoot()` reads the sensor's absolute value through the native
+ * module. Session steps are simply (now − baseline). Raised as a floor only, so
+ * calling this repeatedly is harmless, and on an APK without the native module
+ * it quietly no-ops (the helper returns null).
+ */
+async function reconcileFromHardwareBaseline(): Promise<void> {
+  if (mem.bootBaseline == null) return;
+  const now = await getStepsSinceBoot();
+  if (now == null || !mem.active) return;
+  const exact = now - mem.bootBaseline;
+  // A device reboot mid-session resets the sensor; a negative delta means the
+  // baseline is meaningless now, so drop it rather than trust bad arithmetic.
+  if (exact < 0) {
+    mem.bootBaseline = null;
+    return;
+  }
+  if (exact > total()) {
+    mem.baseSteps = exact - mem.steps;
+    mem.dirty = true;
+  }
+}
+
 function catchUpFromGap(): void {
   const now = Date.now();
   if (!mem.lastObservedAt) {
@@ -348,6 +391,16 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   const startedFor = mem.startTime;
   const stillMine = () => mem.active && mem.startTime === startedFor;
 
+  // 0. Bank the hardware counter's absolute since-boot reading. This sensor keeps
+  //    counting while the CPU sleeps and while our process is dead, so this
+  //    baseline is what lets us recover an EXACT count after an app kill.
+  const baseline = await getStepsSinceBoot();
+  if (!stillMine()) return;
+  if (baseline != null) {
+    mem.bootBaseline = baseline;
+    patchLiveWalk({ bootStepBaseline: baseline });
+  }
+
   // 1. GPS first — it's required for both walks and runs, and its foreground
   //    service is what keeps recording once the screen goes off or we're killed.
   const gps = await startRouteTracking(mode);
@@ -358,7 +411,9 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   const perms = await requestWalkPermissions();
   if (!stillMine()) return;
 
-  const hardware = perms.motion && (await isPedometerAvailable());
+  // Either channel to the step-counter sensor counts as "hardware": expo-sensors'
+  // pedometer for live counting, or our native module's absolute reading.
+  const hardware = perms.motion && ((await isPedometerAvailable()) || hasHardwareStepCounter());
   if (!stillMine()) return;
 
   // Upgrade the step source to the hardware counter. This is the real link to
@@ -392,6 +447,7 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   mem.dirty = false;
   mem.lastObservedAt = mem.startTime;
   mem.estimated = false;
+  mem.bootBaseline = null;
   lastNotifiedSteps = -1;
 
   // Count from the very first step with the accelerometer, then upgrade.
@@ -439,6 +495,8 @@ export async function resumeWalkTracking(): Promise<void> {
   // window between then and now is what was missed while the app was gone.
   mem.lastObservedAt = row.updatedAt ?? row.startTime;
   mem.estimated = false;
+  // Restoring this is what makes a killed session recoverable exactly.
+  mem.bootBaseline = row.bootStepBaseline ?? null;
   lastNotifiedSteps = -1;
 
   // If the GPS service died (rare), restart it.
@@ -476,6 +534,7 @@ export function stopWalkTracking(): WalkResult | null {
   mem.usingGps = false;
   mem.lastObservedAt = 0;
   mem.estimated = false;
+  mem.bootBaseline = null;
 
   if (!snapshot) return null;
 

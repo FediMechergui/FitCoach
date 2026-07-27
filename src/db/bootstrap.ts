@@ -23,8 +23,9 @@ import { seedExerciseLibrary } from './seed';
  *   11 → 12 v2.12: +2 exercises (one-arm push-up, speed bag) for new programmes
  *   12 → 13 v2.14: +30 exercises (grip/forearm, advanced calisthenics, wellness)
  *   13 → 14 v2.15: +7 quick-counter exercises (urge/focus protocols)
+ *   14 → 15 v2.18: live_walks.boot_step_baseline (hardware step-counter baseline)
  */
-const SCHEMA_VERSION = 14;
+const SCHEMA_VERSION = 15;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -74,6 +75,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'weigh_ins', column: 'thigh_r_cm', ddl: 'REAL' },
   { table: 'weigh_ins', column: 'calf_l_cm', ddl: 'REAL' },
   { table: 'weigh_ins', column: 'calf_r_cm', ddl: 'REAL' },
+  // v15 — hardware step counter: absolute since-boot reading at session start
+  { table: 'live_walks', column: 'boot_step_baseline', ddl: 'INTEGER' },
 ];
 
 function ensureColumns(): void {
@@ -270,7 +273,8 @@ CREATE TABLE IF NOT EXISTS live_walks (
   last_lat REAL,
   last_lng REAL,
   route_json TEXT,
-  updated_at INTEGER
+  updated_at INTEGER,
+  boot_step_baseline INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS daily_step_logs (

@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.18',
+    date: '2026-07-26',
+    title: 'True hardware step counting (needs the new APK)',
+    highlights: [
+      'FitCoach now reads your phone’s step-counter sensor directly, at the hardware level — including its absolute since-boot total, which Expo’s standard sensor API cannot expose.',
+      'That means an exact step count even if the app is killed mid-walk: your session baseline is banked at the start, so steps are always (sensor now − baseline), no matter what happened in between.',
+      'The sensor keeps counting while the CPU sleeps and while the app is dead, so nothing is lost with the screen off.',
+      'Requires installing the new APK — native sensor code cannot arrive over-the-air. Install it over your existing app: same package and signing key, so all your data, history and progress are kept.',
+      'Until then everything still works on the previous build: the app detects the native module is absent and falls back to the pedometer and GPS.',
+    ],
+  },
+  {
     version: '2.17',
     date: '2026-07-26',
     title: 'Walk & run tracking rebuilt: hardware steps + GPS on both',

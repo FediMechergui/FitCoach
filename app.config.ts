@@ -37,6 +37,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   android: {
     package: 'com.fitcoach.app',
+    /**
+     * Bumped for the build that adds the native step-counter module. Android
+     * only accepts an install over an existing app when versionCode is >= the
+     * installed one, so this makes it a clean in-place update that KEEPS all
+     * app data (the SQLite database lives in app storage and is untouched).
+     * `version` deliberately stays 2.0.0 so runtimeVersion — and therefore
+     * over-the-air update compatibility — is unchanged.
+     */
+    versionCode: 2,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#0B1220',

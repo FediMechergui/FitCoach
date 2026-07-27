@@ -293,6 +293,13 @@ export const liveWalks = sqliteTable('live_walks', {
   /** accumulating GPS route as JSON [[lat,lng],…] while a run is live */
   routeJson: text('route_json'),
   updatedAt: integer('updated_at'),
+  /**
+   * The hardware step counter's absolute since-boot value at session start.
+   * Because that sensor keeps counting while the CPU sleeps and while our
+   * process is dead, (current − baseline) gives the exact session step count
+   * even after the app has been killed. Null when no hardware counter.
+   */
+  bootStepBaseline: integer('boot_step_baseline'),
 });
 
 // ── DailyStepLog ─────────────────────────────────────────────────────────────

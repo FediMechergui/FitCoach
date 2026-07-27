@@ -311,21 +311,38 @@ function detachSensors(): void {
 }
 
 export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
-  const perms = await requestWalkPermissions();
-  const hardware = perms.motion && (await isPedometerAvailable());
+  // Start immediately, request permissions in background
+  const perms: WalkPermissions = { motion: false, notifications: false, gps: false };
+  let hardware = false;
+
+  // Check permissions without requesting (non-blocking)
+  Promise.all([
+    requestWalkPermissions().then(p => Object.assign(perms, p)),
+    isPedometerAvailable().then(h => { hardware = h && perms.motion; })
+  ]).catch(err => console.warn('[Walk] Permission check failed:', err));
 
   // Runs use GPS to trace the route and measure distance; the foreground service
   // keeps a persistent notification and keeps recording even with the app closed.
   let gps = false;
   if (mode === 'run') {
-    gps = await startRouteTracking(mode);
+    // GPS setup happens async to not block start
+    startRouteTracking(mode)
+      .then(started => { 
+        gps = started;
+        if (started) {
+          mem.source = 'gps';
+          mem.usingGps = true;
+          patchLiveWalk({ source: 'gps' });
+        }
+      })
+      .catch(err => console.warn('[Walk] GPS tracking failed:', err));
   }
-  const source: Source = gps ? 'gps' : hardware ? 'pedometer' : 'accelerometer';
-  perms.gps = gps;
 
+  const source: Source = 'pedometer'; // Default, will update if GPS starts
+  
   // Android: Capture the device's cumulative step count as our baseline
   let androidBaselineSteps = 0;
-  if (hardware && Platform.OS === 'android') {
+  if (Platform.OS === 'android') {
     // Non-blocking baseline capture with timeout
     getCurrentCumulativeSteps()
       .then(baseline => {
@@ -354,7 +371,7 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
 
   // Register Android background step tracking (non-blocking)
   // This runs alongside the existing GPS tracking and foreground sensors
-  if (hardware && Platform.OS === 'android') {
+  if (Platform.OS === 'android') {
     registerWalkBackgroundTask()
       .then(registered => {
         if (!registered) {

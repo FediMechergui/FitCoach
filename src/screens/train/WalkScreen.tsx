@@ -57,9 +57,9 @@ export function WalkScreen() {
   const pace = distanceM > 0 && walk.elapsedS > 0 ? walk.elapsedS / (distanceM / 1000) : null;
   const unit = user?.unitPreference ?? 'metric';
 
-  const start = async () => {
+  const start = () => {
     setSummary(null);
-    await walk.start(initialMode);
+    walk.start(initialMode);
     // If a run couldn't start GPS, say so loudly instead of silently counting steps.
     const perms = useWalkStore.getState().permissions;
     if (initialMode === 'run' && perms && !perms.gps) {

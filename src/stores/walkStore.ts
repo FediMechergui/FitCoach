@@ -76,7 +76,11 @@ export const useWalkStore = create<WalkState>((set, get) => ({
   start: async (mode) => {
     if (get().starting || get().active) return;
     set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [] });
-    const permissions = await startWalkTracking(mode);
+    
+    // Start tracking immediately, don't wait for permissions
+    startWalkTracking(mode).catch(err => console.warn('[WalkStore] Start failed:', err));
+    
+    // Set active immediately
     const snap = getLiveSnapshot();
     set({
       active: true,
@@ -84,8 +88,8 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       mode,
       source: snap?.source ?? 'pedometer',
       startedAt: snap?.startTime ?? Date.now(),
-      usingGps: permissions.gps,
-      permissions,
+      usingGps: false, // Will update when GPS starts
+      permissions: null, // Will update when permissions resolve
     });
   },
 

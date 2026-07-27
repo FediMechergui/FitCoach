@@ -1,4 +1,5 @@
 /* Smoke-test the pure domain engines against known values. Run: npx tsx scripts/verify-engines.ts */
+import fs from 'node:fs';
 import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, GOAL_BLURBS, GOAL_NOTES, GOAL_ORDER } from '../src/lib/calories';
 import { epley1RM, brzycki1RM, estimate1RM } from '../src/lib/oneRepMax';
 import { caloriesFromMet, walkRunMet } from '../src/lib/met';
@@ -649,6 +650,52 @@ console.log('\nNotification progress bar:');
 check('Bar renders full/empty blocks at the right ratio', progressBar(0.5, 10) === '█████░░░░░');
 check('Bar clamps out-of-range input', progressBar(-1, 4) === '░░░░' && progressBar(9, 4) === '████');
 check('Bar with percentage reads correctly', progressBarWithPct(0.62, 10) === '██████░░░░ 62%');
+
+console.log('\nSchema ↔ migration integrity:');
+/*
+ * Every column in the Drizzle schema must also be reachable by an existing
+ * install: either it's in bootstrap's CREATE TABLE (fresh installs) *and* in
+ * ADDED_COLUMNS (upgrades), or the table itself is new. A column added to
+ * schema.ts without an ADDED_COLUMNS entry compiles fine and then throws
+ * "no such column" at runtime on every existing install — which is exactly how
+ * walk tracking got hard-broken once. This catches it at test time.
+ */
+{
+  const schemaSrc = fs.readFileSync('src/db/schema.ts', 'utf8');
+  const bootSrc = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  const missing: string[] = [];
+  // Each sqliteTable('name', { ...cols }) block.
+  const tableRe = /sqliteTable\(\s*'([a-z_]+)'\s*,\s*\{([\s\S]*?)\n\}\)/g;
+  let tm: RegExpExecArray | null;
+  while ((tm = tableRe.exec(schemaSrc))) {
+    const [, table, body] = tm;
+    // Column SQL names: text('x') / integer('x') / real('x') / blob('x')
+    const colRe = /\b(?:text|integer|real|blob)\(\s*'([a-z_0-9]+)'/g;
+    let cm: RegExpExecArray | null;
+    while ((cm = colRe.exec(body))) {
+      const col = cm[1];
+      if (!bootSrc.includes(`'${col}'`) && !new RegExp(`\\b${col}\\b`).test(bootSrc)) {
+        missing.push(`${table}.${col}`);
+      }
+    }
+  }
+  check(
+    'Every schema column is present in bootstrap (create or ADDED_COLUMNS)',
+    missing.length === 0,
+    missing.length ? `unreachable on existing installs: ${missing.slice(0, 6).join(', ')}` : 'all columns migrated'
+  );
+}
+// The broken background-step task must stay gone: its premise (watchStepCount
+// returns a since-boot cumulative total) is false, and it overwrote real step
+// counts with ~0 every 10 s.
+{
+  const svcDir = 'src/services/';
+  const files = fs.readdirSync(svcDir);
+  check('The data-corrupting walkBackgroundTask is not back', !files.includes('walkBackgroundTask.ts'));
+  const walkSrc = fs.readFileSync('src/services/walkTracking.ts', 'utf8');
+  check('walkTracking does not import the removed background task', !/walkBackgroundTask/.test(walkSrc));
+  check('GPS is started for walks as well as runs', /startRouteTracking\(mode\)/.test(walkSrc) && !/mode === 'run'\s*\)\s*\{\s*gps/.test(walkSrc));
+}
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

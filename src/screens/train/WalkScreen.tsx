@@ -59,16 +59,25 @@ export function WalkScreen() {
 
   const start = () => {
     setSummary(null);
+    warnedNoGps.current = false;
     walk.start(initialMode);
-    // If a run couldn't start GPS, say so loudly instead of silently counting steps.
-    const perms = useWalkStore.getState().permissions;
-    if (initialMode === 'run' && perms && !perms.gps) {
+  };
+
+  // Permissions resolve a moment after start (the dialogs and GPS handshake run
+  // in the background so the UI isn't blocked). Warn once, when we actually know
+  // GPS didn't come up — rather than guessing before the answer exists.
+  const warnedNoGps = React.useRef(false);
+  React.useEffect(() => {
+    if (!walk.active || warnedNoGps.current) return;
+    const p = walk.permissions;
+    if (p && !p.gps) {
+      warnedNoGps.current = true;
       Alert.alert(
         'Location off — no route map',
-        'This run is being tracked by steps only. To draw your route, enable Location for FitCoach (set it to “Allow all the time”, or at least “While using the app”) in Android Settings → Apps → FitCoach → Permissions, then start the run again.'
+        'This session is being tracked by steps only. To draw your route and keep tracking with the screen off, enable Location for FitCoach (“Allow all the time”, or at least “While using the app”) in Android Settings → Apps → FitCoach → Permissions.'
       );
     }
-  };
+  }, [walk.active, walk.permissions]);
   const stop = () => {
     const routeAtStop = walk.route;
     const result = walk.stop();

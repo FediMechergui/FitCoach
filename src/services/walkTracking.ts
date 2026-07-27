@@ -23,12 +23,6 @@ import {
   showOngoingNotification,
   updateOngoingNotification,
 } from './sessionNotifications';
-import {
-  getCurrentCumulativeSteps,
-  registerWalkBackgroundTask,
-  unregisterWalkBackgroundTask,
-} from './walkBackgroundTask';
-import { Platform } from 'react-native';
 
 /**
  * Walk/run tracking.
@@ -87,12 +81,6 @@ const mem = {
   lastObservedAt: 0,
   /** true once any part of the count came from a cadence estimate */
   estimated: false,
-  /**
-   * Android only: The device's cumulative step count at session start.
-   * TYPE_STEP_COUNTER gives a cumulative count since boot, so we store this
-   * baseline to calculate session steps as (current - baseline).
-   */
-  androidBaselineSteps: 0,
 };
 
 function total(): number {
@@ -248,8 +236,28 @@ function catchUpFromGap(): void {
   mem.lastObservedAt = now;
 }
 
-function attachSensors(): void {
-  if (mem.hardware) {
+/**
+ * Attach the step source. Safe to call again to *switch* source mid-session
+ * (we start on the accelerometer for instant feedback, then upgrade to the
+ * hardware counter once permission resolves): whatever has been counted so far
+ * is folded into `baseSteps` first, so switching never loses or double-counts.
+ */
+function attachStepSource(useHardware: boolean): void {
+  // Fold the current subscription's tally into the base before swapping.
+  if (pedoSub || accelSub) {
+    mem.baseSteps = total();
+    mem.steps = 0;
+    pedoSub?.remove();
+    pedoSub = null;
+    accelSub?.remove();
+    accelSub = null;
+    detector = null;
+  }
+  mem.hardware = useHardware;
+
+  if (useHardware) {
+    // Cumulative since subscription — and because the OS counter keeps ticking
+    // while we're backgrounded, the batched total lands the moment JS resumes.
     pedoSub = Pedometer.watchStepCount((result) => {
       mem.steps = result.steps;
       mem.dirty = true;
@@ -264,6 +272,10 @@ function attachSensors(): void {
       }
     });
   }
+}
+
+function attachSensors(): void {
+  attachStepSource(mem.hardware);
 
   // Persist + refresh the live notification every 3 s. `lastObservedAt` is
   // stamped on every tick: while JS runs it stays current, and the moment the
@@ -310,85 +322,84 @@ function detachSensors(): void {
   }
 }
 
+/**
+ * Latest resolved permissions/capabilities for the live session. The UI polls
+ * this instead of awaiting `startWalkTracking`, so tapping Start feels instant
+ * while the permission dialogs and GPS handshake finish in the background.
+ */
+let livePermissions: WalkPermissions | null = null;
+export function getWalkPermissions(): WalkPermissions | null {
+  return livePermissions;
+}
+
+/**
+ * Bring the session up to full capability without blocking the UI.
+ *
+ * Order matters: motion permission must be granted *before* subscribing to the
+ * hardware counter, or the subscription silently yields nothing. So we start on
+ * the accelerometer for instant feedback, then upgrade to the hardware counter
+ * once permission actually lands. GPS runs for walks as well as runs — the
+ * location foreground service is the only mechanism that genuinely survives the
+ * screen going off and the app being killed.
+ */
+async function configureSession(mode: 'walk' | 'run'): Promise<void> {
+  const startedFor = mem.startTime;
+  const perms = await requestWalkPermissions();
+  // Bail out if the session ended (or a new one began) while we were awaiting.
+  if (!mem.active || mem.startTime !== startedFor) return;
+
+  const hardware = perms.motion && (await isPedometerAvailable());
+  if (!mem.active || mem.startTime !== startedFor) return;
+
+  // Upgrade to the hardware counter — keeps counting with the screen off.
+  if (hardware && !mem.hardware) attachStepSource(true);
+
+  // GPS for BOTH walking and running: real distance, and a foreground service
+  // that keeps recording while the app is away.
+  const gps = await startRouteTracking(mode);
+  if (!mem.active || mem.startTime !== startedFor) return;
+
+  perms.gps = gps;
+  livePermissions = perms;
+  mem.usingGps = gps;
+  const source: Source = gps ? 'gps' : hardware ? 'pedometer' : 'accelerometer';
+  mem.source = source;
+  patchLiveWalk({ source });
+}
+
 export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
-  // Start immediately, request permissions in background
-  const perms: WalkPermissions = { motion: false, notifications: false, gps: false };
-  let hardware = false;
-
-  // Check permissions without requesting (non-blocking)
-  Promise.all([
-    requestWalkPermissions().then(p => Object.assign(perms, p)),
-    isPedometerAvailable().then(h => { hardware = h && perms.motion; })
-  ]).catch(err => console.warn('[Walk] Permission check failed:', err));
-
-  // Runs use GPS to trace the route and measure distance; the foreground service
-  // keeps a persistent notification and keeps recording even with the app closed.
-  let gps = false;
-  if (mode === 'run') {
-    // GPS setup happens async to not block start
-    startRouteTracking(mode)
-      .then(started => { 
-        gps = started;
-        if (started) {
-          mem.source = 'gps';
-          mem.usingGps = true;
-          patchLiveWalk({ source: 'gps' });
-        }
-      })
-      .catch(err => console.warn('[Walk] GPS tracking failed:', err));
-  }
-
-  const source: Source = 'pedometer'; // Default, will update if GPS starts
-  
-  // Android: Capture the device's cumulative step count as our baseline
-  let androidBaselineSteps = 0;
-  if (Platform.OS === 'android') {
-    // Non-blocking baseline capture with timeout
-    getCurrentCumulativeSteps()
-      .then(baseline => {
-        androidBaselineSteps = baseline;
-        patchLiveWalk({ androidBaselineSteps: baseline });
-      })
-      .catch(err => console.warn('[Walk] Failed to get baseline steps:', err));
-  }
-
-  startLiveWalk({ mode, source, androidBaselineSteps: 0 });
+  // ── Synchronous part: the session is live before this function returns, so the
+  // UI can switch to the tracking view with zero delay. ──
+  livePermissions = null;
+  startLiveWalk({ mode, source: 'accelerometer' });
   mem.active = true;
   mem.mode = mode;
-  mem.source = source;
-  mem.hardware = hardware;
+  mem.source = 'accelerometer';
+  mem.hardware = false;
   mem.startTime = Date.now();
   mem.baseSteps = 0;
   mem.steps = 0;
-  mem.usingGps = gps;
+  mem.usingGps = false;
   mem.dirty = false;
   mem.lastObservedAt = mem.startTime;
   mem.estimated = false;
-  mem.androidBaselineSteps = androidBaselineSteps;
   lastNotifiedSteps = -1;
 
+  // Count from the very first step with the accelerometer, then upgrade.
   attachSensors();
 
-  // Register Android background step tracking (non-blocking)
-  // This runs alongside the existing GPS tracking and foreground sensors
-  if (Platform.OS === 'android') {
-    registerWalkBackgroundTask()
-      .then(registered => {
-        if (!registered) {
-          console.warn('[Walk] Background task registration failed, continuing with foreground-only tracking');
-        } else {
-          console.log('[Walk] Background task registered successfully');
-        }
-      })
-      .catch(err => console.warn('[Walk] Background task registration error:', err));
-  }
+  // ── Async part: permissions, hardware counter, GPS. Deliberately not awaited. ──
+  void configureSession(mode).catch(() => {
+    // Tracking continues on the accelerometer; nothing to escalate.
+  });
 
-  // Sticky notification with a live progress bar, for walks and runs alike. (A
-  // GPS run also carries the location foreground-service notification, which
-  // Android requires for background location — this one is the live counter.)
+  // Sticky notification with a live progress bar, for walks and runs alike. (The
+  // GPS foreground service adds its own OS-required notification; this one is
+  // the live counter.)
   void pushWalkNotification(0, { create: true });
 
-  return perms;
+  // Capabilities aren't known yet — the UI polls getWalkPermissions() for them.
+  return { motion: false, notifications: false, gps: false };
 }
 
 /**
@@ -419,42 +430,9 @@ export async function resumeWalkTracking(): Promise<void> {
   // window between then and now is what was missed while the app was gone.
   mem.lastObservedAt = row.updatedAt ?? row.startTime;
   mem.estimated = false;
-  mem.androidBaselineSteps = row.androidBaselineSteps ?? 0;
   lastNotifiedSteps = -1;
 
-  // Android: Reconcile using the background task's checkpoint
-  // The background task has been writing steps to the DB even while the app was killed
-  if (hardware && Platform.OS === 'android' && row.androidBaselineSteps) {
-    // Get current cumulative count from hardware sensor
-    const currentCumulative = await getCurrentCumulativeSteps();
-    
-    // Calculate session steps: current - baseline
-    const sessionSteps = Math.max(0, currentCumulative - row.androidBaselineSteps);
-    
-    // Use the checkpoint from the background task if it's higher (it ran more recently)
-    // This handles the case where the background task recorded steps after the app was killed
-    const checkpointSteps = row.steps;
-    const reconciledSteps = Math.max(sessionSteps, checkpointSteps);
-    
-    // Update memory with the reconciled count
-    mem.baseSteps = reconciledSteps;
-    mem.steps = 0;
-    mem.dirty = true;
-    
-    console.log(
-      `[Walk Resume] Android reconciliation: baseline=${row.androidBaselineSteps}, ` +
-      `current=${currentCumulative}, calculated=${sessionSteps}, ` +
-      `checkpoint=${checkpointSteps}, final=${reconciledSteps}`
-    );
-    
-    // Re-register the background task to continue checkpointing
-    const registered = await registerWalkBackgroundTask();
-    if (!registered) {
-      console.warn('[Walk Resume] Background task registration failed');
-    }
-  }
-
-  // If it was a GPS run and the foreground service died (rare), restart it.
+  // If the GPS service died (rare), restart it.
   if (mem.usingGps && !gpsLive) {
     await startRouteTracking(row.mode);
   }
@@ -482,19 +460,13 @@ export function stopWalkTracking(): WalkResult | null {
   const snapshot = getLiveSnapshot();
   detachSensors();
   void stopRouteTracking();
-  
-  // Unregister Android background task
-  if (Platform.OS === 'android') {
-    void unregisterWalkBackgroundTask();
-  }
-  
   endLiveWalk();
   void dismissOngoingNotification('walk');
+  livePermissions = null;
   mem.active = false;
   mem.usingGps = false;
   mem.lastObservedAt = 0;
   mem.estimated = false;
-  mem.androidBaselineSteps = 0;
 
   if (!snapshot) return null;
 

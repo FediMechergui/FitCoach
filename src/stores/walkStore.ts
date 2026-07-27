@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { saveWalkSession } from '@/repositories/activityRepo';
 import {
   getLiveSnapshot,
+  getWalkPermissions,
   reconcileSteps,
   resumeWalkTracking,
   startWalkTracking,
@@ -28,7 +29,7 @@ interface WalkState {
 
   /** Reattach to a walk that survived a background/app restart. */
   resume: () => void;
-  start: (mode: 'walk' | 'run') => Promise<void>;
+  start: (mode: 'walk' | 'run') => void;
   /** Pull the latest numbers from the in-memory tracker (cheap; no DB read). */
   refresh: () => void;
   /** Reconcile against the hardware step counter (catches up background steps), then refresh. */
@@ -73,23 +74,25 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     }
   },
 
-  start: async (mode) => {
+  start: (mode) => {
     if (get().starting || get().active) return;
     set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [] });
-    
-    // Start tracking immediately, don't wait for permissions
-    startWalkTracking(mode).catch(err => console.warn('[WalkStore] Start failed:', err));
-    
-    // Set active immediately
+
+    // `startWalkTracking` brings the session up synchronously and finishes the
+    // slow parts (permission dialogs, hardware counter, GPS) in the background,
+    // so the UI can switch to the tracking view with no delay.
+    void startWalkTracking(mode);
+
     const snap = getLiveSnapshot();
     set({
       active: true,
       starting: false,
       mode,
-      source: snap?.source ?? 'pedometer',
+      source: snap?.source ?? 'accelerometer',
       startedAt: snap?.startTime ?? Date.now(),
-      usingGps: false, // Will update when GPS starts
-      permissions: null, // Will update when permissions resolve
+      // Both fill in via refresh() once the async setup resolves.
+      usingGps: false,
+      permissions: null,
     });
   },
 
@@ -104,6 +107,9 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       distanceM: usingGps ? snap!.gpsDistanceM : distanceFromSteps(steps, heightCm(), s.mode),
       route: snap?.route ?? s.route,
       usingGps: usingGps || s.usingGps,
+      source: snap?.source ?? s.source,
+      // Populated once the background permission/GPS handshake finishes.
+      permissions: getWalkPermissions() ?? s.permissions,
       elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
     });
   },

@@ -10,7 +10,8 @@ import {
 } from '@/db/schema';
 import { todayISO } from '@/lib/date';
 import { haversine, parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
-import { PRIMARY_USER_ID } from './userRepo';
+import { stepsFromDistance } from '@/lib/pedometer';
+import { getUser, PRIMARY_USER_ID } from './userRepo';
 
 // ── Live walk (shared with the background foreground service) ─────────────────
 const LIVE_ID = 1;
@@ -77,16 +78,42 @@ export function appendLiveRoutePoints(points: LatLng[]): void {
     last = p;
   }
   const tail = route[route.length - 1];
+
+  /*
+   * Checkpoint the step count too — this is what makes steps keep climbing while
+   * the app is backgrounded OR fully killed.
+   *
+   * This function runs inside the expo-location TaskManager task, which the
+   * Android foreground service keeps alive when our main JS runtime is gone. The
+   * hardware step counter can't be read meaningfully from here (expo-sensors'
+   * watchStepCount is subscription-relative, so a fresh read is always ~0 — the
+   * trap that previously wrote zeros over real counts). GPS distance, however, is
+   * measured hardware evidence, so we derive steps from it and only ever raise
+   * the stored count. Monotonic: the pedometer's own total wins when it's higher.
+   */
+  const heightCm = safeUserHeightCm();
+  const impliedSteps = stepsFromDistance(distance, heightCm, row.mode);
+
   db.update(liveWalks)
     .set({
       routeJson: JSON.stringify(route),
       distanceM: distance,
+      steps: Math.max(row.steps, impliedSteps),
       lastLat: tail?.[0] ?? row.lastLat,
       lastLng: tail?.[1] ?? row.lastLng,
       updatedAt: Date.now(),
     })
     .where(eq(liveWalks.id, LIVE_ID))
     .run();
+}
+
+/** Height for step maths, read from the DB (the store isn't hydrated in a headless task). */
+function safeUserHeightCm(): number {
+  try {
+    return getUser(PRIMARY_USER_ID)?.heightCm ?? 175;
+  } catch {
+    return 175;
+  }
 }
 
 /** The live route so far (for drawing the circuit while tracking). */

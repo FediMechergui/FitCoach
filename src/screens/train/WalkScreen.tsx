@@ -85,7 +85,10 @@ export function WalkScreen() {
   };
 
   const perms = walk.permissions;
-  const hardwareSource = walk.source === 'pedometer';
+  // The two things that make background tracking real, shown separately so it's
+  // obvious which channel is live.
+  const hwActive = walk.source === 'pedometer' || !!perms?.hardware;
+  const gpsActive = walk.usingGps || !!perms?.gps;
 
   if (summary) {
     return (
@@ -163,23 +166,33 @@ export function WalkScreen() {
         </Card>
       )}
 
-      {/* Tracking status */}
+      {/* Tracking status — the two channels that make background tracking work */}
       {walk.active && (
-        <Card accent={walk.usingGps || hardwareSource ? theme.colors.success : theme.colors.warning}>
-          <Row gap={10} style={{ alignItems: 'flex-start' }}>
-            <Icon
-              icon={walk.usingGps || hardwareSource ? 'core.check' : 'core.info'}
-              size={18}
-              color={walk.usingGps || hardwareSource ? theme.colors.success : theme.colors.warning}
+        <Card accent={hwActive && gpsActive ? theme.colors.success : theme.colors.warning}>
+          <View style={{ gap: 8 }}>
+            <SourceRow
+              ok={hwActive}
+              label="Hardware step counter"
+              detail={
+                hwActive
+                  ? 'Reading the device step-counter sensor. Keeps counting with the screen off and catches up the moment you return.'
+                  : perms
+                    ? 'Not active — using the accelerometer, which only counts while the app is open. Enable “Physical activity” for FitCoach in Android settings.'
+                    : 'Connecting…'
+              }
             />
-            <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-              {walk.usingGps
-                ? 'GPS route tracking active — a persistent notification keeps the session running and recording your path even with the app closed or the screen off. Return here to finish.'
-                : hardwareSource
-                  ? 'Hardware step counter active — steps keep counting with the screen off and catch up the moment you come back. A notification stays in your bar until you finish.'
-                  : 'Accelerometer mode — keep the app open and the screen on for accurate counting. A notification stays in your bar until you finish.'}
-            </Text>
-          </Row>
+            <SourceRow
+              ok={gpsActive}
+              label="GPS route tracking"
+              detail={
+                gpsActive
+                  ? 'Foreground service running — records your path and distance even with the app closed or killed. Steps keep climbing from measured distance.'
+                  : perms
+                    ? 'Not active — set Location to “Allow all the time” so tracking survives the screen going off.'
+                    : 'Connecting…'
+              }
+            />
+          </View>
         </Card>
       )}
 
@@ -187,13 +200,6 @@ export function WalkScreen() {
         <Text variant="caption" color="textFaint" center>
           Notifications are off — enable them for FitCoach to see the session in your
           notification bar.
-        </Text>
-      )}
-
-      {perms && initialMode === 'run' && !perms.gps && walk.active && (
-        <Text variant="caption" color="warning" center>
-          Route mapping needs location set to “Allow all the time”. Enable it in Android settings
-          to draw your run as a circuit — distance is estimated from steps meanwhile.
         </Text>
       )}
 
@@ -222,5 +228,20 @@ export function WalkScreen() {
         <Button title="Finish" icon="core.end" size="lg" onPress={stop} color={theme.colors.danger} />
       )}
     </Screen>
+  );
+}
+
+/** One tracking channel's live status: green when it's actually running. */
+function SourceRow({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
+  const theme = useTheme();
+  const color = ok ? theme.colors.success : theme.colors.warning;
+  return (
+    <Row gap={10} style={{ alignItems: 'flex-start' }}>
+      <Icon icon={ok ? 'core.check' : 'core.info'} size={17} color={color} />
+      <View style={{ flex: 1 }}>
+        <Text variant="label" style={{ color }}>{label}</Text>
+        <Text variant="caption" color="textMuted">{detail}</Text>
+      </View>
+    </Row>
   );
 }

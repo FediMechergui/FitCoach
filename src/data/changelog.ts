@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.17',
+    date: '2026-07-26',
+    title: 'Walk & run tracking rebuilt: hardware steps + GPS on both',
+    highlights: [
+      'Step counting is now tied to the device’s hardware step-counter sensor as the primary source — it keeps accumulating with the screen off and catches up the instant you return, instead of falling back to the accelerometer.',
+      'GPS is now on for walks as well as runs. Its foreground service is what genuinely survives the screen going off and the app being killed.',
+      'Steps keep climbing even if the app is killed: the background location task now checkpoints your step count from measured GPS distance, and only ever raises it.',
+      'A sticky, non-dismissible notification appears the moment a session starts, with a live progress bar, steps, distance and elapsed time.',
+      'The tracking screen now shows both channels separately — hardware step counter and GPS route tracking — so you can see exactly what is live.',
+      'Fixed a crash that stopped walks starting at all, and fixed the Home calorie strip so it updates the moment you log food.',
+    ],
+  },
+  {
     version: '2.16',
     date: '2026-07-26',
     title: 'Outdoor activities feed your steps + a don\'t-over-train line',

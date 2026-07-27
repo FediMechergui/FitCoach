@@ -695,6 +695,12 @@ console.log('\nSchema ↔ migration integrity:');
   const walkSrc = fs.readFileSync('src/services/walkTracking.ts', 'utf8');
   check('walkTracking does not import the removed background task', !/walkBackgroundTask/.test(walkSrc));
   check('GPS is started for walks as well as runs', /startRouteTracking\(mode\)/.test(walkSrc) && !/mode === 'run'\s*\)\s*\{\s*gps/.test(walkSrc));
+  check('Hardware step counter is preferred over the accelerometer', /hardware \? 'pedometer'/.test(walkSrc) && /attachStepSource\(true\)/.test(walkSrc));
+  // The background location task must checkpoint steps so they keep climbing
+  // while the app is killed — and must only ever raise the stored count.
+  const repoSrc = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
+  check('Background task checkpoints steps from GPS distance', /stepsFromDistance\(distance/.test(repoSrc));
+  check('Step checkpoint is monotonic (never lowers the count)', /steps: Math\.max\(row\.steps, impliedSteps\)/.test(repoSrc));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

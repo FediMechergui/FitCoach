@@ -90,8 +90,10 @@ function total(): number {
 export interface WalkPermissions {
   motion: boolean;
   notifications: boolean;
-  /** GPS route tracking is live (runs) */
+  /** GPS route tracking is live — required for BOTH walks and runs */
   gps: boolean;
+  /** the hardware step counter (not the accelerometer) is the live step source */
+  hardware: boolean;
 }
 
 export async function requestWalkPermissions(): Promise<WalkPermissions> {
@@ -103,7 +105,7 @@ export async function requestWalkPermissions(): Promise<WalkPermissions> {
     motion = false;
   }
   const notifications = await requestNotificationPermission();
-  return { motion, notifications, gps: false };
+  return { motion, notifications, gps: false, hardware: false };
 }
 
 async function isPedometerAvailable(): Promise<boolean> {
@@ -344,27 +346,34 @@ export function getWalkPermissions(): WalkPermissions | null {
  */
 async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   const startedFor = mem.startTime;
+  const stillMine = () => mem.active && mem.startTime === startedFor;
+
+  // 1. GPS first — it's required for both walks and runs, and its foreground
+  //    service is what keeps recording once the screen goes off or we're killed.
+  const gps = await startRouteTracking(mode);
+  if (!stillMine()) return;
+  mem.usingGps = gps;
+
+  // 2. Motion permission, then the hardware step counter.
   const perms = await requestWalkPermissions();
-  // Bail out if the session ended (or a new one began) while we were awaiting.
-  if (!mem.active || mem.startTime !== startedFor) return;
+  if (!stillMine()) return;
 
   const hardware = perms.motion && (await isPedometerAvailable());
-  if (!mem.active || mem.startTime !== startedFor) return;
+  if (!stillMine()) return;
 
-  // Upgrade to the hardware counter — keeps counting with the screen off.
+  // Upgrade the step source to the hardware counter. This is the real link to
+  // the device's step-counter sensor, and unlike the accelerometer it keeps
+  // accumulating while we're backgrounded — the batched total lands on resume.
   if (hardware && !mem.hardware) attachStepSource(true);
 
-  // GPS for BOTH walking and running: real distance, and a foreground service
-  // that keeps recording while the app is away.
-  const gps = await startRouteTracking(mode);
-  if (!mem.active || mem.startTime !== startedFor) return;
-
   perms.gps = gps;
+  perms.hardware = hardware;
   livePermissions = perms;
-  mem.usingGps = gps;
-  const source: Source = gps ? 'gps' : hardware ? 'pedometer' : 'accelerometer';
+
+  const source: Source = hardware ? 'pedometer' : gps ? 'gps' : 'accelerometer';
   mem.source = source;
   patchLiveWalk({ source });
+  void pushWalkNotification(total());
 }
 
 export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
@@ -399,7 +408,7 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   void pushWalkNotification(0, { create: true });
 
   // Capabilities aren't known yet — the UI polls getWalkPermissions() for them.
-  return { motion: false, notifications: false, gps: false };
+  return { motion: false, notifications: false, gps: false, hardware: false };
 }
 
 /**

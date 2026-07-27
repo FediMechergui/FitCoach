@@ -326,10 +326,16 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   // Android: Capture the device's cumulative step count as our baseline
   let androidBaselineSteps = 0;
   if (hardware && Platform.OS === 'android') {
-    androidBaselineSteps = await getCurrentCumulativeSteps();
+    // Non-blocking baseline capture with timeout
+    getCurrentCumulativeSteps()
+      .then(baseline => {
+        androidBaselineSteps = baseline;
+        patchLiveWalk({ androidBaselineSteps: baseline });
+      })
+      .catch(err => console.warn('[Walk] Failed to get baseline steps:', err));
   }
 
-  startLiveWalk({ mode, source, androidBaselineSteps });
+  startLiveWalk({ mode, source, androidBaselineSteps: 0 });
   mem.active = true;
   mem.mode = mode;
   mem.source = source;
@@ -346,13 +352,18 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
 
   attachSensors();
 
-  // Register Android background step tracking (10-second intervals via location task)
+  // Register Android background step tracking (non-blocking)
   // This runs alongside the existing GPS tracking and foreground sensors
   if (hardware && Platform.OS === 'android') {
-    const registered = await registerWalkBackgroundTask();
-    if (!registered) {
-      console.warn('[Walk] Background task registration failed, continuing with foreground-only tracking');
-    }
+    registerWalkBackgroundTask()
+      .then(registered => {
+        if (!registered) {
+          console.warn('[Walk] Background task registration failed, continuing with foreground-only tracking');
+        } else {
+          console.log('[Walk] Background task registered successfully');
+        }
+      })
+      .catch(err => console.warn('[Walk] Background task registration error:', err));
   }
 
   // Sticky notification with a live progress bar, for walks and runs alike. (A

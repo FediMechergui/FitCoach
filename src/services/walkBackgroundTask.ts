@@ -182,13 +182,13 @@ export async function getCurrentCumulativeSteps(): Promise<number> {
         resolve(result.steps);
       });
 
-      // Timeout fallback
+      // Fast timeout - don't block UI
       setTimeout(() => {
         try {
           subscription.remove();
         } catch {}
         resolve(0);
-      }, 1000);
+      }, 500); // Reduced from 1000ms to 500ms
     } catch {
       resolve(0);
     }

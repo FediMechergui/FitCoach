@@ -53,6 +53,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'POST_NOTIFICATIONS',
       'READ_MEDIA_IMAGES',
       'WRITE_EXTERNAL_STORAGE',
+      'WAKE_LOCK', // Keep CPU awake for background step counting
+      'INTERNET', // Required for location updates task
     ],
   },
   ios: {

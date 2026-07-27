@@ -20,7 +20,11 @@ export function getLiveWalk(): LiveWalk | undefined {
 }
 
 export function startLiveWalk(
-  data: { mode: 'walk' | 'run'; source: 'pedometer' | 'accelerometer' | 'gps' },
+  data: { 
+    mode: 'walk' | 'run'; 
+    source: 'pedometer' | 'accelerometer' | 'gps';
+    androidBaselineSteps?: number;
+  },
   userId: number = PRIMARY_USER_ID
 ): void {
   const row = {
@@ -36,6 +40,8 @@ export function startLiveWalk(
     lastLng: null,
     routeJson: null,
     updatedAt: Date.now(),
+    androidBaselineSteps: data.androidBaselineSteps ?? null,
+    androidCurrentCumulative: null,
   };
   if (getLiveWalk()) {
     db.update(liveWalks).set(row).where(eq(liveWalks.id, LIVE_ID)).run();

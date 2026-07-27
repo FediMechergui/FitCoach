@@ -293,6 +293,10 @@ export const liveWalks = sqliteTable('live_walks', {
   /** accumulating GPS route as JSON [[lat,lng],…] while a run is live */
   routeJson: text('route_json'),
   updatedAt: integer('updated_at'),
+  /** Android only: cumulative hardware step count at session start (baseline) */
+  androidBaselineSteps: integer('android_baseline_steps'),
+  /** Android only: most recent cumulative hardware step count (for debugging) */
+  androidCurrentCumulative: integer('android_current_cumulative'),
 });
 
 // ── DailyStepLog ─────────────────────────────────────────────────────────────

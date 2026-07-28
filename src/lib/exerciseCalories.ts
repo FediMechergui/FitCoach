@@ -15,8 +15,15 @@
  * reflects its mix.
  *
  *   kcal = MET × 3.5 × weightKg / 200 × minutes   (see met.ts)
+ *
+ * Attribution uses NET calories (MET − 1), i.e. the burn above resting
+ * metabolism. Your calorie target already covers resting through TDEE, so
+ * crediting the gross figure would count roughly an extra 1 MET × duration twice
+ * and quietly inflate the energy-balance and over-training maths. The library's
+ * "what does this movement cost" reference below stays gross, because there it's
+ * a standalone Compendium figure rather than something added to a daily budget.
  */
-import { caloriesFromMet } from './met';
+import { caloriesFromMet, netCaloriesFromMet } from './met';
 import type { TrackingType } from '@/db/schema';
 
 /** Seconds of work a single rep represents, for reps-tracked movements. */
@@ -94,13 +101,13 @@ export function distributeSessionCalories(params: {
     if (exercises.length === 0) {
       return {
         perExercise: [],
-        total: caloriesFromMet(fallbackMet, weightKg, durationS),
+        total: netCaloriesFromMet(fallbackMet, weightKg, durationS),
         basis: 'session-met',
       };
     }
     const share = durationS / exercises.length;
     const perExercise = exercises.map((ex) =>
-      caloriesFromMet(ex.met && ex.met > 0 ? ex.met : fallbackMet, weightKg, share)
+      netCaloriesFromMet(ex.met && ex.met > 0 ? ex.met : fallbackMet, weightKg, share)
     );
     return {
       perExercise,
@@ -115,7 +122,7 @@ export function distributeSessionCalories(params: {
   const scale = durationS / totalActive;
   const perExercise = exercises.map((ex, i) => {
     const met = ex.met && ex.met > 0 ? ex.met : fallbackMet;
-    return caloriesFromMet(met, weightKg, actives[i] * scale);
+    return netCaloriesFromMet(met, weightKg, actives[i] * scale);
   });
   const total = perExercise.reduce((a, b) => a + b, 0);
   return { perExercise, total, basis: 'per-exercise' };

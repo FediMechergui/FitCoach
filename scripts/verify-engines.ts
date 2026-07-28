@@ -2,11 +2,18 @@
 import fs from 'node:fs';
 import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, GOAL_BLURBS, GOAL_NOTES, GOAL_ORDER } from '../src/lib/calories';
 import { epley1RM, brzycki1RM, estimate1RM } from '../src/lib/oneRepMax';
-import { caloriesFromMet, walkRunMet } from '../src/lib/met';
+import { caloriesFromMet, netCaloriesFromMet, gradeMultiplier, walkCalories, walkRunMet } from '../src/lib/met';
 import { estimateBodyType, bmi } from '../src/lib/bodyType';
 import { StepDetector, distanceFromSteps, stepsFromDistance, stepsFromDuration } from '../src/lib/pedometer';
 import { recoverGapSteps, measuredCadence, MAX_GAP_CREDIT_MIN, MAX_CADENCE, DEFAULT_CADENCE } from '../src/lib/walkRecovery';
 import { progressBar, progressBarWithPct } from '../src/lib/progressBar';
+import {
+  classifyMotion,
+  segmentSpeedMs,
+  isPlausibleOnFootSegment,
+  PAUSE_CONFIRM_MS,
+  RESUME_CONFIRM_MS,
+} from '../src/lib/motionValidation';
 import { lifeMinutesLost, moneyCost, aerobicPenaltyPct, currentQuitMilestone, DEFAULT_SMOKING_SETTINGS } from '../src/lib/smoking';
 import { generateCoachTips, type CoachContext } from '../src/lib/recommendations';
 import { estimateFromDescription } from '../src/data/foods';
@@ -348,7 +355,7 @@ check('Fat weight is a first-class metric', compareToActual(cut, [{ date: '2026-
 console.log('\nPer-exercise calories (real MET per movement):');
 // Uniform-MET session reduces exactly to the flat session-type estimate.
 const uniform = distributeSessionCalories({ durationS: 3600, weightKg: 80, fallbackMet: 5, exercises: [ { met: 5, trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] }, { met: 5, trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] } ] });
-check('Uniform MET reduces to the flat session estimate', uniform.total === caloriesFromMet(5, 80, 3600), `${uniform.total} vs ${caloriesFromMet(5, 80, 3600)}`);
+check('Uniform MET reduces to the flat session estimate (net)', uniform.total === netCaloriesFromMet(5, 80, 3600), `${uniform.total} vs ${netCaloriesFromMet(5, 80, 3600)}`);
 // Mixed session: the higher-MET movement earns a larger share for equal work.
 const mixed = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 6, exercises: [ { met: 11, trackingType: 'duration', sets: [{ durationS: 600, completed: true }] }, { met: 3, trackingType: 'duration', sets: [{ durationS: 600, completed: true }] } ] });
 check('Higher-MET movement earns a bigger share', mixed.perExercise[0] > mixed.perExercise[1] * 3, `${mixed.perExercise[0]} vs ${mixed.perExercise[1]}`);
@@ -359,7 +366,7 @@ const past = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallback
 check('Past session with no sets splits evenly by MET', past.basis === 'per-exercise' && past.perExercise[0] > past.perExercise[1]);
 // No exercises at all → session-type fallback over the whole duration.
 const none = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 7, exercises: [] });
-check('No exercises falls back to session-type MET', none.total === caloriesFromMet(7, 80, 1800) && none.basis === 'session-met');
+check('No exercises falls back to session-type MET (net)', none.total === netCaloriesFromMet(7, 80, 1800) && none.basis === 'session-met');
 check('Reps become active seconds (10 reps ≈ 30s)', activeSecondsFor({ trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] }) === 30);
 check('Skipped sets do not count', activeSecondsFor({ trackingType: 'reps_weight', sets: [{ reps: 10, completed: false }] }) === 0);
 check('Library reference kcal matches the MET formula', caloriesForReference(11, 80, 10) === caloriesFromMet(11, 80, 600));
@@ -650,6 +657,55 @@ console.log('\nNotification progress bar:');
 check('Bar renders full/empty blocks at the right ratio', progressBar(0.5, 10) === '█████░░░░░');
 check('Bar clamps out-of-range input', progressBar(-1, 4) === '░░░░' && progressBar(9, 4) === '████');
 check('Bar with percentage reads correctly', progressBarWithPct(0.62, 10) === '██████░░░░ 62%');
+
+console.log('\nMotion validation (vehicle / stationary auto-pause):');
+// The whole point: speed alone can't tell a run from a bus — cadence can.
+const busRide = classifyMotion({ speedMs: 12, cadenceSpm: 0 });
+check('Fast with no cadence is a vehicle', busRide.kind === 'vehicle' && !busRide.countDistance && busRide.shouldPause);
+const fastRun = classifyMotion({ speedMs: 5, cadenceSpm: 175 });
+check('Fast WITH cadence is a run, not a vehicle', fastRun.kind === 'running' && fastRun.countDistance && !fastRun.shouldPause);
+// A sprinter at 8 m/s still keeps their cadence — must not be misread as a car.
+check('A sprinter is not mistaken for a vehicle', classifyMotion({ speedMs: 8, cadenceSpm: 185 }).kind === 'running');
+// But nothing human sustains 10 m/s, cadence or not.
+check('Impossible speed is a vehicle regardless of cadence', classifyMotion({ speedMs: 11, cadenceSpm: 180 }).kind === 'vehicle');
+const waiting = classifyMotion({ speedMs: 0.05, cadenceSpm: 0 });
+check('Standing still auto-pauses', waiting.kind === 'stationary' && waiting.shouldPause && !waiting.countDistance);
+check('Slow with cadence is walking', classifyMotion({ speedMs: 1.2, cadenceSpm: 105 }).kind === 'walking');
+// With no step sensor we must not guess "vehicle" from speed alone at running pace.
+check('Unknown cadence does not fabricate a vehicle at running speed', classifyMotion({ speedMs: 7.5, cadenceSpm: null }).kind === 'running');
+check('Segment speed maths', Math.abs(segmentSpeedMs(100, 20_000) - 5) < 1e-9);
+check('Implausible on-foot segments are rejected', !isPlausibleOnFootSegment(300, 10_000) && isPlausibleOnFootSegment(30, 10_000));
+check('Pause needs sustained evidence, resume is quicker', PAUSE_CONFIRM_MS > RESUME_CONFIRM_MS);
+
+console.log('\nCalorie accuracy:');
+// Net vs gross: the ~1 MET of resting metabolism must not be credited as exercise,
+// because the calorie target already covers it via TDEE.
+check('Net burn excludes resting metabolism', netCaloriesFromMet(8, 80, 3600) === caloriesFromMet(7, 80, 3600), `${netCaloriesFromMet(8, 80, 3600)} vs ${caloriesFromMet(7, 80, 3600)}`);
+check('Gross is unchanged (existing behaviour preserved)', caloriesFromMet(8, 80, 1800) === 336);
+check('Net never goes negative below resting', netCaloriesFromMet(0.5, 80, 3600) === 0);
+// Paused time must not be credited: same distance, same moving time, longer wall clock.
+const movingOnly = walkCalories({ weightKg: 80, distanceM: 5000, durationSec: 3600, activeSec: 1800, steps: 6500 });
+const wallClock = walkCalories({ weightKg: 80, distanceM: 5000, durationSec: 1800, activeSec: 1800, steps: 6500 });
+check('Paused time is excluded from calories', movingOnly === wallClock, `${movingOnly} vs ${wallClock}`);
+// Pace is derived from MOVING time, so 5 km with 30 min of walking is scored as
+// 10 km/h — not the 5 km/h that wall-clock time would imply. Excluding pauses
+// therefore *raises* the figure here, which is the physiologically right answer:
+// half an hour at running pace is harder work than an hour of strolling.
+const wallClockPace = walkCalories({ weightKg: 80, distanceM: 5000, durationSec: 3600, steps: 6500 });
+check('Pace comes from moving time, not wall clock', movingOnly > wallClockPace, `${movingOnly} (10km/h) > ${wallClockPace} (5km/h)`);
+// And standing still genuinely adds nothing: same distance, same moving time,
+// twice the wall clock → identical burn (asserted above), so idle time is inert.
+const idleAdded = walkCalories({ weightKg: 80, distanceM: 5000, durationSec: 7200, activeSec: 1800, steps: 6500 });
+check('Extra idle time adds no calories at all', idleAdded === movingOnly, `${idleAdded} === ${movingOnly}`);
+// Grade: climbing costs more, descending a little less, both bounded.
+check('Uphill costs more than level', gradeMultiplier(5) > 1 && gradeMultiplier(5) <= 2.5);
+check('Downhill is cheaper but never free', gradeMultiplier(-5) < 1 && gradeMultiplier(-5) >= 0.85);
+check('Flat is neutral', gradeMultiplier(0) === 1);
+const climb = walkCalories({ weightKg: 80, distanceM: 4000, durationSec: 3600, activeSec: 3600, steps: 6000, elevationGainM: 300 });
+const flat = walkCalories({ weightKg: 80, distanceM: 4000, durationSec: 3600, activeSec: 3600, steps: 6000 });
+check('A climb burns more than the same distance flat', climb > flat, `${climb} vs ${flat}`);
+check('Time-only sessions still estimate something', walkCalories({ weightKg: 80, distanceM: 0, durationSec: 1800, steps: 0 }) > 0);
+check('Steps-only fallback scales with bodyweight', walkCalories({ weightKg: 100, distanceM: 0, durationSec: 0, steps: 5000 }) > walkCalories({ weightKg: 60, distanceM: 0, durationSec: 0, steps: 5000 }));
 
 console.log('\nSchema ↔ migration integrity:');
 /*

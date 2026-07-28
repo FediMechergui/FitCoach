@@ -1,6 +1,7 @@
 import { Accelerometer, Pedometer } from 'expo-sensors';
 import {
   endLiveWalk,
+  getDailySteps,
   getLiveRoute,
   getLiveRouteDistanceM,
   getLiveWalk,
@@ -9,6 +10,13 @@ import {
 } from '@/repositories/activityRepo';
 import { StepDetector, distanceFromSteps, DAILY_STEP_GOAL } from '@/lib/pedometer';
 import { recoverGapSteps, MIN_GAP_SEC } from '@/lib/walkRecovery';
+import {
+  classifyMotion,
+  segmentSpeedMs,
+  PAUSE_CONFIRM_MS,
+  RESUME_CONFIRM_MS,
+  type MotionKind,
+} from '@/lib/motionValidation';
 import { progressBarWithPct } from '@/lib/progressBar';
 import { getStepsSinceBoot, hasHardwareStepCounter } from '../../modules/step-counter';
 import type { LatLng } from '@/lib/geo';
@@ -59,6 +67,7 @@ let accelSub: Sub | null = null;
 let detector: StepDetector | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let lastNotifiedSteps = -1;
+let lastNotifiedDistanceM = -1;
 let reconciling = false;
 /** null = untested, false = unavailable (Android) so we stop calling it. */
 let stepCountSupported: boolean | null = null;
@@ -94,7 +103,34 @@ const mem = {
    * unavailable). Lets us recompute exact session steps after an app kill.
    */
   bootBaseline: null as number | null,
+
+  // ── Auto-pause (vehicle / standing still) ──
+  /** tracking is suspended because you're in a vehicle or not moving */
+  paused: false,
+  /** why, for the UI and the notification */
+  pauseReason: '',
+  /** total time spent paused, excluded from pace and calories */
+  pausedTotalMs: 0,
+  /** when the current pause began (null when running) */
+  pausedSince: null as number | null,
+  /** first moment the motion looked pause-worthy — confirms over a window */
+  pauseCandidateSince: null as number | null,
+  /** first moment motion looked plausible again */
+  resumeCandidateSince: null as number | null,
+  /** last classification, for status text */
+  motion: 'walking' as MotionKind,
+  // Previous tick's readings, to derive speed and cadence per interval.
+  lastTickAt: 0,
+  lastTickSteps: 0,
+  lastTickDistanceM: 0,
 };
+
+/** Moving time in ms — wall clock minus everything spent paused. */
+function activeMs(): number {
+  if (!mem.startTime) return 0;
+  const paused = mem.pausedTotalMs + (mem.pausedSince ? Date.now() - mem.pausedSince : 0);
+  return Math.max(0, Date.now() - mem.startTime - paused);
+}
 
 function total(): number {
   return mem.baseSteps + mem.steps;
@@ -139,6 +175,12 @@ export interface WalkSnapshot {
   route: LatLng[];
   /** GPS-measured distance (m); 0 when there's no route yet */
   gpsDistanceM: number;
+  /** moving time in seconds — excludes paused / in-vehicle stretches */
+  activeSec: number;
+  /** auto-paused because you're in a vehicle or standing still */
+  paused: boolean;
+  pauseReason: string;
+  motion: MotionKind;
 }
 
 /** Current live numbers — memory first (fresh), DB as fallback after restarts. */
@@ -152,6 +194,10 @@ export function getLiveSnapshot(): WalkSnapshot | null {
       steps: total(),
       route: mem.usingGps ? getLiveRoute() : [],
       gpsDistanceM: mem.usingGps ? getLiveRouteDistanceM() : 0,
+      activeSec: Math.round(activeMs() / 1000),
+      paused: mem.paused,
+      pauseReason: mem.pauseReason,
+      motion: mem.motion,
     };
   }
   const row = getLiveWalk();
@@ -164,6 +210,11 @@ export function getLiveSnapshot(): WalkSnapshot | null {
       steps: row.steps,
       route: getLiveRoute(),
       gpsDistanceM: getLiveRouteDistanceM(),
+      // Not yet reattached, so we can't know paused time — assume all of it moving.
+      activeSec: Math.max(0, Math.round((Date.now() - row.startTime) / 1000)),
+      paused: false,
+      pauseReason: '',
+      motion: 'walking',
     };
   }
   return null;
@@ -244,6 +295,81 @@ async function reconcileFromHardwareBaseline(): Promise<void> {
   if (exact > total()) {
     mem.baseSteps = exact - mem.steps;
     mem.dirty = true;
+  }
+}
+
+/**
+ * Decide whether we're genuinely walking/running, and auto-pause if not.
+ *
+ * Runs on each flush tick. Speed comes from the GPS distance travelled since the
+ * last tick and cadence from the step delta over the same window, which together
+ * separate a real run from a bus ride (see lib/motionValidation). Pausing and
+ * resuming each need to hold for a confirmation window so a red light or a single
+ * bad GPS fix doesn't toggle the session.
+ */
+function evaluateMotion(): void {
+  const now = Date.now();
+  if (!mem.lastTickAt) {
+    mem.lastTickAt = now;
+    mem.lastTickSteps = total();
+    mem.lastTickDistanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
+    return;
+  }
+
+  const elapsedMs = now - mem.lastTickAt;
+  if (elapsedMs < 1000) return;
+
+  const steps = total();
+  const distanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
+  const stepDelta = Math.max(0, steps - mem.lastTickSteps);
+  const distDelta = Math.max(0, distanceM - mem.lastTickDistanceM);
+
+  mem.lastTickAt = now;
+  mem.lastTickSteps = steps;
+  mem.lastTickDistanceM = distanceM;
+
+  // Without GPS there's no speed to reason about, so only step activity can tell
+  // us anything — and a phone in a pocket on a bus produces no steps either way.
+  const cadenceSpm = elapsedMs > 0 ? (stepDelta / elapsedMs) * 60_000 : 0;
+  const speedMs = mem.usingGps ? segmentSpeedMs(distDelta, elapsedMs) : 0;
+  if (!mem.usingGps && stepDelta > 0) {
+    // Stepping without GPS — plainly active, nothing to judge.
+    confirmResume(now);
+    mem.motion = 'walking';
+    return;
+  }
+
+  const verdict = classifyMotion({ speedMs, cadenceSpm: mem.hardware || stepDelta > 0 ? cadenceSpm : null });
+  mem.motion = verdict.kind;
+
+  if (verdict.shouldPause) {
+    mem.resumeCandidateSince = null;
+    if (!mem.paused) {
+      mem.pauseCandidateSince ??= now;
+      if (now - mem.pauseCandidateSince >= PAUSE_CONFIRM_MS) {
+        mem.paused = true;
+        mem.pausedSince = now;
+        mem.pauseReason = verdict.reason;
+        mem.pauseCandidateSince = null;
+        void pushWalkNotification(total());
+      }
+    }
+  } else {
+    mem.pauseCandidateSince = null;
+    confirmResume(now);
+  }
+}
+
+function confirmResume(now: number): void {
+  if (!mem.paused) return;
+  mem.resumeCandidateSince ??= now;
+  if (now - mem.resumeCandidateSince >= RESUME_CONFIRM_MS) {
+    if (mem.pausedSince) mem.pausedTotalMs += now - mem.pausedSince;
+    mem.paused = false;
+    mem.pausedSince = null;
+    mem.pauseReason = '';
+    mem.resumeCandidateSince = null;
+    void pushWalkNotification(total());
   }
 }
 
@@ -329,28 +455,56 @@ function attachSensors(): void {
   flushTimer = setInterval(() => {
     if (!mem.active) return;
     mem.lastObservedAt = Date.now();
+
+    // Auto-pause check (vehicle / standing still) before anything is credited.
+    evaluateMotion();
+
+    const t = total();
+    const distanceNow = mem.usingGps ? Math.round(getLiveRouteDistanceM()) : 0;
     if (mem.dirty) {
-      const t = total();
       patchLiveWalk({ steps: t });
       mem.dirty = false;
-      if (t !== lastNotifiedSteps) {
-        lastNotifiedSteps = t;
-        void pushWalkNotification(t);
-      }
+    }
+    // Refresh on steps OR distance changing, so a GPS-only stretch (e.g. cycling,
+    // or a phone in a bag) still animates the bar rather than looking frozen.
+    if (t !== lastNotifiedSteps || distanceNow !== lastNotifiedDistanceM) {
+      lastNotifiedSteps = t;
+      lastNotifiedDistanceM = distanceNow;
+      void pushWalkNotification(t);
     }
   }, 3000);
 }
 
-/** Live sticky notification: steps, distance, elapsed and a progress bar. */
-async function pushWalkNotification(steps: number, opts: { create?: boolean } = {}): Promise<void> {
+/**
+ * Live sticky notification: steps, distance, moving time and a progress bar.
+ *
+ * The bar tracks progress toward the DAILY step goal using today's TOTAL —
+ * everything already logged today plus this session — so starting a walk doesn't
+ * reset a bar you'd already filled to 60%. The day's stored count doesn't include
+ * the live session yet (that's folded in when the session is saved), so they add
+ * cleanly with no double-count.
+ */
+async function pushWalkNotification(sessionSteps: number, opts: { create?: boolean } = {}): Promise<void> {
   const heightCm = useUserStore.getState().user?.heightCm ?? 175;
-  const distanceM = mem.usingGps ? getLiveRouteDistanceM() : distanceFromSteps(steps, heightCm, mem.mode);
-  const elapsedMin = Math.max(0, Math.round((Date.now() - mem.startTime) / 60_000));
-  const bar = progressBarWithPct(steps / DAILY_STEP_GOAL);
-  const title = `${mem.mode === 'run' ? '🏃' : '🚶'} ${steps.toLocaleString()} steps · ${(distanceM / 1000).toFixed(2)} km`;
+  const distanceM = mem.usingGps ? getLiveRouteDistanceM() : distanceFromSteps(sessionSteps, heightCm, mem.mode);
+  const movingMin = Math.max(0, Math.round(activeMs() / 60_000));
+
+  let dayBefore = 0;
+  try {
+    dayBefore = getDailySteps()?.stepCount ?? 0;
+  } catch {
+    dayBefore = 0;
+  }
+  const dayTotal = dayBefore + sessionSteps;
+
+  const bar = progressBarWithPct(dayTotal / DAILY_STEP_GOAL);
+  const icon = mem.paused ? '⏸' : mem.mode === 'run' ? '🏃' : '🚶';
+  const title = `${icon} ${sessionSteps.toLocaleString()} steps · ${(distanceM / 1000).toFixed(2)} km`;
   const body =
-    `${bar} of ${DAILY_STEP_GOAL.toLocaleString()}\n` +
-    `${elapsedMin} min${mem.estimated ? ' · includes an estimate for time in the background' : ''} · tap to finish`;
+    `${bar} ${dayTotal.toLocaleString()} / ${DAILY_STEP_GOAL.toLocaleString()} today\n` +
+    (mem.paused
+      ? `Paused — ${mem.pauseReason}`
+      : `${movingMin} min moving${mem.estimated ? ' · includes a background estimate' : ''} · tap to finish`);
   if (opts.create) await showOngoingNotification('walk', title, body);
   else await updateOngoingNotification('walk', title, body);
 }
@@ -448,7 +602,18 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   mem.lastObservedAt = mem.startTime;
   mem.estimated = false;
   mem.bootBaseline = null;
+  mem.paused = false;
+  mem.pauseReason = '';
+  mem.pausedTotalMs = 0;
+  mem.pausedSince = null;
+  mem.pauseCandidateSince = null;
+  mem.resumeCandidateSince = null;
+  mem.motion = 'walking';
+  mem.lastTickAt = 0;
+  mem.lastTickSteps = 0;
+  mem.lastTickDistanceM = 0;
   lastNotifiedSteps = -1;
+  lastNotifiedDistanceM = -1;
 
   // Count from the very first step with the accelerometer, then upgrade.
   attachSensors();
@@ -497,7 +662,18 @@ export async function resumeWalkTracking(): Promise<void> {
   mem.estimated = false;
   // Restoring this is what makes a killed session recoverable exactly.
   mem.bootBaseline = row.bootStepBaseline ?? null;
+  mem.paused = false;
+  mem.pauseReason = '';
+  mem.pausedTotalMs = 0;
+  mem.pausedSince = null;
+  mem.pauseCandidateSince = null;
+  mem.resumeCandidateSince = null;
+  mem.motion = 'walking';
+  mem.lastTickAt = 0;
+  mem.lastTickSteps = 0;
+  mem.lastTickDistanceM = 0;
   lastNotifiedSteps = -1;
+  lastNotifiedDistanceM = -1;
 
   // If the GPS service died (rare), restart it.
   if (mem.usingGps && !gpsLive) {
@@ -517,6 +693,8 @@ export interface WalkResult {
   steps: number;
   distanceM: number;
   durationS: number;
+  /** moving seconds, excluding auto-paused (vehicle / stationary) time */
+  activeSec: number;
   startTime: number;
   source: Source;
   route: LatLng[];
@@ -535,6 +713,9 @@ export function stopWalkTracking(): WalkResult | null {
   mem.lastObservedAt = 0;
   mem.estimated = false;
   mem.bootBaseline = null;
+  mem.paused = false;
+  mem.pausedSince = null;
+  mem.pausedTotalMs = 0;
 
   if (!snapshot) return null;
 
@@ -549,6 +730,7 @@ export function stopWalkTracking(): WalkResult | null {
     steps,
     distanceM: Math.round(distanceM),
     durationS: Math.max(1, Math.round((Date.now() - snapshot.startTime) / 1000)),
+    activeSec: Math.max(1, snapshot.activeSec),
     startTime: snapshot.startTime,
     source: snapshot.source,
     route: snapshot.route,

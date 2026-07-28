@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.19',
+    date: '2026-07-27',
+    title: 'Auto-pause in vehicles, accurate calories, GPS for every activity',
+    highlights: [
+      'Auto-pause: if you get in a car or bus, or just stand still, tracking pauses itself and resumes when you start moving again — so a drive never lands in your walk. It tells a bus ride from a run by looking at cadence, not just speed, so a genuine sprint is never mistaken for a vehicle.',
+      'Calories are properly accurate now. They exclude resting metabolism (your calorie target already covers that, so counting it twice was inflating every session), they use MOVING time rather than wall-clock, and they account for climbing.',
+      'Because of that, session and walk calorie figures are lower than before — and correct. The energy-balance and over-training numbers are now trustworthy.',
+      'GPS distance for any activity that covers ground: hiking, cycling, a wander, a paddle. Start it from an Outdoor, Cardio or Sport session and it measures distance instead of you typing it, drawing the route as you go.',
+      'The sticky notification’s progress bar now tracks your whole DAY, so it no longer restarts at zero when a session begins — and it refreshes on distance as well as steps, so a ride still animates.',
+      'Pace is measured from moving time too, so pausing at a crossing no longer makes you look slower than you ran.',
+    ],
+  },
+  {
     version: '2.18',
     date: '2026-07-26',
     title: 'True hardware step counting (needs the new APK)',

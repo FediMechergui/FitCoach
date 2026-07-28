@@ -53,8 +53,15 @@ export function WalkScreen() {
   useLiveWalk(walk.active);
 
   const distanceM = walk.distanceM;
-  const calories = walkCalories({ weightKg, distanceM, durationSec: walk.elapsedS, steps: walk.steps });
-  const pace = distanceM > 0 && walk.elapsedS > 0 ? walk.elapsedS / (distanceM / 1000) : null;
+  const calories = walkCalories({
+    weightKg,
+    distanceM,
+    durationSec: walk.elapsedS,
+    activeSec: walk.activeS,
+    steps: walk.steps,
+  });
+  // Pace from MOVING time, so pausing at a crossing doesn't make you look slower.
+  const pace = distanceM > 0 && walk.activeS > 0 ? walk.activeS / (distanceM / 1000) : null;
   const unit = user?.unitPreference ?? 'metric';
 
   const start = () => {
@@ -146,6 +153,11 @@ export function WalkScreen() {
           <Text variant="h2" style={{ fontVariant: ['tabular-nums'] }}>
             {formatDuration(walk.elapsedS)}
           </Text>
+          {walk.active && walk.elapsedS - walk.activeS > 30 && (
+            <Text variant="caption" color="textMuted">
+              {formatDuration(walk.activeS)} moving · {formatDuration(walk.elapsedS - walk.activeS)} paused
+            </Text>
+          )}
         </View>
       </Card>
 
@@ -163,6 +175,21 @@ export function WalkScreen() {
             <Text variant="label" color="textMuted">Live route</Text>
           </Row>
           <RouteMap route={walk.route} height={200} />
+        </Card>
+      )}
+
+      {/* Auto-pause banner */}
+      {walk.active && walk.paused && (
+        <Card accent={theme.colors.warning}>
+          <Row gap={10} style={{ alignItems: 'center' }}>
+            <Icon icon="core.info" size={18} color={theme.colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong" style={{ color: theme.colors.warning }}>Auto-paused</Text>
+              <Text variant="caption" color="textMuted">
+                {walk.pauseReason || 'No movement detected.'} It resumes on its own as soon as you start moving again.
+              </Text>
+            </View>
+          </Row>
         </Card>
       )}
 

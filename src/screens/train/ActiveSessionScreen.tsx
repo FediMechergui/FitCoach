@@ -18,6 +18,15 @@ import { formatDuration } from '@/lib/format';
 import type { ExerciseLogView } from '@/repositories/sessionRepo';
 import { getExercise, listExercises } from '@/repositories/exerciseRepo';
 import { findEasierAlternatives } from '@/lib/exerciseAlternatives';
+import {
+  isGpsBusyWithWalk,
+  sessionGpsDistanceM,
+  sessionGpsRoute,
+  startSessionGps,
+  stopSessionGps,
+} from '@/services/sessionGps';
+import { RouteMap } from '@/components/RouteMap';
+import type { LatLng } from '@/lib/geo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const REST_PRESETS = [60, 90, 120, 180];
@@ -46,17 +55,65 @@ export function ActiveSessionScreen() {
   const [onFoot, setOnFoot] = useState(true);
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
 
+  // GPS distance for hikes, rides, wanders — anything that covers ground.
+  const [gpsOn, setGpsOn] = useState(false);
+  const [gpsDistanceM, setGpsDistanceM] = useState(0);
+  const [gpsRoute, setGpsRoute] = useState<LatLng[]>([]);
+
+  // Poll the traced distance while GPS is on (the fixes land in the DB from the
+  // background task, so this is just reading what's accumulated).
+  useEffect(() => {
+    if (!gpsOn) return;
+    const t = setInterval(() => {
+      setGpsDistanceM(sessionGpsDistanceM());
+      setGpsRoute(sessionGpsRoute());
+    }, 2000);
+    return () => clearInterval(t);
+  }, [gpsOn]);
+
+  const toggleGps = async () => {
+    if (gpsOn) {
+      const { distanceM } = await stopSessionGps();
+      setGpsOn(false);
+      setGpsDistanceM(distanceM);
+      // Hand the measured distance to the input so it's saved with the session.
+      if (distanceM > 0) setDistanceKm((distanceM / 1000).toFixed(2));
+      return;
+    }
+    if (isGpsBusyWithWalk()) {
+      Alert.alert(
+        'A walk or run is already tracking',
+        'Finish that session first — only one GPS trace can run at a time.'
+      );
+      return;
+    }
+    const ok = await startSessionGps();
+    if (!ok) {
+      Alert.alert(
+        'Could not start GPS',
+        'Enable Location for FitCoach (ideally “Allow all the time”) to measure distance for this session.'
+      );
+      return;
+    }
+    setGpsOn(true);
+  };
+
   const endSession = () => {
+    // Measured GPS distance wins over anything typed in.
+    const tracedM = gpsOn ? Math.round(sessionGpsDistanceM()) : gpsDistanceM;
+    if (gpsOn) void stopSessionGps();
     const activity =
       flow === 'cardio'
         ? {
-            distanceM: distanceKm ? parseFloat(distanceKm) * 1000 : null,
+            distanceM: tracedM > 0 ? tracedM : distanceKm ? parseFloat(distanceKm) * 1000 : null,
             elevationM: elevation ? parseFloat(elevation) : null,
             score: score || null,
             pace:
-              distanceKm && parseFloat(distanceKm) > 0
-                ? elapsed / parseFloat(distanceKm)
-                : null,
+              tracedM > 0
+                ? elapsed / (tracedM / 1000)
+                : distanceKm && parseFloat(distanceKm) > 0
+                  ? elapsed / parseFloat(distanceKm)
+                  : null,
           }
         : undefined;
     const result = store.finish({
@@ -117,6 +174,34 @@ export function ActiveSessionScreen() {
 
       {/* Exercises / activities — available for every session type, not just lifting */}
       <ExerciseSection detail={detail?.logs ?? []} accent={meta.color} isLifting={flow === 'lifting'} />
+
+      {/* GPS distance — hikes, rides, wanders, anything that covers ground */}
+      {flow === 'cardio' && (
+        <Card accent={gpsOn ? theme.colors.outdoor : undefined} style={{ gap: 10 }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="cardio.gps" size={20} color={gpsOn ? theme.colors.outdoor : theme.colors.textFaint} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">{gpsOn ? 'Measuring with GPS' : 'Measure distance with GPS'}</Text>
+                <Text variant="caption" color="textMuted">
+                  {gpsOn
+                    ? `${(gpsDistanceM / 1000).toFixed(2)} km traced — keeps recording with the screen off.`
+                    : 'For hiking, cycling, a wander — measured instead of typed.'}
+                </Text>
+              </View>
+            </Row>
+            <Button
+              title={gpsOn ? 'Stop' : 'Start'}
+              size="sm"
+              variant={gpsOn ? 'secondary' : 'primary'}
+              fullWidth={false}
+              color={theme.colors.outdoor}
+              onPress={() => void toggleGps()}
+            />
+          </Row>
+          {gpsRoute.length > 1 && <RouteMap route={gpsRoute} height={180} />}
+        </Card>
+      )}
 
       {flow === 'cardio' && (
         <Card style={{ gap: theme.spacing.md }}>

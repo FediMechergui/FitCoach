@@ -26,6 +26,11 @@ interface WalkState {
   usingGps: boolean;
   permissions: WalkPermissions | null;
   starting: boolean;
+  /** auto-paused (vehicle / standing still) */
+  paused: boolean;
+  pauseReason: string;
+  /** moving seconds, excluding paused time */
+  activeS: number;
 
   /** Reattach to a walk that survived a background/app restart. */
   resume: () => void;
@@ -54,6 +59,9 @@ export const useWalkStore = create<WalkState>((set, get) => ({
   usingGps: false,
   permissions: null,
   starting: false,
+  paused: false,
+  pauseReason: '',
+  activeS: 0,
 
   resume: () => {
     const snap = getLiveSnapshot();
@@ -110,6 +118,9 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       source: snap?.source ?? s.source,
       // Populated once the background permission/GPS handshake finishes.
       permissions: getWalkPermissions() ?? s.permissions,
+      paused: snap?.paused ?? s.paused,
+      pauseReason: snap?.pauseReason ?? s.pauseReason,
+      activeS: snap?.activeSec ?? s.activeS,
       elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
     });
   },
@@ -129,13 +140,16 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     if (!result) return null;
 
     const weightKg = useUserStore.getState().currentWeightKg ?? 75;
+    // Moving time only — standing at a crossing or riding a bus isn't exercise.
     const calories = walkCalories({
       weightKg,
       distanceM: result.distanceM,
       durationSec: result.durationS,
+      activeSec: result.activeSec,
       steps: result.steps,
     });
-    const avgPace = result.distanceM > 0 ? result.durationS / (result.distanceM / 1000) : null;
+    // Moving pace — wall-clock would make a paused session look slower than it ran.
+    const avgPace = result.distanceM > 0 ? result.activeSec / (result.distanceM / 1000) : null;
 
     saveWalkSession({
       mode: result.mode,

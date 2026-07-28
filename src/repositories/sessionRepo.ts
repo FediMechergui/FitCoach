@@ -16,7 +16,7 @@ import { distributeSessionCalories, type BurnExercise } from '@/lib/exerciseCalo
 import { estimateActivitySteps } from '@/lib/activitySteps';
 import { estimate1RM } from '@/lib/oneRepMax';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
-import { addSteps } from './activityRepo';
+import { addSteps, removeSteps } from './activityRepo';
 import { toISODate } from '@/lib/date';
 
 export interface SetDraft {
@@ -178,6 +178,8 @@ function contributeSteps(opts: {
   durationS?: number | null;
   dateISO: string;
   userId: number;
+  /** the session to record the contribution on, so a delete can undo it */
+  sessionId: number;
 }): number {
   if (!opts.onFoot) return 0;
   const heightCm = safeHeight(opts.userId);
@@ -188,6 +190,12 @@ function contributeSteps(opts: {
   });
   if (steps <= 0) return 0;
   addSteps(steps, distanceM, 0, opts.dateISO, opts.userId);
+  // Remember exactly what we added — deleteSession subtracts these, so a deleted
+  // session stops counting toward the day instead of inflating it forever.
+  db.update(sessions)
+    .set({ stepsAdded: steps, distanceAddedM: distanceM })
+    .where(eq(sessions.id, opts.sessionId))
+    .run();
   return steps;
 }
 
@@ -265,6 +273,7 @@ export function finalizeSession(
     durationS,
     dateISO: toISODate(new Date(session.startTime)),
     userId: session.userId,
+    sessionId,
   });
 
   return {
@@ -389,6 +398,7 @@ export function logPastSession(
     durationS,
     dateISO: toISODate(new Date(input.startTime)),
     userId,
+    sessionId: id,
   });
   return { session: getSession(id)!, stepsAdded };
 }
@@ -510,7 +520,18 @@ export function activeSession(userId: number = PRIMARY_USER_ID): Session | undef
     .get();
 }
 
+/**
+ * Delete a session and everything derived from it: its exercise logs, its sets,
+ * and its contribution to the day's step/distance totals.
+ *
+ * The session's own calories vanish with the row (the energy card sums live from
+ * the sessions table), but on-foot activities also push steps into
+ * `daily_step_logs`, which used to survive the delete — so a session you removed
+ * kept counting toward your day. `steps_added` / `distance_added_m` record what
+ * was contributed so it can be subtracted exactly.
+ */
 export function deleteSession(sessionId: number): void {
+  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   const logs = db
     .select({ id: exerciseLogs.id })
     .from(exerciseLogs)
@@ -521,4 +542,14 @@ export function deleteSession(sessionId: number): void {
   }
   db.delete(exerciseLogs).where(eq(exerciseLogs.sessionId, sessionId)).run();
   db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+
+  if (session?.stepsAdded) {
+    removeSteps(
+      session.stepsAdded,
+      session.distanceAddedM ?? 0,
+      0, // sessions never contributed calories to the daily log
+      toISODate(new Date(session.startTime)),
+      session.userId
+    );
+  }
 }

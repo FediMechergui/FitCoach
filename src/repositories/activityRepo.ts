@@ -8,7 +8,7 @@ import {
   type LiveWalk,
   type WalkSession,
 } from '@/db/schema';
-import { todayISO } from '@/lib/date';
+import { todayISO, toISODate } from '@/lib/date';
 import { haversine, parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
 import { stepsFromDistance } from '@/lib/pedometer';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
@@ -177,8 +177,19 @@ export function getWalkSession(id: number): WalkSession | undefined {
   return db.select().from(walkSessions).where(eq(walkSessions.id, id)).get();
 }
 
+/**
+ * Delete a walk/run AND undo its contribution to the day's totals.
+ *
+ * `saveWalkSession` rolls its steps, distance and calories into `daily_step_logs`,
+ * so deleting the row alone left those totals permanently inflated — a deleted
+ * session kept "counting". This subtracts exactly what was added, on the day it
+ * was added to.
+ */
 export function deleteWalkSession(id: number): void {
+  const row = getWalkSession(id);
   db.delete(walkSessions).where(eq(walkSessions.id, id)).run();
+  if (!row) return;
+  removeSteps(row.steps, row.distanceM, row.caloriesBurned, toISODate(new Date(row.startTime)), row.userId);
 }
 
 // ── Daily passive step counter ───────────────────────────────────────────────
@@ -230,6 +241,30 @@ export function addSteps(
   } else {
     db.insert(dailyStepLogs).values({ userId, date, stepCount: steps, distanceM, caloriesBurned }).run();
   }
+}
+
+/**
+ * Subtract a contribution from a day's totals — the inverse of `addSteps`, used
+ * when a session or walk is deleted. Clamped at zero: a rounding difference or a
+ * double-delete must never leave a negative step count.
+ */
+export function removeSteps(
+  steps: number,
+  distanceM: number,
+  caloriesBurned: number,
+  date: string = todayISO(),
+  userId: number = PRIMARY_USER_ID
+): void {
+  const existing = getDailySteps(date, userId);
+  if (!existing) return;
+  db.update(dailyStepLogs)
+    .set({
+      stepCount: Math.max(0, existing.stepCount - Math.max(0, Math.round(steps))),
+      distanceM: Math.max(0, existing.distanceM - Math.max(0, distanceM)),
+      caloriesBurned: Math.max(0, existing.caloriesBurned - Math.max(0, caloriesBurned)),
+    })
+    .where(eq(dailyStepLogs.id, existing.id))
+    .run();
 }
 
 export function stepHistorySince(sinceISO: string, userId: number = PRIMARY_USER_ID): DailyStepLog[] {

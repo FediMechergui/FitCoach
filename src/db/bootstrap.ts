@@ -24,8 +24,9 @@ import { seedExerciseLibrary } from './seed';
  *   12 → 13 v2.14: +30 exercises (grip/forearm, advanced calisthenics, wellness)
  *   13 → 14 v2.15: +7 quick-counter exercises (urge/focus protocols)
  *   14 → 15 v2.18: live_walks.boot_step_baseline (hardware step-counter baseline)
+ *   15 → 16 v2.20: sessions.steps_added / distance_added_m (reversible deletes)
  */
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 16;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -77,6 +78,9 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'weigh_ins', column: 'calf_r_cm', ddl: 'REAL' },
   // v15 — hardware step counter: absolute since-boot reading at session start
   { table: 'live_walks', column: 'boot_step_baseline', ddl: 'INTEGER' },
+  // v16 — remember a session's step contribution so deleting it can undo it
+  { table: 'sessions', column: 'steps_added', ddl: 'INTEGER' },
+  { table: 'sessions', column: 'distance_added_m', ddl: 'REAL' },
 ];
 
 function ensureColumns(): void {
@@ -181,6 +185,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   score TEXT,
   style TEXT,
   calories_burned REAL,
+  steps_added INTEGER,
+  distance_added_m REAL,
   mood_before INTEGER,
   mood_after INTEGER,
   notes TEXT,

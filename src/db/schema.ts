@@ -157,6 +157,13 @@ export const sessions = sqliteTable('sessions', {
   score: text('score'), // sport free-text score
   style: text('style'), // mind-body technique/style tag
   caloriesBurned: real('calories_burned'),
+  /**
+   * What this session contributed to the day's passive step totals (on-foot
+   * activities only). Recorded so deleting the session can subtract EXACTLY what
+   * it added — without this, a deleted session's steps kept counting forever.
+   */
+  stepsAdded: integer('steps_added'),
+  distanceAddedM: real('distance_added_m'),
   moodBefore: integer('mood_before'), // 1..5 emoji scale
   moodAfter: integer('mood_after'),
   notes: text('notes'),

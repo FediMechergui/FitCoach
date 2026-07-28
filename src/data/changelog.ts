@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.20',
+    date: '2026-07-27',
+    title: 'Deleting a session now undoes its steps and calories',
+    highlights: [
+      'Fixed: deleting a session or a walk left its steps, distance and calories in your daily totals — so a session you removed kept counting. Deletes now subtract exactly what was added, on the day it counted.',
+      'It can never go negative: over-subtracting or deleting twice clamps at zero rather than corrupting the day.',
+      'Deleting a walk also removes the calories it contributed, which is what was making the burn figure stay high.',
+      'Note: sessions logged BEFORE this update didn’t record what they contributed, so deleting one of those still can’t undo its steps. Everything from now on reverses cleanly. Walks reverse correctly either way, including old ones.',
+    ],
+  },
+  {
     version: '2.19',
     date: '2026-07-27',
     title: 'Auto-pause in vehicles, accurate calories, GPS for every activity',

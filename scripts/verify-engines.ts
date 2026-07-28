@@ -707,6 +707,24 @@ check('A climb burns more than the same distance flat', climb > flat, `${climb} 
 check('Time-only sessions still estimate something', walkCalories({ weightKg: 80, distanceM: 0, durationSec: 1800, steps: 0 }) > 0);
 check('Steps-only fallback scales with bodyweight', walkCalories({ weightKg: 100, distanceM: 0, durationSec: 0, steps: 5000 }) > walkCalories({ weightKg: 60, distanceM: 0, durationSec: 0, steps: 5000 }));
 
+console.log('\nDeletes undo their side effects:');
+/*
+ * Creating a session or walk writes into daily_step_logs. Deleting the row alone
+ * left those totals inflated — a deleted session kept counting toward the day.
+ * These assert the rollback wiring stays in place; the arithmetic itself is
+ * proven separately against a real SQLite table.
+ */
+{
+  const actSrc = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
+  const sessSrc = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('activityRepo exposes a clamped removeSteps', /export function removeSteps/.test(actSrc) && /Math\.max\(0, existing\.stepCount/.test(actSrc));
+  check('Deleting a walk subtracts its steps/distance/calories', /export function deleteWalkSession[\s\S]{0,400}removeSteps\(/.test(actSrc));
+  check('A walk is rolled back on the day it counted, not today', /removeSteps\([\s\S]{0,120}toISODate\(new Date\(row\.startTime\)\)/.test(actSrc));
+  check('Sessions record what they contributed', /stepsAdded: steps, distanceAddedM: distanceM/.test(sessSrc));
+  check('Deleting a session subtracts its recorded contribution', /export function deleteSession[\s\S]{0,900}session\?\.stepsAdded[\s\S]{0,200}removeSteps\(/.test(sessSrc));
+  check('Session rollback uses the session date', /removeSteps\([\s\S]{0,200}toISODate\(new Date\(session\.startTime\)\)/.test(sessSrc));
+}
+
 console.log('\nSchema ↔ migration integrity:');
 /*
  * Every column in the Drizzle schema must also be reachable by an existing

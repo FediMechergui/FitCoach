@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.21',
+    date: '2026-07-28',
+    title: 'Warriors of the world, and no more phantom steps indoors',
+    highlights: [
+      'Fixed: standing in a small room, or just turning on the spot, was adding distance and steps that never happened. GPS keeps reporting a position indoors, but it wanders by tens of metres — and the app was banking every wobble as if you had walked it.',
+      'Three checks now sit in front of every GPS fix: how precise the phone says the fix is, what its own speedometer reads, and whether the last few positions actually go anywhere. A fix has to clear all three to count.',
+      'The important part: staying put no longer keeps adding. An hour in a small space now costs about the same as a minute, instead of climbing the whole time you are there.',
+      'Steps from motion are stricter too — a footfall has to be a real impact, arriving on a beat. Spinning around yourself now counts zero where it used to count roughly a step a second. Real walking and running are untouched: verified accurate to within two steps a minute at running cadence.',
+      '18 new Special Programmes from cultures around the world: Inuit Arctic hunters, Amazon river elites, Plains Nations warriors, the Rarámuri who run 100 km in sandals, Persian pahlavans of the Zurkhaneh, Hindu pehlwans of the akhara, Sikh Nihang gatka, Māori toa, Maasai moran, Turkish oil wrestlers of Kırkpınar, Celtic Highland strength, the Hwarang of Silla, Inca chasqui runners, Filipino Kali, Aboriginal Australian persistence hunting, Siamese Muay Boran — and Sumo.',
+      'Sumo gets the real heya morning: shiko, suriashi, matawari, teppo and butsukari. What it deliberately does not copy is the weight-gain protocol — that is a career choice with a documented health cost, and the programme says so.',
+      'Plus El Santo and lucha libre in the legends section — the flight and body control, not the aerial moves, which need a ring and a coach.',
+      'Every one carries its real history, an honest note on what was adapted, and a diet with full macros and micros you can log straight into Nutrition.',
+    ],
+  },
+  {
     version: '2.20',
     date: '2026-07-27',
     title: 'Deleting a session now undoes its steps and calories',

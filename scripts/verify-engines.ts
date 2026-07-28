@@ -32,6 +32,13 @@ import { resolveWindow, fastingState } from '../src/lib/fasting';
 import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
+import {
+  filterFixes,
+  isConfined,
+  spreadRadiusM,
+  straightness,
+  CONFINEMENT_RADIUS_M,
+} from '../src/lib/gpsFilter';
 import { generateDietPlan } from '../src/lib/dietPlan';
 import { EXERCISE_LIBRARY as EXLIB, PRAYER_EXERCISE_MINUTES } from '../src/data/exercises';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../src/data/achievements';
@@ -439,6 +446,40 @@ check('Rocky reminds you to cook the eggs', /cook|salmonella/i.test((findSpecial
 const ironBody = EXLIB.find((e) => e.slug === 'iron-body-conditioning');
 check('Body-conditioning drills warn to progress gradually', (ironBody?.instructions ?? []).some((i) => /month|gradual|pain/i.test(i)));
 check('Session style tag namespaces the programme and day', specialStyleTag(SPECIAL_PROGRAMS[0], SPECIAL_PROGRAMS[0].days[0]).startsWith('special:'));
+// Warrior cultures from beyond the usual Greek/Roman/Japanese canon.
+const worldKeys = [
+  'his-inuit-hunter', 'his-amazon-tribe', 'his-plains-nation', 'his-raramuri',
+  'his-persian-pahlavan', 'his-hindu-pehlwan', 'his-sikh-nihang', 'his-sumo',
+  'his-maori-toa', 'his-maasai-moran', 'his-turkish-pehlivan', 'his-celtic-highland',
+  'his-korean-hwarang', 'his-inca-chasqui', 'his-filipino-kali', 'his-aboriginal-hunter',
+  'his-muay-boran',
+];
+check('World-culture warrior programmes are all present', worldKeys.every((k) => findSpecialProgram(k)?.category === 'historical'), `${worldKeys.length} added`);
+check('Sumo is present and built on the real heya morning', ['shiko', 'suriashi', 'butsukari', 'teppo'].every((d) => !!findSpecialProgram('his-sumo')?.days.some((x) => x.key === d)));
+check('Lucha libre sits with the screen legends', findSpecialProgram('hero-luchador')?.category === 'superhero');
+// Cultures whose traditional practice includes something an app must not
+// prescribe have to say so plainly rather than quietly dropping it.
+check(
+  'Sumo refuses to reproduce the weight-gain protocol',
+  /weight-gain protocol/i.test(findSpecialProgram('his-sumo')?.authenticityNote ?? '') &&
+    findSpecialProgram('his-sumo')!.diet.notes.some((n) => /skip the sumo weight protocol/i.test(n))
+);
+check('Muay Boran warns against striking hard objects to condition shins', /never with a stick|hard objects/i.test((findSpecialProgram('his-muay-boran')?.authenticityNote ?? '') + (findSpecialProgram('his-muay-boran')?.safetyNote ?? '')));
+check('Maasai programme declines to recommend drinking blood', /not being recommended/i.test(findSpecialProgram('his-maasai-moran')!.diet.notes.join(' ')));
+check('Rarámuri minimal-footwear warning is explicit', /stress fracture/i.test(findSpecialProgram('his-raramuri')?.safetyNote ?? ''));
+check('Pehlwan diet says to scale the legendary intakes down', /scale it/i.test(findSpecialProgram('his-hindu-pehlwan')!.diet.notes.join(' ')));
+check('Luchador refuses to prescribe unsupervised aerial work', /qualified coach/i.test(findSpecialProgram('hero-luchador')?.safetyNote ?? ''));
+// Living cultures get named as plural and distinct, not flattened into one myth.
+check(
+  'Composite programmes admit they are composites',
+  /composite|many distinct|are many and distinct/i.test(findSpecialProgram('his-plains-nation')?.authenticityNote ?? '') &&
+    /many and distinct/i.test(findSpecialProgram('his-aboriginal-hunter')?.authenticityNote ?? '')
+);
+// Substituted staples must be disclosed, not silently swapped.
+check(
+  'Diets disclose where a staple was substituted',
+  ['his-amazon-tribe', 'his-inca-chasqui'].every((k) => /aren't in the food list|isn't in the food list/i.test(findSpecialProgram(k)!.diet.notes.join(' ')))
+);
 
 console.log('\nSpecial Programme diets (loggable, real nutrition):');
 const specialFoodIds = new Set(SPECIAL_FOOD_DB.map((f) => f.id));
@@ -775,6 +816,141 @@ console.log('\nSchema ↔ migration integrity:');
   const repoSrc = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
   check('Background task checkpoints steps from GPS distance', /stepsFromDistance\(distance/.test(repoSrc));
   check('Step checkpoint is monotonic (never lowers the count)', /steps: Math\.max\(row\.steps, impliedSteps\)/.test(repoSrc));
+  // Every GPS fix must go through the filter — the raw haversine loop inflated
+  // distance indoors and while turning on the spot.
+  check('Route append filters fixes before crediting distance', /filterFixes\(route, fixes\)/.test(repoSrc));
+  check('Raw unfiltered segment accumulation is gone', !/const seg = haversine\(last, p\)/.test(repoSrc));
+  // Rejecting every fix still counts as observing the session; leaving updatedAt
+  // stale would make the stretch look like a blind window and let the gap
+  // estimator re-credit the steps the filter just discarded.
+  check(
+    'A fully-rejected batch still stamps updatedAt',
+    /if \(!accepted\.length\)/.test(repoSrc) && /set\(\{ updatedAt: Date\.now\(\) \}\)/.test(repoSrc)
+  );
+  // Accuracy and Doppler speed are the filter's two best signals; the task must
+  // hand them over rather than throwing them away at the boundary.
+  const locSrc = fs.readFileSync('src/services/locationTracking.ts', 'utf8');
+  check(
+    'Location task forwards accuracy and speed to the filter',
+    /accuracy: l\.coords\.accuracy/.test(locSrc) && /speed: l\.coords\.speed/.test(locSrc)
+  );
+  // The warm-up credits several steps at once, so the listener must add the
+  // returned count rather than incrementing by one.
+  check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nGPS fix filtering (indoor drift & spinning):');
+{
+  // A straight street walk: every fix is real and must be credited in full.
+  const street = Array.from({ length: 12 }, (_, i) => ({
+    lat: 36.8 + i * 0.00009, lng: 10.18, accuracy: 6, speed: 1.4,
+  }));
+  const walkRes = filterFixes([], street);
+  check('A real street walk is credited in full', walkRes.accepted.length === 12 && walkRes.distanceM > 95, `${Math.round(walkRes.distanceM)}m from ${walkRes.accepted.length} fixes`);
+  check('Credited distance equals the stored path length', near(walkRes.distanceM, routeDistanceM(walkRes.accepted), 0.001));
+
+  // Indoors: the receiver keeps emitting, wandering by tens of metres, and
+  // honestly reports both the poor accuracy and a Doppler speed of zero.
+  let s = 7;
+  const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const indoors = Array.from({ length: 40 }, () => ({
+    lat: 36.8 + (rnd() - 0.5) * 0.0004, lng: 10.18 + (rnd() - 0.5) * 0.0004, accuracy: 40, speed: 0,
+  }));
+  const roomRes = filterFixes([], indoors);
+  check('Indoor drift adds no distance at all', roomRes.accepted.length === 0 && roomRes.distanceM === 0, `${roomRes.rejected.accuracy} dropped on accuracy`);
+
+  // Turning on the spot / pacing a small room, with decent accuracy and no
+  // speed reported — the case the geometric gates exist for.
+  const circling = Array.from({ length: 40 }, (_, i) => {
+    const a = (i / 40) * Math.PI * 6;
+    return { lat: 36.8 + Math.sin(a) * 0.00008, lng: 10.18 + Math.cos(a) * 0.00008, accuracy: 12, speed: null };
+  });
+  const spinRes = filterFixes([], circling);
+  const rawPath = routeDistanceM(circling.map((f) => [f.lat, f.lng] as LatLng));
+  check('Spinning in one spot is mostly suppressed', spinRes.distanceM < rawPath * 0.25, `${Math.round(spinRes.distanceM)}m of a raw ${Math.round(rawPath)}m`);
+  check('Confinement is what rejected them', spinRes.rejected.confined > 0, `${spinRes.rejected.confined} confined`);
+  /*
+   * The property that actually matters. Some distance always leaks out at the
+   * moment you stop, because the first few clustered fixes are genuinely
+   * indistinguishable from a slow walk until the window fills. What must never
+   * happen is that leak repeating: an hour in a small room has to cost the same
+   * ~30 m as a minute does. Feed three more laps on top and check the total
+   * barely moves.
+   */
+  let acc = spinRes.accepted;
+  let extra = 0;
+  for (let lap = 0; lap < 3; lap++) {
+    const more = filterFixes(acc, circling);
+    extra += more.distanceM;
+    acc = [...acc, ...more.accepted];
+  }
+  check('Staying put does not keep adding distance', extra < 5, `${Math.round(extra)}m over three further laps`);
+
+  // …and it must un-stick itself the moment you actually walk away.
+  const leaving = Array.from({ length: 15 }, (_, i) => ({
+    lat: 36.8 + (i + 1) * 0.00012, lng: 10.18, accuracy: 8, speed: 1.5,
+  }));
+  const leaveRes = filterFixes(spinRes.accepted, leaving);
+  check('Walking away resumes crediting immediately', leaveRes.accepted.length >= 13 && leaveRes.distanceM > 180, `${Math.round(leaveRes.distanceM)}m`);
+
+  // Geometry primitives.
+  const straightLine: LatLng[] = [[36.8, 10.18], [36.801, 10.18], [36.802, 10.18], [36.803, 10.18], [36.804, 10.18]];
+  check('A straight line is never confined', !isConfined(straightLine) && straightness(straightLine) > 0.99);
+  const cluster: LatLng[] = [[36.8, 10.18], [36.80005, 10.18004], [36.79997, 10.17996], [36.80003, 10.17995], [36.8, 10.18001]];
+  check('A tight wandering cluster is confined', isConfined(cluster) && spreadRadiusM(cluster) < CONFINEMENT_RADIUS_M);
+  // A fix can never prove a movement smaller than its own error bar.
+  const vague = filterFixes([[36.8, 10.18]], [{ lat: 36.80005, lng: 10.18, accuracy: 25, speed: null }]);
+  check('A 5.5 m hop on a 25 m fix is rejected as jitter', vague.accepted.length === 0 && vague.rejected.jitter === 1);
+  const precise = filterFixes([[36.8, 10.18]], [{ lat: 36.80005, lng: 10.18, accuracy: 4, speed: 1.2 }]);
+  check('The same hop on a 4 m fix is accepted', precise.accepted.length === 1);
+  // A car doesn't become a walk just because the phone is in it.
+  const car = filterFixes([[36.8, 10.18]], [{ lat: 36.803, lng: 10.18, accuracy: 5, speed: 22 }]);
+  check('Vehicle-speed fixes are still rejected', car.accepted.length === 0 && car.rejected.impossible === 1);
+}
+
+console.log('\nStep detector — rejecting motion that is not walking:');
+{
+  let s2 = 7;
+  const rnd2 = () => ((s2 = (s2 * 1103515245 + 12345) % 2147483648) / 2147483648);
+
+  // Turning on the spot: a small, slow, irregular wobble. The adaptive threshold
+  // alone used to read this as ~26 steps per 30 s.
+  const spinDet = new StepDetector();
+  for (let i = 0; i < 1500; i++) {
+    const t = i * 20;
+    spinDet.onSample(0, 0, 1 + 0.03 * Math.sin((2 * Math.PI * 0.9 * t) / 1000) + 0.02 * (rnd2() - 0.5), t);
+  }
+  check('Spinning on the spot counts no steps', spinDet.steps === 0, `${spinDet.steps} over 30 s`);
+
+  // A phone lying still — pure sensor noise.
+  const stillDet = new StepDetector();
+  for (let i = 0; i < 1500; i++) stillDet.onSample(0, 0, 1 + 0.004 * (rnd2() - 0.5), i * 20);
+  check('A phone at rest counts no steps', stillDet.steps === 0, `${stillDet.steps} over 30 s`);
+
+  // Real running must be unaffected: 2.8 Hz ≈ 168 steps/min for 30 s ≈ 84.
+  const runDet = new StepDetector();
+  for (let i = 0; i < 1500; i++) {
+    const t = i * 20;
+    runDet.onSample(0, 0, 1 + 1.1 * Math.sin((2 * Math.PI * 2.8 * t) / 1000), t);
+  }
+  check('Real running is counted accurately', runDet.steps >= 78 && runDet.steps <= 86, `${runDet.steps} vs ~84 expected`);
+
+  // The warm-up must not silently eat the first strides of a walk.
+  const warmDet = new StepDetector();
+  let credited = 0;
+  for (let i = 0; i < 400; i++) {
+    const t = i * 20;
+    credited += warmDet.onSample(0, 0, 1 + 0.5 * Math.sin((2 * Math.PI * 2 * t) / 1000), t);
+  }
+  check('Warm-up strides are banked, not lost', credited === warmDet.steps && warmDet.steps >= 12, `${warmDet.steps}`);
+
+  // A single isolated thump is not a step.
+  const bumpDet = new StepDetector();
+  for (let i = 0; i < 200; i++) {
+    const t = i * 20;
+    bumpDet.onSample(0, 0, 1 + (i === 100 ? 0.8 : 0), t);
+  }
+  check('One isolated jolt is not a step', bumpDet.steps === 0, `${bumpDet.steps}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

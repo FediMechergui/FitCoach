@@ -6,9 +6,28 @@
  *   3. Low-pass filter (EMA) to smooth high-frequency noise.
  *   4. Detect peaks crossing a dynamic threshold (running mean + k·stdev)
  *      with a refractory period so a single stride isn't double-counted.
+ *   5. Credit a peak only if it is **big enough** and **rhythmic** (below).
  *
  * expo-sensors reports acceleration in units of g; gravity (~1g) is removed by
  * the running-mean baseline, so we detect the oscillation of walking, not tilt.
+ *
+ * ── Why steps 4 and 5 aren't enough on their own ──
+ * The threshold at step 4 is *adaptive*: it tracks the running mean and standard
+ * deviation, so when the phone is nearly still the bar drops until ordinary
+ * sensor noise clears it. Turning on the spot, fidgeting, or a phone jostling in
+ * a bag then reads as a stride, which is where the phantom steps come from.
+ *
+ * Two properties separate real walking from any of that:
+ *   • **Amplitude.** A footfall sends a distinct 0.2–1.5 g shock through the
+ *     body. Rotation and fidgeting produce an order of magnitude less, so a
+ *     minimum peak-to-trough swing rules them out without touching real gait.
+ *   • **Periodicity.** Gait is a metronome — consecutive strides land within a
+ *     few percent of the same interval. Noise is irregular. Requiring a run of
+ *     evenly-spaced peaks before crediting anything means an isolated bump, or a
+ *     burst of shaking, never becomes a step.
+ *
+ * The warm-up costs nothing: the buffered candidates are credited in full the
+ * moment the rhythm is established, so the first strides of a walk still count.
  */
 
 export interface StepDetectorOptions {
@@ -20,13 +39,25 @@ export interface StepDetectorOptions {
   refractoryMs?: number;
   /** Adaptation rate for the running mean/variance baseline. */
   adaptation?: number;
+  /** Minimum peak-to-trough swing (g) for a footfall to be credible. */
+  minAmplitude?: number;
+  /** Consecutive evenly-spaced peaks required before any are credited. */
+  warmupSteps?: number;
+  /** How much a stride interval may differ from the previous one (fraction). */
+  rhythmTolerance?: number;
 }
+
+/** Slower than this between peaks and it isn't a continuous gait any more. ms. */
+export const MAX_STEP_INTERVAL_MS = 2000;
 
 export class StepDetector {
   private smoothing: number;
   private sensitivity: number;
   private refractoryMs: number;
   private adaptation: number;
+  private minAmplitude: number;
+  private warmupSteps: number;
+  private rhythmTolerance: number;
 
   private filtered = 1; // starts near 1g (device at rest)
   private mean = 1;
@@ -34,6 +65,14 @@ export class StepDetector {
   private lastStepTs = 0;
   private rising = false;
   private lastValue = 1;
+  /** lowest filtered value since the last peak — the other half of the swing */
+  private trough = 1;
+  /** rhythmic candidates seen but not yet credited */
+  private pending = 0;
+  /** interval between the last two accepted peaks, for the rhythm test */
+  private lastInterval = 0;
+  /** true once a run of even strides has proved this is really walking */
+  private warm = false;
 
   steps = 0;
 
@@ -42,6 +81,9 @@ export class StepDetector {
     this.sensitivity = opts.sensitivity ?? 1.2;
     this.refractoryMs = opts.refractoryMs ?? 250;
     this.adaptation = opts.adaptation ?? 0.05;
+    this.minAmplitude = opts.minAmplitude ?? 0.1;
+    this.warmupSteps = opts.warmupSteps ?? 3;
+    this.rhythmTolerance = opts.rhythmTolerance ?? 0.5;
   }
 
   reset(): void {
@@ -52,17 +94,32 @@ export class StepDetector {
     this.lastStepTs = 0;
     this.rising = false;
     this.lastValue = 1;
+    this.trough = 1;
+    this.pending = 0;
+    this.lastInterval = 0;
+    this.warm = false;
+  }
+
+  /** Drop the rhythm streak — the next stride starts a fresh warm-up. */
+  private breakRhythm(timestampMs: number): void {
+    this.pending = 1;
+    this.lastInterval = 0;
+    this.warm = false;
+    this.lastStepTs = timestampMs;
   }
 
   /**
-   * Feed one accelerometer sample. Returns true if this sample completed a step.
+   * Feed one accelerometer sample. Returns **how many steps this sample
+   * credited** — normally 0 or 1, but the sample that completes the warm-up
+   * credits the whole buffered run at once so the start of a walk isn't lost.
    * `timestampMs` should be monotonic (e.g. Date.now() or event timestamp).
    */
-  onSample(x: number, y: number, z: number, timestampMs: number): boolean {
+  onSample(x: number, y: number, z: number, timestampMs: number): number {
     const mag = Math.sqrt(x * x + y * y + z * z);
 
     // Low-pass filter (exponential moving average).
     this.filtered = this.smoothing * this.filtered + (1 - this.smoothing) * mag;
+    if (this.filtered < this.trough) this.trough = this.filtered;
 
     // Update adaptive baseline (running mean + variance).
     const delta = this.filtered - this.mean;
@@ -71,24 +128,54 @@ export class StepDetector {
     const stdev = Math.sqrt(Math.max(this.variance, 1e-6));
     const threshold = this.mean + this.sensitivity * stdev;
 
-    let stepped = false;
+    let credited = 0;
 
-    // Peak detection: count a step on the falling edge just after a value that
-    // crossed the dynamic threshold, respecting the refractory period.
+    // Peak detection: a step candidate is the falling edge just after a value
+    // that crossed the dynamic threshold, respecting the refractory period.
     if (this.filtered > threshold && this.filtered > this.lastValue) {
       this.rising = true;
     } else if (this.rising && this.filtered < this.lastValue) {
-      // Just passed a local maximum above threshold → candidate step.
-      if (timestampMs - this.lastStepTs >= this.refractoryMs) {
-        this.steps += 1;
-        this.lastStepTs = timestampMs;
-        stepped = true;
-      }
+      const interval = timestampMs - this.lastStepTs;
+      const amplitude = this.lastValue - this.trough;
       this.rising = false;
+      this.trough = this.filtered; // start measuring the next swing from here
+
+      if (interval < this.refractoryMs) {
+        // Too soon to be a separate stride — the same footfall ringing.
+      } else if (amplitude < this.minAmplitude) {
+        // Real enough to clear the adaptive threshold, far too small to be a
+        // footfall: rotation, fidgeting, a phone shifting in a bag.
+        this.breakRhythm(timestampMs);
+        this.pending = 0;
+      } else if (this.lastStepTs === 0 || interval > MAX_STEP_INTERVAL_MS) {
+        // First peak, or such a long gap that the previous rhythm is irrelevant.
+        this.breakRhythm(timestampMs);
+      } else if (
+        this.lastInterval > 0 &&
+        Math.abs(interval - this.lastInterval) > this.lastInterval * this.rhythmTolerance
+      ) {
+        // Arrived, but off-beat — noise rather than the metronome of a gait.
+        this.breakRhythm(timestampMs);
+      } else {
+        this.lastInterval = interval;
+        this.lastStepTs = timestampMs;
+        this.pending += 1;
+        if (this.warm) {
+          credited = this.pending;
+          this.pending = 0;
+        } else if (this.pending >= this.warmupSteps) {
+          // Rhythm proved — bank the whole run, including the strides that were
+          // only provisional while we waited.
+          this.warm = true;
+          credited = this.pending;
+          this.pending = 0;
+        }
+        this.steps += credited;
+      }
     }
 
     this.lastValue = this.filtered;
-    return stepped;
+    return credited;
   }
 }
 

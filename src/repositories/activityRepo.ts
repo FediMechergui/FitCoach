@@ -9,7 +9,8 @@ import {
   type WalkSession,
 } from '@/db/schema';
 import { todayISO, toISODate } from '@/lib/date';
-import { haversine, parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
+import { parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
+import { filterFixes, type GpsFix } from '@/lib/gpsFilter';
 import { stepsFromDistance } from '@/lib/pedometer';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
 
@@ -57,26 +58,36 @@ export function endLiveWalk(): void {
 }
 
 /**
- * Append GPS points to the live route and recompute total GPS distance. Called
+ * Append GPS fixes to the live route and recompute total GPS distance. Called
  * from the background location task — reads the current route from the DB (the
  * only channel shared with the headless task context), appends, writes back.
+ *
+ * Every fix passes through `filterFixes` first, which discards the two kinds of
+ * phantom movement a receiver invents: the wandering low-accuracy fixes of an
+ * indoor/enclosed space, and the scatter produced by turning on the spot. Only
+ * fixes that survive are stored, so the route's path length and the recorded
+ * distance can never disagree.
  */
-export function appendLiveRoutePoints(points: LatLng[]): void {
+export function appendLiveRoutePoints(fixes: GpsFix[]): void {
   const row = getLiveWalk();
   if (!row?.active) return;
   const route = parseRoute(row.routeJson);
-  let distance = row.distanceM;
-  let last: LatLng | null = route.length ? route[route.length - 1] : null;
-  for (const p of points) {
-    if (last) {
-      const seg = haversine(last, p);
-      // Ignore GPS jitter (<2 m) so a stationary phone doesn't inflate distance.
-      if (seg < 2) continue;
-      distance += seg;
-    }
-    route.push(p);
-    last = p;
+  const { accepted, distanceM: gained } = filterFixes(route, fixes);
+
+  /*
+   * Nothing credible arrived — you're indoors, or standing, or turning on the
+   * spot. Still stamp `updatedAt`, because it marks the last moment the session
+   * was *observed*, not the last moment it moved. Leaving it stale would make
+   * the whole stretch look like a blind window when the app comes back, and the
+   * gap estimator would credit steps for it from assumed cadence — re-inventing
+   * exactly the phantom distance the filter just threw away.
+   */
+  if (!accepted.length) {
+    db.update(liveWalks).set({ updatedAt: Date.now() }).where(eq(liveWalks.id, LIVE_ID)).run();
+    return;
   }
+  route.push(...accepted);
+  const distance = row.distanceM + gained;
   const tail = route[route.length - 1];
 
   /*

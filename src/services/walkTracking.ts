@@ -437,8 +437,11 @@ function attachStepSource(useHardware: boolean): void {
     detector = new StepDetector();
     Accelerometer.setUpdateInterval(40); // 25 Hz
     accelSub = Accelerometer.addListener(({ x, y, z }) => {
-      if (detector!.onSample(x, y, z, Date.now())) {
-        mem.steps += 1;
+      // onSample returns a count, not a flag: the sample that proves the rhythm
+      // banks the whole warm-up run at once, so `+= 1` would lose those strides.
+      const credited = detector!.onSample(x, y, z, Date.now());
+      if (credited > 0) {
+        mem.steps += credited;
         mem.dirty = true;
       }
     });

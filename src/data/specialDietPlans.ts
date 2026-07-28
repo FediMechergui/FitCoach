@@ -246,6 +246,104 @@ export const SPECIAL_DIET_BUILDS: Record<string, MealBuild[]> = {
     M('snack', []),
     M('snack', []),
   ],
+
+  // ── Warriors of the world ──
+  // Where a culture's staple isn't in FOOD_DB (cassava, quinoa, kūmara, pinole),
+  // the build uses the closest nutritional equivalent that is — noted in each
+  // programme's diet.notes so nothing here pretends to be the original food.
+  'his-inuit-hunter': [
+    M('breakfast', [['tn-mackerel', 1], ['egg', 3]]),
+    M('lunch', [['tn-beef-lean', 1.5], ['tn-beef-liver', 0.5], ['tn-cabbage', 1]]),
+    M('dinner', [['salmon', 1.5], ['tn-blueberry', 1], ['tn-walnuts', 1]]),
+  ],
+  'his-amazon-tribe': [
+    M('breakfast', [['sweet-potato', 1], ['banana', 1], ['tn-papaya', 1]]),
+    M('lunch', [['tn-sea-bream', 1], ['sweet-potato', 1], ['tn-spinach', 1]]),
+    // Peanuts are genuinely South American in origin, and carry the fat that a
+    // lean-fish-and-root day would otherwise be missing entirely.
+    M('dinner', [['tn-black-eyed-peas', 1.5], ['tn-pumpkin', 1], ['tn-sweet-potato', 1], ['tn-peanuts', 1]]),
+  ],
+  'his-plains-nation': [
+    M('breakfast', [['amaranth-cooked', 1], ['tn-blackberry', 1]]),
+    M('lunch', [['tn-beef-lean', 1.5], ['tn-pumpkin', 1], ['tn-sweet-corn', 1]]),
+    M('dinner', [['tn-kidney-beans', 1.5], ['corn-tortilla', 1], ['tn-pumpkin', 1]]),
+  ],
+  'his-raramuri': [
+    M('snack', [['sd-chia', 1], ['tn-lemon', 0.5]]),
+    M('lunch', [['corn-tortilla', 2], ['tn-kidney-beans', 1.5]]),
+    M('dinner', [['tn-kidney-beans', 1.5], ['tn-pumpkin', 1], ['corn-tortilla', 1]]),
+  ],
+  'his-persian-pahlavan': [
+    M('breakfast', [['tn-pain-complet', 1], ['tn-jben', 1], ['tn-walnuts', 1], ['tn-date-deglet', 3]]),
+    M('lunch', [['white-rice', 1.5], ['tn-lamb', 1.5], ['greek-yogurt', 1]]),
+    M('dinner', [['tn-split-peas', 1], ['tn-chicken-breast', 1], ['tn-pomegranate', 1], ['tn-spinach', 1]]),
+  ],
+  'his-hindu-pehlwan': [
+    M('breakfast', [['tn-milk-whole', 2], ['tn-almonds', 2]]),
+    M('lunch', [['tn-chickpeas', 1.5], ['ff-chapati', 2], ['greek-yogurt', 1]]),
+    M('dinner', [['tn-milk-whole', 2], ['egg', 3], ['banana', 2]]),
+  ],
+  'his-sikh-nihang': [
+    M('breakfast', [['greek-yogurt', 1], ['ff-chapati', 1], ['tn-mango', 1]]),
+    M('lunch', [['tn-lentils', 1.5], ['tn-chickpeas', 1], ['white-rice', 1]]),
+    M('dinner', [['lentils', 1], ['tn-spinach', 1], ['ff-chapati', 1], ['milk', 1]]),
+  ],
+  'his-sumo': [
+    M('lunch', [['tn-chicken-thigh', 1.5], ['tofu', 1], ['egg', 2], ['tn-cabbage', 1], ['white-rice', 2]]),
+    M('lunch', [['tn-mackerel', 1], ['white-rice', 1.5], ['tn-swiss-chard', 1]]),
+    M('dinner', [['tn-chicken-breast', 1], ['tofu', 1], ['tn-spinach', 1], ['miso-soup', 1]]),
+  ],
+  'his-maori-toa': [
+    M('breakfast', [['sweet-potato', 1], ['egg', 2], ['tn-kale', 1]]),
+    M('lunch', [['tn-sea-bass', 1], ['tn-mussels', 1], ['sweet-potato', 1]]),
+    M('dinner', [['tn-lamb', 1], ['tn-sweet-potato', 1], ['blueberries', 1]]),
+  ],
+  'his-maasai-moran': [
+    M('breakfast', [['tn-milk-whole', 2], ['tn-laban', 1]]),
+    M('lunch', [['tn-beef-lean', 1.5], ['milk', 1]]),
+    M('dinner', [['tn-goat-meat', 1.5], ['tn-milk-whole', 1], ['tn-kale', 1]]),
+  ],
+  'his-turkish-pehlivan': [
+    M('breakfast', [['egg', 3], ['tn-feta', 1], ['tn-olives', 1], ['tn-pain-complet', 1]]),
+    M('lunch', [['tn-lamb', 1.5], ['tn-bulgur', 1.5], ['greek-yogurt', 1]]),
+    M('dinner', [['tn-white-beans', 1.5], ['white-rice', 1], ['tn-slata-tounsiya', 1], ['tn-olive-oil-tbsp', 1]]),
+  ],
+  'his-celtic-highland': [
+    M('breakfast', [['oats', 2], ['milk', 1.5]]),
+    M('lunch', [['tn-beef-lean', 1.5], ['barley-cooked', 1.5], ['tn-turnip', 1]]),
+    M('dinner', [['tn-mackerel', 1], ['tn-potato', 1.5], ['tn-kale', 1], ['cheddar', 1]]),
+  ],
+  'his-korean-hwarang': [
+    M('breakfast', [['white-rice', 1], ['miso-soup', 1], ['tn-torshi', 1], ['egg', 1]]),
+    M('lunch', [['white-rice', 1.5], ['tn-mackerel', 1], ['tn-spinach', 1]]),
+    M('dinner', [['tofu', 1.5], ['white-rice', 1], ['tn-cabbage', 1], ['tn-torshi', 1]]),
+  ],
+  'his-inca-chasqui': [
+    M('breakfast', [['amaranth-cooked', 1.5], ['corn-tortilla', 1]]),
+    M('lunch', [['tn-potato', 2], ['tn-kidney-beans', 1], ['tn-swiss-chard', 1]]),
+    M('dinner', [['amaranth-cooked', 1], ['tn-white-beans', 1], ['tn-beef-lean', 0.5]]),
+  ],
+  'his-filipino-kali': [
+    M('breakfast', [['white-rice', 1], ['egg', 2], ['tn-anchovy', 1]]),
+    M('lunch', [['tn-chicken-thigh', 1.5], ['white-rice', 1.5], ['tn-green-beans', 1]]),
+    M('dinner', [['tn-sea-bream', 1], ['white-rice', 1], ['tn-swiss-chard', 1]]),
+  ],
+  'his-aboriginal-hunter': [
+    M('breakfast', [['whole-wheat-bread', 2], ['tn-guava', 1], ['sd-sunflower', 1]]),
+    M('lunch', [['tn-beef-lean', 1.5], ['tn-sweet-potato', 1.5]]),
+    M('dinner', [['tn-sea-bass', 1], ['tn-kale', 1], ['sweet-potato', 1]]),
+  ],
+  'his-muay-boran': [
+    M('breakfast', [['white-rice', 1.5], ['egg', 3], ['tn-mango', 1]]),
+    M('lunch', [['tn-chicken-breast', 1.5], ['white-rice', 1.5], ['tn-papaya', 1]]),
+    M('dinner', [['tn-sea-bream', 1], ['white-rice', 1.5], ['tn-green-beans', 1]]),
+  ],
+  'hero-luchador': [
+    M('breakfast', [['egg', 3], ['corn-tortilla', 1], ['tn-orange', 1]]),
+    M('lunch', [['chicken-breast', 1.5], ['tn-kidney-beans', 1], ['white-rice', 1], ['tn-slata-tounsiya', 1]]),
+    M('snack', [['whey', 1], ['banana', 1]]),
+    M('dinner', [['tn-beef-lean', 1.5], ['tn-broccoli', 1], ['tn-sweet-potato', 0.5]]),
+  ],
 };
 
 export function dietBuildFor(programKey: string): MealBuild[] | undefined {

@@ -1,8 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { appendLiveRoutePoints } from '@/repositories/activityRepo';
-import type { LatLng } from '@/lib/geo';
-import { IMPOSSIBLE_SPEED_MS } from '@/lib/motionValidation';
+import type { GpsFix } from '@/lib/gpsFilter';
 
 /**
  * GPS route tracking for runs / outdoor sessions.
@@ -28,21 +27,24 @@ TaskManager.defineTask(ROUTE_TASK, async ({ data, error }) => {
   if (error) return;
   const locations = (data as RouteTaskData)?.locations;
   if (!locations?.length) return;
-  const points: LatLng[] = locations
+  /*
+   * Pass accuracy and Doppler speed through untouched rather than filtering
+   * here. Both are the receiver's own honest assessment of the fix, and
+   * `filterFixes` needs them to tell real movement from the phantom distance a
+   * phone invents indoors or while you turn on the spot — a judgement that also
+   * needs the recent route, which only the repository can see.
+   */
+  const fixes: GpsFix[] = locations
     .filter((l) => l?.coords && isFinite(l.coords.latitude) && isFinite(l.coords.longitude))
-    // Drop very low-accuracy fixes (>50 m) so noise doesn't warp the route.
-    .filter((l) => (l.coords.accuracy ?? 999) <= 50)
-    // Reject vehicle-speed fixes. The GPS receiver reports its own speed, which
-    // is more reliable than inferring it from consecutive points, and a walk that
-    // continues into a car ride shouldn't silently bank the drive as distance.
-    .filter((l) => {
-      const speed = l.coords.speed;
-      return speed == null || !isFinite(speed) || speed < 0 || speed < IMPOSSIBLE_SPEED_MS;
-    })
-    .map((l) => [l.coords.latitude, l.coords.longitude] as LatLng);
-  if (points.length) {
+    .map((l) => ({
+      lat: l.coords.latitude,
+      lng: l.coords.longitude,
+      accuracy: l.coords.accuracy,
+      speed: l.coords.speed,
+    }));
+  if (fixes.length) {
     try {
-      appendLiveRoutePoints(points);
+      appendLiveRoutePoints(fixes);
     } catch {
       // never let a bad DB write crash the background task
     }

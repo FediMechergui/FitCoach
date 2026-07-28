@@ -1399,6 +1399,676 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
       notes: ['The biggest focus lever is sleep — no reset beats being rested.'],
     },
   },
+
+  // ═══════════════ WARRIORS OF THE WORLD — cultures beyond the usual canon ═══════════════
+  {
+    key: 'his-inuit-hunter',
+    category: 'historical',
+    name: 'Inuit Arctic Hunter',
+    tagline: 'Grip, cold and the strangest strength games on earth.',
+    origin:
+      'Across the Arctic — Greenland, Nunavut, Alaska, Chukotka — Inuit and Yupik hunters built strength for a world with no wood, no horses and no farms: hauling seal through ice, paddling qajaq (kayak) for hours, and dragging carcasses over pack ice. Their training survives openly as the Arctic Winter Games: the one-foot high kick, the Alaskan high kick, the knuckle hop, the arm pull, the airplane carry. Each event trains a survival capacity — the high kick was reputedly a signal to distant camps that a whale had been landed.',
+    ethos: 'The cold does not negotiate. Be strong in the ways the ice asks for.',
+    level: 'advanced',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.inuit',
+    accent: '#3E6E8E',
+    authenticityNote:
+      'Built from the documented Arctic Games events and the daily work behind them — kayak paddling, hauling, and extraordinary grip and core strength. The knuckle hop is genuinely punishing on the hands and is offered here as a plank/bear-crawl progression instead; nobody should start on their knuckles.',
+    safetyNote:
+      'The high-kick events are explosive with an awkward landing — warm up properly and progress the height slowly. Cold exposure belongs here culturally, but keep it brief, never alone, and never in open water.',
+    days: [
+      { key: 'paddle', label: 'Qajaq power', sessionType: 'cardio', focus: 'Kayak hauling — hours of paddling was the hunter\'s daily engine.', exercises: ['kayaking', 'rowing-machine', 'battle-ropes', 'db-one-arm-row'], prescription: 'Paddle or row 30–40 min steady, then pulling accessories', minutes: 45 },
+      { key: 'grip', label: 'Ice-haul grip', sessionType: 'strength', focus: 'Dragging a seal across ice by hand — pure grip and posterior chain.', exercises: ['sled-push', 'farmers-carry', 'towel-hang', 'deadlift', 'plate-pinch'], prescription: 'Heavy drags + carries, hangs to failure, deadlift 4×5', minutes: 50 },
+      { key: 'kick', label: 'High-kick games', sessionType: 'calisthenics', focus: 'The one-foot and Alaskan high kick — explosive single-leg power.', exercises: ['box-jumps', 'jump-squat', 'pistol-squat', 'hollow-rock', 'bear-crawl'], prescription: 'Jump and single-leg power work, 5×3, full rest', minutes: 40 },
+      { key: 'cold', label: 'Cold & endurance', sessionType: 'outdoor', focus: 'Moving long and steady in cold air, as the hunt demanded.', exercises: ['trekking', 'brisk-walk', 'cold-exposure', 'breathwork'], prescription: 'Long cold-weather walk, brief cold finish, breathing', minutes: 60 },
+    ],
+    diet: {
+      name: 'The Arctic table',
+      approach:
+        'The traditional Inuit diet is one of the most extreme on record: almost entirely marine mammal, fish, caribou and bird, with vanishingly little plant food for most of the year. It works because of what it includes — organ meats and skin supply the vitamin C that no vegetables were there to give, and oily fish supply enormous omega-3. Adapted here to what you can actually buy: very high fat and protein from oily fish and red meat, minimal carbohydrate, and deliberate vitamin C from the few berries and greens available.',
+      macroSlant: 'Very high fat and protein from oily fish and red meat; carbs near zero.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Oily fish and eggs — fat as the primary fuel, exactly as on the ice.' },
+        { label: 'Midday', detail: 'Red meat with liver; the organs carry the vitamins the diet has no plants for.' },
+        { label: 'Evening', detail: 'More oily fish, with the season\'s berries — the traditional vitamin C source.' },
+      ],
+      notes: [
+        'Do not attempt a literal zero-carb Arctic diet: it worked alongside raw organ meat and a lifetime of adaptation, not as a fashion.',
+        'The genuinely transferable lesson is oily fish — the omega-3 intake here is extraordinary and very well evidenced.',
+      ],
+    },
+  },
+  {
+    key: 'his-amazon-tribe',
+    category: 'historical',
+    name: 'Amazon River Elite',
+    tagline: 'Tree-climbing, blowgun stillness and huka-huka wrestling.',
+    origin:
+      'The peoples of the Amazon basin — Yanomami, Matsés, Ashaninka, and the Xingu nations — trained for a forest where the ground is a maze and the food is above you or in the water. Days meant hours of trekking under load, climbing for fruit and honey, swimming rivers, and drawing a bow or blowgun with absolute stillness. In the Upper Xingu, the huka-huka wrestling of the Kuarup festival is a formal test of a warrior: kneeling grips, explosive lifts, and enormous shoulder and neck strength.',
+    ethos: 'The forest gives to whoever can reach it. Climb, carry, hold still, then explode.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.amazon',
+    accent: '#2E6B4F',
+    authenticityNote:
+      'Drawn from anthropological accounts of Amazonian subsistence and from huka-huka wrestling, which is still practised and filmed today. Blowgun and bow work become archery and pulling endurance; climbing becomes rope and wall climbing.',
+    days: [
+      { key: 'climb', label: 'Canopy climbing', sessionType: 'sport', focus: 'Reaching fruit, honey and vantage — the forest is vertical.', exercises: ['rope-climb', 'climbing', 'pull-up', 'dead-hang', 'towel-hang'], prescription: 'Climbing + rope work, grip to failure, 40 min', minutes: 45 },
+      { key: 'trek', label: 'Forest trek', sessionType: 'outdoor', focus: 'Hours of uneven ground under load — the real conditioning.', exercises: ['trail-run', 'trekking', 'rucking'], prescription: 'Long trek on uneven ground, light pack', minutes: 70 },
+      { key: 'wrestle', label: 'Huka-huka', sessionType: 'martial_arts', focus: 'Kneeling Xingu wrestling — grip, shoulders, neck, explosive lift.', exercises: ['ma-wrestling', 'wrestling-shots', 'neck-bridge', 'sprawl-drill', 'ma-clinch-work'], prescription: 'Grappling rounds from the knees, 35 min', minutes: 40 },
+      { key: 'bow', label: 'Bow & blowgun', sessionType: 'strength', focus: 'Stillness under tension — the drawn bow held steady.', exercises: ['archery', 'band-pull-apart', 'ring-row', 'farmers-hold', 'plank'], prescription: 'Archery + isometric holds, 30 min', minutes: 35 },
+      { key: 'river', label: 'River crossing', sessionType: 'outdoor', focus: 'Swimming and paddling — rivers are the roads here.', exercises: ['swimming', 'kayaking', 'paddleboarding'], prescription: 'Swim or paddle 30–40 min', minutes: 40 },
+    ],
+    diet: {
+      name: 'Forest and river',
+      approach:
+        'Amazonian diets are built on bitter manioc (cassava) as the staple carbohydrate, plantain and forest fruit, river fish daily, and game meat when the hunt succeeds. Fibre intake is enormous, added sugar is absent, and protein is lean. The nutritional signature that keeps showing up in studies of these communities is exceptional gut and metabolic health — a direct consequence of that fibre and the absence of processed food.',
+      macroSlant: 'Starchy roots and plantain, daily river fish, huge fibre, no processed sugar.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Starchy root or grain porridge with forest fruit.' },
+        { label: 'Midday', detail: 'River fish with sweet potato and greens.' },
+        { label: 'Evening', detail: 'Beans and root vegetables with whatever the hunt brought.' },
+      ],
+      notes: [
+        'Cassava and plantain aren\'t in the food list, so the build uses sweet potato and the closest starchy roots — same nutritional role.',
+        'The transferable part is the fibre: these diets run 60–100 g a day against a typical Western 15–20 g.',
+      ],
+    },
+  },
+  {
+    key: 'his-plains-nation',
+    category: 'historical',
+    name: 'Plains Nations Warrior',
+    tagline: 'Horsemanship, the runner\'s errand, and the Creator\'s Game.',
+    origin:
+      'The Lakota, Comanche, Cheyenne and their neighbours built a warrior culture around the horse after its arrival, and around running before it. Comanche horsemanship was rated by contemporaries as the finest light cavalry on the continent. Messages travelled by runners covering enormous distances on foot. Further east, the Haudenosaunee played lacrosse — the Creator\'s Game — in matches that could last days across miles of open ground, explicitly as preparation for war and as medicine.',
+    ethos: 'Endurance first, courage in the open, and a game that is also a prayer.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.plains',
+    accent: '#B4552D',
+    authenticityNote:
+      'Assembled from three well-documented pillars — horsemanship, long-distance running messengers, and lacrosse/stickball as martial preparation. "Plains Nations" covers many distinct peoples with their own traditions; this is a respectful composite, not any single nation\'s practice.',
+    days: [
+      { key: 'run', label: 'Messenger run', sessionType: 'outdoor', focus: 'Covering ground on foot, the errand that had to arrive.', exercises: ['long-run', 'cross-country-run', 'trail-run'], prescription: 'Long steady run, build distance weekly', minutes: 70 },
+      { key: 'ride', label: 'Horsemanship', sessionType: 'sport', focus: 'The seat, the grip and the core of a rider.', exercises: ['horse-riding', 'bulgarian-split-squat', 'side-plank', 'db-lunge'], prescription: 'Ride if you can; otherwise hip and core work, 40 min', minutes: 45 },
+      { key: 'game', label: 'The Creator\'s Game', sessionType: 'sport', focus: 'Lacrosse — running, catching and hitting for hours.', exercises: ['lacrosse', 'shuttle-runs', 'sport-passing-drill', 'agility-ladder'], prescription: 'Play, or run the drills: sprints, passing, agility', minutes: 50 },
+      { key: 'bow', label: 'Bow & counting coup', sessionType: 'strength', focus: 'Archery from horseback and the nerve to close the distance.', exercises: ['archery', 'pull-up', 'band-pull-apart', 'rear-delt-fly'], prescription: 'Archery + pulling strength, 40 min', minutes: 40 },
+      { key: 'wrestle', label: 'Wrestling & sprint', sessionType: 'martial_arts', focus: 'Close contest and the raw speed of a raid.', exercises: ['ma-wrestling', 'sprint-repeats', 'wrestling-shots', 'hill-sprints'], prescription: 'Grappling then short sprints, full recovery', minutes: 35 },
+    ],
+    diet: {
+      name: 'Bison and the Three Sisters',
+      approach:
+        'Plains nutrition was built on bison — eaten fresh and preserved as pemmican, a dense mix of dried meat, rendered fat and berries that is one of the most efficient trail foods ever devised. Agricultural nations added the Three Sisters: maize, beans and squash grown together, which happen to form a complete protein when eaten together, a fact those farmers worked out centuries before anyone wrote down the amino acid profile.',
+      macroSlant: 'Lean red meat, maize–bean–squash together, berries and rendered fat.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Maize porridge with berries — the farming half of the tradition.' },
+        { label: 'Midday', detail: 'Lean red meat with squash; the hunting half.' },
+        { label: 'Evening', detail: 'Beans, maize and squash together — a complete protein by design.' },
+      ],
+      notes: [
+        'The Three Sisters combination is genuinely elegant nutrition: maize is low in lysine, beans supply it, and squash rounds out the micronutrients.',
+        'Pemmican\'s lesson still holds — fat plus protein plus a little fruit sugar is unbeatable trail food.',
+      ],
+    },
+  },
+  {
+    key: 'his-raramuri',
+    category: 'historical',
+    name: 'Rarámuri Ultrarunner',
+    tagline: 'The people who run. Hundreds of kilometres, in sandals.',
+    origin:
+      'The Rarámuri (Tarahumara) of the Copper Canyons in Chihuahua call themselves "those who run lightly". Their rarájipari is a running game in which teams kick a wooden ball along canyon trails for distances that regularly pass 100 km and sometimes run for two days without sleep — in huarache sandals cut from tyre rubber. Women run their own version, ariwete, with a hoop. Running is not sport here; it is transport, hunting (game is chased until it drops), ceremony and community, all at once.',
+    ethos: 'Run lightly, run long, run together. The distance is not the point — arriving is.',
+    level: 'advanced',
+    daysPerWeek: 5,
+    blockWeeks: 12,
+    icon: 'mindbody.raramuri',
+    accent: '#C6712F',
+    authenticityNote:
+      'Faithful to the real thing in structure — very high easy mileage, hills, minimal footwear and a social long run — and honest about the rest: their capacity is built over a lifetime at altitude from childhood. Treat the sandals as a multi-month progression, not a purchase.',
+    safetyNote:
+      'Minimal footwear is where people hurt themselves. Change one thing at a time, add no more than 10% distance a week, and stop at the first hint of a bone-deep shin or foot ache — that is a stress fracture talking.',
+    days: [
+      { key: 'long', label: 'Rarájipari long run', sessionType: 'outdoor', focus: 'The ball-kicking distance run — hours, at conversation pace.', exercises: ['long-run', 'trail-run'], prescription: 'Build 15 → 35 km, easy enough to talk throughout', minutes: 150 },
+      { key: 'canyon', label: 'Canyon hills', sessionType: 'outdoor', focus: 'Copper Canyon has no flat — up and down is the terrain.', exercises: ['hill-repeats', 'trail-run', 'stair-climbing-outdoor'], prescription: 'Hill repeats on the steepest ground you have', minutes: 55 },
+      { key: 'easy', label: 'Easy miles', sessionType: 'outdoor', focus: 'The unglamorous aerobic base under all of it.', exercises: ['easy-run', 'recovery-run'], prescription: 'Genuinely easy — if you can\'t chat, slow down', minutes: 45 },
+      { key: 'feet', label: 'Feet & ankles', sessionType: 'mindbody', focus: 'What running in sandals actually demands of the foot.', exercises: ['ankle-mobility', 'single-leg-calf-raise', 'balance-training', 'deep-squat-hold'], prescription: 'Foot and ankle strength, barefoot on grass, 30 min', minutes: 30 },
+      { key: 'strength', label: 'Runner\'s strength', sessionType: 'calisthenics', focus: 'The little that keeps a high-mileage runner intact.', exercises: ['bodyweight-squat', 'walking-lunge', 'nordic-negative', 'side-plank', 'glute-bridge'], prescription: 'Light, frequent, never to failure — 3 rounds', minutes: 30 },
+    ],
+    diet: {
+      name: 'Pinole, chia and beans',
+      approach:
+        'The Rarámuri run those distances on a diet that is roughly 80–90% carbohydrate and almost entirely plant-based: maize as pinole (toasted, ground) and tortillas, pinto beans, squash, chia seeds, and iskiate — chia stirred into water with lime, drunk before and during long runs. Meat is occasional. It is a near-perfect endurance diet arrived at without a sports scientist in sight.',
+      macroSlant: 'Very high carbohydrate from maize and beans, chia for the long runs.',
+      sampleDay: [
+        { label: 'Before the run', detail: 'Chia in water with lime — the traditional iskiate, drunk before setting off.' },
+        { label: 'Midday', detail: 'Maize tortillas with pinto beans — the everyday staple pairing.' },
+        { label: 'Evening', detail: 'Beans, squash and maize again; meat only now and then.' },
+      ],
+      notes: [
+        'This is genuinely close to what modern endurance nutrition recommends: high carbohydrate, plant-heavy, minimal processing.',
+        'Chia earns its reputation here honestly — fibre, omega-3 and a lot of water held in the gut on a long run.',
+      ],
+    },
+  },
+  {
+    key: 'his-persian-pahlavan',
+    category: 'historical',
+    name: 'Persian Pahlavan',
+    tagline: 'The Zurkhaneh — meel clubs, the sang, and strength as chivalry.',
+    origin:
+      'The Zurkhaneh ("House of Strength") is a Persian institution over a thousand years old, and UNESCO-recognised: a domed pit where men train Varzesh-e Pahlavani to the beat of a drum and recited Ferdowsi poetry. The tools are unmistakable — meel (heavy wooden clubs) swung overhead, the sang (a pair of enormous wooden shields) pressed while lying down, the kabbadeh (an iron bow) swung across the shoulders, takhteh shena push-ups on a board, and the whirling charkh. Crucially, the pahlavan is judged as much on humility and honour as on strength; the strongest man enters the pit last and bows lowest.',
+    ethos: 'Strength without humility is nothing. Train to the drum, bow to the room.',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.persian',
+    accent: '#1F6F8B',
+    authenticityNote:
+      'Follows the real Zurkhaneh session order — warm-up, shena push-ups, meel swinging, sang pressing, whirling, wrestling — with club swinging and dumbbell/plate work standing in for meel and sang. The koshti pahlavani wrestling that closes a real session is here as grappling.',
+    days: [
+      { key: 'meel', label: 'Meel & kabbadeh', sessionType: 'strength', focus: 'Club swinging — the shoulder conditioning the Zurkhaneh is famous for.', exercises: ['club-swing-drill', 'sledgehammer-swing', 'db-shoulder-press', 'band-pull-apart', 'wrist-roller'], prescription: 'Club swings in sets of 20–40, then pressing, 40 min', minutes: 45 },
+      { key: 'shena', label: 'Takhteh shena', sessionType: 'calisthenics', focus: 'The board push-ups, done in long rhythmic sets to the drum.', exercises: ['push-up', 'diamond-push-up', 'pike-push-up', 'plank', 'hollow-rock'], prescription: 'High-rep push-up ladders in rhythm, 35 min', minutes: 40 },
+      { key: 'sang', label: 'Sang pressing', sessionType: 'strength', focus: 'The great shields, pressed alternately while lying down.', exercises: ['db-bench-press', 'db-single-arm-press', 'floor-press-barbell', 'db-pullover'], prescription: 'Alternating presses, high volume, controlled', minutes: 45 },
+      { key: 'koshti', label: 'Koshti & whirling', sessionType: 'martial_arts', focus: 'Pahlavani wrestling, and the charkh whirl that ends the session.', exercises: ['ma-wrestling', 'wrestling-shots', 'neck-bridge', 'stance-flow', 'balance-training'], prescription: 'Grappling then spins and balance work, 35 min', minutes: 40 },
+    ],
+    diet: {
+      name: 'The pahlavan\'s table',
+      approach:
+        'Persian cooking is built on rice, lamb and chicken, yoghurt in everything (as doogh, as sauce, as marinade), enormous quantities of fresh herbs, pulses, walnuts and pomegranate, and dates for sweetness. For a training athlete it lands almost perfectly: substantial carbohydrate, good protein, fermented dairy, and a herb intake most diets never reach.',
+      macroSlant: 'Rice and pulses for carbs, lamb and yoghurt for protein, herbs and walnuts throughout.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Bread with fresh cheese, walnuts and dates — the classic Persian breakfast.' },
+        { label: 'Midday', detail: 'Rice with lamb and herbs, yoghurt alongside.' },
+        { label: 'Evening', detail: 'Pulses and chicken with pomegranate and greens.' },
+      ],
+      notes: [
+        'Doogh (salted yoghurt drink) after training is a genuinely good recovery drink — protein, fluid and sodium at once.',
+        'The herb volume in Persian cooking is a real micronutrient advantage, not a garnish.',
+      ],
+    },
+  },
+  {
+    key: 'his-hindu-pehlwan',
+    category: 'historical',
+    name: 'Hindu Pehlwan (Akhara)',
+    tagline: 'The mud pit: bethak, dand, gada and thousands of reps.',
+    origin:
+      'In the akharas of North India and Pakistan, pehlwani wrestlers have trained the same way for centuries: rising before dawn, sweeping the mud pit that is treated as sacred ground, and grinding out enormous volumes of bethak (Hindu squats) and dand (Hindu push-ups) — the legendary Gama Pehlwan, undefeated in a fifty-year career, was reported to do thousands of each daily. Add the gada (mace) swung behind the head, mugdar clubs, rope climbing, and hours of kushti wrestling in the mud. Celibacy, early nights and service to the guru were as much part of the regime as the training.',
+    ethos: 'Sweep the pit before you use it. Volume, discipline and a body that never quits.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'mindbody.pehlwan',
+    accent: '#C2521E',
+    authenticityNote:
+      'The structure is authentic — daily high-volume bodyweight work, mace and club swinging, rope climbing and wrestling. The rep counts attributed to Gama are not a target: they belong to a man who did nothing else and had done it since childhood. Start at a tenth and build.',
+    safetyNote:
+      'The mace is genuinely dangerous behind the head. Learn it with a very light implement, and never swing near anyone. Daily training at this volume needs real sleep and real food, or it becomes injury.',
+    days: [
+      { key: 'bethak', label: 'Bethak (Hindu squats)', sessionType: 'calisthenics', focus: 'The endless squat — the foundation of every pehlwan.', exercises: ['bodyweight-squat', 'jump-squat', 'walking-lunge', 'wall-sit'], prescription: 'Ladder to 300–500 total reps, unbroken as you can', minutes: 40 },
+      { key: 'dand', label: 'Dand (Hindu push-ups)', sessionType: 'calisthenics', focus: 'The flowing dive-bomber push-up, done in the hundreds.', exercises: ['push-up', 'pike-push-up', 'archer-push-up', 'sun-salutations'], prescription: 'Ladder to 200–300 total, keep the flow', minutes: 35 },
+      { key: 'gada', label: 'Gada & mugdar', sessionType: 'strength', focus: 'The mace and clubs — shoulders built for the grip of a fight.', exercises: ['club-swing-drill', 'sledgehammer-swing', 'kettlebell-swing', 'wrist-roller', 'farmers-hold'], prescription: 'Mace/club swings both directions, 30 min', minutes: 35 },
+      { key: 'kushti', label: 'Kushti wrestling', sessionType: 'martial_arts', focus: 'Hours in the mud — the reason for all the rest of it.', exercises: ['ma-wrestling', 'wrestling-shots', 'sprawl-drill', 'ma-clinch-work', 'neck-bridge'], prescription: 'Live wrestling rounds, 45 min', minutes: 50 },
+      { key: 'rope', label: 'Rope & grip', sessionType: 'calisthenics', focus: 'Climbing the rope legless, the akhara\'s pulling test.', exercises: ['rope-climb', 'pull-up', 'towel-hang', 'dead-hang', 'hand-gripper'], prescription: 'Climbs and hangs, grip to failure, 30 min', minutes: 35 },
+      { key: 'run', label: 'Dawn running', sessionType: 'outdoor', focus: 'The pre-dawn run that opens the akhara day.', exercises: ['easy-run', 'hill-repeats'], prescription: 'Easy 6–10 km before sunrise', minutes: 45 },
+    ],
+    diet: {
+      name: 'The pehlwan khurak',
+      approach:
+        'The pehlwan\'s khurak (diet) is famous and enormous: litres of milk, hundreds of grams of almonds ground into thandai, ghee by the spoonful, chana (chickpeas), eggs, roti and seasonal fruit. Gama\'s reported intake ran to ten litres of milk and half a kilo of almonds a day. It is unapologetically a mass-gaining diet for a man wrestling for hours daily — scale it to your actual training, not to the legend.',
+      macroSlant: 'Milk, almonds, ghee and chickpeas — very high calorie, dairy-led protein.',
+      sampleDay: [
+        { label: 'Dawn', detail: 'Milk with ground almonds — the thandai that opens the day.' },
+        { label: 'Midday', detail: 'Chickpeas with roti and yoghurt; ghee stirred through.' },
+        { label: 'Evening', detail: 'Milk, eggs and fruit — recovery for tomorrow\'s pit.' },
+      ],
+      notes: [
+        'Scale it hard. The historic intakes belong to men wrestling four hours a day; copied at a desk they are simply a lot of fat gain.',
+        'Milk and almonds is a genuinely strong protein pairing — this part of the tradition holds up.',
+      ],
+    },
+  },
+  {
+    key: 'his-sikh-nihang',
+    category: 'historical',
+    name: 'Sikh Nihang (Gatka)',
+    tagline: 'Shastar Vidya — the weapon arts of the Khalsa\'s standing army.',
+    origin:
+      'The Nihang are the Khalsa\'s traditional armed order, formed in the turbulence of 17th- and 18th-century Punjab and never disbanded. Their martial system, Shastar Vidya, teaches the sword, the chakram (throwing quoit), the spear and the staff as one continuous body of movement, practised publicly today as gatka — spinning stick work at speed. Nihang training pairs the weapons with horsemanship, and their gatka is drilled to a rhythm, in formation, at gatherings like Hola Mohalla.',
+    ethos: 'A saint and a soldier in one body. Ready always, aggressive never first.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.sikh',
+    accent: '#1E5FA8',
+    authenticityNote:
+      'Built from gatka and Shastar Vidya as they are actually taught — stick and sword forms, footwork, spear and staff, plus the horsemanship and wrestling that accompanied them. The weapons here become stick drills; the spiritual half of the tradition is the practitioner\'s own, not a training prescription.',
+    days: [
+      { key: 'gatka', label: 'Gatka stick work', sessionType: 'martial_arts', focus: 'The spinning stick — speed, wrists and continuous flow.', exercises: ['ma-weapon-forms', 'sword-swing-drill', 'club-swing-drill', 'wrist-mobility'], prescription: 'Stick forms both hands, building speed, 40 min', minutes: 45 },
+      { key: 'footwork', label: 'Panthra footwork', sessionType: 'martial_arts', focus: 'The rhythmic stepping pattern all Nihang movement is built on.', exercises: ['ma-footwork-drill', 'ma-forms-kata', 'agility-ladder', 'stance-flow'], prescription: 'Footwork drills to a beat, 30 min', minutes: 35 },
+      { key: 'spear', label: 'Spear & staff', sessionType: 'martial_arts', focus: 'The longer weapons — reach, and the shoulders to hold it.', exercises: ['spear-thrust-drill', 'ma-weapon-forms', 'overhead-carry', 'farmers-hold'], prescription: 'Spear and staff drills, 35 min', minutes: 35 },
+      { key: 'strength', label: 'Warrior strength', sessionType: 'strength', focus: 'The base under the weapons: pull, press, carry.', exercises: ['deadlift', 'overhead-press', 'pull-up', 'farmers-carry', 'bodyweight-squat'], prescription: 'Compound lifts 4×5 then carries, 45 min', minutes: 50 },
+      { key: 'wrestle', label: 'Wrestling & ride', sessionType: 'martial_arts', focus: 'Close contest and the saddle — both Nihang staples.', exercises: ['ma-wrestling', 'wrestling-shots', 'horse-riding', 'neck-bridge'], prescription: 'Grappling; ride if you can, hip work if not', minutes: 40 },
+    ],
+    diet: {
+      name: 'Langar and the warrior\'s plate',
+      approach:
+        'Sikh food culture centres on langar — the free communal kitchen, vegetarian by design so anyone can eat. That means dal, chana, roti, rice, yoghurt and ghee, with plenty of vegetables. It is a solid vegetarian training diet: pulse-and-grain protein pairing at every meal, dairy for the rest, and cooking fat that doesn\'t apologise for itself.',
+      macroSlant: 'Pulses plus grains at every meal, dairy protein, ghee for cooking fat.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Yoghurt with roti and fruit.' },
+        { label: 'Midday', detail: 'Dal and chana with rice — the langar plate.' },
+        { label: 'Evening', detail: 'Lentils, greens and roti with milk.' },
+      ],
+      notes: ['Dal-and-roti is a complete protein pairing — the amino acids each is short of, the other supplies.'],
+    },
+  },
+  {
+    key: 'his-sumo',
+    category: 'historical',
+    name: 'Sumo Rikishi',
+    tagline: 'Shiko, suriashi and butsukari — the oldest training day in sport.',
+    origin:
+      'Sumo\'s roots run back over 1,500 years as Shinto ritual before it was ever a sport, and the heya (stable) day has barely changed: rikishi rise at 5am and train for hours on an empty stomach. The staples are shiko — the great leg-raising stamp, done hundreds of times daily — suriashi sliding footwork, matawari splits that make Olympic gymnasts wince, teppo pole-striking for the arms, and butsukari-geiko, the brutal charging drill where a wrestler drives a senior across the ring until he physically cannot stand. Only then do they eat.',
+    ethos: 'Lowest hips win. Train hungry, eat enormous, sleep after. Ritual before ego.',
+    level: 'advanced',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.sumo',
+    accent: '#7A2E2E',
+    authenticityNote:
+      'The session structure is the real heya morning: shiko, suriashi, matawari, teppo, then butsukari. What this programme deliberately does NOT copy is the weight-gain protocol — the chanko-plus-sleep cycle that builds a 150 kg rikishi is a career choice with a documented cost in diabetes and shortened life expectancy, and it has no place in a fitness app.',
+    safetyNote:
+      'Matawari splits are extreme and in the heya they are forced by a senior sitting on your back. Do not replicate that. Stretch to your own honest limit, warm, over months. Shiko is heavy on the hips — build the count gradually.',
+    days: [
+      { key: 'shiko', label: 'Shiko stamping', sessionType: 'calisthenics', focus: 'The leg-raise stamp: hips, balance and the ritual heart of sumo.', exercises: ['bodyweight-squat', 'walking-lunge', 'single-leg-rdl', 'balance-training', 'deep-squat-hold'], prescription: 'Shiko-style single-leg raises, 4×25 each side, slow', minutes: 35 },
+      { key: 'suriashi', label: 'Suriashi & matawari', sessionType: 'mindbody', focus: 'Sliding footwork low to the clay, and sumo\'s famous hip flexibility.', exercises: ['adductor-routine', 'hip-mobility', 'deep-squat-hold', 'pnf-stretching', 'couch-stretch'], prescription: 'Low sliding footwork then 25 min of honest hip work', minutes: 40 },
+      { key: 'butsukari', label: 'Butsukari-geiko', sessionType: 'strength', focus: 'The charging drill — drive a resisting body backwards until empty.', exercises: ['sled-push', 'sandbag-carry', 'zercher-squat', 'front-squat', 'bear-crawl'], prescription: 'Heavy sled drives to exhaustion, 6–8 rounds', minutes: 45 },
+      { key: 'teppo', label: 'Teppo & grip', sessionType: 'strength', focus: 'Striking the pole, and the belt grip that decides most bouts.', exercises: ['sledgehammer-swing', 'push-press', 'farmers-hold', 'towel-hang', 'plate-pinch'], prescription: 'Alternating pole strikes then grip work, 35 min', minutes: 40 },
+      { key: 'keiko', label: 'Wrestling keiko', sessionType: 'martial_arts', focus: 'Live bouts — the whole morning has been building to this.', exercises: ['ma-wrestling', 'ma-clinch-work', 'wrestling-shots', 'sprawl-drill', 'neck-bridge'], prescription: 'Live rounds from the tachi-ai, 40 min', minutes: 45 },
+    ],
+    diet: {
+      name: 'Chanko-nabe, honestly scaled',
+      approach:
+        'Chanko-nabe is the rikishi\'s stew: broth with chicken, fish, tofu, egg and mountains of vegetables, eaten with rice and beer in quantities meant to add mass. The stew itself is genuinely excellent food — lean protein, huge vegetable volume, easily digestible. What makes rikishi enormous is not the stew but the protocol around it: training fasted, eating vast portions, then sleeping immediately. This programme takes the chanko and leaves the protocol behind.',
+      macroSlant: 'Lean mixed protein and rice with a very high vegetable volume.',
+      sampleDay: [
+        { label: 'After training', detail: 'Chanko-style: chicken, tofu, egg and vegetables in broth with rice.' },
+        { label: 'Second serving', detail: 'Fish and rice with more vegetables — the rikishi eats twice at one sitting.' },
+        { label: 'Evening', detail: 'A lighter repeat of the same stew, protein and greens.' },
+      ],
+      notes: [
+        'Eat chanko; skip the sumo weight protocol. The nap-after-a-huge-meal cycle is how rikishi gain mass, and it comes with a real, documented health cost.',
+        'As a stew it is close to ideal training food — protein, vegetables and rice in one pot.',
+      ],
+    },
+  },
+  {
+    key: 'his-maori-toa',
+    category: 'historical',
+    name: 'Māori Toa',
+    tagline: 'Mau rākau, the waka paddle, and the haka as a war engine.',
+    origin:
+      'The Māori toa (warrior) trained with the taiaha — a long wooden staff fought with at both ends — and the patu, a short close-quarters club, in the discipline of mau rākau. Warfare was preceded by the haka: not a dance but a coordinated display of readiness, performed with the whole body and a great deal of breath. Between wars, the waka (canoe) demanded hours of synchronised paddling across open water, and life on Aotearoa meant hard walking over steep, broken country.',
+    ethos: 'Stand with the feet of the land. Breath, voice and weapon as one movement.',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.maori',
+    accent: '#175E54',
+    authenticityNote:
+      'Built on mau rākau, waka paddling and the physical demands of the haka — all living traditions today. Taiaha work here becomes staff drills. Haka itself is taonga (a cultural treasure) and is referenced with respect rather than prescribed as a workout.',
+    days: [
+      { key: 'rakau', label: 'Mau rākau', sessionType: 'martial_arts', focus: 'The taiaha — a staff fought at both ends, wrists and stance.', exercises: ['ma-weapon-forms', 'spear-thrust-drill', 'sword-swing-drill', 'stance-flow', 'horse-stance'], prescription: 'Staff forms and strikes, both sides, 40 min', minutes: 45 },
+      { key: 'waka', label: 'Waka paddling', sessionType: 'cardio', focus: 'Hours of synchronised paddling across open water.', exercises: ['kayaking', 'rowing-machine', 'rowing-intervals', 'battle-ropes'], prescription: 'Paddle or row 35–45 min, find the rhythm', minutes: 45 },
+      { key: 'haka', label: 'Haka conditioning', sessionType: 'cardio', focus: 'The deep stance, the whole-body strike and the breath behind the voice.', exercises: ['horse-stance', 'jump-squat', 'burpees', 'breathwork', 'wall-sit'], prescription: 'Deep-stance holds, explosive reps, breath work', minutes: 30 },
+      { key: 'land', label: 'Broken country', sessionType: 'outdoor', focus: 'Moving fast over the steep, unforgiving terrain of home.', exercises: ['trail-run', 'hiking', 'hill-repeats', 'rucking'], prescription: 'Hill walking or trail running, 60 min', minutes: 60 },
+    ],
+    diet: {
+      name: 'Kai from land and sea',
+      approach:
+        'Traditional Māori kai centred on kūmara (sweet potato), fern root, seafood in abundance — fish, shellfish, eel — and birds, with berries and greens gathered seasonally. Very lean, very high in seafood, and a carbohydrate base of tubers rather than grain. Cooked in the hāngī, an earth oven, which is about as gentle a cooking method as exists.',
+      macroSlant: 'Sweet potato and root carbs, abundant seafood, lean and unprocessed.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Sweet potato with eggs and greens.' },
+        { label: 'Midday', detail: 'Fish and shellfish with kūmara — the seafood the coast provided daily.' },
+        { label: 'Evening', detail: 'Lean meat or fish with root vegetables and berries.' },
+      ],
+      notes: ['Kūmara plus seafood is a genuinely excellent athletic base — slow carbohydrate, lean protein, iodine and omega-3.'],
+    },
+  },
+  {
+    key: 'his-maasai-moran',
+    category: 'historical',
+    name: 'Maasai Moran',
+    tagline: 'Walking all day, the adumu jump, and the spear.',
+    origin:
+      'The moran are the warrior age-set of the Maasai of Kenya and Tanzania — young men who spend years living apart, herding cattle across enormous distances and defending them. Their conditioning comes from the work itself: walking twenty or more kilometres a day at a steady pace behind the herd, in the heat, at altitude. The adumu — the jumping dance where warriors take turns leaping straight up as high as they can, without letting the heels touch — is both a display and a genuinely brutal plyometric test. The spear and the shield complete the picture.',
+    ethos: 'Walk further than anyone thinks reasonable. Jump higher than the man before you.',
+    level: 'beginner',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.maasai',
+    accent: '#B23A2E',
+    authenticityNote:
+      'Faithful to what the moran life actually involves — very high daily walking volume, standing jumps, spear work and load carrying. Maasai endurance is a lifetime\'s accumulation of walking, which is why this programme starts at beginner level and simply asks for consistency.',
+    days: [
+      { key: 'walk', label: 'The herder\'s day', sessionType: 'outdoor', focus: 'Steady walking, hours of it — the whole basis of moran fitness.', exercises: ['brisk-walk', 'trekking', 'nordic-walking'], prescription: 'Build to 15–20 km at a comfortable, unhurried pace', minutes: 150 },
+      { key: 'adumu', label: 'Adumu jumping', sessionType: 'calisthenics', focus: 'The jumping dance — standing vertical leaps, heels off the ground.', exercises: ['jump-squat', 'box-jumps', 'single-leg-calf-raise', 'high-knees'], prescription: 'Standing jumps 6×8, full recovery, land soft', minutes: 30 },
+      { key: 'spear', label: 'Spear & shield', sessionType: 'martial_arts', focus: 'The moran\'s weapons, and the shoulder to carry them all day.', exercises: ['spear-thrust-drill', 'shield-carry-march', 'overhead-carry', 'standing-power-throw'], prescription: 'Spear drills and throws, carries, 35 min', minutes: 35 },
+      { key: 'carry', label: 'Load & water', sessionType: 'strength', focus: 'Carrying water and calves — the unglamorous strength of the job.', exercises: ['farmers-carry', 'sandbag-carry', 'overhead-carry', 'rucking'], prescription: 'Loaded carries, long distance, 30 min', minutes: 35 },
+      { key: 'run', label: 'Highland running', sessionType: 'outdoor', focus: 'The Rift Valley altitude that made this region the running capital of the world.', exercises: ['easy-run', 'long-run', 'hill-repeats'], prescription: 'Easy running, add hills as you settle in', minutes: 50 },
+    ],
+    diet: {
+      name: 'Milk, meat and blood',
+      approach:
+        'The traditional Maasai diet is famously narrow: cow\'s milk above all, meat on occasion, and cattle blood mixed with milk — a genuine practice, drawn without killing the animal. It is very high in protein and saturated fat with almost no plant food, and yet cardiovascular disease was historically rare, which researchers attribute to the sheer volume of daily walking. Adapted here to milk, fermented dairy and lean red meat, with the vegetables a non-herding life needs.',
+      macroSlant: 'Dairy-dominant protein and fat, lean red meat, very low carbohydrate.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Milk and fermented milk — the staple, drunk in quantity.' },
+        { label: 'Midday', detail: 'Lean red meat with milk.' },
+        { label: 'Evening', detail: 'Meat and dairy again, with greens the traditional diet lacked.' },
+      ],
+      notes: [
+        'The blood is authentic and is not being recommended — milk and lean meat carry the same nutrition safely.',
+        'The lesson researchers keep drawing from the Maasai is the walking, not the diet: 20 km a day changes what a diet can get away with.',
+      ],
+    },
+  },
+  {
+    key: 'his-turkish-pehlivan',
+    category: 'historical',
+    name: 'Turkish Oil Wrestler',
+    tagline: 'Kırkpınar — the oldest tournament still running, fought in olive oil.',
+    origin:
+      'Yağlı güreş, Turkish oil wrestling, has been contested at Kırkpınar in Edirne since 1346, making it the longest continuously-held sporting tournament on earth. Wrestlers wear leather kispet trousers and are drenched head to toe in olive oil, which makes any conventional grip impossible — the only reliable hold is inside the opponent\'s trousers. Bouts once ran until someone could not continue; matches lasting a full day are recorded. The result is a wrestler built for grip strength that survives oil, and an engine that survives forty minutes of it.',
+    ethos: 'Nothing here can be held. Win with your engine and your grip anyway.',
+    level: 'advanced',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.turkish',
+    accent: '#4E7A2E',
+    authenticityNote:
+      'Structured around what oil wrestling actually demands — extreme grip endurance under slipperiness, huge aerobic capacity for long bouts, and hip/back strength for lifting a greased opponent. Towel and fat-grip work stands in for the oil.',
+    safetyNote: 'Grip work at this volume irritates elbows and forearms fast. Build the hangs gradually and take a full day off if the tendons complain.',
+    days: [
+      { key: 'grip', label: 'Oiled grip', sessionType: 'strength', focus: 'Holding what refuses to be held — grip endurance above all.', exercises: ['towel-hang', 'fat-grip-hold', 'farmers-hold', 'towel-pull-up-hang', 'hand-gripper', 'plate-pinch'], prescription: 'Towel hangs and thick-grip holds, 6 rounds to failure', minutes: 40 },
+      { key: 'wrestle', label: 'Long bouts', sessionType: 'martial_arts', focus: 'Forty-minute matches — the engine is the weapon.', exercises: ['ma-wrestling', 'ma-clinch-work', 'wrestling-shots', 'ma-positional-sparring'], prescription: 'Long continuous rounds, 3×12 min', minutes: 50 },
+      { key: 'strength', label: 'Lifting a greased man', sessionType: 'strength', focus: 'Hips and back — how you lift someone you cannot grip.', exercises: ['deadlift', 'zercher-squat', 'barbell-row', 'atlas-stone-lift', 'sandbag-clean-press'], prescription: 'Heavy hinge and awkward-object lifts, 45 min', minutes: 50 },
+      { key: 'engine', label: 'Kırkpınar engine', sessionType: 'cardio', focus: 'Aerobic base deep enough to still be wrestling in the fortieth minute.', exercises: ['easy-run', 'rowing-intervals', 'assault-bike', 'ma-fight-conditioning'], prescription: 'Zone-2 work then hard intervals, 45 min', minutes: 45 },
+      { key: 'neck', label: 'Neck & core', sessionType: 'calisthenics', focus: 'The wrestler\'s armour: neck, back and midsection.', exercises: ['neck-bridge', 'ma-neck-conditioning', 'hollow-rock', 'back-extension', 'plank'], prescription: 'Neck and trunk work, controlled, 30 min', minutes: 30 },
+    ],
+    diet: {
+      name: 'The Edirne wrestler\'s plate',
+      approach:
+        'Turkish training food is straightforward and effective: lamb and chicken, bulgur and rice, yoghurt with everything, olive oil generously, white beans, lentils, and enormous quantities of fresh vegetables and bread. For a heavy athlete training daily it supplies plenty of carbohydrate, solid protein and the fat to hold it together.',
+      macroSlant: 'Bulgur and rice for carbs, lamb and yoghurt for protein, olive oil throughout.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Eggs, white cheese, olives and bread — the Turkish breakfast.' },
+        { label: 'Midday', detail: 'Lamb with bulgur and yoghurt.' },
+        { label: 'Evening', detail: 'White beans with rice, salad and olive oil.' },
+      ],
+      notes: ['Yoghurt at every meal is a quiet advantage — protein, calcium and an easy way to hit intake when appetite is flagging.'],
+    },
+  },
+  {
+    key: 'his-celtic-highland',
+    category: 'historical',
+    name: 'Celtic Highland Warrior',
+    tagline: 'The caber, the stone and the Fianna\'s impossible entrance exam.',
+    origin:
+      'The Highland Games are a living fossil of Gaelic warrior testing: the caber toss, the stone put, the hammer throw, the weight over the bar — all of them recognisable as trials of the strength a clan warrior needed. Irish legend records the Fianna\'s entrance requirements in the same spirit: to run through a wood without breaking a branch, to leap a stick your own height, to pass under one your knee-height, and to pull a thorn from your foot at a full sprint without slowing. Ridiculous, and a perfect description of agility, power and pain tolerance.',
+    ethos: 'Throw heavy things a long way. Move through the wood without touching it.',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.celtic',
+    accent: '#3F6B8C',
+    authenticityNote:
+      'The Highland Games events are real and unchanged; the Fianna trials are from the Fenian Cycle, which is literature rather than a training log — used here for the qualities they describe, not as history.',
+    days: [
+      { key: 'throw', label: 'Caber & stone', sessionType: 'strength', focus: 'The throwing events — whole-body power into an awkward object.', exercises: ['atlas-stone-lift', 'standing-power-throw', 'sandbag-clean-press', 'push-press', 'tire-flip'], prescription: 'Explosive lifts and throws, 5×3, full recovery', minutes: 50 },
+      { key: 'strength', label: 'Clan strength', sessionType: 'strength', focus: 'The base: deadlift, squat, press, carry.', exercises: ['deadlift', 'back-squat', 'overhead-press', 'farmers-carry', 'barbell-shrug'], prescription: 'Heavy compounds 5×5, then carries', minutes: 55 },
+      { key: 'fianna', label: 'Fianna trials', sessionType: 'calisthenics', focus: 'Agility, leaping and ducking — the wood you pass through untouched.', exercises: ['box-jumps', 'agility-ladder', 'bear-crawl', 'parkour', 'shuttle-runs'], prescription: 'Jump, duck, weave — circuits for 35 min', minutes: 40 },
+      { key: 'hills', label: 'Highland hills', sessionType: 'outdoor', focus: 'The country itself — steep, wet and long.', exercises: ['hiking', 'hill-repeats', 'rucking', 'trail-run'], prescription: 'Hill walking under load, 60–75 min', minutes: 70 },
+    ],
+    diet: {
+      name: 'Oats, milk and game',
+      approach:
+        'The Highland diet before the modern era was oats above all — as porridge, as bannocks — with dairy, barley, root vegetables, game, and sea fish on the coasts. Oats are a genuinely superb athletic staple: slow carbohydrate, beta-glucan fibre, a decent protein content for a grain. Add dairy and meat and you have a working strength diet with no supplements in sight.',
+      macroSlant: 'Oats and barley for carbs, dairy and game meat for protein.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Porridge with milk — the Highland breakfast, unchanged.' },
+        { label: 'Midday', detail: 'Game or beef with barley and root vegetables.' },
+        { label: 'Evening', detail: 'Fish or meat with potatoes, greens and cheese.' },
+      ],
+      notes: ['Oats and milk is one of the cheapest, best mass-and-strength breakfasts there is — the tradition got that right.'],
+    },
+  },
+  {
+    key: 'his-korean-hwarang',
+    category: 'historical',
+    name: 'Hwarang of Silla',
+    tagline: 'The Flowering Knights — archery, taekkyeon and five commandments.',
+    origin:
+      'The Hwarang were an elite youth corps of the Silla kingdom (roughly 6th–9th century Korea), drawn from noble families and trained together in a way that mixed martial skill with poetry, music and Buddhist study. Their military education covered archery — a Korean speciality then and now — horsemanship, swordsmanship and the kicking art of taekkyeon, with long journeys through the mountains as both training and pilgrimage. The monk Won Gwang gave them five commandments, one of which was to never retreat in battle.',
+    ethos: 'Loyalty, courage, discretion in killing. A warrior who can also write a poem.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.hwarang',
+    accent: '#7A4E9B',
+    authenticityNote:
+      'Built from the documented Hwarang curriculum — archery, horsemanship, swordwork, taekkyeon and mountain travel — plus the contemplative half of their education, which was not decoration but half the point. Modern "Hwarang Do" is a 20th-century creation and is not what this draws on.',
+    days: [
+      { key: 'archery', label: 'Gungdo archery', sessionType: 'strength', focus: 'The Korean bow — the skill Silla was known for across the region.', exercises: ['archery', 'band-pull-apart', 'ring-row', 'rear-delt-fly', 'scap-retraction-hold'], prescription: 'Archery plus pulling endurance, 40 min', minutes: 40 },
+      { key: 'taekkyeon', label: 'Taekkyeon', sessionType: 'martial_arts', focus: 'The old Korean kicking art — rhythmic, flowing, deceptive footwork.', exercises: ['ma-taekwondo', 'ma-kick-drill', 'ma-footwork-drill', 'ma-forms-kata', 'stance-flow'], prescription: 'Kicking and stepping drills to a rhythm, 40 min', minutes: 45 },
+      { key: 'sword', label: 'Sword & horse', sessionType: 'martial_arts', focus: 'Swordsmanship and the saddle — the noble half of the training.', exercises: ['sword-swing-drill', 'ma-weapon-forms', 'horse-riding', 'ma-fencing'], prescription: 'Sword forms; ride if you can, 35 min', minutes: 40 },
+      { key: 'mountain', label: 'Mountain pilgrimage', sessionType: 'outdoor', focus: 'Long journeys through the mountains — training and pilgrimage at once.', exercises: ['hiking', 'trekking', 'hill-repeats', 'stair-climbing-outdoor'], prescription: 'Long mountain walk, 75 min+', minutes: 80 },
+      { key: 'mind', label: 'Poetry & sitting', sessionType: 'meditation', focus: 'The other half of a Hwarang education — study, music, stillness.', exercises: ['zazen', 'journaling', 'unguided-sit', 'walking-meditation'], prescription: 'Sit 20 min, then write — both were required', minutes: 30 },
+    ],
+    diet: {
+      name: 'Rice, kimchi and the sea',
+      approach:
+        'Korean food is built on rice, fermented vegetables (kimchi above all), soybean paste, seaweed, and generous seafood — with meat as a smaller component historically. It is high in carbohydrate, rich in fermented foods, and unusually high in iodine and sea minerals thanks to the seaweed. Fermentation is the through-line: the diet is a live-culture diet by default.',
+      macroSlant: 'Rice-based carbs, fermented vegetables and soy, seafood protein.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Rice with soup, fermented vegetables and egg.' },
+        { label: 'Midday', detail: 'Rice with fish and seaweed — the everyday plate.' },
+        { label: 'Evening', detail: 'Tofu and vegetables with rice and pickles.' },
+      ],
+      notes: ['Fermented vegetables at every meal is one of the more robust dietary habits in the world — cheap, and good for the gut.'],
+    },
+  },
+  {
+    key: 'his-inca-chasqui',
+    category: 'historical',
+    name: 'Inca Chasqui Runner',
+    tagline: 'Relay messengers at 4,000 m — 240 km a day, by leg.',
+    origin:
+      'The Inca ran an empire without the wheel or the horse, on the legs of the chasqui: relay runners posted every few kilometres along the Qhapaq Ñan road network, each sprinting his leg at full effort before handing the message and the quipu to the next. Fresh fish is recorded as reaching Cusco from the Pacific — some 400 km, much of it above 3,000 m — in under two days. Chasqui were selected as boys and trained for years at altitude, chewing coca for the thin air and carrying a conch to announce their arrival.',
+    ethos: 'Your leg of it, at full speed. The message is more important than your comfort.',
+    level: 'advanced',
+    daysPerWeek: 5,
+    blockWeeks: 12,
+    icon: 'mindbody.inca',
+    accent: '#B08428',
+    authenticityNote:
+      'Structured on the real chasqui method, which is essentially interval training: hard efforts over a short leg, repeated, rather than a slow ultra. The altitude is the part you can\'t replicate at sea level — hill work is the honest substitute. Coca is not part of this programme.',
+    days: [
+      { key: 'relay', label: 'The relay leg', sessionType: 'outdoor', focus: 'Hard efforts over a couple of kilometres — the chasqui\'s actual unit of work.', exercises: ['track-intervals', 'sprint-repeats', 'fartlek-run'], prescription: '6×1.5 km hard with full recovery — run your leg, then rest', minutes: 55 },
+      { key: 'mountain', label: 'Mountain road', sessionType: 'outdoor', focus: 'The Qhapaq Ñan climbed relentlessly — so does this.', exercises: ['hill-repeats', 'trail-run', 'stair-climbing-outdoor', 'mountaineering'], prescription: 'Long climbing run or hike, 70 min', minutes: 70 },
+      { key: 'base', label: 'Aerobic base', sessionType: 'outdoor', focus: 'The easy volume that makes the hard legs repeatable.', exercises: ['easy-run', 'long-run', 'recovery-run'], prescription: 'Easy running, conversational throughout', minutes: 60 },
+      { key: 'lungs', label: 'Thin-air work', sessionType: 'mindbody', focus: 'Breathing capacity — the chasqui\'s real specialisation.', exercises: ['breathwork', 'box-breathing', 'coherent-breathing', 'alternate-nostril'], prescription: 'Breathing protocols, 20 min, seated and safe', minutes: 25 },
+      { key: 'legs', label: 'Runner\'s legs', sessionType: 'calisthenics', focus: 'Keeping the legs together under high mileage on hard ground.', exercises: ['walking-lunge', 'single-leg-calf-raise', 'nordic-negative', 'single-leg-rdl', 'side-plank'], prescription: 'Single-leg strength, light and frequent', minutes: 30 },
+    ],
+    diet: {
+      name: 'Quinoa, potato and the high Andes',
+      approach:
+        'Andean nutrition is built on the potato — hundreds of varieties, freeze-dried as chuño for storage — plus quinoa, maize, beans and the occasional guinea pig or llama. Quinoa is a genuine complete protein, unusual among plants, and the whole combination is a high-carbohydrate, high-altitude endurance diet that supported an empire of runners.',
+      macroSlant: 'Potato and maize carbs with quinoa protein; very little fat.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Grain porridge with maize — the runner\'s pre-dawn meal.' },
+        { label: 'Midday', detail: 'Potato with beans and greens.' },
+        { label: 'Evening', detail: 'Grain and beans with meat when there is any.' },
+      ],
+      notes: [
+        'Quinoa isn\'t in the food list yet, so the build uses amaranth — its close Andean relative with a near-identical profile.',
+        'Potatoes are underrated for endurance: dense carbohydrate, potassium, and very satiating.',
+      ],
+    },
+  },
+  {
+    key: 'his-filipino-kali',
+    category: 'historical',
+    name: 'Filipino Kali',
+    tagline: 'Weapons first — the blade teaches the empty hand.',
+    origin:
+      'Filipino martial arts — kali, eskrima, arnis — invert the usual order: a student starts with the stick and the blade, and learns empty-hand fighting afterwards, because the principles transfer downward, not upward. Developed across an archipelago with a long history of raiding and resistance, it is fast, angular and relentlessly practical. Lapu-Lapu\'s defeat of Magellan at Mactan in 1521 is the origin story every school tells. Modern arnis is the Philippines\' national martial art, taught in schools.',
+    ethos: 'The weapon is the teacher. Flow, angles, and both hands equally.',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.kali',
+    accent: '#1D6FA8',
+    authenticityNote:
+      'Reflects how FMA is genuinely taught — single stick, double stick (sinawali), knife awareness, then empty hand — with heavy emphasis on both sides of the body and on flow drills. Live blade work is not part of this and never should be without an instructor.',
+    days: [
+      { key: 'single', label: 'Single stick', sessionType: 'martial_arts', focus: 'The twelve angles of attack — the alphabet of the whole art.', exercises: ['ma-weapon-forms', 'sword-swing-drill', 'ma-combination-drill', 'wrist-mobility'], prescription: 'Angle drills both hands, 40 min', minutes: 45 },
+      { key: 'sinawali', label: 'Sinawali (double stick)', sessionType: 'martial_arts', focus: 'Weaving double-stick patterns — coordination at speed.', exercises: ['ma-weapon-forms', 'ma-combination-drill', 'ma-footwork-drill', 'club-swing-drill'], prescription: 'Sinawali patterns, build tempo, 35 min', minutes: 40 },
+      { key: 'empty', label: 'Panantukan', sessionType: 'martial_arts', focus: 'Filipino boxing — the empty-hand expression of the same angles.', exercises: ['ma-boxing', 'ma-jab-cross', 'ma-knee-elbow-drill', 'ma-pad-round', 'ma-defense-drill'], prescription: 'Boxing and trapping rounds, 40 min', minutes: 45 },
+      { key: 'condition', label: 'Speed & grip', sessionType: 'strength', focus: 'Forearms, wrists and speed — what stick work runs on.', exercises: ['wrist-roller', 'hand-gripper', 'reverse-wrist-curl', 'speed-bag', 'ma-skipping'], prescription: 'Forearm and speed work, 30 min', minutes: 35 },
+    ],
+    diet: {
+      name: 'Rice, fish and vinegar',
+      approach:
+        'Filipino food is rice at every meal, fish and pork, and a great deal of vinegar and citrus — adobo, kinilaw, sinigang. Coastal and lean when you steer toward the grilled and soured dishes rather than the fried ones. Rice is the training fuel; fish and eggs carry the protein.',
+      macroSlant: 'Rice-heavy carbohydrate, fish and pork protein, vinegar-soured vegetables.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Rice with egg and dried fish — the classic silog breakfast.' },
+        { label: 'Midday', detail: 'Fish or chicken adobo with rice and greens.' },
+        { label: 'Evening', detail: 'Soured soup with fish, vegetables and rice.' },
+      ],
+      notes: ['Steer to the grilled, soured and stewed dishes over the fried ones and this is a clean, high-carb training diet.'],
+    },
+  },
+  {
+    key: 'his-aboriginal-hunter',
+    category: 'historical',
+    name: 'Aboriginal Australian Hunter',
+    tagline: 'Persistence hunting, the woomera throw, and reading the country.',
+    origin:
+      'Aboriginal Australian cultures are the oldest continuous cultures on earth, and their hunting demanded a specific and unusual fitness: the ability to track and walk down game over hours in extreme heat, to throw a spear with a woomera (a lever that roughly doubles the range), and to cover vast distances between water sources with a total mastery of where those sources were. Persistence hunting — following an animal until heat exhaustion stops it — is a whole-body endurance discipline that humans are, uniquely, built for.',
+    ethos: 'Read the country, then outlast whatever is in it.',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'mindbody.aboriginal',
+    accent: '#A85B2B',
+    authenticityNote:
+      'Built on the documented physical demands — long-distance walking and tracking in heat, spear-throwing with a woomera, and climbing. Aboriginal cultures are many and distinct, with knowledge that belongs to their communities; this covers only the general physical practices, respectfully and at a distance.',
+    safetyNote: 'Heat is the real hazard in this one. Carry more water than you think you need, go early or late, and stop at the first sign of dizziness or a headache.',
+    days: [
+      { key: 'persist', label: 'Persistence walk-run', sessionType: 'outdoor', focus: 'Hours of alternating walking and running — how a human outlasts an antelope.', exercises: ['long-run', 'brisk-walk', 'trekking', 'fartlek-run'], prescription: 'Alternate 10 min running / 5 min walking for 90 min', minutes: 90 },
+      { key: 'throw', label: 'Woomera throwing', sessionType: 'strength', focus: 'The spear-thrower — a whole-body rotational throw with a lever.', exercises: ['standing-power-throw', 'spear-thrust-drill', 'cable-woodchopper', 'landmine-rotation', 'db-woodchopper'], prescription: 'Rotational throws 6×5 each side, explosive', minutes: 35 },
+      { key: 'track', label: 'Tracking & climbing', sessionType: 'outdoor', focus: 'Moving over rough country, climbing for honey, water and vantage.', exercises: ['climbing', 'rope-climb', 'orienteering', 'bear-crawl'], prescription: 'Navigate a route with climbing on the way, 50 min', minutes: 55 },
+      { key: 'heat', label: 'Heat & carry', sessionType: 'strength', focus: 'Carrying water and game across country in the heat.', exercises: ['farmers-carry', 'overhead-carry', 'rucking', 'sandbag-carry'], prescription: 'Loaded carries over distance, 35 min', minutes: 40 },
+    ],
+    diet: {
+      name: 'Bush tucker',
+      approach:
+        'Traditional Aboriginal diets varied enormously by country but shared a shape: very lean game meat (kangaroo is among the leanest red meat there is), fish and shellfish on the coasts, seeds ground into damper, tubers, and native fruits — the Kakadu plum has the highest recorded vitamin C of any fruit on earth. Extremely low in fat, high in protein and fibre, with zero processed food.',
+      macroSlant: 'Very lean game protein, seed and tuber carbs, high fibre, minimal fat.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Seed-ground bread with fruit — damper and bush fruit.' },
+        { label: 'Midday', detail: 'Lean red meat with root vegetables.' },
+        { label: 'Evening', detail: 'Fish with greens and tubers.' },
+      ],
+      notes: ['Kangaroo is genuinely exceptional meat — around 2% fat with high iron and zinc. Lean beef is the closest common substitute.'],
+    },
+  },
+  {
+    key: 'his-muay-boran',
+    category: 'historical',
+    name: 'Siamese Muay Boran',
+    tagline: 'The ancient style — nine weapons, rope-bound fists.',
+    origin:
+      'Muay Boran ("ancient boxing") is the battlefield ancestor of modern Muay Thai, from the Siamese armies of Ayutthaya. Fighters wrapped their fists in hemp rope (kaad chuek) rather than gloves, and the art recognised nine weapons rather than eight — head strikes included. The legend of Nai Khanom Tom, captured by the Burmese in 1767 and freed after defeating ten of their champions in succession, is commemorated as Thai Boxer\'s Day every March. Training was conditioning-heavy: running, skipping, and thousands of kicks on banana trees.',
+    ethos: 'Every limb is a weapon. Condition until being hit stops mattering.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'mindbody.thai',
+    accent: '#B8452E',
+    authenticityNote:
+      'Follows the traditional Thai camp day — dawn run, skipping, bag and pad work, clinch, and enormous kick volume — with the Muay Boran additions of elbows and grappling throws. Shin conditioning is the part people get wrong: on a heavy bag, over months. Not on trees, and never with a stick.',
+    safetyNote:
+      'Never condition shins by striking hard objects — that reputation comes from misunderstood tradition and causes real bone injury. Bag work builds the same tolerance safely. Head strikes stay out of sparring entirely.',
+    days: [
+      { key: 'run', label: 'Dawn road work', sessionType: 'outdoor', focus: 'The 5am run every Thai camp still starts with.', exercises: ['easy-run', 'hill-repeats', 'sprint-repeats'], prescription: '8–10 km easy, sprints at the end', minutes: 50 },
+      { key: 'kicks', label: 'Kick volume', sessionType: 'martial_arts', focus: 'Hundreds of round kicks a side — the signature of the art.', exercises: ['ma-muay-thai', 'ma-kick-drill', 'ma-bag-round', 'ma-skipping'], prescription: '200+ kicks each leg on the bag, 45 min', minutes: 50 },
+      { key: 'elbow', label: 'Elbows & knees', sessionType: 'martial_arts', focus: 'The close-range weapons that define Boran.', exercises: ['ma-knee-elbow-drill', 'ma-clinch-work', 'ma-pad-round', 'ma-combination-drill'], prescription: 'Elbow and knee rounds on pads, 40 min', minutes: 45 },
+      { key: 'clinch', label: 'Clinch & throws', sessionType: 'martial_arts', focus: 'The Thai clinch and the throws Boran kept from the battlefield.', exercises: ['ma-clinch-work', 'ma-wrestling', 'ma-takedown-entries', 'neck-bridge', 'ma-neck-conditioning'], prescription: 'Clinch sparring and throws, 40 min', minutes: 45 },
+      { key: 'condition', label: 'Fight conditioning', sessionType: 'calisthenics', focus: 'The body that absorbs five rounds — core, neck, and lungs.', exercises: ['ma-fight-conditioning', 'burpees', 'hollow-rock', 'weighted-sit-up', 'iron-body-conditioning'], prescription: 'Circuit to exhaustion, 30 min', minutes: 35 },
+      { key: 'spar', label: 'Technical sparring', sessionType: 'martial_arts', focus: 'Light, technical rounds — the camp\'s way of learning without damage.', exercises: ['ma-technical-sparring', 'ma-shadow-round', 'ma-footwork-drill', 'ma-counter-drill'], prescription: 'Light technical rounds only, 40 min', minutes: 45 },
+    ],
+    diet: {
+      name: 'The Thai camp plate',
+      approach:
+        'Thai fighters eat rice at every meal, with grilled chicken or fish, eggs, and som tam (green papaya salad) — light, spicy and high-volume. Camps run on rice and lean protein, with fruit for sugar. Weight-cutting culture in Thai boxing is severe and is deliberately left out of this: everything here is fuelling, not cutting.',
+      macroSlant: 'Rice-based carbohydrate, lean grilled protein, high vegetable volume.',
+      sampleDay: [
+        { label: 'After road work', detail: 'Rice with eggs and fruit, after the dawn run.' },
+        { label: 'Midday', detail: 'Grilled chicken with rice and papaya salad.' },
+        { label: 'Evening', detail: 'Fish with rice and vegetables, after the second session.' },
+      ],
+      notes: ['Thai weight-cutting is genuinely dangerous and none of it is reproduced here — eat to train, not to make a number.'],
+    },
+  },
+  {
+    key: 'hero-luchador',
+    category: 'superhero',
+    name: 'El Santo — Lucha Libre',
+    tagline: 'The masked legend: flight, showmanship and a hidden face.',
+    origin:
+      'Rodolfo Guzmán Huerta wrestled as El Santo for nearly five decades, never removing his silver mask in public — he was buried in it. Beyond the ring he starred in more than fifty films as a masked crime-fighting hero, making him Mexico\'s closest thing to a real superhero. Lucha libre itself is built on speed and flight rather than grinding power: the high-flying luchador is light, explosive, and extraordinarily conditioned, with a repertoire of aerial moves that demand gymnastics-level body control.',
+    ethos: 'The mask is the character. Move fast, fly high, never break the illusion.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'mindbody.luchador',
+    accent: '#C0A02C',
+    authenticityNote:
+      'Trains the qualities a high-flying luchador actually needs — relative strength, explosive jumping, gymnastic body control, neck and landing conditioning, and an engine for long matches. The aerial moves themselves are not prescribed: they need a ring, a trained partner and a coach, and they are genuinely dangerous without all three.',
+    safetyNote:
+      'Do not practise wrestling bumps or aerial moves without a ring and a qualified coach. Everything in this programme is the athletic preparation, done safely on the ground.',
+    days: [
+      { key: 'relative', label: 'Relative strength', sessionType: 'calisthenics', focus: 'Strong for your bodyweight — the luchador\'s whole physical premise.', exercises: ['pull-up', 'muscle-up', 'dip', 'pistol-squat', 'handstand-hold'], prescription: 'Low reps, high quality, 5 rounds', minutes: 45 },
+      { key: 'fly', label: 'Explosive & landing', sessionType: 'calisthenics', focus: 'Jumping high and, more importantly, absorbing the landing.', exercises: ['box-jumps', 'jump-squat', 'trampoline', 'sport-plyometrics', 'shrimp-squat'], prescription: 'Plyometrics with controlled landings, 6×5', minutes: 40 },
+      { key: 'gym', label: 'Body control', sessionType: 'sport', focus: 'Gymnastic control — the rolls, the rotation, knowing where you are.', exercises: ['gymnastics', 'parkour', 'animal-flow', 'skin-the-cat', 'handstand-walk'], prescription: 'Tumbling and body-control work, 40 min', minutes: 45 },
+      { key: 'neck', label: 'Neck & core armour', sessionType: 'strength', focus: 'The neck and trunk that survive taking bumps for twenty years.', exercises: ['neck-bridge', 'ma-neck-conditioning', 'hollow-rock', 'back-extension', 'weighted-sit-up'], prescription: 'Neck and trunk conditioning, controlled, 30 min', minutes: 35 },
+      { key: 'engine', label: 'Match engine', sessionType: 'cardio', focus: 'Twenty minutes of flat-out performance, three nights a week.', exercises: ['ma-wrestling', 'assault-bike', 'burpees', 'jump-rope-basic', 'shuttle-runs'], prescription: 'Intervals matched to match length, 35 min', minutes: 40 },
+    ],
+    diet: {
+      name: 'Fuelling the flight',
+      approach:
+        'A high-flying luchador needs to stay light without losing power, which makes this a relative-strength diet: enough protein to hold muscle, carbohydrate timed around training rather than spread thin, and enough total food to recover from five sessions a week. Mexican staples do this well — corn tortillas, beans, eggs, grilled meat and a lot of vegetables.',
+      macroSlant: 'Moderate carbs timed around training, high protein, controlled total calories.',
+      sampleDay: [
+        { label: 'Morning', detail: 'Eggs with corn tortillas and fruit.' },
+        { label: 'Midday', detail: 'Grilled chicken with beans, rice and salad.' },
+        { label: 'Post-training', detail: 'Protein with fruit, straight after the session.' },
+        { label: 'Evening', detail: 'Lean beef with vegetables and a small carb portion.' },
+      ],
+      notes: ['Staying light is a strength strategy here, not an aesthetic one — cut too far and the flying goes first.'],
+    },
+  },
 ];
 
 export function specialProgramsFor(category: SpecialCategory): SpecialProgram[] {

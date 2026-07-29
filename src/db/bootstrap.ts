@@ -25,8 +25,9 @@ import { seedExerciseLibrary } from './seed';
  *   13 → 14 v2.15: +7 quick-counter exercises (urge/focus protocols)
  *   14 → 15 v2.18: live_walks.boot_step_baseline (hardware step-counter baseline)
  *   15 → 16 v2.20: sessions.steps_added / distance_added_m (reversible deletes)
+ *   16 → 17 v2.22: custom_foods table (user-entered foods)
  */
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -596,6 +597,22 @@ CREATE TABLE IF NOT EXISTS coach_tips (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_coach_tips_user ON coach_tips(user_id, dismissed);
+
+CREATE TABLE IF NOT EXISTS custom_foods (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  serving TEXT NOT NULL,
+  calories REAL NOT NULL DEFAULT 0,
+  protein REAL NOT NULL DEFAULT 0,
+  carbs REAL NOT NULL DEFAULT 0,
+  fat REAL NOT NULL DEFAULT 0,
+  fiber REAL NOT NULL DEFAULT 0,
+  category TEXT,
+  calories_estimated INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_custom_foods_user ON custom_foods(user_id, name);
 `;
 
 let initialized = false;

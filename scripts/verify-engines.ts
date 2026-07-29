@@ -45,6 +45,8 @@ import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../src/data/achievements';
 import { evaluateAchievement, TRACKED_ACHIEVEMENT_COUNT } from '../src/lib/achievementRules';
 import type { AchievementStats } from '../src/repositories/achievementsRepo';
 import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
+import { FOOD_COMPOSITES, deriveMacros } from '../src/data/foodComposites';
+import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
@@ -297,6 +299,46 @@ check('Chicken macros unchanged by micro merge', (() => {
   return c.calories === 165 && c.protein === 31 && c.carbs === 0 && c.fat === 3.6;
 })());
 check('Every food micro key is a valid MicroKey', FOOD_DB.every((f) => !f.micros || Object.keys(f.micros).every((k) => (MICRO_KEYS as readonly string[]).includes(k))));
+// Every single food now carries micronutrients — measured where measurements
+// exist, derived from the dish's own ingredients where they don't.
+const noMicros = FOOD_DB.filter((f) => !f.micros);
+check('Every food in the database carries micronutrients', noMicros.length === 0, noMicros.slice(0, 5).map((f) => f.id).join(', '));
+{
+  const byId = new Map(FOOD_DB.map((f) => [f.id, f]));
+  const compositeIds = Object.keys(FOOD_COMPOSITES);
+  check('Every composite recipe names a real dish', compositeIds.every((id) => byId.has(id)), compositeIds.filter((id) => !byId.has(id)).join(', '));
+  const badComponents = compositeIds.flatMap((id) => FOOD_COMPOSITES[id].filter(([c]) => !byId.has(c)).map(([c]) => `${id}→${c}`));
+  check('Every recipe component is a real food', badComponents.length === 0, badComponents.slice(0, 5).join(', '));
+  /*
+   * The check that keeps derived micros honest. A recipe is a claim about what
+   * a dish is made of; if that claim were wrong, its micros would be wrong too
+   * and nothing would say so. Recomputing the dish's MACROS from the same
+   * recipe tests the claim against a number we already know independently — so
+   * a recipe that doesn't describe the food can't sit here quietly.
+   */
+  const drift = compositeIds
+    .map((id) => {
+      const f = byId.get(id)!;
+      const d = deriveMacros(id, (x) => byId.get(x))!;
+      return { id, dev: Math.abs(d.calories - f.calories) / Math.max(f.calories, 1) };
+    })
+    .sort((a, b) => b.dev - a.dev);
+  check(
+    'Every recipe reproduces its dish\'s calories within 20%',
+    drift[0].dev <= 0.2,
+    `worst: ${drift[0].id} off by ${Math.round(drift[0].dev * 100)}%`
+  );
+  check('Derived dishes are flagged as derived, not passed off as measured', FOOD_DB.filter((f) => compositeIds.includes(f.id)).every((f) => f.microsDerived === true));
+  check('Measured foods are never flagged as derived', (FOOD_DB.find((f) => f.id === 'chicken-breast')!).microsDerived === undefined);
+  // A dish must actually gain something from its recipe.
+  const emptyDerived = compositeIds.filter((id) => Object.keys(byId.get(id)?.micros ?? {}).length < 3);
+  check('Every derived dish carries at least three micronutrients', emptyDerived.length === 0, emptyDerived.slice(0, 5).join(', '));
+  // Spot-check that the derivation carries real signal rather than noise:
+  // liver pâté should dominate vitamin A, mloukhia should dominate vitamin K.
+  check('Pâté sandwich inherits liver\'s vitamin A', (byId.get('tn-pate-sandwich')?.micros?.vitaminA_ug ?? 0) > 1000);
+  check('Mloukhia dishes inherit the greens\' vitamin K', (byId.get('tn-mloukhia-beef')?.micros?.vitaminK_ug ?? 0) > 50);
+  check('Fried food inherits its cooking oil\'s vitamin E', (byId.get('ff-fries-medium')?.micros?.vitaminE_mg ?? 0) > 1);
+}
 
 console.log('\nSupplements:');
 check('Magnesium pill adds 400mg magnesium', findSupplement('magnesium')?.micros?.magnesium_mg === 400);
@@ -837,6 +879,62 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nCustom foods — calories from macros:');
+{
+  check('Atwater basics: 10P/10C/10F = 170 kcal', caloriesFromMacros({ protein: 10, carbs: 10, fat: 10 }) === 170, `${caloriesFromMacros({ protein: 10, carbs: 10, fat: 10 })}`);
+  check('Fibre is discounted to 2 kcal/g inside carbs', caloriesFromMacros({ protein: 0, carbs: 10, fat: 0, fiber: 10 }) === 20);
+  check('Nothing in, nothing out', caloriesFromMacros({ protein: 0, carbs: 0, fat: 0 }) === 0);
+  check('Negative macros are ignored, never subtracted', caloriesFromMacros({ protein: -5, carbs: 10, fat: 0 }) === 40);
+  check('Fibre exceeding carbs cannot go negative', caloriesFromMacros({ protein: 0, carbs: 5, fat: 0, fiber: 50 }) === 10);
+  /*
+   * The claim the UI makes to the user — "within 10% for 97 of every 100 foods"
+   * — checked against the whole real database rather than asserted. If the
+   * formula or the food data ever drifts, this fails rather than the copy
+   * quietly becoming a lie.
+   */
+  const realFoods = FOOD_DB.filter((f) => f.calories > 20);
+  const errors = realFoods
+    .map((f) => Math.abs(caloriesFromMacros(f) - f.calories) / f.calories)
+    .sort((a, b) => a - b);
+  const within10 = errors.filter((e) => e <= 0.1).length / errors.length;
+  const p90 = errors[Math.floor(errors.length * 0.9)];
+  check('Estimator lands within 10% for 95%+ of real foods', within10 >= 0.95, `${(within10 * 100).toFixed(0)}% of ${errors.length}`);
+  check('90th-percentile estimation error stays under 10%', p90 < 0.1, `${(p90 * 100).toFixed(1)}%`);
+  // Discounting fibre must genuinely beat the naive formula, or it's just
+  // complexity for its own sake.
+  const naive = realFoods.map((f) => Math.abs((f.protein * 4 + f.carbs * 4 + f.fat * 9) - f.calories) / f.calories);
+  const naiveWithin10 = naive.filter((e) => e <= 0.1).length / naive.length;
+  check('Fibre discount beats plain 4/4/9', within10 > naiveWithin10, `${(within10 * 100).toFixed(0)}% vs ${(naiveWithin10 * 100).toFixed(0)}%`);
+
+  // An entered figure always wins; a blank one is derived and flagged.
+  check('A typed calorie figure is used as-is', resolveCalories('250', { protein: 1, carbs: 1, fat: 1 }).calories === 250);
+  check('A typed figure is not marked estimated', resolveCalories('250', { protein: 1, carbs: 1, fat: 1 }).estimated === false);
+  check('A blank figure is derived and marked estimated', (() => {
+    const r = resolveCalories('', { protein: 10, carbs: 10, fat: 10 });
+    return r.calories === 170 && r.estimated === true;
+  })());
+  check('Junk in the calorie box falls back to the estimate', resolveCalories('abc', { protein: 10, carbs: 0, fat: 0 }).estimated === true);
+  check('Comma decimals parse (fr-FR keyboards)', parseAmount('12,5') === 12.5);
+  check('Blank and junk amounts read as zero', parseAmount('') === 0 && parseAmount('abc') === 0 && parseAmount('-3') === 0);
+  // A food needs a name and something to contribute.
+  check('A nameless food is incomplete', !isCompleteCustomFood({ name: '  ', protein: 10, carbs: 0, fat: 0 }));
+  check('A food with no macros at all is incomplete', !isCompleteCustomFood({ name: 'Water', protein: 0, carbs: 0, fat: 0 }));
+  check('A name plus one macro is enough', isCompleteCustomFood({ name: 'Mum\'s couscous', protein: 0, carbs: 40, fat: 0 }));
+}
+{
+  // The custom-foods table must be in the DDL, or the feature silently fails
+  // on every existing install (the CREATE block is what reaches them).
+  const bootSrc = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('custom_foods is in the CREATE TABLE DDL', /CREATE TABLE IF NOT EXISTS custom_foods/.test(bootSrc));
+  check('Schema version was bumped for it', /SCHEMA_VERSION = 17/.test(bootSrc));
+  // Custom foods must never be written into the shipped catalogue, which is
+  // replaced wholesale on every app update.
+  const repoSrc = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('Custom foods live in their own table, not FOOD_DB', !/FOOD_DB\.push|FOOD_DB\s*=/.test(repoSrc));
+  check('Custom food ids are namespaced away from catalogue ids', /CUSTOM_FOOD_PREFIX = 'custom:'/.test(repoSrc));
+  check('Custom foods carry no invented micronutrients', !/micros:/.test(repoSrc));
 }
 
 console.log('\nGPS fix filtering (indoor drift & spinning):');

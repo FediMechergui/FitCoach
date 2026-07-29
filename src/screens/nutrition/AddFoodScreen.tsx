@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Pressable, FlatList, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -18,6 +18,7 @@ import { Chip } from '@/components/ui/Chip';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import { currentFastingState } from '@/repositories/faithRepo';
 import { minutesToHM } from '@/lib/time';
+import { customFoodsAsItems, customFoodIdFrom } from '@/repositories/customFoodRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type AddFoodRoute = RouteProp<RootStackParamList, 'AddFood'>;
@@ -71,14 +72,22 @@ function PreciseMode({ meal }: { meal: MealType }) {
   const [selected, setSelected] = useState<FoodItem | null>(null);
   const [qty, setQty] = useState('1');
 
+  // Re-read on focus so a food just created (or edited) in the modal shows up
+  // immediately rather than after a remount.
+  const [customRev, setCustomRev] = useState(0);
+  useFocusEffect(useCallback(() => setCustomRev((n) => n + 1), []));
+  const customFoods = useMemo(() => customFoodsAsItems(), [customRev]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = FOOD_DB;
+    // The user's own foods come first — they were added because the catalogue
+    // didn't have them, so burying them under 300 built-ins defeats the point.
+    let list = [...customFoods, ...FOOD_DB];
     if (category) list = list.filter((f) => f.category === category);
     if (q) list = list.filter((f) => f.name.toLowerCase().includes(q));
-    else if (!category) list = list.slice(0, 25);
+    else if (!category) list = [...customFoods, ...FOOD_DB.slice(0, 25)];
     return list;
-  }, [query, category]);
+  }, [query, category, customFoods]);
 
   const save = () => {
     if (!selected) return;
@@ -157,13 +166,29 @@ function PreciseMode({ meal }: { meal: MealType }) {
         contentContainerStyle={{ gap: theme.spacing.sm, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          <Text variant="caption" color="textFaint">
-            {results.length} food{results.length === 1 ? '' : 's'}
-          </Text>
+          <View style={{ gap: theme.spacing.sm }}>
+            {/* Can't find it? Add it yourself — macros are enough. */}
+            <Pressable onPress={() => navigation.navigate('CustomFood', {})}>
+              <Card accent={theme.colors.primary}>
+                <Row gap={10} style={{ alignItems: 'center' }}>
+                  <Icon icon="core.add" size={20} color={theme.colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="bodyStrong">Add your own food</Text>
+                    <Text variant="caption" color="textMuted">
+                      Protein, carbs and fat is enough — calories get worked out.
+                    </Text>
+                  </View>
+                </Row>
+              </Card>
+            </Pressable>
+            <Text variant="caption" color="textFaint">
+              {results.length} food{results.length === 1 ? '' : 's'}
+            </Text>
+          </View>
         }
         renderItem={({ item }) => (
           <Pressable onPress={() => setSelected(item)}>
-            <Card>
+            <Card accent={item.isCustom ? theme.colors.accent : undefined}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <Row gap={6} style={{ alignItems: 'center' }}>
@@ -171,12 +196,30 @@ function PreciseMode({ meal }: { meal: MealType }) {
                       {item.name}
                     </Text>
                     {item.cuisine === 'tunisian' && <Text style={{ fontSize: 12 }}>🇹🇳</Text>}
+                    {item.isCustom && (
+                      <Text variant="caption" color="accent">
+                        yours
+                      </Text>
+                    )}
                   </Row>
                   <Text variant="caption" color="textMuted">
-                    {item.serving} · {item.calories} kcal · P{item.protein} C{item.carbs} F{item.fat}
+                    {item.serving} · {item.calories} kcal{item.caloriesEstimated ? '≈' : ''} · P
+                    {item.protein} C{item.carbs} F{item.fat}
                   </Text>
                 </View>
-                <Icon icon="core.add" size={20} color={theme.colors.primary} />
+                {item.isCustom ? (
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => {
+                      const id = customFoodIdFrom(item.id);
+                      if (id != null) navigation.navigate('CustomFood', { id });
+                    }}
+                  >
+                    <Icon icon="core.edit" size={18} color={theme.colors.textMuted} />
+                  </Pressable>
+                ) : (
+                  <Icon icon="core.add" size={20} color={theme.colors.primary} />
+                )}
               </Row>
             </Card>
           </Pressable>

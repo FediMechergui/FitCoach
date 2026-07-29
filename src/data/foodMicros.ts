@@ -255,6 +255,74 @@ export const FOOD_MICROS: Record<string, M> = {
   'ms-oreo': { calcium_mg: 240, vitaminB12_ug: 0.8, riboflavin_mg: 0.32, phosphorus_mg: 210, potassium_mg: 350, iron_mg: 1 },
   'ms-caramel': { calcium_mg: 245, vitaminB12_ug: 0.85, riboflavin_mg: 0.34, phosphorus_mg: 200, potassium_mg: 370, vitaminA_ug: 110 },
 
+  // ── Dried fruit ────────────────────────────────────────────────────────────
+  // Drying concentrates minerals roughly four-fold and destroys most vitamin C.
+  // These are USDA per-100 g figures scaled to each entry's own serving.
+  'df-raisins': { potassium_mg: 300, iron_mg: 0.75, calcium_mg: 20, magnesium_mg: 13, phosphorus_mg: 40, vitaminB6_mg: 0.07, niacin_mg: 0.31, copper_mg: 0.13, vitaminC_mg: 0.9 },
+  'df-golden-raisins': { potassium_mg: 298, iron_mg: 0.72, calcium_mg: 21, magnesium_mg: 14, phosphorus_mg: 40, vitaminB6_mg: 0.13, vitaminC_mg: 1.3, copper_mg: 0.13 },
+  'df-prunes': { potassium_mg: 293, vitaminA_ug: 16, vitaminK_ug: 24, iron_mg: 0.37, calcium_mg: 17, magnesium_mg: 16, phosphorus_mg: 28, vitaminB6_mg: 0.08, niacin_mg: 0.75, copper_mg: 0.11 },
+  'df-dried-fig': { calcium_mg: 65, potassium_mg: 272, iron_mg: 0.81, magnesium_mg: 27, phosphorus_mg: 27, vitaminK_ug: 6.2, vitaminB6_mg: 0.04, copper_mg: 0.11, manganese_mg: 0.2 },
+  'df-dried-apricot': { vitaminA_ug: 72, potassium_mg: 465, iron_mg: 1.06, calcium_mg: 22, magnesium_mg: 13, vitaminE_mg: 1.7, niacin_mg: 1.04, copper_mg: 0.14, phosphorus_mg: 28 },
+  'dried-apricot': { vitaminA_ug: 72, potassium_mg: 465, iron_mg: 1.06, calcium_mg: 22, magnesium_mg: 13, vitaminE_mg: 1.7, niacin_mg: 1.04, copper_mg: 0.14, phosphorus_mg: 28 },
+  'df-dried-date': { potassium_mg: 262, magnesium_mg: 17, calcium_mg: 16, iron_mg: 0.41, phosphorus_mg: 25, vitaminB6_mg: 0.07, niacin_mg: 0.51, copper_mg: 0.08 },
+  'df-dried-cranberry': { potassium_mg: 16, iron_mg: 0.21, calcium_mg: 4, vitaminE_mg: 0.84, manganese_mg: 0.14 },
+  'df-dried-mango': { vitaminA_ug: 36, vitaminC_mg: 17, potassium_mg: 112, folate_ug: 17, iron_mg: 0.3, magnesium_mg: 12 },
+  'df-dried-banana': { potassium_mg: 596, magnesium_mg: 43, vitaminB6_mg: 0.18, iron_mg: 0.46, phosphorus_mg: 30, vitaminC_mg: 2.8, manganese_mg: 0.6 },
+  'df-banana-chips': { potassium_mg: 214, magnesium_mg: 30, iron_mg: 0.5, vitaminB6_mg: 0.1, phosphorus_mg: 22 },
+  'df-dried-pineapple': { vitaminC_mg: 6, potassium_mg: 80, manganese_mg: 0.5, copper_mg: 0.06 },
+  'df-dried-apple': { potassium_mg: 180, iron_mg: 0.56, vitaminC_mg: 1.6, calcium_mg: 5 },
+  'df-dried-coconut': { iron_mg: 1, magnesium_mg: 27, potassium_mg: 163, phosphorus_mg: 62, copper_mg: 0.24, selenium_ug: 5.6, zinc_mg: 0.6, manganese_mg: 0.8 },
+  'df-dried-berries': { potassium_mg: 150, vitaminC_mg: 3, iron_mg: 0.5, vitaminE_mg: 0.8, manganese_mg: 0.3 },
+  'df-fruit-mix': { potassium_mg: 250, magnesium_mg: 40, iron_mg: 0.9, calcium_mg: 35, vitaminE_mg: 3, phosphorus_mg: 80 },
+
+  // ── Juices & drinks not already covered ────────────────────────────────────
+  'ju-apple': { potassium_mg: 253, vitaminC_mg: 2.3, folate_ug: 3 },
+  'ju-citronnade': { vitaminC_mg: 10, potassium_mg: 40 },
+  'ju-mango': { vitaminA_ug: 30, vitaminC_mg: 25, potassium_mg: 60 },
+  'ju-peach': { vitaminA_ug: 20, vitaminC_mg: 33, potassium_mg: 100, iron_mg: 0.5 },
+  // Traditional almond drink, not the fortified supermarket carton — no added
+  // calcium or D, so only what the almonds themselves bring.
+  'ju-almond-drink': { vitaminE_mg: 6, magnesium_mg: 15, calcium_mg: 20 },
+  'tn-droo': { iron_mg: 1.2, magnesium_mg: 40, phosphorus_mg: 90, thiamin_mg: 0.1, niacin_mg: 1, potassium_mg: 120 },
+
+  // ── Grains, breads & pasta ─────────────────────────────────────────────────
+  'barley-cooked': { selenium_ug: 13.5, manganese_mg: 0.6, magnesium_mg: 35, phosphorus_mg: 85, iron_mg: 2.1, niacin_mg: 3.2, zinc_mg: 1.3, potassium_mg: 146 },
+  'buckwheat-cooked': { magnesium_mg: 86, manganese_mg: 0.68, copper_mg: 0.25, phosphorus_mg: 118, iron_mg: 1.34, niacin_mg: 1.58, zinc_mg: 1.02, potassium_mg: 148 },
+  'amaranth-cooked': { manganese_mg: 2.1, magnesium_mg: 160, phosphorus_mg: 364, iron_mg: 5.2, selenium_ug: 13.5, calcium_mg: 116, copper_mg: 0.37, zinc_mg: 2.1, folate_ug: 54 },
+  'corn-tortilla': { calcium_mg: 40, phosphorus_mg: 85, magnesium_mg: 37, selenium_ug: 3, thiamin_mg: 0.1, niacin_mg: 1, iron_mg: 0.7, zinc_mg: 0.5 },
+  'tn-couscous-plain': { selenium_ug: 29, thiamin_mg: 0.21, niacin_mg: 4.7, folate_ug: 27, iron_mg: 1.5, magnesium_mg: 59, phosphorus_mg: 226, zinc_mg: 1.1, manganese_mg: 1 },
+  'tn-pasta-plain': { thiamin_mg: 0.2, niacin_mg: 1.7, folate_ug: 10, iron_mg: 0.9, magnesium_mg: 25, phosphorus_mg: 80, selenium_ug: 35, manganese_mg: 0.4 },
+  'tn-khobz-tabouna': { thiamin_mg: 0.4, niacin_mg: 3.5, folate_ug: 60, iron_mg: 2.5, magnesium_mg: 40, phosphorus_mg: 100, selenium_ug: 25, manganese_mg: 0.8, sodium_mg: 480 },
+  'tn-baguette': { thiamin_mg: 0.3, niacin_mg: 2.4, folate_ug: 45, iron_mg: 1.7, calcium_mg: 30, sodium_mg: 340, selenium_ug: 15 },
+  'tn-pain-complet': { iron_mg: 1.3, magnesium_mg: 35, thiamin_mg: 0.15, niacin_mg: 1.7, folate_ug: 20, phosphorus_mg: 90, selenium_ug: 12, zinc_mg: 0.8, sodium_mg: 200 },
+  'tn-mlewi': { thiamin_mg: 0.2, niacin_mg: 2, iron_mg: 1.6, folate_ug: 35, sodium_mg: 300, selenium_ug: 18 },
+  'tn-croissant': { vitaminA_ug: 60, thiamin_mg: 0.2, niacin_mg: 1.4, iron_mg: 1.2, calcium_mg: 25, folate_ug: 30, sodium_mg: 300 },
+  // Bsisa: roasted barley, chickpea, fenugreek and sesame ground together —
+  // genuinely mineral-dense, which is why it survived as a fasting-breaker.
+  'tn-bsisa-dry': { iron_mg: 5, magnesium_mg: 130, calcium_mg: 120, phosphorus_mg: 300, zinc_mg: 3, manganese_mg: 2, thiamin_mg: 0.4, niacin_mg: 3, folate_ug: 90, potassium_mg: 500 },
+
+  // ── Cheese & milk not already covered ──────────────────────────────────────
+  'tn-cream-cheese': { calcium_mg: 25, vitaminA_ug: 80, phosphorus_mg: 30, sodium_mg: 120 },
+  'tn-edam-gouda': { calcium_mg: 220, phosphorus_mg: 160, vitaminB12_ug: 0.5, vitaminA_ug: 50, zinc_mg: 1.1, sodium_mg: 250 },
+  'tn-processed-slice': { calcium_mg: 120, phosphorus_mg: 150, sodium_mg: 260, vitaminA_ug: 40 },
+  'tn-milk-evaporated': { calcium_mg: 80, phosphorus_mg: 60, riboflavin_mg: 0.09, vitaminA_ug: 20, vitaminB12_ug: 0.05 },
+  'tn-milk-condensed': { calcium_mg: 57, phosphorus_mg: 46, riboflavin_mg: 0.08, vitaminB12_ug: 0.13, vitaminA_ug: 15 },
+
+  // ── Fruit, seeds & sundries ────────────────────────────────────────────────
+  'tn-apple': { vitaminC_mg: 8, potassium_mg: 195, vitaminK_ug: 4 },
+  'tn-lime': { vitaminC_mg: 19, potassium_mg: 68, folate_ug: 5, calcium_mg: 22 },
+  'tn-quince': { vitaminC_mg: 13.8, potassium_mg: 179, copper_mg: 0.12, iron_mg: 0.64 },
+  // Fenugreek is exceptionally iron-dense for its size — the reason it turns up
+  // in so many traditional recovery and post-partum foods.
+  'sd-helba': { iron_mg: 3.7, magnesium_mg: 21, manganese_mg: 0.13, phosphorus_mg: 33, potassium_mg: 85, thiamin_mg: 0.04 },
+  'miso-soup': { sodium_mg: 800, manganese_mg: 0.3, vitaminK_ug: 8, copper_mg: 0.1, zinc_mg: 0.5, phosphorus_mg: 40, riboflavin_mg: 0.1 },
+  'tn-honey-tsp': { manganese_mg: 0.03, potassium_mg: 4 },
+  'tn-olive-oil-tsp': { vitaminE_mg: 0.6, vitaminK_ug: 2.6, omega3_mg: 32 },
+  'ch-white': { calcium_mg: 60, phosphorus_mg: 53, riboflavin_mg: 0.08, vitaminA_ug: 20 },
+  'ch-spread': { iron_mg: 0.6, magnesium_mg: 13, calcium_mg: 22, phosphorus_mg: 34, vitaminE_mg: 1.2 },
+  // Liver spread carries a genuinely enormous vitamin A load for 30 g.
+  'tn-pate': { vitaminA_ug: 1300, vitaminB12_ug: 2.5, iron_mg: 1.7, copper_mg: 0.3, folate_ug: 15, zinc_mg: 0.7, riboflavin_mg: 0.3, sodium_mg: 200 },
+  'protein-bar': { calcium_mg: 150, phosphorus_mg: 200, magnesium_mg: 60, iron_mg: 2.5, zinc_mg: 2, potassium_mg: 150 },
 };
 
 /**

@@ -720,6 +720,32 @@ export const COACH_CATEGORIES = [
 ] as const;
 export type CoachCategory = (typeof COACH_CATEGORIES)[number];
 
+/**
+ * Foods the user entered themselves — a home recipe, a local product, anything
+ * the built-in database doesn't carry. Stored per-user and merged into the
+ * Precise-mode search alongside the built-in catalogue.
+ *
+ * `caloriesEstimated` records that the energy figure was derived from the
+ * macros rather than read off a label, so the UI can keep saying so instead of
+ * quietly promoting an approximation to a measurement.
+ */
+export const customFoods = sqliteTable('custom_foods', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  name: text('name').notNull(),
+  serving: text('serving').notNull(),
+  calories: real('calories').notNull().default(0),
+  protein: real('protein').notNull().default(0),
+  carbs: real('carbs').notNull().default(0),
+  fat: real('fat').notNull().default(0),
+  fiber: real('fiber').notNull().default(0),
+  category: text('category'),
+  caloriesEstimated: integer('calories_estimated', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const coachTips = sqliteTable('coach_tips', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -778,3 +804,4 @@ export type WorkLog = typeof workLogs.$inferSelect;
 export type PrayerSettings = typeof prayerSettings.$inferSelect;
 export type FastingProfile = typeof fastingProfiles.$inferSelect;
 export type FastingLog = typeof fastingLogs.$inferSelect;
+export type CustomFood = typeof customFoods.$inferSelect;

@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.22',
+    date: '2026-07-29',
+    title: 'Every food has micronutrients — and you can add your own',
+    highlights: [
+      'All 321 foods now carry vitamins and minerals. 127 of them had none before: every dried fruit, juice, bread, pasta, cheese, Tunisian dish, Eid cookie and fast-food item.',
+      'For dishes there is no lab data for — a tajine, a makloub, a ghraïba — the micros are worked out from what the dish is actually made of, so every number traces back to a measured ingredient instead of being invented. A pâté sandwich now shows liver\'s huge vitamin A, mloukhia shows the greens\' vitamin K, and fries show the oil\'s vitamin E.',
+      'Those recipes are checked, not trusted: each one has to reproduce the dish\'s own known calories to within 20%, so a wrong recipe fails the build rather than quietly reporting wrong vitamins. All 77 currently land within 10%.',
+      'Dishes with worked-out micros are marked as derived rather than passed off as measured.',
+      'New: add your own foods. Name it, give protein, carbs and fat, and it\'s in your search forever — for home cooking, your mother\'s recipes, or any local product the database doesn\'t have.',
+      'You don\'t need the calorie figure. Leave it blank and it\'s worked out from the macros as you type — 4 kcal a gram for protein and carbs, 9 for fat, with fibre at 2. Tested against all 305 real foods in the database, that lands within 10% for 97 of every 100. Type a number from the label and it uses yours instead, and stops calling it an estimate.',
+      'Pick a category so it files alongside everything else, edit or delete it any time, and your own foods sit at the top of the search where you can find them.',
+      'Custom foods deliberately carry no vitamin data — we won\'t invent a micronutrient profile from a name. They count fully toward calories and macros and simply add nothing to your micro totals.',
+    ],
+  },
+  {
     version: '2.21',
     date: '2026-07-28',
     title: 'Warriors of the world, and no more phantom steps indoors',

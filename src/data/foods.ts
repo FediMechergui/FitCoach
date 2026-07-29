@@ -1,5 +1,6 @@
 import { TUNISIAN_FOODS } from './foods-tunisian';
 import { FOOD_MICROS } from './foodMicros';
+import { deriveMicros } from './foodComposites';
 import type { MicroProfile } from '@/lib/micros';
 
 /**
@@ -23,6 +24,16 @@ export interface FoodItem {
   cuisine?: 'general' | 'tunisian';
   /** vitamins/minerals per this serving (only for foods with known data) */
   micros?: Partial<MicroProfile>;
+  /**
+   * True when `micros` was summed from the dish's ingredients rather than
+   * measured directly — a good estimate for a composite dish, but the UI should
+   * be able to say so rather than implying lab precision.
+   */
+  microsDerived?: boolean;
+  /** True for a food the user entered themselves (see customFoodRepo). */
+  isCustom?: boolean;
+  /** True when the calorie figure was derived from macros rather than entered. */
+  caloriesEstimated?: boolean;
 }
 
 const GENERIC_FOODS: FoodItem[] = [
@@ -63,11 +74,33 @@ const GENERIC_FOODS: FoodItem[] = [
   { id: 'dried-apricot', name: 'Dried Apricots', serving: '40g (~8)', calories: 96, protein: 1.4, carbs: 25, fat: 0.2, fiber: 3 },
 ];
 
-/** The searchable catalogue: generic staples + the Tunisian reference. */
-export const FOOD_DB: FoodItem[] = [
+/**
+ * The searchable catalogue: generic staples + the Tunisian reference.
+ *
+ * Micros come from two places. A measured food gets its own profile from
+ * FOOD_MICROS. A composite dish — a tajine, a makloub, an Eid cookie, none of
+ * which has a lab entry anywhere — gets its profile derived from the
+ * ingredients it's made of (see foodComposites.ts), so its numbers trace back
+ * to measured data instead of being invented. Direct data always wins.
+ */
+const BASE_FOODS: FoodItem[] = [
   ...GENERIC_FOODS.map((f) => ({ ...f, cuisine: 'general' as const })),
   ...TUNISIAN_FOODS,
-].map((f) => (FOOD_MICROS[f.id] ? { ...f, micros: FOOD_MICROS[f.id] } : f));
+];
+
+const BY_ID = new Map(BASE_FOODS.map((f) => [f.id, f]));
+/** Ingredient lookup for recipe resolution — measured foods only, no recursion. */
+const lookupIngredient = (id: string): FoodItem | undefined => {
+  const f = BY_ID.get(id);
+  return f ? (FOOD_MICROS[f.id] ? { ...f, micros: FOOD_MICROS[f.id] } : f) : undefined;
+};
+
+export const FOOD_DB: FoodItem[] = BASE_FOODS.map((f) => {
+  const direct = FOOD_MICROS[f.id];
+  if (direct) return { ...f, micros: direct };
+  const derived = deriveMicros(f.id, lookupIngredient);
+  return derived ? { ...f, micros: derived, microsDerived: true } : f;
+});
 
 /** Count of foods that carry micronutrient data (for honest UI copy). */
 export const FOODS_WITH_MICROS = FOOD_DB.filter((f) => f.micros).length;

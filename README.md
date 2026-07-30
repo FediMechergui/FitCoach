@@ -2,7 +2,26 @@
 
 > Private coaching, nutrition & health app — local-first, offline, Android-first.
 > Built from [FitCoach-App-Specification.md](FitCoach-App-Specification.md) (v2.0).
-> [APK DOWNLOAD](https://expo.dev/accounts/fedimechergui/projects/fitcoach/builds/ebc43c60-e5d7-4f12-a3e7-e1af515faa34)
+
+---
+
+## ⬇️ Download the app
+
+### **[→ GET THE LATEST APK ←](https://expo.dev/accounts/fedimechergui/projects/fitcoach/builds/1c166545-e815-446d-ab85-25d64a1c6181)**
+
+> **This is the build to install.** It is the first one carrying the native
+> hardware step-counter module, so step counting reads the phone's sensor
+> directly — exact counts that survive the screen being off and the app being
+> killed. Earlier APKs fall back to the software pedometer.
+>
+> **Installing over an existing FitCoach keeps everything.** Same package name
+> (`com.fitcoach.app`) and same signing key, so your logs, history, weigh-ins and
+> streaks are all preserved — no uninstall, no wipe.
+>
+> Everything since ships over-the-air, so this stays the APK you need until the
+> next change to native code.
+
+---
 
 FitCoach is a personal fitness companion that combines three pillars in one app:
 

@@ -900,6 +900,36 @@ console.log('\nSchema ↔ migration integrity:');
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
 }
 
+console.log('\nShoulder coverage:');
+{
+  const sh = EXLIB.filter((e) => e.primaryMuscle === 'shoulders');
+  check('Face pull exists (cable and band)', ['face-pull', 'band-face-pull'].every((s) => ALL_SLUGS.has(s)));
+  check('Rotator-cuff work exists', ['cable-external-rotation', 'db-external-rotation', 'db-cuban-press'].every((s) => ALL_SLUGS.has(s)));
+  check('Shoulder machines cover press, raise and rear delt', ['plate-loaded-shoulder-press', 'smith-shoulder-press', 'machine-rear-delt-row', 'machine-front-raise', 'lateral-raise-machine', 'reverse-pec-deck'].every((s) => ALL_SLUGS.has(s)));
+  check('Shoulder-friendly pressing variants exist', ['landmine-press', 'z-press', 'bradford-press', 'kb-bottoms-up-press'].every((s) => ALL_SLUGS.has(s)));
+  /*
+   * The imbalance that matters. Every press and every bench hits the front
+   * delt, so a library heavy on pressing and light on pulling quietly steers
+   * people into the exact shoulder problem this section exists to avoid.
+   */
+  const bySub = (m: string) => sh.filter((e) => e.subMuscle === m).length;
+  check('Rear delt is no longer the poor relation', bySub('rear_delt') >= 12, `front ${bySub('front_delt')} / side ${bySub('side_delt')} / rear ${bySub('rear_delt')}`);
+  check('Every shoulder exercise carries a sub-muscle tag', sh.every((e) => !!e.subMuscle), sh.filter((e) => !e.subMuscle).map((e) => e.slug).join(', '));
+  check('Free weights, machines and cables are all represented', ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'].every((eq) => sh.some((e) => e.equipmentType === eq)));
+  // A new exercise reaches existing installs only if the seed version moves.
+  const bootSrc2 = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  const seedVersion = Number((bootSrc2.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Seed version was bumped so existing installs get them', seedVersion >= 19, `${seedVersion}`);
+
+  // Dumbbell loads are logged per hand; the UI has to say so, because guessing
+  // wrong halves or doubles every volume and 1RM figure for that lift.
+  const uiSrc2 = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The weight field names the dumbbell convention', /label=\{isDumbbell \? 'Weight \/ dumbbell' : 'Weight'\}/.test(uiSrc2));
+  check('…and spells it out underneath', /One dumbbell, not the pair/.test(uiSrc2));
+  const repoSrc2 = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('Equipment type reaches the logging screen', /equipmentType: exercises\.equipmentType/.test(repoSrc2));
+}
+
 console.log('\nNumber display — no floating-point tails:');
 {
   /*
@@ -1122,7 +1152,10 @@ console.log('\nCustom foods — calories from macros:');
   const bootSrc = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
   check('to_failure is in the CREATE TABLE DDL (fresh installs)', /to_failure INTEGER NOT NULL DEFAULT 0\s*\);/.test(bootSrc));
   check('to_failure is in ADDED_COLUMNS (existing installs)', /table: 'set_entries', column: 'to_failure'/.test(bootSrc));
-  check('Schema version was bumped for it', /SCHEMA_VERSION = 18/.test(bootSrc));
+  // At-or-above, not exactly: pinning the number makes this fail on every
+  // later bump for a reason that has nothing to do with what it's testing.
+  const schemaVersion = Number((bootSrc.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the to_failure migration', schemaVersion >= 18, `${schemaVersion}`);
 
   // A failure set IS RPE 10; storing only the flag would leave every older
   // reader of `rpe` seeing a blank where the hardest set of the day was.

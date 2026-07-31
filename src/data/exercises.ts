@@ -1540,6 +1540,117 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'environment-change', name: 'Change Your Environment', category: 'counter', sessionType: 'cardio', muscleGroups: ['cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'cardio.walk', met: 3, description: 'Most urges are tied to a place and a cue. Stand up and leave — different room, or outside. Breaking the setting often breaks the urge.', instructions: ['Physically get up and move to a different space.', 'Outside is best; a different room works too.', 'Take a few minutes there before deciding anything.'] },
   { slug: 'halt-check', name: 'HALT Check-In', category: 'counter', sessionType: 'meditation', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.journal', met: 1.2, description: 'Urges spike when a real need is unmet. Ask: am I Hungry, Angry, Lonely or Tired? Meet the actual need and the urge often deflates on its own.', instructions: ['Run through Hungry / Angry / Lonely / Tired.', 'Whichever fits, address it — eat, cool down, reach out, rest.', 'The craving is often a messenger for one of these.'] },
   { slug: 'hands-busy-task', name: 'Keep the Hands Busy', category: 'counter', sessionType: 'mindbody', muscleGroups: ['mind'], primaryMuscle: 'mind', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.joint', met: 1.5, description: 'An occupied body is a redirected impulse — grip a stress ball, tidy a drawer, wash the dishes, hold a cold drink. Gives a restless urge somewhere to go.', instructions: ['Pick any small physical task and do it now.', 'Keep the hands and eyes engaged for a few minutes.', 'Bridges the gap until the urge subsides.'] },
+
+  // ── Shoulders, filled out (v2.26) ───────────────────────────────────────────
+  // The rear delt and the rotator cuff were the gaps: plenty of pressing and
+  // side raises, almost nothing pulling the shoulder back or rotating it. That
+  // imbalance is the common one — the front delt gets hit by every press and
+  // every bench, and the back of the shoulder never catches up.
+  S('face-pull', 'Face Pull', 'shoulders', 'cable', 'horizontal_pull', ['shoulders', 'back'], CB, {
+    subMuscle: 'rear_delt', met: 3.5,
+    description: 'Rope to the face, elbows high, finishing with the hands back and out. Trains the rear delt and the external rotators together — the single best counterweight to a pressing-heavy programme.',
+    instructions: [
+      'Set a rope at about face height and take an overhand grip, thumbs back.',
+      'Pull the rope toward your forehead, leading with the elbows and keeping them high.',
+      'Finish by rotating the hands back and apart, like a double biceps pose.',
+      'Light weight, slow return. This is not a rowing movement — if you are leaning back, it is too heavy.',
+    ],
+  }),
+  S('cable-external-rotation', 'Cable External Rotation', 'shoulders', 'cable', 'horizontal_pull', ['shoulders'], CB, {
+    subMuscle: 'rear_delt', met: 3,
+    description: 'The rotator-cuff movement itself. Unglamorous, very light, and the cheapest shoulder insurance there is if you press often.',
+    instructions: [
+      'Elbow tucked to your side at 90°, forearm across your body.',
+      'Rotate the forearm outward, keeping the elbow pinned to your ribs.',
+      'Slow both ways. Loads here are tiny — this is a cuff, not a delt.',
+    ],
+  }),
+  S('cable-upright-row', 'Cable Upright Row', 'shoulders', 'cable', 'lateral_raise', ['shoulders', 'back'], CB, {
+    subMuscle: 'side_delt', met: 3.5,
+    description: 'Upright row with constant tension. Keep it to chest height and wide — pulling high and narrow is where shoulders get pinched.',
+    instructions: ['Wide grip on a straight bar or rope.', 'Lead with the elbows, stop around chest height.', 'If it pinches, widen the grip or drop the height.'],
+  }),
+  S('cable-y-raise', 'Cable Y-Raise', 'shoulders', 'cable', 'lateral_raise', ['shoulders', 'back'], CB, {
+    subMuscle: 'rear_delt', met: 3.5,
+    description: 'Raise into a Y overhead against the cable — lower traps and rear delt, and a genuinely useful overhead-health movement.',
+  }),
+  S('cable-shoulder-press', 'Cable Shoulder Press', 'shoulders', 'cable', 'vertical_push', ['shoulders', 'triceps'], CB, {
+    subMuscle: 'front_delt', met: 4,
+    description: 'Overhead press with tension that never drops off at the top.',
+  }),
+  S('plate-loaded-shoulder-press', 'Plate-Loaded Shoulder Press', 'shoulders', 'machine', 'vertical_push', ['shoulders', 'triceps'], MC, {
+    subMuscle: 'front_delt', met: 4.5,
+    description: 'Hammer-Strength-style press. Each arm moves on its own path, so a strong side cannot carry a weak one.',
+  }),
+  S('smith-shoulder-press', 'Smith Machine Shoulder Press', 'shoulders', 'machine', 'vertical_push', ['shoulders', 'triceps'], MC, {
+    subMuscle: 'front_delt', met: 4.5,
+    description: 'Fixed bar path overhead — lets you push closer to failure safely without a spotter.',
+  }),
+  S('machine-rear-delt-row', 'Machine Rear-Delt Row', 'shoulders', 'machine', 'horizontal_pull', ['shoulders', 'back'], MC, {
+    subMuscle: 'rear_delt', met: 3.5,
+    description: 'Chest-supported machine row pulled wide and high, so the rear delt does the work instead of the lats.',
+  }),
+  S('machine-front-raise', 'Machine Front Raise', 'shoulders', 'machine', 'lateral_raise', ['shoulders'], MC, {
+    subMuscle: 'front_delt', met: 3,
+    description: 'Guided front raise. Most people already get plenty of front delt from pressing — use it sparingly.',
+  }),
+  S('landmine-press', 'Landmine Press', 'shoulders', 'barbell', 'vertical_push', ['shoulders', 'triceps', 'core'], BB, {
+    subMuscle: 'front_delt', met: 5,
+    description: 'Pressing on an arc rather than straight up. Far kinder to shoulders that dislike a strict overhead press, and the standing version makes the core work too.',
+    instructions: ['One end of a barbell in a landmine or a corner.', 'Press from the front of the shoulder up and slightly forward.', 'Keep the ribs down — no leaning back to finish the rep.'],
+  }),
+  S('z-press', 'Z-Press', 'shoulders', 'barbell', 'vertical_push', ['shoulders', 'core'], BB, {
+    subMuscle: 'front_delt', met: 5,
+    description: 'Seated on the floor, legs straight, pressing overhead. Removes every ounce of leg drive and exposes exactly how much of your press was hips.',
+  }),
+  S('bradford-press', 'Bradford Press', 'shoulders', 'barbell', 'vertical_push', ['shoulders'], BB, {
+    subMuscle: 'side_delt', met: 4.5,
+    description: 'Half-presses alternating front and back of the head, never locking out. Constant tension, and light by necessity.',
+  }),
+  S('db-scaption-raise', 'Dumbbell Scaption Raise', 'shoulders', 'dumbbell', 'lateral_raise', ['shoulders'], DB_, {
+    subMuscle: 'side_delt', met: 3.5,
+    description: 'Raise at about 30–45° in front of you rather than straight out to the side — the plane the shoulder blade actually sits in, and more comfortable for most people than a strict lateral.',
+  }),
+  S('db-lu-raise', 'Lu Raise', 'shoulders', 'dumbbell', 'lateral_raise', ['shoulders'], DB_, {
+    subMuscle: 'side_delt', met: 3.5,
+    description: 'A lateral raise carried all the way overhead until the dumbbells touch. Very light, very strict — named after the weightlifter who popularised it.',
+  }),
+  S('db-powell-raise', 'Powell Raise', 'shoulders', 'dumbbell', 'horizontal_pull', ['shoulders'], DB_, {
+    subMuscle: 'rear_delt', met: 3.5,
+    description: 'Lying on your side, raising the top arm out and back. Isolates the rear delt about as cleanly as a dumbbell can.',
+  }),
+  S('db-external-rotation', 'Dumbbell External Rotation', 'shoulders', 'dumbbell', 'horizontal_pull', ['shoulders'], DB_, {
+    subMuscle: 'rear_delt', met: 3,
+    description: 'Side-lying cuff rotation. Tiny weights, high reps, done for shoulder health rather than size.',
+  }),
+  S('db-cuban-press', 'Cuban Press', 'shoulders', 'dumbbell', 'vertical_push', ['shoulders'], DB_, {
+    subMuscle: 'rear_delt', met: 4,
+    description: 'Upright row into an external rotation into an overhead press, as one movement. A whole shoulder warm-up in a single exercise.',
+  }),
+  S('db-6-way-raise', 'Six-Way Raise', 'shoulders', 'dumbbell', 'lateral_raise', ['shoulders'], DB_, {
+    subMuscle: 'side_delt', met: 4,
+    description: 'Front raise, out to a T, overhead, and back down the same path. Hits all three heads in one brutal, very light set.',
+  }),
+  S('kb-bottoms-up-press', 'Bottoms-Up Kettlebell Press', 'shoulders', 'other', 'vertical_push', ['shoulders', 'forearms', 'core'], DB_, {
+    subMuscle: 'front_delt', met: 4.5,
+    description: 'Pressing a kettlebell upside down. The grip and the shoulder have to stabilise constantly, which is the entire point — you will use a fraction of your normal weight.',
+  }),
+  S('kb-halo', 'Kettlebell Halo', 'shoulders', 'other', 'mobility', ['shoulders', 'core'], DB_, {
+    subMuscle: 'rear_delt', met: 3,
+    description: 'Circling a kettlebell around the head. A mobility warm-up that also happens to build stability through the whole shoulder girdle.',
+  }),
+  S('plate-front-raise', 'Plate Front Raise', 'shoulders', 'other', 'lateral_raise', ['shoulders', 'core'], DB_, {
+    subMuscle: 'front_delt', met: 3.5,
+    description: 'Front raise holding a plate like a steering wheel — easy to grip, easy to control, and simple to add small jumps to.',
+  }),
+  S('wall-slides', 'Wall Slides', 'shoulders', 'bodyweight', 'mobility', ['shoulders', 'back'], BW, {
+    subMuscle: 'rear_delt', trackingType: 'reps_only', met: 2.5,
+    description: 'Forearms on the wall, sliding overhead while keeping contact. Free, needs nothing, and one of the better ways to restore overhead range if you sit at a desk.',
+  }),
+  S('band-face-pull', 'Band Face Pull', 'shoulders', 'other', 'horizontal_pull', ['shoulders', 'back'], BW, {
+    subMuscle: 'rear_delt', trackingType: 'reps_only', met: 3,
+    description: 'The face pull with a band instead of a cable — anchor it at head height. Travels in a bag, so there is no excuse on the road.',
+  }),
 ];
 
 /**

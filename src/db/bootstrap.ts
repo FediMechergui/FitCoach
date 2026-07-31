@@ -27,8 +27,9 @@ import { seedExerciseLibrary } from './seed';
  *   15 → 16 v2.20: sessions.steps_added / distance_added_m (reversible deletes)
  *   16 → 17 v2.22: custom_foods table (user-entered foods)
  *   17 → 18 v2.23: set_entries.to_failure (proximity-to-failure tracking)
+ *   18 → 19 v2.26: +23 shoulder exercises (face pull, cuff work, machines)
  */
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

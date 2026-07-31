@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.26',
+    date: '2026-07-31',
+    title: 'Face pulls, cuff work and 21 more shoulder exercises',
+    highlights: [
+      'Shoulders went from 36 exercises to 59. Face Pull was the obvious missing one — cable and band versions are both in.',
+      'The real gap was the back of the shoulder. Every press and every bench hits the front delt, so a library heavy on pressing quietly steers you into the exact imbalance you are trying to avoid. Rear-delt work more than doubled: Powell Raise, Machine Rear-Delt Row, Cable Y-Raise, Wall Slides and more.',
+      'Rotator cuff finally has its own movements — Cable and Dumbbell External Rotation, and the Cuban Press, which is a whole shoulder warm-up in one exercise.',
+      'More machines: Plate-Loaded (Hammer-Strength style) Shoulder Press, Smith Machine Shoulder Press, Machine Rear-Delt Row, Machine Front Raise.',
+      'Shoulder-friendly pressing for anyone whose shoulders dislike a strict overhead: Landmine Press, Z-Press, Bradford Press, Bottoms-Up Kettlebell Press.',
+      'Plus Scaption Raise, Lu Raise, Six-Way Raise, Kettlebell Halo, Plate Front Raise, Cable Upright Row and Cable Shoulder Press.',
+      'Dumbbell weights: the app now says what it wants. On any dumbbell exercise the field reads "Weight / dumbbell" — log ONE dumbbell, so 20 kg means 20 in each hand. That is the standard convention, and the important part is that you always do the same thing, because your volume and estimated 1RM are built on it.',
+    ],
+  },
+  {
     version: '2.25',
     date: '2026-07-31',
     title: 'Fixed the "419.8000000000002 kcal left" ring',

@@ -391,6 +391,7 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
   const theme = useTheme();
   const store = useSessionStore();
   const f = fieldsFor(lv.trackingType);
+  const isDumbbell = lv.equipmentType === 'dumbbell';
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
   const [rpe, setRpe] = useState('');
@@ -485,7 +486,18 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
       <Row style={{ alignItems: 'flex-end' }}>
         {f.weight && (
           <View style={{ flex: 1 }}>
-            <Input label="Weight" value={weight} onChangeText={setWeight} placeholder="kg" keyboardType="numeric" />
+            {/*
+              "Weight" is ambiguous the moment there are two dumbbells, and
+              guessing wrong halves or doubles every volume and 1RM figure for
+              that lift. State the convention on the field itself.
+            */}
+            <Input
+              label={isDumbbell ? 'Weight / dumbbell' : 'Weight'}
+              value={weight}
+              onChangeText={setWeight}
+              placeholder="kg"
+              keyboardType="numeric"
+            />
           </View>
         )}
         {f.reps && !toFailure && (
@@ -509,6 +521,12 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
           </View>
         )}
       </Row>
+      {f.weight && isDumbbell && (
+        <Text variant="caption" color="textFaint">
+          One dumbbell, not the pair — 20 kg means 20 in each hand. Keep it the same every time and
+          your progress stays comparable.
+        </Text>
+      )}
       {isLifting && (
         <Pressable onPress={() => setToFailure((v) => !v)} hitSlop={6}>
           <Row gap={8} style={{ alignItems: 'center' }}>

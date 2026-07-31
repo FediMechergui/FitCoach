@@ -36,6 +36,8 @@ export interface ExerciseLogView {
   iconKey: string;
   primaryMuscle: string | null;
   trackingType: TrackingType;
+  /** barbell / dumbbell / machine / cable / bodyweight — drives how weight is labelled */
+  equipmentType: string | null;
   /** the exercise's own MET, for real per-exercise calorie attribution */
   metValue: number | null;
   sets: SetEntry[];
@@ -474,6 +476,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
       iconKey: exercises.iconKey,
       primaryMuscle: exercises.primaryMuscle,
       trackingType: exercises.trackingType,
+      equipmentType: exercises.equipmentType,
       metValue: exercises.metValue,
     })
     .from(exerciseLogs)
@@ -488,6 +491,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
     iconKey: r.iconKey,
     primaryMuscle: r.primaryMuscle,
     trackingType: r.trackingType,
+    equipmentType: r.equipmentType,
     metValue: r.metValue,
     sets: db
       .select()

@@ -27,6 +27,29 @@ function run(cmd) {
   console.log(`\n$ ${cmd}`);
   execSync(cmd, { stdio: 'inherit' });
 }
+
+/**
+ * Make a string safe to sit inside a double-quoted shell argument.
+ *
+ * A release title containing a double quote used to abort the whole release:
+ * the quote closed the argument early and eas saw the rest as stray arguments.
+ * Escaping rules differ between /bin/sh and cmd.exe, so rather than trying to
+ * escape correctly on both, the characters that can break out of the quoting
+ * are swapped for typographic equivalents. A release message is prose — nothing
+ * is lost by it carrying “curly quotes”, and it can never break the command.
+ */
+function shellSafe(s) {
+  let open = true;
+  return String(s)
+    // Straight quotes alternate into a proper “…” pair so the title still reads
+    // like English rather than sprouting two closing quotes.
+    .replace(/"/g, () => (open = !open) ? '”' : '“')
+    .replace(/`/g, "'") //     ` → ' (backtick would run a subshell)
+    .replace(/\$/g, 'USD') //  $ → USD (would expand a variable)
+    .replace(/\\/g, '/') //    \ → /  (escape character)
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+}
 function capture(cmd) {
   return execSync(cmd, { encoding: 'utf8' }).trim();
 }
@@ -66,7 +89,7 @@ console.log(`\nReleasing FitCoach v${version} to channel "${branch}"`);
 console.log(`Patch note: ${message}`);
 
 // ── 1. Publish the OTA update ────────────────────────────────────────────────
-run(`eas update --branch ${branch} --message "v${version}: ${message}"`);
+run(`eas update --branch ${branch} --message "v${version}: ${shellSafe(message)}"`);
 
 // ── 2. Tag the release in git (unique even if the version repeats) ────────────
 let tag = `v${version}`;
@@ -76,7 +99,7 @@ try {
     const sha = capture('git rev-parse --short HEAD');
     tag = `v${version}+${sha}`;
   }
-  run(`git tag -a ${tag} -m "${message}"`);
+  run(`git tag -a ${tag} -m "${shellSafe(message)}"`);
   run(`git push origin ${tag}`);
   console.log(`\n✓ Tagged ${tag} and pushed.`);
 } catch (e) {
@@ -98,7 +121,7 @@ function publishViaGh() {
   const tmp = path.join(require('os').tmpdir(), `fitcoach-release-${tag}.md`);
   fs.writeFileSync(tmp, releaseBody, 'utf8');
   try {
-    run(`gh release create ${tag} --title "${releaseTitle.replace(/"/g, '\\"')}" --notes-file "${tmp}" --latest`);
+    run(`gh release create ${tag} --title "${shellSafe(releaseTitle)}" --notes-file "${tmp}" --latest`);
     return true;
   } finally {
     fs.rmSync(tmp, { force: true });

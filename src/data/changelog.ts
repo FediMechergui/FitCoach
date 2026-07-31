@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.25',
+    date: '2026-07-31',
+    title: 'Fixed the "419.8000000000002 kcal left" ring',
+    highlights: [
+      'Fixed: the calories ring on Home sometimes showed a number with a dozen decimal places spilling onto two lines.',
+      'Nothing was actually wrong with the maths — adding up a day of food one entry at a time genuinely lands on 2054.2000000000003, because that is how computers add decimals. It just should never have reached the screen.',
+      'Daily totals are now cleaned where they are calculated rather than at each screen, so calories, protein, carbs, fat and fibre come out tidy everywhere they appear — the ring, the calorie strip, coach tips and projections all read from the same fixed number.',
+      'Checked the other calorie figures in the app while I was there (walks, sessions, diet plans, programme meals, the honest-log estimator) — those were already clean.',
+    ],
+  },
+  {
     version: '2.24',
     date: '2026-07-31',
     title: 'An RPE guide in every session, and no reps to enter on a failure set',

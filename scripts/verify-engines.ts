@@ -61,6 +61,7 @@ import {
   STIMULATING_REP_WINDOW,
 } from '../src/lib/effort';
 import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../src/lib/oneRepMax';
+import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
@@ -897,6 +898,38 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nNumber display — no floating-point tails:');
+{
+  /*
+   * The reported bug: the Home ring showed "419.8000000000002 kcal left".
+   * Nothing was wrong with the arithmetic — adding a day of food entries one at
+   * a time in binary floating point genuinely lands there. It just must never
+   * reach a screen.
+   */
+  const day = [280, 316.4, 500, 150.3, 205.7, 120.9, 164.2, 96.5, 84.8, 135.4];
+  const eaten = day.reduce((a, b) => a + b, 0);
+  check('A real day of entries does produce a float tail', !Number.isInteger(eaten) && String(eaten).length > 8, `${eaten}`);
+  check('Rounded intake is clean', roundKcal(eaten) === 2054, `${roundKcal(eaten)}`);
+  check('…and so is what is left of the target', roundKcal(2474 - eaten) === 420, `${roundKcal(2474 - eaten)}`);
+  check('A rounded kcal never renders more than 5 characters', String(roundKcal(2474 - eaten)).length <= 5);
+
+  check('roundTo kills the classic 0.1 + 0.2', roundTo(0.1 + 0.2, 2) === 0.3);
+  check('roundGrams keeps one decimal of real precision', roundGrams(52.63) === 52.6 && roundGrams(0.05) === 0.1);
+  check('Rounding is exact on whole numbers', roundKcal(2000) === 2000 && roundGrams(31) === 31);
+  check('Negative values round toward the right side', roundKcal(-0.4) === 0 && roundTo(-1.25, 1) === -1.2);
+  // A NaN reaching a screen renders the literal text "NaN", which is worse than
+  // a wrong number because it looks like a crash.
+  check('Non-finite input yields 0, never NaN on screen', roundKcal(NaN) === 0 && roundGrams(Infinity) === 0 && roundTo(NaN, 2) === 0);
+
+  // The repository must do the rounding, so every consumer inherits it rather
+  // than each screen having to remember.
+  const nutSrc = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
+  check('Daily totals are rounded in the repository', /calories: roundKcal\(total\.calories\)/.test(nutSrc) && /protein: roundGrams\(total\.protein\)/.test(nutSrc));
+  check('The trend rows are rounded too', /calories: roundKcal\(r\.calories\), protein: roundGrams\(r\.protein\)/.test(nutSrc));
+  const homeSrc = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  check('The Home ring rounds what it renders', /calRemaining = roundKcal\(/.test(homeSrc));
 }
 
 console.log('\nEffort — proximity to failure:');

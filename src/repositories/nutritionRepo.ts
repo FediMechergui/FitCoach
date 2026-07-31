@@ -10,6 +10,7 @@ import {
 import { BEVERAGE_PRESETS } from '@/data/beverages';
 import { estimateFromDescription } from '@/data/foods';
 import { scaleMicros, type MicroProfile } from '@/lib/micros';
+import { roundGrams, roundKcal } from '@/lib/format';
 import { todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -141,7 +142,23 @@ export function dayNutrition(date: string, userId: number = PRIMARY_USER_ID): Da
     if (e.logMode === 'honest') honestCount++;
     else preciseCount++;
   }
-  return { ...total, byMeal, honestCount, preciseCount };
+  /*
+   * Clean the sum, not the individual entries. Each entry is stored exactly as
+   * logged; it's adding them one at a time in binary floating point that
+   * produces 419.8000000000002. Rounding here means every consumer — the Home
+   * ring, the energy strip, coach tips, projections — inherits a clean number
+   * instead of each having to remember to round.
+   */
+  return {
+    calories: roundKcal(total.calories),
+    protein: roundGrams(total.protein),
+    carbs: roundGrams(total.carbs),
+    fat: roundGrams(total.fat),
+    fiber: roundGrams(total.fiber),
+    byMeal,
+    honestCount,
+    preciseCount,
+  };
 }
 
 // ── Beverages (water + caffeine) ─────────────────────────────────────────────
@@ -216,7 +233,9 @@ export function dailyIntakeSince(sinceISO: string, userId: number = PRIMARY_USER
     cur.protein += e.proteinG;
     map.set(e.date, cur);
   }
-  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return [...map.values()]
+    .map((r) => ({ ...r, calories: roundKcal(r.calories), protein: roundGrams(r.protein) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function avgWaterSince(sinceISO: string, userId: number = PRIMARY_USER_ID): number | null {

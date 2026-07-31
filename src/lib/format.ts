@@ -1,5 +1,30 @@
 /** Display formatting helpers, unit-aware where relevant. */
 
+/**
+ * Round to a fixed number of decimals, killing binary floating-point tails.
+ *
+ * Adding decimals in binary floating point does not give the answer you wrote
+ * down: 0.1 + 0.2 is 0.30000000000000004, and a day of food entries summed one
+ * by one lands on things like 419.8000000000002. That number is *correct* to
+ * fifteen decimal places and completely wrong to show a human, so totals get
+ * cleaned at the point they stop being intermediate values.
+ */
+export function roundTo(n: number, decimals = 0): number {
+  if (!Number.isFinite(n)) return 0;
+  const f = 10 ** decimals;
+  return Math.round(n * f) / f;
+}
+
+/** Calories, as a whole number. Nobody has ever needed 0.2 of a kcal. */
+export function roundKcal(n: number): number {
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+
+/** Macro grams, to one decimal — enough precision to matter, no tail. */
+export function roundGrams(n: number): number {
+  return roundTo(n, 1);
+}
+
 export function formatDuration(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));
   const h = Math.floor(s / 3600);

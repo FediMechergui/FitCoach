@@ -30,6 +30,7 @@ import { getPrayerSettings, prayersDone, togglePrayer, DAILY_PRAYERS } from '@/r
 import { SELF_CARE_ITEMS } from '@/lib/selfCare';
 import { PRAYER_NAMES } from '@/lib/prayers';
 import type { CoachTip } from '@/db/schema';
+import { roundKcal } from '@/lib/format';
 import { todayISO } from '@/lib/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -115,7 +116,10 @@ export function HomeScreen() {
 
   const calTarget = goal?.calorieTarget ?? 2200;
   const calConsumed = food?.calories ?? 0;
-  const calRemaining = Math.max(0, calTarget - calConsumed);
+  // Rounded even though dayNutrition already rounds its total: the subtraction
+  // itself can reintroduce a tail if the target is ever fractional, and this
+  // number is rendered raw into the ring.
+  const calRemaining = roundKcal(Math.max(0, calTarget - calConsumed));
   const waterGoal = goal?.waterGoalMl ?? 2500;
   const water = beverages?.hydrationMl ?? 0;
 

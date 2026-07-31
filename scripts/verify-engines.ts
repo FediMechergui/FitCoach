@@ -55,6 +55,8 @@ import {
   effortNotes,
   isUnderStimulatingLightSet,
   proximityLabel,
+  rpeMeaning,
+  RPE_SCALE,
   HARD_SET_MAX_RIR,
   STIMULATING_REP_WINDOW,
 } from '../src/lib/effort';
@@ -939,6 +941,26 @@ console.log('\nEffort — proximity to failure:');
 
   check('Proximity reads as plain words', proximityLabel(set(8, null, true)) === 'to failure' && proximityLabel(set(8, 8)) === '2 left' && proximityLabel(set(8, null)) === '');
 
+  // ── A failure set logged without a rep count ──
+  // Ticking "to failure" removes the rep box, so these have to behave.
+  const noReps = set(null, null, true);
+  check('A failure set with no reps is still a full hard set', hardSetCredit(noReps) === 1);
+  check('…still reads as 0 reps in reserve', repsInReserve(noReps) === 0);
+  check('…yields no stimulating-rep figure rather than a wrong one', stimulatingReps(noReps) === null);
+  check('…is not mistaken for a light-load miss', !isUnderStimulatingLightSet(noReps));
+  check('…and still labels itself', proximityLabel(noReps) === 'to failure');
+  check('…produces no 1RM estimate, since there is nothing to estimate from', estimate1RMFromSet({ weightKg: 100, reps: null, toFailure: true }) === 0);
+  const failureOnly = summariseEffort([noReps, noReps, noReps]);
+  check('A week of rep-less failure sets still counts as hard sets', failureOnly.effectiveSets === 3, `${failureOnly.effectiveSets}`);
+  check('…with a 100% failure share and 0 reserve', failureOnly.failureShare === 1 && failureOnly.avgRir === 0);
+
+  // ── The RPE scale, stated rather than assumed ──
+  check('The scale covers 10 down to 5', RPE_SCALE.length === 6 && RPE_SCALE[0].rpe === 10 && RPE_SCALE[RPE_SCALE.length - 1].rpe === 5);
+  check('RPE 10 is defined as failure, not "very hard"', /another rep/i.test(RPE_SCALE[0].meaning));
+  check('Each step matches its own reps-in-reserve', RPE_SCALE.every((s) => s.rpe < 6 || repsInReserve({ reps: 10, rpe: s.rpe, toFailure: false }) === 10 - s.rpe));
+  check('7–10 is marked as the productive range', RPE_SCALE.filter((s) => s.productive).map((s) => s.rpe).join(',') === '10,9,8,7');
+  check('rpeMeaning answers for any input, including junk', rpeMeaning(8).length > 0 && rpeMeaning(2).length > 0 && rpeMeaning(NaN) === '');
+
   // ── Summaries ──
   const mixed = summariseEffort([set(10, null, true), set(10, 8), set(10, 3), set(10, null)]);
   check('Effective sets discount the easy one only', mixed.effectiveSets === 3.25, `${mixed.effectiveSets} of ${mixed.rawSets}`);
@@ -1102,6 +1124,21 @@ console.log('\nCustom foods — calories from macros:');
   // downgrades it to an ordinary one.
   const storeSrc = fs.readFileSync('src/stores/sessionStore.ts', 'utf8');
   check('Repeat Last carries the failure flag', /toFailure: !!last\?\.toFailure/.test(storeSrc));
+
+  // Ticking "to failure" hides the rep box — and must also stop a rep count
+  // typed *before* the tick from being saved, or the field would be hidden
+  // while its old value still went to the database.
+  const uiSrc = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The rep field is hidden on a failure set', /f\.reps && !toFailure/.test(uiSrc));
+  check('A stale rep count is not saved once failure is ticked', /reps: f\.reps && reps && !\(isLifting && toFailure\)/.test(uiSrc));
+  check('RPE and failure are never asked for at the same time', /isLifting && !toFailure/.test(uiSrc));
+  check('The RPE guide appears in every lifting session', /<RpeGuide \/>/.test(uiSrc));
+
+  // Volume must treat "not recorded" as unknown rather than zero, or the
+  // overload trend collapses the moment someone logs rep-less failure sets.
+  const growthSrc = fs.readFileSync('src/repositories/growthRepo.ts', 'utf8');
+  check('Unknown volume is null, not zero', /volume: r\.weightKg != null && r\.reps != null \? r\.weightKg \* r\.reps : null/.test(growthSrc));
+  check('The overload trend compares only measured volume', /const measured = mRows\.filter\(\(r\) => r\.volume != null\)/.test(growthSrc));
 }
 
 console.log('\nGPS fix filtering (indoor drift & spinning):');

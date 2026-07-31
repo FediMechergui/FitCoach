@@ -26,6 +26,7 @@ import {
   stopSessionGps,
 } from '@/services/sessionGps';
 import { RouteMap } from '@/components/RouteMap';
+import { RpeGuide } from '@/components/RpeGuide';
 import type { LatLng } from '@/lib/geo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -336,6 +337,8 @@ function ExerciseSection({ detail, accent, isLifting }: { detail: ExerciseLogVie
   return (
     <View style={{ gap: theme.spacing.md }}>
       {isLifting && detail.length > 0 && <WarmupChecklist detail={detail} />}
+      {/* RPE means "reps left", not "how hard it felt" — say so in every session. */}
+      {isLifting && detail.length > 0 && <RpeGuide />}
 
       {detail.length > 0 && (
         <Row style={{ justifyContent: 'space-between' }}>
@@ -397,7 +400,7 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
 
   const addSet = () => {
     store.logSet(lv.log.id, {
-      reps: f.reps && reps ? parseInt(reps, 10) : null,
+      reps: f.reps && reps && !(isLifting && toFailure) ? parseInt(reps, 10) : null,
       weightKg: f.weight && weight ? parseFloat(weight) : null,
       rpe: isLifting && rpe ? parseFloat(rpe) : null,
       toFailure: isLifting && toFailure,
@@ -485,7 +488,7 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
             <Input label="Weight" value={weight} onChangeText={setWeight} placeholder="kg" keyboardType="numeric" />
           </View>
         )}
-        {f.reps && (
+        {f.reps && !toFailure && (
           <View style={{ flex: 1 }}>
             <Input label="Reps" value={reps} onChangeText={setReps} placeholder="0" keyboardType="numeric" />
           </View>

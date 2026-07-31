@@ -27,7 +27,13 @@ import { getNutritionGoal, getUser, latestWeight, PRIMARY_USER_ID } from './user
 interface SetRow {
   muscle: string | null;
   startTime: number;
-  volume: number;
+  /**
+   * weight x reps, or null when the set didn't record enough to know.
+   * Null is NOT zero: a set logged to failure without a rep count still
+   * happened, and counting it as zero volume would read as a collapse in the
+   * overload trend the moment someone started logging that way.
+   */
+  volume: number | null;
   sessionId: number;
   effort: SetEffort;
 }
@@ -53,7 +59,7 @@ function liftingSetRows(sinceMs: number, userId: number): SetRow[] {
     .map((r) => ({
       muscle: r.muscle,
       startTime: r.startTime,
-      volume: (r.weightKg ?? 0) * (r.reps ?? 0),
+      volume: r.weightKg != null && r.reps != null ? r.weightKg * r.reps : null,
       sessionId: r.sessionId,
       effort: { reps: r.reps, rpe: r.rpe, toFailure: !!r.toFailure },
     }));
@@ -104,11 +110,18 @@ export function growthReport(userId: number = PRIMARY_USER_ID): GrowthReport {
     const effectiveSetsThisWeek = summariseEffort(thisWeek.map((r) => r.effort)).effectiveSets;
     const avgEffectiveSetsPerWeek4w = effort.effectiveSets / 4;
 
-    // Overload: volume last 2 weeks vs prior 2 weeks.
-    const recentVol = mRows.filter((r) => now - r.startTime <= 2 * wk).reduce((s, r) => s + r.volume, 0);
-    const priorVol = mRows
+    /*
+     * Overload: volume last 2 weeks vs the prior 2. Sets with no measurable
+     * volume are excluded from BOTH sides rather than counted as zero, so the
+     * comparison stays like-for-like.
+     */
+    const measured = mRows.filter((r) => r.volume != null);
+    const recentVol = measured
+      .filter((r) => now - r.startTime <= 2 * wk)
+      .reduce((s, r) => s + (r.volume ?? 0), 0);
+    const priorVol = measured
       .filter((r) => now - r.startTime > 2 * wk && now - r.startTime <= 4 * wk)
-      .reduce((s, r) => s + r.volume, 0);
+      .reduce((s, r) => s + (r.volume ?? 0), 0);
     const overloadTrendPct =
       priorVol > 0 ? Math.round(((recentVol - priorVol) / priorVol) * 100) : null;
 

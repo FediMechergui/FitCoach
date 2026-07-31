@@ -129,6 +129,42 @@ export function isUnderStimulatingLightSet(e: SetEffort): boolean {
   return e.reps >= LOW_LOAD_REP_THRESHOLD && rir >= 3;
 }
 
+/**
+ * The RPE scale in plain words.
+ *
+ * RPE here is the **Reps In Reserve** version used in lifting, not the old
+ * 6–20 Borg cardio scale: the number answers "how many more reps could you have
+ * done?", so 10 means none and 8 means two. Anyone meeting it for the first
+ * time reasonably assumes it's a 1–10 "how hard did that feel" rating, which is
+ * a different thing entirely — hence the guide in every session.
+ */
+export interface RpeStep {
+  rpe: number;
+  /** short form for a compact strip: "2 left" */
+  short: string;
+  meaning: string;
+  /** in the productive range for growth */
+  productive: boolean;
+}
+
+export const RPE_SCALE: RpeStep[] = [
+  { rpe: 10, short: 'failure', meaning: 'Could not have done another rep.', productive: true },
+  { rpe: 9, short: '1 left', meaning: 'One more rep was in you, no more.', productive: true },
+  { rpe: 8, short: '2 left', meaning: 'Two more reps were in you.', productive: true },
+  { rpe: 7, short: '3 left', meaning: 'Three more reps — still hard, still counts.', productive: true },
+  { rpe: 6, short: '4 left', meaning: 'Four more. Starting to drift out of the growth range.', productive: false },
+  { rpe: 5, short: '5+ left', meaning: 'Comfortable. Warm-up territory.', productive: false },
+];
+
+/** What a given RPE means, for a one-line hint. */
+export function rpeMeaning(rpe: number): string {
+  if (!Number.isFinite(rpe)) return '';
+  const rounded = clamp(Math.round(rpe), 1, 10);
+  const step = RPE_SCALE.find((s) => s.rpe === rounded);
+  if (step) return step.meaning;
+  return RPE_SCALE[RPE_SCALE.length - 1].meaning; // anything ≤5 reads the same
+}
+
 /** Plain-language proximity, for the set list. */
 export function proximityLabel(e: SetEffort): string {
   if (e.toFailure) return 'to failure';

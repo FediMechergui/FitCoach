@@ -40,6 +40,8 @@ export const ICONS = {
     pr: def('MaterialCommunityIcons', 'trophy-award'),
     back: def('Ionicons', 'chevron-back'),
     forward: def('Ionicons', 'chevron-forward'),
+    chevronUp: def('Ionicons', 'chevron-up'),
+    chevronDown: def('Ionicons', 'chevron-down'),
     check: def('Ionicons', 'checkmark-circle'),
     checkFilled: def('Ionicons', 'checkbox'),
     checkEmpty: def('Ionicons', 'square-outline'),

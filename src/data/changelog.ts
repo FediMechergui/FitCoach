@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.24',
+    date: '2026-07-31',
+    title: 'An RPE guide in every session, and no reps to enter on a failure set',
+    highlights: [
+      'Tick "to failure" and the reps box disappears. You went until you could not go again — that is the log. Nothing else to type, and a rep count typed before you ticked it is dropped rather than quietly saved.',
+      'Every lifting session now carries a "What is RPE?" card. It is the one thing about the scale people get wrong: RPE is how many reps you had LEFT, not how hard the set felt out of 10. Tap it for the full breakdown — 10 is failure, 9 is one left, 8 is two, and roughly 7–10 is where growth happens.',
+      'Worth knowing about the trade: a failure set with no rep count still counts as a full hard set and still shows 0 reps in reserve, but it cannot produce an estimated 1RM or a PR, because there is no rep count to estimate from. If you want a lift tracked for strength, log the reps and use RPE instead.',
+      'Fixed alongside it: a set with no rep count no longer reads as zero volume, which would have made your overload trend look like a collapse the moment you started logging failure sets this way. Unmeasured sets are now excluded from the trend on both sides rather than counted as nothing.',
+    ],
+  },
+  {
     version: '2.23',
     date: '2026-07-31',
     title: 'Log sets to failure — and have it count properly',

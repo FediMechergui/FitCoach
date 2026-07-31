@@ -39,7 +39,8 @@ function describeSet(s: SetEntry): string {
   if (s.reps != null) parts.push(`${s.reps} reps`);
   if (s.durationS != null) parts.push(formatDuration(s.durationS));
   if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
-  if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
+  if (s.toFailure) parts.push('to failure');
+  else if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
   return parts.join(' · ') || '—';
 }
 

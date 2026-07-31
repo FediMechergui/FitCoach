@@ -41,6 +41,8 @@ export const ICONS = {
     back: def('Ionicons', 'chevron-back'),
     forward: def('Ionicons', 'chevron-forward'),
     check: def('Ionicons', 'checkmark-circle'),
+    checkFilled: def('Ionicons', 'checkbox'),
+    checkEmpty: def('Ionicons', 'square-outline'),
     close: def('Ionicons', 'close'),
     swap: def('MaterialCommunityIcons', 'swap-horizontal'),
     custom: def('MaterialCommunityIcons', 'shape-outline'),

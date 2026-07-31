@@ -109,20 +109,36 @@ export function GrowthScreen() {
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" color="textMuted">
-                ~{fmtNum(m.avgSetsPerWeek4w)} sets/wk (this week: {m.setsThisWeek})
+                ~{fmtNum(m.avgEffectiveSetsPerWeek4w)} hard sets/wk (this week: {fmtNum(m.effectiveSetsThisWeek)})
               </Text>
               <Text variant="caption" color="textMuted">
                 growth zone {OPTIMAL_SETS_MIN}–{OPTIMAL_SETS_MAX}
               </Text>
             </Row>
             {/* Sets bar against the 10–20 band */}
-            <ProgressBar progress={m.avgSetsPerWeek4w / OPTIMAL_SETS_MAX} color={color} />
+            <ProgressBar progress={m.avgEffectiveSetsPerWeek4w / OPTIMAL_SETS_MAX} color={color} />
             <Row style={{ justifyContent: 'space-between' }}>
               <MiniScore label="Volume" value={m.volumeScore} />
               <MiniScore label="Overload" value={m.overloadScore} />
               <MiniScore label="Recovery" value={m.recoveryScore} />
+              {m.effortScore != null && <MiniScore label="Effort" value={m.effortScore} />}
               <MiniScore label="Score" value={m.score} bold />
             </Row>
+            {/*
+              Proximity to failure, shown only when it was actually logged —
+              an empty stat is worse than no stat.
+            */}
+            {m.avgRir != null && (
+              <Text variant="caption" color="textMuted">
+                Averaging {fmtNum(m.avgRir)} rep{m.avgRir === 1 ? '' : 's'} in reserve
+                {m.failureSharePct != null && m.failureSharePct > 0
+                  ? ` · ${m.failureSharePct}% of sets to failure`
+                  : ''}
+                {m.avgSetsPerWeek4w > m.avgEffectiveSetsPerWeek4w + 0.5
+                  ? ` · ${fmtNum(m.avgSetsPerWeek4w)} logged, ${fmtNum(m.avgEffectiveSetsPerWeek4w)} counted`
+                  : ''}
+              </Text>
+            )}
             {m.overloadTrendPct != null && (
               <Text variant="caption" color={m.overloadTrendPct >= 0 ? 'success' : 'warning'}>
                 Volume trend: {m.overloadTrendPct >= 0 ? '+' : ''}{m.overloadTrendPct}% vs previous 2 weeks

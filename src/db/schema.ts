@@ -190,6 +190,12 @@ export const setEntries = sqliteTable('set_entries', {
   reps: integer('reps'),
   weightKg: real('weight_kg'),
   rpe: real('rpe'), // 1..10
+  /**
+   * Taken to momentary failure — no further rep was possible with good form.
+   * Stronger evidence than RPE (people round RPE; nobody ticks this by
+   * accident), so it wins when both are present and implies RPE 10 / 0 RIR.
+   */
+  toFailure: integer('to_failure', { mode: 'boolean' }).notNull().default(false),
   /** duration-tracked movements (cardio, holds, mobility) — seconds */
   durationS: integer('duration_s'),
   /** distance-tracked movements (row, run intervals) — metres */

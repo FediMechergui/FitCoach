@@ -26,8 +26,9 @@ import { seedExerciseLibrary } from './seed';
  *   14 → 15 v2.18: live_walks.boot_step_baseline (hardware step-counter baseline)
  *   15 → 16 v2.20: sessions.steps_added / distance_added_m (reversible deletes)
  *   16 → 17 v2.22: custom_foods table (user-entered foods)
+ *   17 → 18 v2.23: set_entries.to_failure (proximity-to-failure tracking)
  */
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -82,6 +83,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   // v16 — remember a session's step contribution so deleting it can undo it
   { table: 'sessions', column: 'steps_added', ddl: 'INTEGER' },
   { table: 'sessions', column: 'distance_added_m', ddl: 'REAL' },
+  // v18 — sets can be logged as taken to failure (proximity drives growth)
+  { table: 'set_entries', column: 'to_failure', ddl: 'INTEGER NOT NULL DEFAULT 0' },
 ];
 
 function ensureColumns(): void {
@@ -215,7 +218,8 @@ CREATE TABLE IF NOT EXISTS set_entries (
   duration_s INTEGER,
   distance_m REAL,
   is_pr INTEGER NOT NULL DEFAULT 0,
-  completed INTEGER NOT NULL DEFAULT 1
+  completed INTEGER NOT NULL DEFAULT 1,
+  to_failure INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_set_entries_log ON set_entries(exercise_log_id);
 

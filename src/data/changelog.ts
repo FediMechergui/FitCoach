@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.23',
+    date: '2026-07-31',
+    title: 'Log sets to failure — and have it count properly',
+    highlights: [
+      'Every strength and calisthenics set can now be logged as "to failure" instead of guessing an RPE. Tick it when you could not have done one more rep.',
+      'Why it matters: muscle fibres are recruited smallest-first, so the biggest, most growth-responsive ones only join in during the closing reps of a hard set. Stop five reps early and they were barely involved. A set is now counted for how close it came, not just that it happened.',
+      'Growth stats moved from counting sets to counting HARD sets. Anything within 4 reps of failure counts in full; past that it tapers to nothing by 8 reps in reserve. Fourteen easy sets no longer read as fourteen hard ones — you will see "logged" vs "counted" when they differ.',
+      'A new Effort score per muscle shows your average reps in reserve and what share of sets went to failure — but only once you have actually logged some. No data, no score, no guessing.',
+      'Failure is NOT treated as the goal, because the evidence does not support that. Training close to failure is modestly better for growth; going to failure on everything is not, and for strength it is slightly worse — more fatigue, fewer reps in the sets after it. Living at failure scores LOWER than a mixed near-failure approach, and the app says why.',
+      'The exception, and it matters for calisthenics: with light loads and high reps, proximity stops being optional. Twenty push-ups with five left in the tank is a genuinely weaker stimulus than twenty taken close to the limit. Those sets now get flagged.',
+      'Estimated 1RM is more accurate. The Epley and Brzycki formulas were built from sets taken to failure — feeding them a set with three reps in reserve breaks the premise and under-rates you. A set with a known RPE is now corrected upward by its reserve, so 100 kg × 5 at RPE 7 reads ~127 kg rather than ~117 kg. PRs use the corrected figure too.',
+      'Sets with no RPE and no failure flag are untouched — same estimate, same full set credit. Nothing in your history moves, and nobody who never used RPE sees their Growth screen change.',
+      '"Repeat Last" carries the failure flag, and a failure set records RPE 10 alongside it, so nothing that reads RPE sees a blank on your hardest set of the day.',
+    ],
+  },
+  {
     version: '2.22',
     date: '2026-07-29',
     title: 'Every food has micronutrients — and you can add your own',

@@ -7,6 +7,7 @@ import {
   type GrowthGates,
   type MuscleGrowthScore,
 } from '@/lib/growth';
+import { summariseEffort, type SetEffort } from '@/lib/effort';
 import { MUSCLE_GROUPS } from '@/data/exercises';
 import { daysAgoISO, toISODate } from '@/lib/date';
 import { dailyIntakeSince } from './nutritionRepo';
@@ -15,7 +16,12 @@ import { getNutritionGoal, getUser, latestWeight, PRIMARY_USER_ID } from './user
 
 /**
  * Aggregates real training logs into per-muscle growth-readiness scores.
- * A "hard set" = a completed set on an exercise whose primaryMuscle matches.
+ *
+ * A set counts as a hard set in proportion to how close it was to failure (see
+ * lib/effort): a set with 6 reps left in the tank is not the same stimulus as
+ * one taken to the limit, and counting both as "1 set" overstates the first.
+ * Sets with no effort data — everything logged before this existed — still
+ * count in full, so nobody's history deflates overnight.
  */
 
 interface SetRow {
@@ -23,6 +29,7 @@ interface SetRow {
   startTime: number;
   volume: number;
   sessionId: number;
+  effort: SetEffort;
 }
 
 function liftingSetRows(sinceMs: number, userId: number): SetRow[] {
@@ -32,6 +39,8 @@ function liftingSetRows(sinceMs: number, userId: number): SetRow[] {
       startTime: sessions.startTime,
       weightKg: setEntries.weightKg,
       reps: setEntries.reps,
+      rpe: setEntries.rpe,
+      toFailure: setEntries.toFailure,
       sessionId: sessions.id,
     })
     .from(setEntries)
@@ -46,6 +55,7 @@ function liftingSetRows(sinceMs: number, userId: number): SetRow[] {
       startTime: r.startTime,
       volume: (r.weightKg ?? 0) * (r.reps ?? 0),
       sessionId: r.sessionId,
+      effort: { reps: r.reps, rpe: r.rpe, toFailure: !!r.toFailure },
     }));
 }
 
@@ -85,8 +95,14 @@ export function growthReport(userId: number = PRIMARY_USER_ID): GrowthReport {
   const muscles: MuscleGrowthScore[] = [];
   for (const muscle of MUSCLE_GROUPS) {
     const mRows = rows.filter((r) => r.muscle === muscle);
-    const setsThisWeek = mRows.filter((r) => now - r.startTime <= wk).length;
+    const thisWeek = mRows.filter((r) => now - r.startTime <= wk);
+    const setsThisWeek = thisWeek.length;
     const avgSetsPerWeek4w = mRows.length / 4;
+
+    // Proximity-weighted counts — what the volume score is actually built on.
+    const effort = summariseEffort(mRows.map((r) => r.effort));
+    const effectiveSetsThisWeek = summariseEffort(thisWeek.map((r) => r.effort)).effectiveSets;
+    const avgEffectiveSetsPerWeek4w = effort.effectiveSets / 4;
 
     // Overload: volume last 2 weeks vs prior 2 weeks.
     const recentVol = mRows.filter((r) => now - r.startTime <= 2 * wk).reduce((s, r) => s + r.volume, 0);
@@ -115,6 +131,9 @@ export function growthReport(userId: number = PRIMARY_USER_ID): GrowthReport {
           muscle,
           setsThisWeek,
           avgSetsPerWeek4w,
+          effectiveSetsThisWeek,
+          avgEffectiveSetsPerWeek4w,
+          effort,
           overloadTrendPct,
           avgRestDays,
           sessionsPerWeek: days.length / 4,

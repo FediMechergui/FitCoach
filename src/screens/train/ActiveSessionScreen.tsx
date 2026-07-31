@@ -391,6 +391,7 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
   const [rpe, setRpe] = useState('');
+  const [toFailure, setToFailure] = useState(false);
   const [minutes, setMinutes] = useState('');
   const [distanceKm, setDistanceKm] = useState('');
 
@@ -399,12 +400,15 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
       reps: f.reps && reps ? parseInt(reps, 10) : null,
       weightKg: f.weight && weight ? parseFloat(weight) : null,
       rpe: isLifting && rpe ? parseFloat(rpe) : null,
+      toFailure: isLifting && toFailure,
       durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
       distanceM: f.distance && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
     });
     setReps('');
     setWeight('');
     setRpe('');
+    // Deliberately NOT reset: failure sets usually come in a run, and re-ticking
+    // it every set is how it stops getting logged at all.
     setMinutes('');
     setDistanceKm('');
     if (isLifting) store.startRest(store.restDurationS);
@@ -416,7 +420,8 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
     if (s.reps != null) parts.push(`${s.reps} reps`);
     if (s.durationS != null) parts.push(formatDuration(s.durationS));
     if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
-    if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
+    if (s.toFailure) parts.push('to failure');
+    else if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
     return parts.join(' · ') || 'logged';
   };
 
@@ -495,12 +500,28 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
             <Input label="Distance" value={distanceKm} onChangeText={setDistanceKm} placeholder="km" keyboardType="numeric" />
           </View>
         )}
-        {isLifting && (
+        {isLifting && !toFailure && (
           <View style={{ width: 64 }}>
             <Input label="RPE" value={rpe} onChangeText={setRpe} placeholder="–" keyboardType="numeric" />
           </View>
         )}
       </Row>
+      {isLifting && (
+        <Pressable onPress={() => setToFailure((v) => !v)} hitSlop={6}>
+          <Row gap={8} style={{ alignItems: 'center' }}>
+            <Icon
+              icon={toFailure ? 'core.checkFilled' : 'core.checkEmpty'}
+              size={18}
+              color={toFailure ? theme.colors.warning : theme.colors.textFaint}
+            />
+            <Text variant="caption" color={toFailure ? 'warning' : 'textMuted'} style={{ flex: 1 }}>
+              {toFailure
+                ? 'To failure — no rep left. Counts as RPE 10, and the reps become a real capacity test.'
+                : 'To failure? Tick if you could not have done one more.'}
+            </Text>
+          </Row>
+        </Pressable>
+      )}
       <Row>
         <Button title={isLifting ? 'Add Set' : 'Log'} icon="core.add" size="sm" onPress={addSet} style={{ flex: 2 }} fullWidth={false} />
         {isLifting && (

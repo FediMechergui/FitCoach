@@ -8,7 +8,7 @@ import {
   type SessionType,
 } from '@/db/schema';
 import { daysAgoISO, startOfWeek, toISODate, todayISO } from '@/lib/date';
-import { estimate1RM, type ORMFormula } from '@/lib/oneRepMax';
+import { estimate1RMFromSet, type ORMFormula } from '@/lib/oneRepMax';
 import { PRIMARY_USER_ID } from './userRepo';
 
 // ── Per-exercise progression (1RM + volume over time) ───────────────────────
@@ -29,6 +29,8 @@ export function exerciseProgression(
       startTime: sessions.startTime,
       reps: setEntries.reps,
       weightKg: setEntries.weightKg,
+      rpe: setEntries.rpe,
+      toFailure: setEntries.toFailure,
     })
     .from(setEntries)
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
@@ -47,7 +49,7 @@ export function exerciseProgression(
     if (!r.weightKg || !r.reps) continue;
     const date = toISODate(new Date(r.startTime));
     const cur = byDay.get(date) ?? { date, best1RM: 0, volume: 0, topWeight: 0 };
-    cur.best1RM = Math.max(cur.best1RM, estimate1RM(r.weightKg, r.reps, formula));
+    cur.best1RM = Math.max(cur.best1RM, estimate1RMFromSet(r, formula));
     cur.topWeight = Math.max(cur.topWeight, r.weightKg);
     cur.volume += r.weightKg * r.reps;
     byDay.set(date, cur);
@@ -71,6 +73,8 @@ export function personalRecords(limit = 50, userId: number = PRIMARY_USER_ID): P
       exerciseName: exercises.name,
       reps: setEntries.reps,
       weightKg: setEntries.weightKg,
+      rpe: setEntries.rpe,
+      toFailure: setEntries.toFailure,
     })
     .from(setEntries)
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
@@ -87,7 +91,7 @@ export function personalRecords(limit = 50, userId: number = PRIMARY_USER_ID): P
       exerciseName: r.exerciseName,
       weightKg: r.weightKg!,
       reps: r.reps!,
-      est1RM: estimate1RM(r.weightKg!, r.reps!),
+      est1RM: estimate1RMFromSet(r),
     }));
 }
 

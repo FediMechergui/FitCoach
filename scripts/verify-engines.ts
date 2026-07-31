@@ -46,6 +46,19 @@ import { evaluateAchievement, TRACKED_ACHIEVEMENT_COUNT } from '../src/lib/achie
 import type { AchievementStats } from '../src/repositories/achievementsRepo';
 import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
 import { FOOD_COMPOSITES, deriveMacros } from '../src/data/foodComposites';
+import {
+  repsInReserve,
+  stimulatingReps,
+  hardSetCredit,
+  summariseEffort,
+  effortScore,
+  effortNotes,
+  isUnderStimulatingLightSet,
+  proximityLabel,
+  HARD_SET_MAX_RIR,
+  STIMULATING_REP_WINDOW,
+} from '../src/lib/effort';
+import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../src/lib/oneRepMax';
 import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
 import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
@@ -257,13 +270,16 @@ const fsMorning = fastingState(ifWin, new Date(2026, 6, 15, 9, 0));
 check('16:8 morning → fasting, eats at 12:00', fsMorning.fasting === true && fsMorning.nextTime === '12:00', `${fsMorning.fasting} ${fsMorning.nextTime}`);
 
 console.log('\nMuscle growth model:');
+/** Sets carrying no effort data — how every set logged before v2.23 looks. */
+const blankEffort = (n: number) =>
+  summariseEffort(Array.from({ length: n }, () => ({ reps: 10, rpe: null, toFailure: false })));
 const gGood = scoreMuscle(
-  { muscle: 'chest', setsThisWeek: 14, avgSetsPerWeek4w: 14, overloadTrendPct: 8, avgRestDays: 3, sessionsPerWeek: 2 },
+  { muscle: 'chest', setsThisWeek: 14, avgSetsPerWeek4w: 14, effectiveSetsThisWeek: 14, avgEffectiveSetsPerWeek4w: 14, effort: blankEffort(56), overloadTrendPct: 8, avgRestDays: 3, sessionsPerWeek: 2 },
   { proteinOk: true, sleepOk: true, calorieOk: true }
 );
 check('In-band + gates → growing', gGood.status === 'growing' && gGood.score >= 70, `${gGood.status} ${gGood.score}`);
 const gNone = scoreMuscle(
-  { muscle: 'calves', setsThisWeek: 0, avgSetsPerWeek4w: 0, overloadTrendPct: null, avgRestDays: null, sessionsPerWeek: 0 },
+  { muscle: 'calves', setsThisWeek: 0, avgSetsPerWeek4w: 0, effectiveSetsThisWeek: 0, avgEffectiveSetsPerWeek4w: 0, effort: blankEffort(0), overloadTrendPct: null, avgRestDays: null, sessionsPerWeek: 0 },
   { proteinOk: true, sleepOk: true, calorieOk: true }
 );
 check('0 sets → under-stimulated', gNone.status === 'under-stimulated');
@@ -881,6 +897,113 @@ console.log('\nSchema ↔ migration integrity:');
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
 }
 
+console.log('\nEffort — proximity to failure:');
+{
+  const set = (reps: number | null, rpe: number | null, toFailure = false) => ({ reps, rpe, toFailure });
+
+  // ── Reps in reserve ──
+  check('A set marked to failure has 0 reps in reserve', repsInReserve(set(8, null, true)) === 0);
+  check('RPE 8 means 2 reps in reserve', repsInReserve(set(8, 8)) === 2);
+  check('RPE 10 means failure', repsInReserve(set(8, 10)) === 0);
+  check('No RPE and no flag means unknown, not zero', repsInReserve(set(8, null)) === null);
+  // People round RPE; nobody ticks "to failure" by accident.
+  check('An explicit failure flag outranks a contradicting RPE', repsInReserve(set(8, 7, true)) === 0);
+
+  // ── Stimulating reps (the model) ──
+  check('A set to failure yields the full stimulating window', stimulatingReps(set(10, null, true)) === STIMULATING_REP_WINDOW);
+  check('2 in reserve yields 3 stimulating reps', stimulatingReps(set(10, 8)) === 3);
+  check('5+ in reserve yields none', stimulatingReps(set(10, 5)) === 0);
+  check('A short set cannot yield more stimulating reps than it has', stimulatingReps(set(2, null, true)) === 2);
+  check('Unknown effort yields no number rather than a guess', stimulatingReps(set(10, null)) === null);
+
+  // ── Hard-set credit ──
+  check('A set to failure is a full hard set', hardSetCredit(set(10, null, true)) === 1);
+  check(`Anything within ${HARD_SET_MAX_RIR} of failure is a full hard set`, hardSetCredit(set(10, 6)) === 1);
+  check('An easy set is discounted, not erased', hardSetCredit(set(10, 4)) > 0 && hardSetCredit(set(10, 4)) < 1, `${hardSetCredit(set(10, 4))}`);
+  check('A set 8 from failure counts for nothing', hardSetCredit(set(10, 2)) === 0);
+  /*
+   * The log-safety guarantee. Every set logged before this feature existed has
+   * no RPE and no failure flag; if those counted for less, the entire back
+   * catalogue of training would appear to shrink the day the update landed.
+   */
+  check('Unknown effort still counts as a full set (log-safe)', hardSetCredit(set(10, null)) === 1);
+  check('Credit never rises above 1 or falls below 0', [0, 1, 3, 5, 7, 9, 10].every((rpe) => { const c = hardSetCredit(set(10, rpe)); return c >= 0 && c <= 1; }));
+  // Credit must fall monotonically as the set gets easier.
+  const credits = [10, 9, 8, 7, 6, 5, 4, 3, 2].map((rpe) => hardSetCredit(set(10, rpe)));
+  check('Credit falls monotonically as reserve grows', credits.every((c, idx) => idx === 0 || c <= credits[idx - 1]), credits.join(' '));
+
+  // ── The light-load exception (calisthenics) ──
+  check('20 easy push-ups are flagged as under-stimulating', isUnderStimulatingLightSet(set(20, 6)));
+  check('20 push-ups to failure are not', !isUnderStimulatingLightSet(set(20, null, true)));
+  check('A heavy set of 5 with reserve is not a light-load miss', !isUnderStimulatingLightSet(set(5, 6)));
+
+  check('Proximity reads as plain words', proximityLabel(set(8, null, true)) === 'to failure' && proximityLabel(set(8, 8)) === '2 left' && proximityLabel(set(8, null)) === '');
+
+  // ── Summaries ──
+  const mixed = summariseEffort([set(10, null, true), set(10, 8), set(10, 3), set(10, null)]);
+  check('Effective sets discount the easy one only', mixed.effectiveSets === 3.25, `${mixed.effectiveSets} of ${mixed.rawSets}`);
+  check('Average reserve ignores the unrated set', mixed.avgRir === 3, `${mixed.avgRir}`);
+  check('Failure share is measured against every set', Math.abs(mixed.failureShare - 0.25) < 1e-9);
+  check('Known share reports how much data we actually have', Math.abs(mixed.knownShare - 0.75) < 1e-9);
+
+  // ── Effort score ──
+  const allBlank = summariseEffort(Array.from({ length: 10 }, () => set(10, null)));
+  check('No effort data → no effort score (stay quiet)', effortScore(allBlank) === null);
+  check('No effort data → a prompt, not a judgement', effortNotes(allBlank).some((n) => /RPE|to failure/i.test(n)));
+  const productive = summariseEffort([set(10, 9), set(10, 8), set(10, null, true), set(10, 9)]);
+  check('Training near failure scores full marks', effortScore(productive) === 100, `${effortScore(productive)}`);
+  const tooEasy = summariseEffort(Array.from({ length: 8 }, () => set(10, 4)));
+  check('Training far from failure scores poorly', (effortScore(tooEasy) ?? 100) <= 45, `${effortScore(tooEasy)}`);
+  check('…and says why', effortNotes(tooEasy).some((n) => /reps in reserve/i.test(n)));
+  /*
+   * Failure is not the goal. Going to failure on everything buys little extra
+   * growth, costs reps in the following sets and does nothing for strength — so
+   * the score has to stop rewarding it past a point, or the app would coach
+   * people into a hole.
+   */
+  const alwaysFailure = summariseEffort(Array.from({ length: 10 }, () => set(10, null, true)));
+  check('Everything to failure scores BELOW a mixed near-failure approach', (effortScore(alwaysFailure) ?? 0) < (effortScore(productive) ?? 0), `${effortScore(alwaysFailure)} vs ${effortScore(productive)}`);
+  check('…and warns about the cost', effortNotes(alwaysFailure).some((n) => /save it for the last set/i.test(n)));
+
+  // ── 1RM: the formulas assume a set taken to failure ──
+  check('Reps to failure add the reserve on', repsAtFailureEquivalent(5, set(5, 7)) === 8);
+  check('A set to failure needs no correction', repsAtFailureEquivalent(5, set(5, null, true)) === 5);
+  check('Unknown effort leaves the rep count alone', repsAtFailureEquivalent(5, set(5, null)) === 5);
+  const failed5 = estimate1RMFromSet({ weightKg: 100, reps: 5, toFailure: true });
+  const easy5 = estimate1RMFromSet({ weightKg: 100, reps: 5, rpe: 7 });
+  check('100kg×5 to failure estimates ~117kg', Math.abs(failed5 - 116.7) < 0.2, `${failed5}`);
+  check('The same set with 3 in reserve implies MORE strength', easy5 > failed5, `${easy5} vs ${failed5}`);
+  check('…and lands near 127kg', Math.abs(easy5 - 126.7) < 0.2, `${easy5}`);
+  // Unchanged for every set that carries no effort data — the historical case.
+  check('An unrated set estimates exactly as it always did', estimate1RMFromSet({ weightKg: 100, reps: 5 }) === estimate1RM(100, 5));
+  check('Confidence is highest for a set taken to failure', ormConfidence({ toFailure: true }) === 'high' && ormConfidence({ rpe: 8 }) === 'medium' && ormConfidence({}) === 'low');
+}
+
+console.log('\nGrowth engine — effort dimension:');
+{
+  const sets = (n: number, rpe: number | null, toFailure = false) =>
+    summariseEffort(Array.from({ length: n }, () => ({ reps: 10, rpe, toFailure })));
+  const gates = { proteinOk: true, sleepOk: true, calorieOk: true };
+  const base = { muscle: 'chest', overloadTrendPct: 8, avgRestDays: 3, sessionsPerWeek: 2 };
+
+  // Same 14 sets a week, logged three different ways.
+  const unrated = scoreMuscle({ ...base, setsThisWeek: 14, avgSetsPerWeek4w: 14, effectiveSetsThisWeek: 14, avgEffectiveSetsPerWeek4w: 14, effort: sets(56, null) }, gates);
+  const hard = scoreMuscle({ ...base, setsThisWeek: 14, avgSetsPerWeek4w: 14, effectiveSetsThisWeek: 14, avgEffectiveSetsPerWeek4w: 14, effort: sets(56, 9) }, gates);
+  const easy = scoreMuscle({ ...base, setsThisWeek: 14, avgSetsPerWeek4w: 14, effectiveSetsThisWeek: 7, avgEffectiveSetsPerWeek4w: 7, effort: sets(56, 4) }, gates);
+
+  check('Effort score is hidden when nothing was logged', unrated.effortScore === null);
+  check('Effort score appears once sets are rated', hard.effortScore === 100, `${hard.effortScore}`);
+  check('Hard training outscores the same count of easy sets', hard.score > easy.score, `${hard.score} vs ${easy.score}`);
+  check('Fourteen easy sets no longer read as fourteen hard ones', easy.avgEffectiveSetsPerWeek4w === 7 && easy.volumeScore < hard.volumeScore, `${easy.volumeScore} vs ${hard.volumeScore}`);
+  check('Reserve and failure share are reported back', hard.avgRir === 1 && hard.failureSharePct === 0, `rir ${hard.avgRir}`);
+  /*
+   * The whole update has to be invisible to anyone who never logs effort. If an
+   * unrated week scored differently after this change, every existing user
+   * would open the app to a Growth screen that had moved for no reason.
+   */
+  check('An unrated week scores exactly as before the feature', unrated.score === Math.round(unrated.volumeScore * 0.45 + unrated.overloadScore * 0.25 + unrated.recoveryScore * 0.3), `${unrated.score}`);
+}
+
 console.log('\nCustom foods — calories from macros:');
 {
   check('Atwater basics: 10P/10C/10F = 170 kcal', caloriesFromMacros({ protein: 10, carbs: 10, fat: 10 }) === 170, `${caloriesFromMacros({ protein: 10, carbs: 10, fat: 10 })}`);
@@ -928,13 +1051,57 @@ console.log('\nCustom foods — calories from macros:');
   // on every existing install (the CREATE block is what reaches them).
   const bootSrc = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
   check('custom_foods is in the CREATE TABLE DDL', /CREATE TABLE IF NOT EXISTS custom_foods/.test(bootSrc));
-  check('Schema version was bumped for it', /SCHEMA_VERSION = 17/.test(bootSrc));
   // Custom foods must never be written into the shipped catalogue, which is
   // replaced wholesale on every app update.
   const repoSrc = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
   check('Custom foods live in their own table, not FOOD_DB', !/FOOD_DB\.push|FOOD_DB\s*=/.test(repoSrc));
   check('Custom food ids are namespaced away from catalogue ids', /CUSTOM_FOOD_PREFIX = 'custom:'/.test(repoSrc));
   check('Custom foods carry no invented micronutrients', !/micros:/.test(repoSrc));
+}
+{
+  /*
+   * A column added to the Drizzle schema but not to ADDED_COLUMNS throws "no
+   * such column" on every existing install. It has happened before, so the
+   * pairing is enforced rather than remembered.
+   */
+  const bootSrc = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('to_failure is in the CREATE TABLE DDL (fresh installs)', /to_failure INTEGER NOT NULL DEFAULT 0\s*\);/.test(bootSrc));
+  check('to_failure is in ADDED_COLUMNS (existing installs)', /table: 'set_entries', column: 'to_failure'/.test(bootSrc));
+  check('Schema version was bumped for it', /SCHEMA_VERSION = 18/.test(bootSrc));
+
+  // A failure set IS RPE 10; storing only the flag would leave every older
+  // reader of `rpe` seeing a blank where the hardest set of the day was.
+  const sessSrc = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('Logging to failure also records RPE 10', /rpe: draft\.toFailure \? 10 : draft\.rpe/.test(sessSrc));
+  check('PR detection uses the effort-corrected estimate', /estimate1RMFromSet\(s\)/.test(sessSrc) && !/estimate1RM\(s\.weightKg/.test(sessSrc));
+
+  /*
+   * A 1RM estimate needs rpe and to_failure in its query, or the correction is
+   * silently skipped and that screen keeps the old under-estimate while the
+   * others move — the worst kind of bug, because both numbers look plausible.
+   * Volume queries don't need them, so the invariant is: a file can't estimate
+   * 1RM in more places than it has effort-bearing queries.
+   */
+  for (const f of ['src/repositories/statsRepo.ts', 'src/repositories/cardRepo.ts', 'src/repositories/sessionRepo.ts']) {
+    const s = fs.readFileSync(f, 'utf8');
+    const estimates = (s.match(/estimate1RMFromSet\(/g) ?? []).length;
+    // An unprojected `.select()` returns every column, so it carries effort too.
+    const effortQueries =
+      (s.match(/toFailure: setEntries\.toFailure/g) ?? []).length +
+      (s.match(/\.select\(\)\s*\r?\n\s*\.from\(setEntries\)/g) ?? []).length;
+    check(
+      `${f.split('/').pop()} selects effort wherever it estimates 1RM`,
+      effortQueries >= estimates,
+      `${estimates} estimate(s), ${effortQueries} effort-bearing quer(ies)`
+    );
+  }
+  // growthRepo doesn't estimate 1RM but does need effort for set weighting.
+  check('growthRepo reads effort for its set weighting', /toFailure: setEntries\.toFailure/.test(fs.readFileSync('src/repositories/growthRepo.ts', 'utf8')));
+
+  // "Repeat Last" must carry the flag, or repeating a failure set quietly
+  // downgrades it to an ordinary one.
+  const storeSrc = fs.readFileSync('src/stores/sessionStore.ts', 'utf8');
+  check('Repeat Last carries the failure flag', /toFailure: !!last\?\.toFailure/.test(storeSrc));
 }
 
 console.log('\nGPS fix filtering (indoor drift & spinning):');

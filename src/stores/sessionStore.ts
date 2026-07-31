@@ -146,6 +146,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       reps: last?.reps ?? null,
       weightKg: last?.weightKg ?? null,
       rpe: last?.rpe ?? null,
+      toFailure: !!last?.toFailure,
     });
     get().refresh();
   },

@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { exerciseLogs, exercises, sessions, setEntries } from '@/db/schema';
 import { computeRating, type CardRating, type RatingInputs } from '@/lib/rating';
-import { estimate1RM } from '@/lib/oneRepMax';
+import { estimate1RMFromSet } from '@/lib/oneRepMax';
 import { daysAgoISO, toISODate } from '@/lib/date';
 import { currentStreak } from './statsRepo';
 import { dailyIntakeSince } from './nutritionRepo';
@@ -19,6 +19,8 @@ function topLiftsBest1RM(userId: number): number {
       exerciseId: exerciseLogs.exerciseId,
       reps: setEntries.reps,
       weightKg: setEntries.weightKg,
+      rpe: setEntries.rpe,
+      toFailure: setEntries.toFailure,
     })
     .from(setEntries)
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
@@ -30,7 +32,7 @@ function topLiftsBest1RM(userId: number): number {
   const bestByExercise = new Map<number, number>();
   for (const r of rows) {
     if (!r.weightKg || !r.reps) continue;
-    const e = estimate1RM(r.weightKg, r.reps);
+    const e = estimate1RMFromSet(r);
     bestByExercise.set(r.exerciseId, Math.max(bestByExercise.get(r.exerciseId) ?? 0, e));
   }
   const top3 = [...bestByExercise.values()].sort((a, b) => b - a).slice(0, 3);

@@ -1,4 +1,5 @@
 import { clamp } from './format';
+import { effortNotes, effortScore, type EffortSummary } from './effort';
 
 /**
  * Muscle-growth estimation — honest by design.
@@ -7,7 +8,9 @@ import { clamp } from './format';
  * well your logged behaviour matches the conditions research consistently ties
  * to growth, and report a transparent "growth readiness" per muscle:
  *
- *  • Volume        — ~10–20 hard sets per muscle per week
+ *  • Volume        — ~10–20 hard sets per muscle per week, where a "hard set"
+ *                    is weighted by how close it came to failure (lib/effort)
+ *  • Effort        — sets landing in the productive 0–3 reps-in-reserve band
  *  • Overload      — volume/load trending up across weeks
  *  • Frequency/rest — hitting a muscle ~2×/week with 48–72 h between
  *  • Protein       — ~1.6–2.2 g/kg/day
@@ -24,6 +27,10 @@ export interface MuscleGrowthInputs {
   muscle: string;
   setsThisWeek: number;
   avgSetsPerWeek4w: number;
+  /** proximity-weighted set counts — the ones the volume score actually uses */
+  effectiveSetsThisWeek: number;
+  avgEffectiveSetsPerWeek4w: number;
+  effort: EffortSummary;
   /** volume last 2 weeks vs prior 2 weeks, as % change */
   overloadTrendPct: number | null;
   /** average days between sessions hitting this muscle */
@@ -44,8 +51,14 @@ export interface MuscleGrowthScore {
   volumeScore: number;
   overloadScore: number;
   recoveryScore: number;
+  /** null when there isn't enough effort data to judge — the UI hides it */
+  effortScore: number | null;
   setsThisWeek: number;
   avgSetsPerWeek4w: number;
+  effectiveSetsThisWeek: number;
+  avgEffectiveSetsPerWeek4w: number;
+  avgRir: number | null;
+  failureSharePct: number | null;
   overloadTrendPct: number | null;
   notes: string[];
 }
@@ -53,9 +66,11 @@ export interface MuscleGrowthScore {
 export function scoreMuscle(i: MuscleGrowthInputs, gates: GrowthGates): MuscleGrowthScore {
   const notes: string[] = [];
 
-  // Volume: 0 at 0 sets, full inside the 10–20 band, taper above 24 (junk volume).
+  // Volume: 0 at 0 sets, full inside the 10–20 band, taper above 24 (junk
+  // volume). Measured in EFFECTIVE sets, so ten genuinely hard sets outrank
+  // fifteen half-hearted ones — which is how growth actually works.
   let volumeScore: number;
-  const s = i.avgSetsPerWeek4w;
+  const s = i.avgEffectiveSetsPerWeek4w;
   if (s <= 0) volumeScore = 0;
   else if (s < OPTIMAL_SETS_MIN) volumeScore = (s / OPTIMAL_SETS_MIN) * 70;
   else if (s <= OPTIMAL_SETS_MAX) volumeScore = 100;
@@ -95,7 +110,18 @@ export function scoreMuscle(i: MuscleGrowthInputs, gates: GrowthGates): MuscleGr
   }
   if (!gates.calorieOk) notes.push('A harsh calorie deficit limits muscle gain — expect maintenance at best.');
 
-  const score = Math.round(volumeScore * 0.45 + overloadScore * 0.25 + recoveryScore * 0.3);
+  /*
+   * Effort only joins the score once there's enough of it to mean something.
+   * Without that guard, everyone who has never touched the RPE field would see
+   * their score move for a reason that has nothing to do with their training.
+   */
+  const eScore = effortScore(i.effort);
+  for (const n of effortNotes(i.effort)) notes.push(n);
+
+  const score =
+    eScore == null
+      ? Math.round(volumeScore * 0.45 + overloadScore * 0.25 + recoveryScore * 0.3)
+      : Math.round(volumeScore * 0.4 + overloadScore * 0.2 + recoveryScore * 0.25 + eScore * 0.15);
 
   let status: MuscleGrowthScore['status'];
   if (s === 0) status = 'under-stimulated';
@@ -111,8 +137,13 @@ export function scoreMuscle(i: MuscleGrowthInputs, gates: GrowthGates): MuscleGr
     volumeScore: Math.round(volumeScore),
     overloadScore: Math.round(overloadScore),
     recoveryScore: Math.round(recoveryScore),
+    effortScore: eScore,
     setsThisWeek: i.setsThisWeek,
     avgSetsPerWeek4w: Math.round(i.avgSetsPerWeek4w * 10) / 10,
+    effectiveSetsThisWeek: Math.round(i.effectiveSetsThisWeek * 10) / 10,
+    avgEffectiveSetsPerWeek4w: Math.round(i.avgEffectiveSetsPerWeek4w * 10) / 10,
+    avgRir: i.effort.avgRir,
+    failureSharePct: i.effort.knownShare > 0 ? Math.round(i.effort.failureShare * 100) : null,
     overloadTrendPct: i.overloadTrendPct,
     notes,
   };

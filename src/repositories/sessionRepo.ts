@@ -14,7 +14,7 @@ import {
 import { caloriesFromMet, SESSION_TYPE_MET } from '@/lib/met';
 import { distributeSessionCalories, type BurnExercise } from '@/lib/exerciseCalories';
 import { estimateActivitySteps } from '@/lib/activitySteps';
-import { estimate1RM } from '@/lib/oneRepMax';
+import { estimate1RMFromSet } from '@/lib/oneRepMax';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
 import { addSteps, removeSteps } from './activityRepo';
 import { toISODate } from '@/lib/date';
@@ -23,6 +23,8 @@ export interface SetDraft {
   reps?: number | null;
   weightKg?: number | null;
   rpe?: number | null;
+  /** taken to momentary failure — implies RPE 10 / 0 reps in reserve */
+  toFailure?: boolean;
   durationS?: number | null;
   distanceM?: number | null;
   completed?: boolean;
@@ -96,7 +98,10 @@ export function addSet(exerciseLogId: number, draft: SetDraft): number {
       setNumber: existing.length + 1,
       reps: draft.reps ?? null,
       weightKg: draft.weightKg ?? null,
-      rpe: draft.rpe ?? null,
+      // A set taken to failure IS RPE 10; store both so anything reading only
+      // rpe still sees the truth.
+      rpe: draft.toFailure ? 10 : draft.rpe ?? null,
+      toFailure: draft.toFailure ?? false,
       durationS: draft.durationS ?? null,
       distanceM: draft.distanceM ?? null,
       completed: draft.completed ?? true,
@@ -110,7 +115,8 @@ export function updateSet(setId: number, patch: SetDraft): void {
     .set({
       reps: patch.reps ?? null,
       weightKg: patch.weightKg ?? null,
-      rpe: patch.rpe ?? null,
+      rpe: patch.toFailure ? 10 : patch.rpe ?? null,
+      toFailure: patch.toFailure ?? false,
       durationS: patch.durationS ?? null,
       distanceM: patch.distanceM ?? null,
       ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
@@ -298,7 +304,7 @@ function detectAndFlagPRs(lv: ExerciseLogView, sessionId: number): number {
   let count = 0;
   for (const s of lv.sets) {
     if (s.completed && s.weightKg && s.reps) {
-      const e = estimate1RM(s.weightKg, s.reps);
+      const e = estimate1RMFromSet(s);
       if (e > running + 0.01) {
         db.update(setEntries).set({ isPr: true }).where(eq(setEntries.id, s.id)).run();
         running = e;
@@ -311,17 +317,20 @@ function detectAndFlagPRs(lv: ExerciseLogView, sessionId: number): number {
 
 function bestPrior1RM(exerciseId: number, excludeSessionId: number): number {
   const rows = db
-    .select({ reps: setEntries.reps, weightKg: setEntries.weightKg })
+    .select({
+      reps: setEntries.reps,
+      weightKg: setEntries.weightKg,
+      rpe: setEntries.rpe,
+      toFailure: setEntries.toFailure,
+    })
     .from(setEntries)
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
     .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(setEntries.completed, true)))
     .all();
   let best = 0;
   for (const r of rows) {
-    if (r.weightKg && r.reps) {
-      const e = estimate1RM(r.weightKg, r.reps);
-      if (e > best) best = e;
-    }
+    const e = estimate1RMFromSet(r);
+    if (e > best) best = e;
   }
   return best;
 }

@@ -7,6 +7,7 @@ import {
   logSupplement,
   loggedToday,
   removeFromStack,
+  setUnitsPerServing,
   supplementsForDay,
 } from '@/repositories/supplementsRepo';
 
@@ -14,7 +15,9 @@ interface SupplementsState {
   stack: SupplementStack[];
   today: SupplementLog[];
   load: () => void;
-  log: (key: string, dose?: string) => void;
+  /** `units` logs a part portion — e.g. 2 of your usual 6 tablets */
+  log: (key: string, dose?: string, units?: number) => void;
+  setUnitsPerServing: (key: string, units: number | null) => void;
   removeLog: (id: number) => void;
   addToStack: (key: string, dose?: string) => void;
   removeFromStack: (key: string) => void;
@@ -27,8 +30,12 @@ export const useSupplementsStore = create<SupplementsState>((set, get) => ({
 
   load: () => set({ stack: getStack(), today: supplementsForDay() }),
 
-  log: (key, dose) => {
-    logSupplement(key, { dose });
+  log: (key, dose, units) => {
+    logSupplement(key, { dose, unitsTaken: units ?? null });
+    get().load();
+  },
+  setUnitsPerServing: (key, units) => {
+    setUnitsPerServing(key, units);
     get().load();
   },
   removeLog: (id) => {

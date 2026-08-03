@@ -9,9 +9,11 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
 import { useSupplementsStore } from '@/stores/supplementsStore';
-import { supplementStreak } from '@/repositories/supplementsRepo';
+import { supplementStreak, unitsTakenToday } from '@/repositories/supplementsRepo';
+import type { SupplementStack } from '@/db/schema';
 import {
   EVIDENCE_COLOR,
   EVIDENCE_LABEL,
@@ -23,7 +25,8 @@ import {
 export function SupplementsScreen() {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { stack, today, load, log, removeLog, addToStack, removeFromStack } = useSupplementsStore();
+  const { stack, today, load, log, removeLog, addToStack, removeFromStack, setUnitsPerServing } =
+    useSupplementsStore();
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useFocusEffect(
@@ -77,24 +80,16 @@ export function SupplementsScreen() {
             const done = loggedKeys.has(s.key);
             const streak = supplementStreak(s.key);
             return (
-              <Card key={s.key} accent={done ? theme.colors.success : theme.colors.accent}>
-                <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-                    <Icon icon={def.icon} size={22} color={def.category === 'micronutrient' ? theme.colors.primary : theme.colors.accent} />
-                    <View style={{ flex: 1 }}>
-                      <Text variant="bodyStrong">{def.label}</Text>
-                      <Text variant="caption" color="textMuted">
-                        {s.dose ?? def.defaultDose}{streak > 0 ? ` · ${streak}-day streak` : ''}
-                      </Text>
-                    </View>
-                  </Row>
-                  {done ? (
-                    <Badge label="Logged ✓" color={theme.colors.success} />
-                  ) : (
-                    <Button title="Take" size="sm" onPress={() => log(s.key, s.dose ?? undefined)} fullWidth={false} />
-                  )}
-                </Row>
-              </Card>
+              <StackCard
+                key={s.key}
+                row={s}
+                def={def}
+                done={done}
+                streak={streak}
+                takenUnits={unitsTakenToday(s.key)}
+                onTake={(units) => log(s.key, s.dose ?? undefined, units)}
+                onSetUnits={(n) => setUnitsPerServing(s.key, n)}
+              />
             );
           })}
         </>
@@ -108,7 +103,10 @@ export function SupplementsScreen() {
             <View key={t.id}>
               {i > 0 ? <Divider /> : null}
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text variant="caption" color="textMuted">{t.label}{t.dose ? ` · ${t.dose}` : ''}</Text>
+                <Text variant="caption" color="textMuted">
+                  {t.label}
+                  {t.unitsTaken ? ` · ${t.unitsTaken} pill${t.unitsTaken === 1 ? '' : 's'}` : t.dose ? ` · ${t.dose}` : ''}
+                </Text>
                 <Pressable onPress={() => removeLog(t.id)} hitSlop={8}>
                   <Icon icon="core.close" size={14} color={theme.colors.textFaint} />
                 </Pressable>
@@ -203,6 +201,115 @@ function SupplementCard({
           fullWidth={false}
         />
       </Row>
+    </Card>
+  );
+}
+
+/**
+ * One supplement in the stack, with its pill count.
+ *
+ * Two numbers matter and they are different: how many pills make YOUR portion
+ * (brands differ — spiruline is 500 mg tablets from one maker and 1 g capsules
+ * from another), and how many you actually swallowed today. "Take" logs a full
+ * portion; the +1 logs a single pill, which is the honest record when you took
+ * two of your usual six.
+ */
+function StackCard({
+  row,
+  def,
+  done,
+  streak,
+  takenUnits,
+  onTake,
+  onSetUnits,
+}: {
+  row: SupplementStack;
+  def: SupplementDef;
+  done: boolean;
+  streak: number;
+  takenUnits: number;
+  onTake: (units?: number) => void;
+  onSetUnits: (n: number | null) => void;
+}) {
+  const theme = useTheme();
+  const perServing = row.unitsPerServing ?? def.unitsPerServing ?? null;
+  const unit = def.unitLabel ?? 'pill';
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(perServing ? String(perServing) : '');
+
+  const save = () => {
+    const n = parseInt(draft, 10);
+    onSetUnits(Number.isFinite(n) && n > 0 ? n : null);
+    setEditing(false);
+  };
+
+  return (
+    <Card accent={done ? theme.colors.success : theme.colors.accent} style={{ gap: 8 }}>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+          <Icon
+            icon={def.icon}
+            size={22}
+            color={def.category === 'micronutrient' ? theme.colors.primary : theme.colors.accent}
+          />
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyStrong">{def.label}</Text>
+            <Text variant="caption" color="textMuted">
+              {row.dose ?? def.defaultDose}
+              {streak > 0 ? ` · ${streak}-day streak` : ''}
+            </Text>
+          </View>
+        </Row>
+        {done ? (
+          <Badge label="Logged ✓" color={theme.colors.success} />
+        ) : (
+          <Button title="Take" size="sm" onPress={() => onTake()} fullWidth={false} />
+        )}
+      </Row>
+
+      <Divider />
+
+      {editing ? (
+        <Row gap={8} style={{ alignItems: 'flex-end' }}>
+          <View style={{ flex: 1 }}>
+            <Input
+              label={`${unit[0].toUpperCase()}${unit.slice(1)}s per portion`}
+              value={draft}
+              onChangeText={setDraft}
+              keyboardType="numeric"
+              placeholder="e.g. 6"
+            />
+          </View>
+          <Button title="Save" size="sm" onPress={save} fullWidth={false} />
+        </Row>
+      ) : (
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Pressable
+            onPress={() => {
+              setDraft(perServing ? String(perServing) : '');
+              setEditing(true);
+            }}
+            hitSlop={6}
+            style={{ flex: 1 }}
+          >
+            <Text variant="caption" color="primary">
+              {perServing
+                ? `${perServing} ${unit}${perServing === 1 ? '' : 's'} per portion — tap to change`
+                : `Set how many ${unit}s are in one portion`}
+            </Text>
+          </Pressable>
+          {/* One pill at a time, for when you don't take the whole portion. */}
+          <Button title={`+1 ${unit}`} size="sm" variant="secondary" onPress={() => onTake(1)} fullWidth={false} />
+        </Row>
+      )}
+
+      {takenUnits > 0 && (
+        <Text variant="caption" color="textFaint">
+          {takenUnits} {unit}
+          {takenUnits === 1 ? '' : 's'} today
+          {perServing ? ` · ${(takenUnits / perServing).toFixed(takenUnits % perServing === 0 ? 0 : 1)} of a portion` : ''}
+        </Text>
+      )}
     </Card>
   );
 }

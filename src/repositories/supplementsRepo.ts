@@ -2,6 +2,7 @@ import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { supplementLogs, supplementStack, type SupplementLog, type SupplementStack } from '@/db/schema';
 import { findSupplement } from '@/data/supplements';
+import { scaleMicros } from '@/lib/micros';
 import { daysAgoISO, todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -24,19 +25,56 @@ export function inStack(key: string, userId: number = PRIMARY_USER_ID): boolean 
   );
 }
 
-export function addToStack(key: string, dose?: string, userId: number = PRIMARY_USER_ID): void {
+export function addToStack(
+  key: string,
+  dose?: string,
+  userId: number = PRIMARY_USER_ID,
+  unitsPerServing?: number | null
+): void {
   const existing = db
     .select()
     .from(supplementStack)
     .where(and(eq(supplementStack.userId, userId), eq(supplementStack.key, key)))
     .get();
   const def = findSupplement(key);
-  const payload = { dose: dose ?? def?.defaultDose ?? null, enabled: true };
+  const payload = {
+    dose: dose ?? def?.defaultDose ?? null,
+    // Seed from the catalogue, but this is the user's own product from here on.
+    unitsPerServing: unitsPerServing ?? existing?.unitsPerServing ?? def?.unitsPerServing ?? null,
+    enabled: true,
+  };
   if (existing) {
     db.update(supplementStack).set(payload).where(eq(supplementStack.id, existing.id)).run();
   } else {
     db.insert(supplementStack).values({ userId, key, ...payload }).run();
   }
+}
+
+/**
+ * How many pills make one portion of the product the user actually owns.
+ * Brands differ — spirulina comes as 500 mg tablets from one maker and 1 g
+ * capsules from another — so their own number always beats the catalogue's.
+ */
+export function setUnitsPerServing(
+  key: string,
+  units: number | null,
+  userId: number = PRIMARY_USER_ID
+): void {
+  const clean = units != null && Number.isFinite(units) && units > 0 ? Math.round(units) : null;
+  db.update(supplementStack)
+    .set({ unitsPerServing: clean })
+    .where(and(eq(supplementStack.userId, userId), eq(supplementStack.key, key)))
+    .run();
+}
+
+/** The pills-per-portion in force for a supplement: the user's, else the catalogue's. */
+export function unitsPerServingFor(key: string, userId: number = PRIMARY_USER_ID): number | null {
+  const row = db
+    .select()
+    .from(supplementStack)
+    .where(and(eq(supplementStack.userId, userId), eq(supplementStack.key, key)))
+    .get();
+  return row?.unitsPerServing ?? findSupplement(key)?.unitsPerServing ?? null;
 }
 
 export function removeFromStack(key: string, userId: number = PRIMARY_USER_ID): void {
@@ -48,11 +86,22 @@ export function removeFromStack(key: string, userId: number = PRIMARY_USER_ID): 
 // ── Logging ──────────────────────────────────────────────────────────────────
 export function logSupplement(
   key: string,
-  opts: { dose?: string; date?: string } = {},
+  opts: { dose?: string; date?: string; unitsTaken?: number | null } = {},
   userId: number = PRIMARY_USER_ID
 ): void {
   const def = findSupplement(key);
   if (!def) return;
+  /*
+   * Default to a full portion, so the one-tap "took it" button keeps working
+   * exactly as before and still records a real pill count. Passing a number
+   * logs a part portion — which is the honest record when you took 2 of your
+   * usual 6 tablets, and stops the day looking like a full dose.
+   */
+  const perServing = unitsPerServingFor(key, userId);
+  const units =
+    opts.unitsTaken != null && Number.isFinite(opts.unitsTaken) && opts.unitsTaken > 0
+      ? opts.unitsTaken
+      : perServing;
   db.insert(supplementLogs)
     .values({
       userId,
@@ -61,9 +110,42 @@ export function logSupplement(
       label: def.label,
       category: def.category,
       dose: opts.dose ?? def.defaultDose ?? null,
-      micros: def.micros ? JSON.stringify(def.micros) : null,
+      unitsTaken: units ?? null,
+      // Micros scale with the fraction of a portion actually taken — half the
+      // pills is half the iron, and pretending otherwise inflates the day.
+      micros: def.micros
+        ? JSON.stringify(
+            perServing && units && perServing !== units
+              ? scaleMicros(def.micros, units / perServing)
+              : def.micros
+          )
+        : null,
     })
     .run();
+}
+
+/** Pills swallowed today for one supplement, across every entry. */
+export function unitsTakenToday(
+  key: string,
+  date: string = todayISO(),
+  userId: number = PRIMARY_USER_ID
+): number {
+  const rows = db
+    .select({ units: supplementLogs.unitsTaken })
+    .from(supplementLogs)
+    .where(and(eq(supplementLogs.userId, userId), eq(supplementLogs.key, key), eq(supplementLogs.date, date)))
+    .all();
+  return rows.reduce((sum, r) => sum + (r.units ?? 0), 0);
+}
+
+/** Every pill swallowed today, across the whole stack. */
+export function totalUnitsToday(date: string = todayISO(), userId: number = PRIMARY_USER_ID): number {
+  const rows = db
+    .select({ units: supplementLogs.unitsTaken })
+    .from(supplementLogs)
+    .where(and(eq(supplementLogs.userId, userId), eq(supplementLogs.date, date)))
+    .all();
+  return rows.reduce((sum, r) => sum + (r.units ?? 0), 0);
 }
 
 export function deleteSupplementLog(id: number): void {

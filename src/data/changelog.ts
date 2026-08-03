@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.27',
+    date: '2026-08-01',
+    title: 'Count your pills, and the real story on Shilajit & Spiruline',
+    highlights: [
+      'Your stack now counts pills. Set how many pills make ONE portion of the product you actually own — brands differ wildly, so the catalogue default is only a starting point — and the app counts from your number.',
+      '"Take" logs a full portion as before. "+1" logs a single pill, for when you took two of your usual six. It shows how many pills you have had today and what fraction of a portion that is.',
+      'A part portion counts as a part portion: half the pills contributes half the iron to your micronutrient totals, instead of quietly logging a full dose.',
+      'Spiruline is now named the way it is actually sold here, and its portion moved from 1 g to 3 g — the dose the research actually uses, rather than the token amount most labels suggest. All its mineral and vitamin figures were rescaled to match.',
+      'THE BIG ONE, if you or anyone you know takes it: spiruline is NOT a source of vitamin B12, despite what the labels say. Almost all of it is pseudo-B12 the body cannot use, and it can even interfere with the blood test for real B12. People relying on it can become genuinely deficient while believing they are covered. FitCoach now records zero B12 from spiruline, deliberately. If you do not eat animal products, take an actual B12 supplement.',
+      'Also on spiruline: what the evidence supports (modest cholesterol and blood-pressure reductions, some allergic-rhinitis data) and what to watch (microcystin and heavy-metal contamination from untested brands, and a hard no in phenylketonuria).',
+      'Shilajit rewritten honestly. The testosterone claim traces largely to ONE small industry-linked trial that has not been replicated; the Alzheimer\'s claims are test-tube mechanism, not results in people. The purity issue is the real story — unpurified resin can carry lead, arsenic and mercury, with documented poisoning cases, so third-party testing is not optional. It also flags iron overload, gout and pregnancy.',
+      'Neither adds invented vitamins or minerals to your totals — shilajit\'s mineral content varies too much by batch for any honest number.',
+    ],
+  },
+  {
     version: '2.26',
     date: '2026-07-31',
     title: 'Face pulls, cuff work and 21 more shoulder exercises',

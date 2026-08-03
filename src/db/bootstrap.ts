@@ -28,8 +28,9 @@ import { seedExerciseLibrary } from './seed';
  *   16 → 17 v2.22: custom_foods table (user-entered foods)
  *   17 → 18 v2.23: set_entries.to_failure (proximity-to-failure tracking)
  *   18 → 19 v2.26: +23 shoulder exercises (face pull, cuff work, machines)
+ *   19 → 20 v2.27: supplement pill counts (units per serving / units taken)
  */
-const SCHEMA_VERSION = 19;
+const SCHEMA_VERSION = 20;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -86,6 +87,9 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'sessions', column: 'distance_added_m', ddl: 'REAL' },
   // v18 — sets can be logged as taken to failure (proximity drives growth)
   { table: 'set_entries', column: 'to_failure', ddl: 'INTEGER NOT NULL DEFAULT 0' },
+  // v20 — count the pills, not just the tick
+  { table: 'supplement_stack', column: 'units_per_serving', ddl: 'INTEGER' },
+  { table: 'supplement_logs', column: 'units_taken', ddl: 'REAL' },
 ];
 
 function ensureColumns(): void {
@@ -325,6 +329,7 @@ CREATE TABLE IF NOT EXISTS supplement_stack (
   user_id INTEGER NOT NULL,
   key TEXT NOT NULL,
   dose TEXT,
+  units_per_serving INTEGER,
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
@@ -338,6 +343,7 @@ CREATE TABLE IF NOT EXISTS supplement_logs (
   label TEXT NOT NULL,
   category TEXT NOT NULL,
   dose TEXT,
+  units_taken REAL,
   micros TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );

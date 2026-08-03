@@ -63,7 +63,7 @@ import {
 import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../src/lib/oneRepMax';
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
-import { SUPPLEMENTS, findSupplement } from '../src/data/supplements';
+import { SUPPLEMENTS, findSupplement, servingUnits } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
 import { distributeSessionCalories, activeSecondsFor, caloriesForReference } from '../src/lib/exerciseCalories';
@@ -610,12 +610,14 @@ check('Never prescribes below BMR', tKatch.calorieTarget >= tKatch.bmr && tMiffl
 
 console.log('\nSupplements — spirulina / shilajit / ashwagandha:');
 const spir = findSupplement('spirulina')!;
-check('Spirulina portion is 1 g (3 capsules)', /1 g/.test(spir.defaultDose) && /3 capsules/.test(spir.defaultDose), spir.defaultDose);
-// per-100 g figures ÷ 100 for the 1 g portion
-check('Spirulina minerals scaled from per-100g', near(spir.micros!.calcium_mg!, 1.2, 0.01) && near(spir.micros!.iron_mg!, 0.285, 0.01) && near(spir.micros!.magnesium_mg!, 1.95, 0.01) && near(spir.micros!.phosphorus_mg!, 1.18, 0.01) && near(spir.micros!.potassium_mg!, 13.6, 0.05));
-check('Spirulina B-vitamins scaled from per-100g', near(spir.micros!.thiamin_mg!, 0.0238, 0.002) && near(spir.micros!.riboflavin_mg!, 0.0367, 0.002) && near(spir.micros!.niacin_mg!, 0.128, 0.002));
+// The portion is 3 g — the dose the trials actually use — not the token 1 g
+// most labels suggest. Every micro figure below is per-100 g x 0.03.
+check('Spiruline portion is 3 g (6 tablets)', /3 g/.test(spir.defaultDose) && /6 tablets/.test(spir.defaultDose), spir.defaultDose);
+check('Spiruline minerals scaled from per-100g', near(spir.micros!.calcium_mg!, 3.6, 0.05) && near(spir.micros!.iron_mg!, 0.855, 0.02) && near(spir.micros!.magnesium_mg!, 5.85, 0.05) && near(spir.micros!.phosphorus_mg!, 3.54, 0.05) && near(spir.micros!.potassium_mg!, 40.8, 0.1));
+check('Spiruline B-vitamins scaled from per-100g', near(spir.micros!.thiamin_mg!, 0.0714, 0.003) && near(spir.micros!.riboflavin_mg!, 0.11, 0.003) && near(spir.micros!.niacin_mg!, 0.384, 0.005));
+check('Spiruline copper is included (a real contributor at 3 g)', near(spir.micros!.copper_mg!, 0.183, 0.01), `${spir.micros!.copper_mg}`);
 // Vitamin A stored as RAE (beta-carotene ÷12), so a stack can't trip a false toxicity flag.
-check('Spirulina vitamin A stored as RAE (~117µg), not raw 1400µg', spir.micros!.vitaminA_ug! > 90 && spir.micros!.vitaminA_ug! < 150, `${spir.micros!.vitaminA_ug}`);
+check('Spiruline vitamin A stored as RAE (~350µg), not raw 4200µg', spir.micros!.vitaminA_ug! > 300 && spir.micros!.vitaminA_ug! < 420, `${spir.micros!.vitaminA_ug}`);
 const heavyA = sumMicros([findSupplement('multivitamin')!.micros!, spir.micros!, spir.micros!]);
 check('Multivitamin + 2 spirulina stays under vitamin A upper limit', microStatus(heavyA.vitaminA_ug, 'vitaminA_ug', 'male') !== 'over', `${heavyA.vitaminA_ug}µg`);
 check('Ashwagandha portion is 400 mg extract (2 capsules)', /400 mg/.test(findSupplement('ashwagandha')!.defaultDose) && /2 capsules/.test(findSupplement('ashwagandha')!.defaultDose));
@@ -898,6 +900,64 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nSupplements — Shilajit, Spiruline & pill counting:');
+{
+  const spiruline = SUPPLEMENTS.find((s) => s.key === 'spirulina')!;
+  const shilajit = SUPPLEMENTS.find((s) => s.key === 'shilajit')!;
+
+  // Named the way it's sold locally, but the KEY must never move — logs store
+  // it, so renaming the key would orphan every entry already in the diary.
+  check('Spiruline is labelled the French/local way', spiruline.label === 'Spiruline');
+  check('…while its catalogue key stays stable for existing logs', spiruline.key === 'spirulina');
+
+  /*
+   * The B12 trap. Labels advertise spirulina as B12-rich; almost all of it is
+   * pseudo-B12 the body cannot use. Recording it would let the Micros screen
+   * tell a vegan they were covered while they quietly became deficient — so
+   * the absence of this key is a deliberate safety property, not an omission.
+   */
+  check('Spiruline records NO vitamin B12', spiruline.micros?.vitaminB12_ug === undefined);
+  check('…and the note explains why, in as many words', /pseudo-B12|pseudo-vitamin/i.test(spiruline.evidence ?? '') && /deficien/i.test(spiruline.evidence ?? ''));
+  check('Spiruline warns about microcystins and PKU', /microcystin/i.test(spiruline.evidence ?? '') && /phenylketonuria|PKU/i.test(spiruline.evidence ?? ''));
+  check('Spiruline dose matches the trial range (3 g)', /3 g/.test(spiruline.defaultDose) && spiruline.unitsPerServing === 6);
+  // Micros must scale with the portion, not be left at the old 1 g figures.
+  check('Spiruline micros are stated for the 3 g portion', (spiruline.micros?.iron_mg ?? 0) > 0.8 && (spiruline.micros?.vitaminA_ug ?? 0) > 300, `Fe ${spiruline.micros?.iron_mg}`);
+  check('Provitamin-A is stored as RAE, not raw beta-carotene', (spiruline.micros?.vitaminA_ug ?? 0) < 1000);
+
+  check('Shilajit is honest that testosterone rests on one small trial', /one 90-day|ONE 90-day/i.test(shilajit.evidence ?? '') && /industry-linked|industry-funded/i.test(shilajit.evidence ?? ''));
+  check('Shilajit leads with heavy-metal purity, not benefits', /lead|arsenic|mercury/i.test(shilajit.evidence ?? '') && /third-party/i.test(shilajit.evidence ?? ''));
+  check('Shilajit flags iron, gout and pregnancy', /haemochromatosis|ferritin/i.test(shilajit.evidence ?? '') && /uric acid|gout/i.test(shilajit.evidence ?? '') && /pregnan/i.test(shilajit.evidence ?? ''));
+  check('Shilajit separates mechanism from result on cognition', /mechanism, not a result/i.test(shilajit.evidence ?? ''));
+  // Inventing a mineral profile for something that varies by batch would be
+  // worse than leaving it blank.
+  check('Shilajit contributes no invented micronutrients', shilajit.micros === undefined);
+  check('Both are marked as limited evidence', spiruline.evidenceLevel === 'limited' && shilajit.evidenceLevel === 'limited');
+  check('Both carry a pill count for the new tracking', !!spiruline.unitsPerServing && !!shilajit.unitsPerServing);
+
+  // Every catalogue entry that counts pills must say what to call them.
+  const badUnits = SUPPLEMENTS.filter((s) => s.unitsPerServing && !s.unitLabel);
+  check('Any supplement with a pill count names the unit', badUnits.length === 0, badUnits.map((s) => s.key).join(', '));
+  check('servingUnits reads as plain English', servingUnits(spiruline) === '6 tablets' && servingUnits(shilajit) === '1 capsule');
+
+  // Schema + migration wiring for the pill counts.
+  const bootSrc3 = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('units_per_serving is in the DDL and the migration', /units_per_serving INTEGER/.test(bootSrc3) && /column: 'units_per_serving'/.test(bootSrc3));
+  check('units_taken is in the DDL and the migration', /units_taken REAL/.test(bootSrc3) && /column: 'units_taken'/.test(bootSrc3));
+  const sv = Number((bootSrc3.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the pill-count migration', sv >= 20, `${sv}`);
+
+  const suppRepo = fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8');
+  check("The user's own pill count beats the catalogue default", /row\?\.unitsPerServing \?\? findSupplement\(key\)\?\.unitsPerServing/.test(suppRepo));
+  /*
+   * Half the pills is half the iron. Logging a part portion at full micros
+   * would inflate the day's totals — quietly, and in the direction that makes
+   * a deficiency look solved.
+   */
+  check('A part portion scales its micronutrients down', /scaleMicros\(def\.micros, units \/ perServing\)/.test(suppRepo));
+  check('One-tap "Take" still logs a whole portion', /opts\.unitsTaken != null && Number\.isFinite\(opts\.unitsTaken\) && opts\.unitsTaken > 0/.test(suppRepo) && /: perServing;/.test(suppRepo));
+  check('Pills taken today can be totalled per supplement and overall', /export function unitsTakenToday/.test(suppRepo) && /export function totalUnitsToday/.test(suppRepo));
 }
 
 console.log('\nShoulder coverage:');

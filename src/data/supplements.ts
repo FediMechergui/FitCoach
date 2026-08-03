@@ -80,21 +80,32 @@ export const SUPPLEMENTS: SupplementDef[] = [
   { key: 'calcium', label: 'Calcium', category: 'micronutrient', icon: 'supp.mineral', defaultDose: '500 mg', timing: 'Split doses; with food', micros: { calcium_mg: 500 } },
   { key: 'folate', label: 'Folic Acid', category: 'micronutrient', icon: 'supp.pill', defaultDose: '400 µg', timing: 'Important pre/early pregnancy', micros: { folate_ug: 400 } },
   {
-    key: 'spirulina', label: 'Spirulina', category: 'micronutrient', icon: 'supp.leaf',
-    defaultDose: '3 capsules (1 g)', unitsPerServing: 3, unitLabel: 'capsule',
+    // Labelled the way it's sold here (and across France/North Africa):
+    // "Spiruline". Same organism — Arthrospira platensis — just the French name.
+    // The catalogue `key` stays 'spirulina' forever: logs store it, so renaming
+    // the key would orphan every entry already in the diary.
+    key: 'spirulina', label: 'Spiruline', category: 'micronutrient', icon: 'supp.leaf',
+    defaultDose: '6 tablets (3 g)', unitsPerServing: 6, unitLabel: 'tablet',
     timing: 'With a meal; not late (mildly energising)',
-    // Per-100 g composition ÷ 100 for the 1 g (1000 mg) portion.
-    //   Ca 120 → 1.2 · Fe 28.5 → 0.29 · Mg 195 → 1.95 · P 118 → 1.18 · K 1360 → 13.6
-    //   B1 2.38 → 0.024 · B2 3.67 → 0.037 · B3 12.8 → 0.128
+    // Per-100 g composition × 0.03 for a 3 g portion (the dose most trials use).
+    //   Ca 120 → 3.6 · Fe 28.5 → 0.86 · Mg 195 → 5.9 · P 118 → 3.5 · K 1360 → 40.8
+    //   Cu 6.1 → 0.18 · B1 2.38 → 0.071 · B2 3.67 → 0.11 · B3 12.8 → 0.38
     // Vitamin A: spirulina's activity is provitamin-A (beta-carotene), not retinol.
-    // 140 mg/100 g → 1400 µg per 1 g portion → ÷12 (µg beta-carotene per µg RAE)
-    // ≈ 117 µg RAE. Stored as RAE so it can't trigger false retinol-toxicity flags.
+    // 140 mg/100 g → 4200 µg per 3 g portion → ÷12 (µg beta-carotene per µg RAE)
+    // ≈ 350 µg RAE. Stored as RAE so it can't trigger false retinol-toxicity flags.
+    // Vitamin B12 is deliberately ABSENT — see the evidence note. Spirulina's
+    // B12 is a pseudo-vitamin the body cannot use, and listing it here would
+    // let the Micros screen tell someone they were covered when they were not.
     micros: {
-      calcium_mg: 1.2, iron_mg: 0.285, magnesium_mg: 1.95, phosphorus_mg: 1.18, potassium_mg: 13.6,
-      vitaminA_ug: 117, thiamin_mg: 0.024, riboflavin_mg: 0.037, niacin_mg: 0.128,
+      calcium_mg: 3.6, iron_mg: 0.855, magnesium_mg: 5.85, phosphorus_mg: 3.54, potassium_mg: 40.8,
+      copper_mg: 0.183, vitaminA_ug: 350, thiamin_mg: 0.0714, riboflavin_mg: 0.11, niacin_mg: 0.384,
     },
     evidenceLevel: 'limited',
-    evidence: 'A nutrient-dense algae — a genuine source of iron, B-vitamins and provitamin-A carotenoids, but at a 1 g dose the amounts are small next to food. Claims beyond "a modest nutrient top-up" are not well supported. Buy from a tested brand: poorly sourced algae can carry heavy metals or microcystins.',
+    evidence:
+      'Spiruline (spirulina) is a cyanobacterium — Arthrospira platensis — rather than a true algae, grown in alkaline water and dried. Roughly 60–70% protein by dry weight, though at a 3 g dose that is only ~2 g of protein, which is why it is a micronutrient supplement here and not a protein source. Its blue pigment, phycocyanin, is the antioxidant most of the research is interested in.\n\n' +
+      'What the evidence actually supports: meta-analyses of small trials find modest reductions in total cholesterol, LDL and triglycerides, and small reductions in blood pressure. There is some positive but limited trial data in allergic rhinitis, and in anaemia in older adults. Effects on endurance and exercise-induced oxidative stress come from a handful of very small studies. Nothing here is dramatic, and most trials use 1–8 g/day — this portion is set to 3 g, the commonest trial dose, rather than the token 1 g many labels suggest.\n\n' +
+      'THE B12 TRAP — the single most important thing to know. Labels routinely advertise spirulina as rich in vitamin B12. It is not. Almost all of it is pseudo-B12 (corrinoid analogues) that humans cannot absorb or use, and which can interfere with the assays used to measure real B12. Vegans and vegetarians who rely on spirulina for B12 can develop a genuine deficiency while believing they are covered. FitCoach therefore records NO B12 from spirulina at all. If you do not eat animal products, take an actual B12 supplement.\n\n' +
+      'Safety: buy only from a brand doing third-party testing. Spirulina grown in open or uncontrolled water can be co-harvested with other cyanobacteria and carry microcystins — liver toxins — as well as heavy metals and BMAA. Must be avoided entirely in phenylketonuria (PKU): it is high in phenylalanine. Caution with autoimmune conditions, since it stimulates parts of the immune system, and with any anticoagulant, and stop before surgery.',
   },
 
   // ── Ergogenic / wellness (tracked; honest evidence) ────────────────────────
@@ -140,7 +151,12 @@ export const SUPPLEMENTS: SupplementDef[] = [
     defaultDose: '1 capsule (250–500 mg)', unitsPerServing: 1, unitLabel: 'capsule',
     timing: 'Daily, morning with food',
     evidenceLevel: 'limited',
-    evidence: 'Limited evidence — small trials suggest reduced fatigue and modest testosterone/recovery effects, but studies are few and often small or industry-funded. Purity is the real issue: unpurified shilajit can contain heavy metals (lead, arsenic) and mycotoxins, so only use a brand with third-party heavy-metal testing. No reliable micronutrient breakdown exists — mineral content varies hugely by source — so FitCoach deliberately does not add it to your vitamin/mineral totals rather than invent numbers.',
+    evidence:
+      'Shilajit (mumijo, salajeet) is a tar-like resin that seeps from rock faces in the Himalaya, Altai and Caucasus over centuries as plant matter compresses. Its active fraction is fulvic acid, along with dibenzo-alpha-pyrones and trace minerals. Purified resin or extract is the only form worth considering — see safety below.\n\n' +
+      'What the evidence actually supports, stated plainly: less than most sellers imply. The testosterone claim traces largely to ONE 90-day randomised trial in men aged 45–55 taking 250 mg twice daily, which found higher total and free testosterone against placebo. That is a single, small, industry-linked study, and it has not been replicated at the scale that would make it a settled finding. A small trial suggested better preservation of muscle strength after fatiguing exercise at 500 mg/day over 8 weeks. Fatigue and chronic-fatigue benefits are mostly animal work plus uncontrolled human reports. The Alzheimer\'s and cognition claims rest on test-tube findings that fulvic acid interferes with tau protein aggregation — that is a mechanism, not a result in people.\n\n' +
+      'Typical dose in the research is 250–500 mg/day of a purified extract, which is where this portion sits.\n\n' +
+      'SAFETY — the part that matters more than the benefits. Raw, unpurified shilajit is genuinely hazardous: it can carry lead, arsenic and mercury, plus mycotoxins and free radicals, and there are documented lead-poisoning cases from Ayurvedic preparations. Traditional practice purifies it (shodhana) for exactly this reason. Buy only a product with third-party heavy-metal testing you can actually read. It is also iron-rich, so avoid it with haemochromatosis or a high ferritin reading; it may raise uric acid, so be careful with gout; and it should be avoided in pregnancy and breastfeeding, and by anyone with sickle-cell disease.\n\n' +
+      'FitCoach deliberately adds NO vitamins or minerals from shilajit to your daily totals. Its mineral content varies enormously by source and batch, and there is no honest number to use — a plausible-looking figure would be worse than a blank.',
   },
   {
     key: 'l-theanine', label: 'L-Theanine', category: 'ergogenic', icon: 'supp.leaf',

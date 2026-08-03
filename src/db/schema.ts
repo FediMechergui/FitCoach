@@ -362,6 +362,13 @@ export const supplementStack = sqliteTable('supplement_stack', {
   userId: integer('user_id').notNull(),
   key: text('key').notNull(), // catalogue key
   dose: text('dose'),
+  /**
+   * How many pills make ONE portion of the product you actually own. Brands
+   * differ wildly — spirulina is sold as 500 mg tablets by one maker and 1 g
+   * capsules by another — so the catalogue default is only a starting point
+   * and this is what the app counts with.
+   */
+  unitsPerServing: integer('units_per_serving'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at')
     .notNull()
@@ -376,6 +383,8 @@ export const supplementLogs = sqliteTable('supplement_logs', {
   label: text('label').notNull(),
   category: text('category', { enum: ['micronutrient', 'ergogenic'] }).notNull(),
   dose: text('dose'),
+  /** how many pills were actually swallowed for this entry */
+  unitsTaken: real('units_taken'),
   /** micronutrient contribution (JSON Partial<MicroProfile>) if any */
   micros: text('micros'),
   createdAt: integer('created_at')

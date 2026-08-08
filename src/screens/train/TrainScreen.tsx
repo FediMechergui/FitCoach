@@ -104,6 +104,24 @@ export function TrainScreen() {
         onPress={() => navigation.navigate('LogSession')}
       />
 
+      {/* Spin once a day for a challenge you didn't choose */}
+      <Pressable onPress={() => navigation.navigate('DailyChallenge')}>
+        <Card accent={theme.colors.warning} style={{ gap: 6 }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+              <Icon icon="core.target" size={24} color={theme.colors.warning} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Daily Challenge</Text>
+                <Text variant="caption" color="textMuted" numberOfLines={1}>
+                  Spin the wheel — one a day, tracked automatically
+                </Text>
+              </View>
+            </Row>
+            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+          </Row>
+        </Card>
+      </Pressable>
+
       {/* Themed military / historical / lifestyle programmes */}
       <Pressable onPress={() => navigation.navigate('SpecialPrograms')}>
         <Card accent={theme.colors.accent} style={{ gap: 6 }}>

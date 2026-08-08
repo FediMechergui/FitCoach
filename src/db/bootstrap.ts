@@ -31,8 +31,9 @@ import { seedExerciseLibrary } from './seed';
  *   19 → 20 v2.27: supplement pill counts (units per serving / units taken)
  *   20 → 21 v2.28: smoking_entries.product_key + 10 triceps exercises
  *   21 → 22 v2.29: daily_challenges table (spin-the-wheel daily challenge)
+ *   22 → 23 v2.30: meal_routines table (saved meals & day distributions)
  */
-const SCHEMA_VERSION = 22;
+const SCHEMA_VERSION = 23;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -641,6 +642,18 @@ CREATE TABLE IF NOT EXISTS daily_challenges (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_challenges_user_date ON daily_challenges(user_id, date);
+
+CREATE TABLE IF NOT EXISTS meal_routines (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  meal_type TEXT,
+  items_json TEXT NOT NULL DEFAULT '[]',
+  use_count INTEGER NOT NULL DEFAULT 0,
+  last_used_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_meal_routines_user ON meal_routines(user_id, meal_type);
 `;
 
 let initialized = false;

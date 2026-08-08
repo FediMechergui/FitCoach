@@ -18,7 +18,7 @@ import type { ProgramLevel } from './programs';
  * adding is always safe. Every `exercises` slug must exist in the library.
  */
 
-export type SpecialCategory = 'military' | 'historical' | 'superhero' | 'lifestyle' | 'counters';
+export type SpecialCategory = 'military' | 'historical' | 'superhero' | 'lifestyle' | 'counters' | 'athlete';
 
 export const SPECIAL_CATEGORY_META: Record<
   SpecialCategory,
@@ -48,6 +48,11 @@ export const SPECIAL_CATEGORY_META: Record<
     label: 'Quick Counters & Urge-Busters',
     blurb: 'On-demand 2–10 minute protocols to ride out a craving or impulse and shift your focus.',
     icon: 'mindbody.focus',
+  },
+  athlete: {
+    label: 'Elite Sport',
+    blurb: 'How the best footballers, boxers, sprinters and swimmers actually train — in season and out.',
+    icon: 'sport.gym',
   },
 };
 
@@ -2067,6 +2072,327 @@ export const SPECIAL_PROGRAMS: SpecialProgram[] = [
         { label: 'Evening', detail: 'Lean beef with vegetables and a small carb portion.' },
       ],
       notes: ['Staying light is a strength strategy here, not an aesthetic one — cut too far and the flying goes first.'],
+    },
+  },
+
+  // ═══════════════════════════ ELITE SPORT ═══════════════════════════
+  // How professionals in each sport actually train. The recurring surprise for
+  // most people is how LITTLE of it is lifting: an elite footballer's week is
+  // mostly ball work and running, with two gym sessions protecting the rest.
+  {
+    key: 'ath-footballer',
+    category: 'athlete',
+    name: 'Professional Footballer',
+    tagline: 'The in-season week — high-speed running, not chasing a pump.',
+    origin:
+      'A top-flight footballer covers 10–13 km a match, but the number that decides careers is the 1–2 km of it above 20 km/h. Modern clubs periodise the week around the game: hard days early, sharp and short before matchday, and a strict rule that high-speed running must be exposed in training or the hamstrings will find it in the match instead. Strength work is twice a week and exists mainly to keep players available.',
+    ethos: 'Available beats impressive. The best ability is being fit on Saturday.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 8,
+    icon: 'sport.soccer',
+    accent: '#2E7D32',
+    authenticityNote:
+      'Follows the real MD-4 to MD-1 club structure: the heaviest load furthest from the match, tapering to sharpness. Adapted for one training group and no pitch staff — the principle to keep is that high-speed running is trained, not avoided.',
+    safetyNote:
+      'Hamstring injuries in football almost always come from sprinting under fatigue with no build-up. Reach near-maximum speed at least once a week when fresh, and never introduce sprinting straight into a tired session.',
+    days: [
+      { key: 'strength', label: 'MD-4 · Strength', sessionType: 'strength', focus: 'Heavy lower body, far enough from the match to recover.', exercises: ['back-squat', 'romanian-deadlift', 'nordic-curl', 'bulgarian-split-squat', 'db-shoulder-press'], prescription: 'Compounds 4×4–6, Nordics 3×5 · the Nordics are the hamstring insurance', minutes: 55 },
+      { key: 'endurance', label: 'MD-3 · Engine', sessionType: 'cardio', focus: 'Repeated high-intensity efforts — the shape of a real match.', exercises: ['shuttle-runs', 'sprint-repeats', 'ma-skipping', 'agility-ladder'], prescription: '4×4 min hard with 3 min recovery, then shuttles', minutes: 50 },
+      { key: 'speed', label: 'MD-2 · Top speed', sessionType: 'outdoor', focus: 'Maximum-velocity running while fresh — the session people skip.', exercises: ['sprint-repeats', 'hill-sprints', 'sport-plyometrics', 'dynamic-warmup'], prescription: '6–8×40 m flying sprints, full recovery. Quality only', minutes: 40 },
+      { key: 'ball', label: 'MD-1 · Sharpness', sessionType: 'sport', focus: 'Short, sharp, technical. Legs stay fresh for the match.', exercises: ['soccer', 'sport-passing-drill', 'sport-footwork', 'sport-shooting-drill'], prescription: '35 min of ball work, nothing heavy', minutes: 40 },
+      { key: 'match', label: 'Matchday', sessionType: 'sport', focus: 'The reason for all of it.', exercises: ['soccer'], prescription: '90 min · this is the session', minutes: 95 },
+    ],
+    diet: {
+      name: 'Fuelling for the fixture',
+      approach:
+        'Football nutrition is carbohydrate periodisation: intake rises toward matchday and drops on light days. Carbs are the fuel for repeated sprinting, and playing glycogen-depleted shows up as a collapse in high-speed running in the last twenty minutes. Protein sits around 1.6–2 g/kg to hold muscle through a long season.',
+      macroSlant: 'Carbs scaled to the day, 1.6–2 g/kg protein, hydration tightly managed.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Oats, eggs and fruit — the day starts with carbohydrate.' },
+        { label: 'Pre-training', detail: 'Rice or pasta with lean protein, 2–3 hours before.' },
+        { label: 'Post-training', detail: 'Protein and fast carbs inside the hour.' },
+        { label: 'Dinner', detail: 'Fish or lean meat, potatoes or rice, plenty of vegetables.' },
+      ],
+      notes: [
+        'The classic mistake is under-eating carbohydrate and blaming fitness for a fade that was fuel.',
+        'Hydration status is measurable and matters: a 2% loss is a measurable drop in sprint performance.',
+      ],
+    },
+  },
+  {
+    key: 'ath-basketballer',
+    category: 'athlete',
+    name: 'Professional Basketballer',
+    tagline: 'Jump, land, repeat — and survive an 82-game season.',
+    origin:
+      'Basketball is a jumping sport played on a hard floor for eight months. An NBA player takes off and lands dozens of times a game, and the training reflects it: plyometrics and landing mechanics, single-leg strength, ankle and knee resilience, plus enough conditioning for the constant change of direction. Load management exists because the sport\'s volume, not its intensity, is what breaks people.',
+    ethos: 'Jump high, land well, play again on Thursday.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 8,
+    icon: 'sport.basketball',
+    accent: '#EF6C00',
+    authenticityNote:
+      'Built on the priorities pro strength coaches actually work on in-season: landing mechanics, single-leg strength, ankle stiffness and change of direction. The jump training is deliberately low-volume and high-quality, which is how it is really prescribed.',
+    safetyNote:
+      'Plyometrics are quality work, not conditioning. Once your landings get noisy or your knees start caving inward, the set is over — that is the point at which jump training starts causing the injuries it prevents.',
+    days: [
+      { key: 'jump', label: 'Jump & land', sessionType: 'calisthenics', focus: 'Take-off power, and the landing that protects the knee.', exercises: ['box-jumps', 'jump-squat', 'single-leg-calf-raise', 'sport-plyometrics', 'balance-training'], prescription: 'Low volume, full recovery — 5×3, land silently', minutes: 40 },
+      { key: 'strength', label: 'Single-leg strength', sessionType: 'strength', focus: 'One leg at a time, because that is how the sport is played.', exercises: ['bulgarian-split-squat', 'single-leg-rdl', 'step-up', 'nordic-negative', 'calf-raise-step'], prescription: '4×6–8 per leg, controlled', minutes: 50 },
+      { key: 'court', label: 'Court work', sessionType: 'sport', focus: 'Skill under fatigue — shooting when the legs are gone.', exercises: ['basketball', 'sport-shooting-drill', 'shuttle-runs', 'agility-ladder'], prescription: 'Skill work then conditioned shooting, 50 min', minutes: 55 },
+      { key: 'condition', label: 'Change of direction', sessionType: 'cardio', focus: 'Decelerating and re-accelerating — the real athletic cost.', exercises: ['shuttle-runs', 'agility-ladder', 'sprint-repeats', 'bear-crawl'], prescription: 'Shuttles and cuts, 20 min of work inside 35', minutes: 35 },
+      { key: 'upper', label: 'Upper & core', sessionType: 'strength', focus: 'Contact strength for holding position in the paint.', exercises: ['bench-press-barbell', 'pull-up', 'db-shoulder-press', 'plank', 'landmine-rotation'], prescription: '4×6–8, then trunk work', minutes: 45 },
+    ],
+    diet: {
+      name: 'Season-long fuelling',
+      approach:
+        'Tall athletes on a long travel schedule need a high total intake and a routine that survives hotels and late tip-offs. Carbohydrate supports the running volume, protein is spread across the day rather than piled into dinner, and post-game eating matters because the next game is often 48 hours away.',
+      macroSlant: 'High total intake, protein spread evenly, carbs around games.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Large oats with eggs and fruit.' },
+        { label: 'Pre-game', detail: 'Rice and chicken 3 hours out; something light and sweet nearer tip-off.' },
+        { label: 'Post-game', detail: 'Protein and carbohydrate immediately — recovery starts on the bus.' },
+        { label: 'Dinner', detail: 'Salmon or beef with potatoes and greens.' },
+      ],
+      notes: ['Two games in three nights is a fuelling problem before it is a fitness problem.'],
+    },
+  },
+  {
+    key: 'ath-boxer',
+    category: 'athlete',
+    name: 'Professional Boxer',
+    tagline: 'Road work at dawn, rounds in the afternoon, twelve weeks to fight night.',
+    origin:
+      'The boxing camp is one of the oldest structured training programmes in sport and it has barely changed: early road work for the aerobic base, gym work in the afternoon on bag, pads and sparring, and a long taper into the fight. What has changed is the strength work — modern camps lift, where an older generation feared getting "muscle-bound", and the evidence backs the modern view.',
+    ethos: 'The fight is won in the weeks nobody watches.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'sport.boxing',
+    accent: '#C62828',
+    authenticityNote:
+      'Follows the real camp shape — road work, bag and pad rounds, sparring, and a taper. Sparring is the one part you cannot do alone or safely without a coach, and this programme does not pretend otherwise.',
+    safetyNote:
+      'Do not spar without a coach, proper headgear and someone who knows how to stop it. Repeated head impacts are cumulative and are the sport\'s real cost — technical sparring is where you learn; hard sparring every week is where careers get short.',
+    days: [
+      { key: 'roadwork', label: 'Dawn road work', sessionType: 'outdoor', focus: 'The aerobic base a twelve-round fight is built on.', exercises: ['easy-run', 'hill-repeats', 'sprint-repeats'], prescription: '6–10 km easy, sprints at the finish', minutes: 50 },
+      { key: 'bag', label: 'Bag rounds', sessionType: 'martial_arts', focus: 'Punch output and the shape of a real round.', exercises: ['ma-bag-round', 'ma-jab-cross', 'ma-combination-drill', 'ma-skipping'], prescription: '10×3 min on the bag, 1 min rest', minutes: 50 },
+      { key: 'pads', label: 'Pads & technique', sessionType: 'martial_arts', focus: 'Timing, accuracy and reading a moving target.', exercises: ['ma-pad-round', 'ma-mitt-work', 'ma-counter-drill', 'ma-defense-drill', 'ma-footwork-drill'], prescription: '8 rounds on the pads', minutes: 45 },
+      { key: 'strength', label: 'Strength & power', sessionType: 'strength', focus: 'Force behind the shot without carrying useless weight.', exercises: ['deadlift', 'push-press', 'pull-up', 'landmine-rotation', 'standing-power-throw'], prescription: 'Low reps, explosive intent, 4×3–5', minutes: 45 },
+      { key: 'spar', label: 'Technical sparring', sessionType: 'martial_arts', focus: 'Learning under real pressure — light and technical.', exercises: ['ma-technical-sparring', 'ma-positional-sparring', 'ma-shadow-round'], prescription: 'Controlled rounds only, with a coach present', minutes: 45 },
+      { key: 'condition', label: 'Fight conditioning', sessionType: 'calisthenics', focus: 'The neck, core and lungs that survive twelve rounds.', exercises: ['ma-fight-conditioning', 'ma-neck-conditioning', 'weighted-sit-up', 'burpees', 'jump-rope-basic'], prescription: 'Circuit at round tempo, 30 min', minutes: 35 },
+    ],
+    diet: {
+      name: 'Camp and the weight cut',
+      approach:
+        'Camp nutrition serves two jobs at once: fuelling six sessions a week and arriving at a weight. The safe version does the losing early and slowly, so the last week is a small adjustment rather than a crisis. Protein stays high to hold muscle in a deficit, carbohydrate is timed around the hard sessions, and fluid is managed rather than manipulated.',
+      macroSlant: 'Moderate deficit, high protein, carbohydrate placed around training.',
+      sampleDay: [
+        { label: 'Before road work', detail: 'Light — coffee and a banana; the run is mostly aerobic.' },
+        { label: 'Breakfast', detail: 'Eggs and oats after the run.' },
+        { label: 'Pre-gym', detail: 'Rice with chicken, a couple of hours before the rounds.' },
+        { label: 'Dinner', detail: 'Fish or lean meat, vegetables, a measured carb portion.' },
+      ],
+      notes: [
+        'Severe dehydration cuts are the genuinely dangerous part of this sport outside the ring. Lose the weight in the weeks, not the last night.',
+        'Fighting in a big deficit is how you gas in the later rounds — the diet is a performance decision, not just a scale one.',
+      ],
+    },
+  },
+  {
+    key: 'ath-sprinter',
+    category: 'athlete',
+    name: 'Elite Sprinter',
+    tagline: 'Ten seconds of work and a week of preparing for it.',
+    origin:
+      'Sprint training is the most misunderstood programme in sport: it is almost entirely rest. A 100 m specialist runs very little volume, but every metre is at or near maximum, with long recoveries — six to eight minutes between efforts — because sprinting slowly does not train sprinting. The gym is heavy and low-rep, the plyometrics are sharp, and the whole week is arranged so the nervous system is fresh for the fast days.',
+    ethos: 'Fast, then rest. There is no such thing as a tired sprint session.',
+    level: 'advanced',
+    daysPerWeek: 4,
+    blockWeeks: 10,
+    icon: 'cardio.running',
+    accent: '#F9A825',
+    authenticityNote:
+      'The structure is genuinely how sprinters train: low volume, maximum intensity, very long recoveries, heavy lifting, and hard/easy alternation. The temptation to add volume is exactly what turns a sprint programme into a middle-distance one.',
+    safetyNote:
+      'Sprinting is the highest hamstring-risk activity there is. Warm up thoroughly and build up over weeks — the first fast session after a lay-off is where the tears happen.',
+    days: [
+      { key: 'accel', label: 'Acceleration', sessionType: 'outdoor', focus: 'The first thirty metres — the phase that decides most races.', exercises: ['sprint-repeats', 'sled-push', 'hill-sprints', 'dynamic-warmup'], prescription: '6×30 m from blocks or a push, 5 min recovery', minutes: 50 },
+      { key: 'maxv', label: 'Maximum velocity', sessionType: 'outdoor', focus: 'Top-end speed with flying starts — pure quality.', exercises: ['sprint-repeats', 'track-intervals', 'sport-plyometrics'], prescription: '4–6×40 m flying, 8 min recovery. Stop when times drop', minutes: 55 },
+      { key: 'lift', label: 'Heavy lifting', sessionType: 'strength', focus: 'Force production. Heavy, low reps, long rests.', exercises: ['back-squat', 'deadlift', 'push-press', 'barbell-high-pull', 'box-jumps'], prescription: '5×3 at a genuinely heavy load, 3–4 min rests', minutes: 60 },
+      { key: 'tempo', label: 'Tempo & recovery', sessionType: 'cardio', focus: 'Easy running that aids recovery without touching the fast system.', exercises: ['easy-run', 'stretching', 'hip-mobility', 'foam-rolling'], prescription: 'Relaxed 100s at 70%, then mobility', minutes: 40 },
+    ],
+    diet: {
+      name: 'Power-to-weight',
+      approach:
+        'A sprinter is a power athlete: high protein to build and hold the muscle that produces force, enough carbohydrate to fuel a nervous-system-heavy week, and a body composition managed carefully because every kilogram has to be accelerated. Not a low-carb sport, despite the low training volume.',
+      macroSlant: 'High protein, moderate carbs timed to the fast days, lean composition.',
+      sampleDay: [
+        { label: 'Breakfast', detail: 'Eggs, oats and fruit.' },
+        { label: 'Pre-session', detail: 'Rice and chicken a few hours before the track.' },
+        { label: 'Post-session', detail: 'Protein and carbohydrate straight after.' },
+        { label: 'Dinner', detail: 'Beef or fish with potatoes and vegetables.' },
+      ],
+      notes: ['Cutting weight at the cost of force is the wrong trade — it is power-to-weight, not weight alone.'],
+    },
+  },
+  {
+    key: 'ath-marathoner',
+    category: 'athlete',
+    name: 'Elite Marathon Runner',
+    tagline: '80% easy, 20% hard — and the discipline to keep the easy days easy.',
+    origin:
+      'Elite marathoners run enormous weekly volume, and the striking thing to anyone watching is how slow most of it is. The 80/20 distribution — roughly four-fifths of running below the first ventilatory threshold — turns up again and again in the training logs of the best distance runners, and holds from the Kenyan camps of Iten to European professionals. The hard sessions are genuinely hard; the easy days protect them.',
+    ethos: 'Run easy on the easy days so you can run hard on the hard ones.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 16,
+    icon: 'cardio.marathon',
+    accent: '#00838F',
+    authenticityNote:
+      'The 80/20 split, the long run, the threshold session and a strict easy pace are all genuine features of elite distance training. The volume here is scaled well below a professional\'s 160–220 km a week — that figure takes years to build and is not a target to jump to.',
+    safetyNote:
+      'Nearly every running injury traces to adding volume too quickly. Cap increases around 10% a week, and take the easy days genuinely easy — running them at a moderate pace is the single most common way amateurs get hurt.',
+    days: [
+      { key: 'long', label: 'The long run', sessionType: 'outdoor', focus: 'The cornerstone. Time on feet, at a pace you could hold all day.', exercises: ['long-run'], prescription: 'Build 20 → 32 km, conversational throughout', minutes: 140 },
+      { key: 'threshold', label: 'Threshold', sessionType: 'outdoor', focus: 'Comfortably hard — the pace you could hold for an hour.', exercises: ['progression-run', 'track-intervals', 'fartlek-run'], prescription: '4×8 min at threshold, 2 min float', minutes: 60 },
+      { key: 'intervals', label: 'Intervals', sessionType: 'outdoor', focus: 'The sharp end — VO2max work, sparingly.', exercises: ['track-intervals', 'hill-repeats', 'sprint-repeats'], prescription: '6×1 km hard, equal recovery', minutes: 55 },
+      { key: 'easy1', label: 'Easy run', sessionType: 'outdoor', focus: 'Volume at a genuinely easy effort. Discipline, not laziness.', exercises: ['easy-run', 'recovery-run'], prescription: '10–14 km easy — if in doubt, slower', minutes: 65 },
+      { key: 'easy2', label: 'Easy + strides', sessionType: 'outdoor', focus: 'Easy running with a few short pick-ups to keep the legs quick.', exercises: ['easy-run', 'sprint-repeats'], prescription: '10 km easy, then 6×20 s strides', minutes: 60 },
+      { key: 'strength', label: 'Runner\'s strength', sessionType: 'calisthenics', focus: 'The small amount of strength work that keeps a high-mileage runner whole.', exercises: ['single-leg-rdl', 'nordic-negative', 'single-leg-calf-raise', 'side-plank', 'glute-bridge'], prescription: 'Twice weekly, light, never to failure', minutes: 30 },
+    ],
+    diet: {
+      name: 'Fuelling the mileage',
+      approach:
+        'Very high carbohydrate — distance runners are the clearest case in sport where carbs are the performance variable. Protein around 1.6 g/kg supports the constant repair of high-volume running, iron status is monitored closely because distance runners lose it, and race-day fuelling is rehearsed in training rather than improvised.',
+      macroSlant: 'Very high carbohydrate, moderate protein, iron watched carefully.',
+      sampleDay: [
+        { label: 'Pre-run', detail: 'Something light and carbohydrate-based before the morning run.' },
+        { label: 'Breakfast', detail: 'Large oats with fruit and eggs after training.' },
+        { label: 'Lunch', detail: 'Rice or pasta with lean protein and vegetables.' },
+        { label: 'Dinner', detail: 'Carbohydrate again, with fish or red meat for iron.' },
+      ],
+      notes: [
+        'Under-fuelling is the endemic problem in distance running, and in its severe form (RED-S) it costs bone density, hormones and years of progress.',
+        'Practise race fuelling in training. Nothing new on race day is a rule that exists because people learn it the hard way.',
+      ],
+    },
+  },
+  {
+    key: 'ath-swimmer',
+    category: 'athlete',
+    name: 'Olympic Swimmer',
+    tagline: 'Kilometres in the pool, and a shoulder that has to survive them.',
+    origin:
+      'Competitive swimmers cover enormous distances — commonly 8–15 km a day across two sessions — with technique work threaded through everything because in water, drag beats power. Dryland training exists mostly to protect the shoulder: a swimmer performs tens of thousands of overhead rotations a week, and the rotator cuff and upper back are what keeps that sustainable.',
+    ethos: 'Technique before effort. In water, being smoother is faster than being stronger.',
+    level: 'advanced',
+    daysPerWeek: 6,
+    blockWeeks: 12,
+    icon: 'cardio.swimming',
+    accent: '#0277BD',
+    authenticityNote:
+      'Reflects a real swim programme: high pool volume, technique sets, sprint work, and dryland aimed squarely at shoulder health rather than size. Pool sessions obviously need a pool; rowing is a substitute for the engine but not for the technique.',
+    safetyNote:
+      'Swimmer\'s shoulder is an overuse injury, and it comes from volume added faster than the cuff can adapt. The dryland pulling and external-rotation work is not optional filler — it is the thing that keeps the shoulder in the sport.',
+    days: [
+      { key: 'endurance', label: 'Aerobic set', sessionType: 'outdoor', focus: 'The long steady kilometres that build the engine.', exercises: ['swimming-laps', 'swimming'], prescription: '3–5 km of continuous and broken swimming', minutes: 75 },
+      { key: 'technique', label: 'Technique', sessionType: 'outdoor', focus: 'Drills and stroke correction — drag costs more than power gains.', exercises: ['swimming', 'swimming-laps', 'breathwork'], prescription: 'Drill sets, 40 min, quality over distance', minutes: 45 },
+      { key: 'sprint', label: 'Sprint set', sessionType: 'outdoor', focus: 'Short maximum efforts with full recovery.', exercises: ['swimming-laps', 'open-water-swim'], prescription: '10×50 m maximum, long rests', minutes: 45 },
+      { key: 'dryland', label: 'Dryland & shoulders', sessionType: 'strength', focus: 'Everything that keeps the shoulder in the water.', exercises: ['face-pull', 'cable-external-rotation', 'pull-up', 'db-scaption-raise', 'y-raise', 'plank'], prescription: 'Higher reps, controlled, 40 min', minutes: 45 },
+      { key: 'power', label: 'Power', sessionType: 'strength', focus: 'Force for starts and turns, which decide close races.', exercises: ['box-jumps', 'deadlift', 'pull-up', 'standing-power-throw', 'kettlebell-swing'], prescription: 'Explosive lifts and throws, 4×4', minutes: 45 },
+      { key: 'mobility', label: 'Mobility & recovery', sessionType: 'mindbody', focus: 'Thoracic and shoulder range — the swimmer\'s maintenance work.', exercises: ['thoracic-mobility', 'shoulder-mobility', 'wall-slides', 'foam-rolling', 'stretching'], prescription: '30 min of range and recovery work', minutes: 30 },
+    ],
+    diet: {
+      name: 'Fuelling two sessions a day',
+      approach:
+        'Swimmers burn enormous energy — cold water and long doubles push daily needs very high — and the practical problem is eating enough between a 5am and a 4pm session. High carbohydrate, protein spread across the day, and deliberate eating immediately after the morning swim so the afternoon one is not run on empty.',
+      macroSlant: 'Very high total energy, high carbohydrate, protein spread across the day.',
+      sampleDay: [
+        { label: 'Pre-dawn', detail: 'Something small and sweet before the early session.' },
+        { label: 'After the morning swim', detail: 'A proper meal — oats, eggs, fruit, milk.' },
+        { label: 'Lunch', detail: 'Rice or pasta with chicken and vegetables.' },
+        { label: 'Dinner', detail: 'Fish or beef with potatoes and greens.' },
+      ],
+      notes: ['The classic swimmer error is skipping post-morning food and arriving at the afternoon session already empty.'],
+    },
+  },
+  {
+    key: 'ath-cyclist',
+    category: 'athlete',
+    name: 'Pro Cyclist',
+    tagline: 'Long endurance base, short savage intervals, watts per kilogram.',
+    origin:
+      'Professional road cycling is a polarised sport: long, genuinely easy endurance rides making up most of the week, punctuated by very hard interval sessions. The metric that decides climbing races is watts per kilogram, which makes cycling unusually sensitive to body composition — and unusually prone to athletes taking that too far. Gym work is minimal in season and aimed at bone density and the hips.',
+    ethos: 'Ride lots, mostly easy. Then, occasionally, ride very hard indeed.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 12,
+    icon: 'cardio.cycling',
+    accent: '#6A1B9A',
+    authenticityNote:
+      'Follows the polarised model used across professional endurance cycling — a large easy base with a small dose of very hard work — rather than the moderate-intensity middle ground most amateurs default to.',
+    safetyNote:
+      'Cycling is not weight-bearing, so bone density needs looking after separately — the squats and jumps in the strength day are there for exactly that reason, not for cycling power.',
+    days: [
+      { key: 'base', label: 'Endurance base', sessionType: 'outdoor', focus: 'Long, steady, genuinely easy. The bulk of the week.', exercises: ['road-cycling', 'gravel-cycling'], prescription: '3–5 hours at a conversational effort', minutes: 210 },
+      { key: 'threshold', label: 'Threshold intervals', sessionType: 'cardio', focus: 'Sustained power — the engine of a time trial.', exercises: ['cycling-time-trial', 'bike-intervals', 'spin-bike'], prescription: '4×10 min at threshold, 5 min easy', minutes: 75 },
+      { key: 'vo2', label: 'VO2max intervals', sessionType: 'cardio', focus: 'The very hard end, in small doses.', exercises: ['bike-intervals', 'cycling-hills', 'assault-bike'], prescription: '5×4 min flat out, equal recovery', minutes: 60 },
+      { key: 'recovery', label: 'Recovery spin', sessionType: 'outdoor', focus: 'Easy enough to feel pointless. That is correct.', exercises: ['road-cycling', 'cycling-commute'], prescription: '60–90 min very easy, high cadence', minutes: 75 },
+      { key: 'strength', label: 'Strength & bone', sessionType: 'strength', focus: 'Hips, and the loading that a non-impact sport never provides.', exercises: ['back-squat', 'romanian-deadlift', 'single-leg-rdl', 'box-jumps', 'plank'], prescription: '3×5 heavy, plus jumps for bone', minutes: 45 },
+    ],
+    diet: {
+      name: 'Fuelling the ride',
+      approach:
+        'Carbohydrate is the currency of cycling. Long rides are fuelled on the bike — modern practice pushes 60–90 g of carbohydrate an hour on hard days — and daily intake tracks the training load closely. Cycling has a well-documented problem with under-fuelling in pursuit of watts per kilogram, and the endpoint of that is lost bone density and disrupted hormones, not a better climber.',
+      macroSlant: 'Carbohydrate scaled to the ride, protein steady, fuelling done on the bike.',
+      sampleDay: [
+        { label: 'Pre-ride', detail: 'Oats and fruit before a long day out.' },
+        { label: 'On the bike', detail: 'Carbohydrate every hour on hard or long rides — this is the part people skip.' },
+        { label: 'Post-ride', detail: 'Protein and carbohydrate immediately.' },
+        { label: 'Dinner', detail: 'Rice or potatoes with fish or lean meat and vegetables.' },
+      ],
+      notes: [
+        'Chasing watts per kilogram by cutting weight is the sport\'s classic trap. Under-fuelling costs bone, hormones and eventually the watts too.',
+        'Fuelling on the bike is a trainable skill — the gut adapts to what you practise giving it.',
+      ],
+    },
+  },
+  {
+    key: 'ath-tennis',
+    category: 'athlete',
+    name: 'Pro Tennis Player',
+    tagline: 'Hundreds of direction changes, a rotational serve, and five-set stamina.',
+    origin:
+      'A tennis match is hundreds of short sprints with constant deceleration, played over anything from ninety minutes to five hours. The physical priorities are lateral movement and braking, rotational power for the serve and groundstrokes, and enough aerobic base to still be moving in the fourth set. It is also strikingly asymmetric — one arm does the hitting — which is why the training deliberately works both sides.',
+    ethos: 'First to the ball, still moving in the fifth set.',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    blockWeeks: 10,
+    icon: 'sport.tennis',
+    accent: '#558B2F',
+    authenticityNote:
+      'Built on the real physical demands — multidirectional movement, deceleration, rotational power and shoulder care for the serve. The asymmetry work is included because tennis loads one side hard and coaches genuinely train against it.',
+    days: [
+      { key: 'movement', label: 'Court movement', sessionType: 'cardio', focus: 'Lateral speed and braking — most points are won getting there.', exercises: ['agility-ladder', 'shuttle-runs', 'sport-footwork', 'sprint-repeats'], prescription: 'Multidirectional drills, 30 min of work', minutes: 45 },
+      { key: 'rotation', label: 'Rotational power', sessionType: 'strength', focus: 'The serve and the groundstroke — power through the trunk.', exercises: ['landmine-rotation', 'cable-woodchopper', 'landmine-anti-rotation-press', 'standing-power-throw', 'russian-twist'], prescription: 'Explosive rotation both sides, 4×6', minutes: 45 },
+      { key: 'court', label: 'On court', sessionType: 'sport', focus: 'The sport itself — technique, patterns, and points.', exercises: ['tennis', 'sport-serve-practice', 'sport-wall-ball'], prescription: '60–90 min of hitting and points', minutes: 75 },
+      { key: 'strength', label: 'Legs & shoulder', sessionType: 'strength', focus: 'Single-leg strength, and the shoulder that serves 100+ times a match.', exercises: ['bulgarian-split-squat', 'single-leg-rdl', 'face-pull', 'cable-external-rotation', 'db-scaption-raise'], prescription: 'Legs 4×6, shoulder work higher rep', minutes: 50 },
+      { key: 'engine', label: 'Match stamina', sessionType: 'cardio', focus: 'Repeated hard efforts with short recoveries — a match, essentially.', exercises: ['shuttle-runs', 'easy-run', 'jump-rope-basic', 'sport-plyometrics'], prescription: 'Intervals matched to point length: 10 s on, 20 s off', minutes: 40 },
+    ],
+    diet: {
+      name: 'Playing long',
+      approach:
+        'Matches can run five hours in heat, which makes tennis nutrition largely a hydration and in-match fuelling problem. Carbohydrate before and during play, deliberate sodium replacement for heavy sweaters, and enough daily protein to recover for the next round rather than the next week.',
+      macroSlant: 'Carbs before and during play, sodium managed, protein steady.',
+      sampleDay: [
+        { label: 'Pre-match', detail: 'Pasta or rice with lean protein, 2–3 hours before.' },
+        { label: 'During play', detail: 'Carbohydrate and electrolytes at changeovers — long matches are won here.' },
+        { label: 'Post-match', detail: 'Protein and carbohydrate immediately; recovery is short between rounds.' },
+        { label: 'Dinner', detail: 'Balanced plate with a solid carbohydrate portion.' },
+      ],
+      notes: ['Cramping in the fifth set is usually a fluid and sodium failure, not a fitness one.'],
     },
   },
 ];

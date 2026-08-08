@@ -789,6 +789,33 @@ export const dailyChallenges = sqliteTable('daily_challenges', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+/**
+ * A saved meal you eat often — "my usual breakfast", "post-training", or a
+ * whole day's distribution for a fasting window.
+ *
+ * The foods are stored as a JSON snapshot of their macros, NOT as references
+ * into the food catalogue. That matters: the catalogue ships with the app and
+ * is replaced on every update, so a routine holding ids would silently change
+ * or break. A snapshot re-logs exactly what you saved, forever.
+ *
+ * `mealType` null means the routine covers a whole day — each item carries its
+ * own meal, which is how a fasting distribution gets saved in one go.
+ */
+export const mealRoutines = sqliteTable('meal_routines', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  name: text('name').notNull(),
+  /** breakfast | lunch | dinner | snack, or null for a full-day routine */
+  mealType: text('meal_type', { enum: MEAL_TYPES }),
+  /** JSON array of RoutineItem — a macro snapshot per food */
+  itemsJson: text('items_json').notNull().default('[]'),
+  useCount: integer('use_count').notNull().default(0),
+  lastUsedAt: integer('last_used_at'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const coachTips = sqliteTable('coach_tips', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -849,3 +876,4 @@ export type FastingProfile = typeof fastingProfiles.$inferSelect;
 export type FastingLog = typeof fastingLogs.$inferSelect;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type DailyChallenge = typeof dailyChallenges.$inferSelect;
+export type MealRoutine = typeof mealRoutines.$inferSelect;

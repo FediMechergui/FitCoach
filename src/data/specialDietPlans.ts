@@ -338,6 +338,56 @@ export const SPECIAL_DIET_BUILDS: Record<string, MealBuild[]> = {
     M('lunch', [['tn-chicken-breast', 1.5], ['white-rice', 1.5], ['tn-papaya', 1]]),
     M('dinner', [['tn-sea-bream', 1], ['white-rice', 1.5], ['tn-green-beans', 1]]),
   ],
+  // ── Elite sport ──
+  'ath-footballer': [
+    M('breakfast', [['oats', 1.5], ['egg', 2], ['banana', 1]]),
+    M('lunch', [['white-rice', 1.5], ['chicken-breast', 1.5], ['tn-slata-tounsiya', 1]]),
+    M('snack', [['whey', 1], ['banana', 1]]),
+    M('dinner', [['salmon', 1], ['tn-potato', 1.5], ['broccoli', 1]]),
+  ],
+  'ath-basketballer': [
+    M('breakfast', [['oats', 2], ['egg', 3], ['tn-milk-whole', 1], ['orange', 1]]),
+    M('lunch', [['white-rice', 2], ['tn-chicken-breast', 1.5], ['tn-green-beans', 1]]),
+    M('snack', [['whey', 1], ['tn-date-deglet', 3]]),
+    M('dinner', [['salmon', 1.5], ['tn-potato', 1.5], ['tn-spinach', 1]]),
+  ],
+  'ath-boxer': [
+    M('breakfast', [['banana', 1]]),
+    M('breakfast', [['egg', 3], ['oats', 1]]),
+    M('lunch', [['white-rice', 1], ['tn-chicken-breast', 1.5], ['broccoli', 1]]),
+    M('dinner', [['tn-sea-bream', 1], ['tn-slata-tounsiya', 1], ['tn-sweet-potato', 0.7]]),
+  ],
+  'ath-sprinter': [
+    M('breakfast', [['egg', 3], ['oats', 1], ['blueberries', 1]]),
+    M('lunch', [['white-rice', 1.2], ['chicken-breast', 1.5], ['tn-broccoli', 1]]),
+    M('snack', [['whey', 1], ['apple', 1]]),
+    M('dinner', [['tn-beef-lean', 1.5], ['tn-potato', 1.2], ['tn-swiss-chard', 1]]),
+  ],
+  'ath-marathoner': [
+    M('breakfast', [['banana', 1], ['tn-honey-tbsp', 1]]),
+    M('breakfast', [['oats', 2], ['egg', 2], ['df-raisins', 1]]),
+    M('lunch', [['pasta', 2], ['tn-chicken-breast', 1], ['tn-tomato', 1]]),
+    M('dinner', [['tn-beef-lean', 1], ['white-rice', 2], ['tn-spinach', 1]]),
+  ],
+  'ath-swimmer': [
+    M('snack', [['banana', 1], ['tn-honey-tbsp', 1]]),
+    M('breakfast', [['oats', 2], ['egg', 3], ['tn-milk-whole', 1], ['orange', 1]]),
+    M('lunch', [['pasta', 2], ['chicken-breast', 1.5], ['broccoli', 1]]),
+    M('dinner', [['salmon', 1.5], ['tn-potato', 1.5], ['tn-kale', 1]]),
+  ],
+  'ath-cyclist': [
+    M('breakfast', [['oats', 2], ['banana', 1], ['tn-honey-tbsp', 1]]),
+    M('snack', [['tn-date-deglet', 4], ['df-raisins', 1]]),
+    M('snack', [['whey', 1], ['white-rice', 1]]),
+    M('dinner', [['tn-potato', 2], ['tn-sea-bass', 1], ['tn-swiss-chard', 1]]),
+  ],
+  'ath-tennis': [
+    M('lunch', [['pasta', 1.5], ['tn-chicken-breast', 1.2], ['tn-tomato', 1]]),
+    M('snack', [['banana', 2], ['tn-date-deglet', 2]]),
+    M('snack', [['whey', 1], ['tn-milk-whole', 0.5]]),
+    M('dinner', [['tn-turkey-breast', 1.5], ['white-rice', 1.5], ['tn-slata-tounsiya', 1]]),
+  ],
+
   'hero-luchador': [
     M('breakfast', [['egg', 3], ['corn-tortilla', 1], ['tn-orange', 1]]),
     M('lunch', [['chicken-breast', 1.5], ['tn-kidney-beans', 1], ['white-rice', 1], ['tn-slata-tounsiya', 1]]),

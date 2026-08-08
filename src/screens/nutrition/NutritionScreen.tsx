@@ -23,6 +23,7 @@ import { minutesToHM } from '@/lib/time';
 import type { FastingState } from '@/lib/fasting';
 import { BEVERAGE_PRESETS, WATER_QUICK_ADD } from '@/data/beverages';
 import { mealIcon } from '@/constants/icon-map';
+import { MealRoutineBar } from '@/components/MealRoutineBar';
 import { addDays, todayISO } from '@/lib/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -260,6 +261,13 @@ export function NutritionScreen() {
         </Pressable>
       )}
 
+      {/*
+        Whole-day routines. Saving a day rather than a single meal is what makes
+        a fasting window re-usable: the split across the eating window is the
+        thing worth keeping, not any one plate.
+      */}
+      <MealRoutineBar mealType={null} date={date} onChanged={refresh} />
+
       {/* Meals */}
       {MEAL_TYPES.map((meal) => {
         const entries = food?.byMeal[meal] ?? [];
@@ -271,6 +279,7 @@ export function NutritionScreen() {
               action="Add"
               onAction={() => navigation.navigate('AddFood', { meal })}
             />
+            <MealRoutineBar mealType={meal} date={date} onChanged={refresh} />
             {entries.length === 0 ? (
               <Pressable onPress={() => navigation.navigate('AddFood', { meal })}>
                 <Card style={{ borderStyle: 'dashed' }}>

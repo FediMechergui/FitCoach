@@ -62,6 +62,8 @@ import {
 } from '../src/lib/effort';
 import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../src/lib/oneRepMax';
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
+import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
+import { combustedEquivalents, totalNicotineMg, combustedShare } from '../src/lib/smoking';
 import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
 import { SUPPLEMENTS, findSupplement, servingUnits } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
@@ -72,7 +74,7 @@ import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
-import { estimateDifficulty, findEasierAlternatives, type AltExercise } from '../src/lib/exerciseAlternatives';
+import { estimateDifficulty, findEasierAlternatives, matchQuality, type AltExercise } from '../src/lib/exerciseAlternatives';
 import { estimateActivitySteps } from '../src/lib/activitySteps';
 import { computeEnergyBalance, trainingLoadFraction } from '../src/lib/energyBalance';
 import { dietNutrition, mealToDiaryInputs } from '../src/lib/specialDiet';
@@ -900,6 +902,113 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nTriceps coverage & strict alternative matching:');
+{
+  const tri = EXLIB.filter((e) => e.primaryMuscle === 'triceps');
+  check('Triceps has real machine coverage', tri.filter((e) => e.equipmentType === 'machine').length >= 4, `${tri.filter((e) => e.equipmentType === 'machine').length} machines`);
+  check('…and cable variety beyond one pushdown', tri.filter((e) => e.equipmentType === 'cable').length >= 6);
+  check('The new triceps movements are present', ['triceps-extension-machine', 'assisted-dip-machine', 'smith-close-grip-bench', 'rope-pushdown', 'v-bar-pushdown', 'reverse-grip-pushdown', 'cable-kickback', 'ez-bar-overhead-extension', 'db-single-arm-overhead-extension', 'bodyweight-skullcrusher'].every((s) => ALL_SLUGS.has(s)));
+  check('Every triceps exercise names its head', tri.every((e) => !!e.subMuscle));
+  // Assistance machines are counterintuitive: a LOWER number is a harder set.
+  check('The assisted dip explains its inverted loading', /ASSISTANCE|assistance/.test(EXLIB.find((e) => e.slug === 'assisted-dip-machine')?.description ?? ''));
+
+  /*
+   * The reported bug. `shareMuscle` accepted any overlapping muscle GROUP, and
+   * a bench press lists triceps among its groups — so asking for an easier
+   * skullcrusher could return a bench press. Different primary muscle, not
+   * easier, and for a rear-delt fly the same flaw would offer an overhead
+   * press: precisely the swap that builds the imbalance the exercise fixed.
+   */
+  const asAlt = (e: (typeof EXLIB)[number], i: number) => ({
+    id: i + 1, slug: e.slug, name: e.name, primaryMuscle: e.primaryMuscle ?? null,
+    subMuscle: e.subMuscle ?? null, muscleGroups: e.muscleGroups, equipmentType: e.equipmentType ?? null,
+    sessionType: e.sessionType,
+  });
+  const pool = EXLIB.map(asAlt);
+  const byslug = (s: string) => pool.find((e) => e.slug === s)!;
+
+  check('A bench press is not an alternative to a skullcrusher', matchQuality(byslug('skullcrusher'), byslug('bench-press-barbell')) === 0);
+  check('An overhead press is not an alternative to a rear-delt fly', matchQuality(byslug('rear-delt-fly'), byslug('overhead-press')) === 0);
+  check('Same muscle, same head scores highest', matchQuality(byslug('skullcrusher'), byslug('triceps-extension-machine')) === 2);
+  // Strict on the head too: a pushdown is lateral-head work, so it is NOT an
+  // alternative to a long-head skullcrusher, however similar they look.
+  check('A different head of the same muscle is not a match', matchQuality(byslug('skullcrusher'), byslug('triceps-pushdown')) === 0);
+  check('Untagged targets still match on the muscle alone', matchQuality({ ...byslug('skullcrusher'), subMuscle: null }, byslug('triceps-pushdown')) === 1);
+
+  const skullAlts = findEasierAlternatives(byslug('skullcrusher'), pool, 8);
+  check('Every suggestion trains the same primary muscle', skullAlts.every((a) => a.primaryMuscle === 'triceps'), skullAlts.map((a) => a.primaryMuscle).join(','));
+  check('Suggestions are all genuinely easier', skullAlts.every((a) => a.difficulty <= estimateDifficulty(byslug('skullcrusher'))));
+  // Same-head options must come before merely-same-muscle ones.
+  check('Every suggestion trains the same head, not just the same muscle', skullAlts.every((a) => a.subMuscle === byslug('skullcrusher').subMuscle), skullAlts.map((a) => a.subMuscle).join(','));
+  check('There are still enough options to be useful', skullAlts.length >= 4, `${skullAlts.length}`);
+  // An exercise with no relatives must return nothing rather than something wrong.
+  const lonely = findEasierAlternatives({ id: 99999, slug: 'x', name: 'Imaginary Lift', primaryMuscle: 'nonexistent-muscle', subMuscle: null, muscleGroups: ['chest'], equipmentType: 'barbell', sessionType: 'strength' }, pool);
+  check('No relatives means no suggestions, not a wrong one', lonely.length === 0);
+
+  // Reordering exercises within a session.
+  const sessSrc2 = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('Exercises can be moved up and down a session', /export function moveExerciseLog/.test(sessSrc2));
+  /*
+   * Deleting an exercise leaves a gap in orderIndex, and swapping raw index
+   * values across a gap silently does nothing. Renumbering densely after each
+   * move is what makes the control reliable rather than intermittent.
+   */
+  check('Order is renumbered densely so deletes cannot break it', /reordered\.forEach\(\(s, i\) =>/.test(sessSrc2));
+  check('A move at the end reports failure instead of pretending', /if \(at < 0 \|\| to < 0 \|\| to >= siblings\.length\) return false/.test(sessSrc2));
+}
+
+console.log('\nNicotine products — cigarettes and the alternatives:');
+{
+  const cig = productOrDefault('cigarette');
+  const pouch = productOrDefault('pouch');
+  const shisha = productOrDefault('shisha');
+
+  check('An unknown or missing product falls back to cigarettes', productOrDefault(null).key === 'cigarette' && productOrDefault('nonsense').key === 'cigarette');
+  check('Snus, pouches, vape and NRT are all available', ['snus', 'pouch', 'vape', 'nrt-gum', 'nrt-lozenge', 'nrt-patch'].every((k) => !!findNicotineProduct(k)));
+
+  /*
+   * The distinction the whole model turns on. Nicotine is what makes it
+   * addictive; smoke is what makes it lethal. Counting a pouch as a cigarette
+   * would tell someone who had successfully switched that they had done
+   * themselves identical damage — false, and the surest way to make them give
+   * up trying.
+   */
+  check('Only burned products carry a cigarette-equivalent', NICOTINE_PRODUCTS.every((p) => (p.cigaretteEquivalent > 0) === p.combusted));
+  check('A day of pouches costs zero cigarette-equivalents', combustedEquivalents([{ productKey: 'pouch', quantity: 12 }]) === 0);
+  check('…but still counts as nicotine', totalNicotineMg([{ productKey: 'pouch', quantity: 12 }], DEFAULT_SMOKING_SETTINGS) > 0);
+  check('NRT is flagged as a licensed medicine', ['nrt-gum', 'nrt-lozenge', 'nrt-patch'].every((k) => findNicotineProduct(k)?.isNrt === true));
+
+  // Shisha is the one people underestimate, and the model has to say so.
+  check('Shisha counts for far more than one cigarette', shisha.cigaretteEquivalent >= 5, `${shisha.cigaretteEquivalent}`);
+  check('…and the note explains the smoke volume', /smoke volume|30–60 minutes/.test(shisha.note));
+  check('Heated tobacco is treated as partially burned, not clean', productOrDefault('heated').combusted && productOrDefault('heated').cigaretteEquivalent < 1);
+
+  // Mixed days.
+  const mix = [{ productKey: 'cigarette', quantity: 4 }, { productKey: 'pouch', quantity: 6 }, { productKey: 'shisha', quantity: 1 }];
+  check('A mixed day counts only what was burned', combustedEquivalents(mix) === 14, `${combustedEquivalents(mix)}`);
+  check('Nicotine totals span every product', near(totalNicotineMg(mix, DEFAULT_SMOKING_SETTINGS), 4 * 1.1 + 6 * 4 + 3, 0.1), `${totalNicotineMg(mix, DEFAULT_SMOKING_SETTINGS)}`);
+  /*
+   * The number that makes switching visible. Total nicotine can stay flat while
+   * this falls — which is exactly what a successful switch looks like, and what
+   * a plain cigarette count hides entirely.
+   */
+  check('Smoked share falls as you move off cigarettes', combustedShare(mix, DEFAULT_SMOKING_SETTINGS) < 0.3, `${combustedShare(mix, DEFAULT_SMOKING_SETTINGS)}`);
+  check('An all-cigarette day is 100% smoked', combustedShare([{ productKey: 'cigarette', quantity: 10 }], DEFAULT_SMOKING_SETTINGS) === 1);
+  check('A nicotine-free day divides safely', combustedShare([], DEFAULT_SMOKING_SETTINGS) === 0);
+  // Every product must justify itself, including the ones that look benign.
+  check('Every product carries an honest note', NICOTINE_PRODUCTS.every((p) => p.note.length > 60));
+  check('Smoke-free products are never called safe', NICOTINE_PRODUCTS.filter((p) => !p.combusted).every((p) => !/\bharmless\b(?!:)/i.test(p.note) || /not harmless/i.test(p.note)));
+
+  // Migration wiring.
+  const bootSrc4 = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('product_key is in the DDL and the migration', /product_key TEXT/.test(bootSrc4) && /column: 'product_key'/.test(bootSrc4));
+  const sv2 = Number((bootSrc4.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the product migration', sv2 >= 21, `${sv2}`);
+  const smokeRepo = fs.readFileSync('src/repositories/smokingRepo.ts', 'utf8');
+  check('Daily counts are weighted by combustion', /combustedEquivalents\(/.test(smokeRepo));
+  check('Trends use the same weighting as the daily figure', /productOrDefault\(r\.productKey\)\.cigaretteEquivalent/.test(smokeRepo));
 }
 
 console.log('\nSupplements — Shilajit, Spiruline & pill counting:');

@@ -11,13 +11,17 @@ import { dailyStepLogs } from '@/db/schema';
 import { daysAgoISO, todayISO, toISODate, lastNDates } from '@/lib/date';
 import {
   aerobicPenaltyPct,
+  combustedEquivalents,
+  combustedShare,
   lifeMinutesLost,
   lostSessionEquivalent,
   moneyCost,
   nicotineMg,
   restingHrElevation,
+  totalNicotineMg,
   type SmokingSettings,
 } from '@/lib/smoking';
+import { productOrDefault } from '@/data/nicotineProducts';
 import { PRIMARY_USER_ID } from './userRepo';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -62,11 +66,18 @@ export function settingsFromProfile(p: SmokingProfile): SmokingSettings {
 // ── Entries ──────────────────────────────────────────────────────────────────
 export function logCigarettes(
   quantity: number,
-  opts: { date?: string; trigger?: string } = {},
+  opts: { date?: string; trigger?: string; productKey?: string | null } = {},
   userId: number = PRIMARY_USER_ID
 ): void {
   db.insert(smokingEntries)
-    .values({ userId, date: opts.date ?? todayISO(), quantity, trigger: opts.trigger ?? null })
+    .values({
+      userId,
+      date: opts.date ?? todayISO(),
+      quantity,
+      // null means cigarettes, which is what every pre-v2.28 entry was.
+      productKey: opts.productKey ?? null,
+      trigger: opts.trigger ?? null,
+    })
     .run();
 }
 
@@ -74,13 +85,49 @@ export function deleteSmokingEntry(id: number): void {
   db.delete(smokingEntries).where(eq(smokingEntries.id, id)).run();
 }
 
+/**
+ * Cigarette-equivalents of COMBUSTION for a day — what the health model runs on.
+ *
+ * Counting a nicotine pouch as a cigarette here would tell someone who had
+ * successfully switched that they had done themselves the same damage as
+ * smoking, which is both false and the surest way to make them stop bothering.
+ * A pouch, patch or vape contributes zero; shisha contributes far MORE than one
+ * per session, which is the other half of being honest about it.
+ */
 export function dayCigarettes(date: string = todayISO(), userId: number = PRIMARY_USER_ID): number {
-  const rows = db
-    .select()
-    .from(smokingEntries)
-    .where(and(eq(smokingEntries.userId, userId), eq(smokingEntries.date, date)))
-    .all();
-  return rows.reduce((s, r) => s + r.quantity, 0);
+  const total = combustedEquivalents(
+    dayEntries(date, userId).map((r) => ({ productKey: r.productKey, quantity: r.quantity }))
+  );
+  return Math.round(total * 10) / 10;
+}
+
+/** Every unit logged today regardless of product — for nicotine totals. */
+export function dayUnits(date: string = todayISO(), userId: number = PRIMARY_USER_ID): number {
+  return dayEntries(date, userId).reduce((s, r) => s + r.quantity, 0);
+}
+
+/** Nicotine absorbed today across every product, mg. */
+export function dayNicotineMg(
+  settings: SmokingSettings,
+  date: string = todayISO(),
+  userId: number = PRIMARY_USER_ID
+): number {
+  return totalNicotineMg(
+    dayEntries(date, userId).map((r) => ({ productKey: r.productKey, quantity: r.quantity })),
+    settings
+  );
+}
+
+/** Share of today's nicotine that came from something burned, 0..1. */
+export function daySmokedShare(
+  settings: SmokingSettings,
+  date: string = todayISO(),
+  userId: number = PRIMARY_USER_ID
+): number {
+  return combustedShare(
+    dayEntries(date, userId).map((r) => ({ productKey: r.productKey, quantity: r.quantity })),
+    settings
+  );
 }
 
 export function dayEntries(date: string = todayISO(), userId: number = PRIMARY_USER_ID): SmokingEntry[] {
@@ -117,7 +164,11 @@ function dailyCountMap(sinceISO: string, userId: number): Map<string, number> {
     .where(and(eq(smokingEntries.userId, userId), gte(smokingEntries.date, sinceISO)))
     .all();
   const map = new Map<string, number>();
-  for (const r of rows) map.set(r.date, (map.get(r.date) ?? 0) + r.quantity);
+  // Weighted by combustion, so trends and averages mean the same thing as the
+  // daily figure rather than quietly counting pouches as cigarettes.
+  for (const r of rows) {
+    map.set(r.date, (map.get(r.date) ?? 0) + r.quantity * productOrDefault(r.productKey).cigaretteEquivalent);
+  }
   return map;
 }
 

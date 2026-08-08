@@ -3,8 +3,21 @@
  *
  * Exercises don't carry a stored difficulty, so we estimate one from equipment
  * and the movement's name (bodyweight skill work scales enormously), then offer
- * same-muscle exercises that are easier. Heuristic, but good enough to suggest a
- * sensible regression mid-session.
+ * easier exercises **that train the same thing**.
+ *
+ * ── Why the matching is strict ──
+ * The first version accepted any exercise sharing ANY muscle group. That reads
+ * as random in use, and it is: a bench press lists triceps among its groups, so
+ * swapping a triceps extension could offer you a bench press — a different
+ * movement, a different primary muscle, and no easier. Worse, it would happily
+ * trade a rear-delt fly for an overhead press, which is the exact substitution
+ * that builds the imbalance the rear-delt work existed to fix.
+ *
+ * So a candidate must now share the **primary muscle**, full stop. Within that,
+ * exercises hitting the same **sub-muscle** (long head vs lateral head, front
+ * delt vs rear delt) rank above ones that merely share the muscle group. If
+ * nothing suitable exists, the honest answer is an empty list rather than a
+ * plausible-looking wrong one.
  */
 
 export interface AltExercise {
@@ -12,6 +25,7 @@ export interface AltExercise {
   slug: string | null;
   name: string;
   primaryMuscle?: string | null;
+  subMuscle?: string | null;
   muscleGroups: string[];
   equipmentType?: string | null;
   sessionType: string;
@@ -43,10 +57,30 @@ export function estimateDifficulty(ex: AltExercise): number {
   return Math.max(1, Math.min(5, Math.round(d)));
 }
 
-const shareMuscle = (a: AltExercise, b: AltExercise) => {
-  if (a.primaryMuscle && b.primaryMuscle && a.primaryMuscle === b.primaryMuscle) return true;
-  return a.muscleGroups.some((m) => b.muscleGroups.includes(m));
-};
+/**
+ * How well a candidate replaces the target, 2 (same sub-muscle) down to 0 (no).
+ * Zero is disqualifying — it is not a weak match, it is a different exercise.
+ */
+export type MatchQuality = 0 | 1 | 2;
+
+export function matchQuality(target: AltExercise, candidate: AltExercise): MatchQuality {
+  // No primary muscle on either side means we cannot make the guarantee.
+  if (!target.primaryMuscle || !candidate.primaryMuscle) return 0;
+  if (target.primaryMuscle !== candidate.primaryMuscle) return 0;
+
+  /*
+   * Same muscle is not enough when the heads do different jobs. The front and
+   * rear delt are the clearest case: both are "shoulders", but one presses and
+   * one pulls, so offering an overhead press in place of a rear-delt fly is the
+   * exact substitution that builds the imbalance the fly existed to correct.
+   * When the target names a head, the replacement has to train that head.
+   */
+  if (target.subMuscle) {
+    return candidate.subMuscle === target.subMuscle ? 2 : 0;
+  }
+  // The target isn't tagged, so the muscle is all we can honestly match on.
+  return 1;
+}
 
 const FLOW: Record<string, string> = {
   strength: 'lifting', calisthenics: 'lifting',
@@ -54,18 +88,46 @@ const FLOW: Record<string, string> = {
   mindbody: 'mindbody', meditation: 'mindbody',
 };
 
+export interface AltResult extends AltExercise {
+  difficulty: number;
+  match: MatchQuality;
+  /** true when it trains the identical sub-muscle, not just the same muscle */
+  exactSubMuscle: boolean;
+}
+
 /**
- * Same-muscle exercises that are easier than `target`, closest-easier first.
- * Falls back to same-or-easier if nothing is strictly easier.
+ * Easier exercises for the same muscle, best match first.
+ *
+ * Ordering: same sub-muscle before same muscle, then closest-easier first, so
+ * the top suggestion is the smallest honest step down. If nothing in the
+ * library is strictly easier, same-difficulty alternatives are offered instead
+ * (a lateral swap is still useful — a machine version of a free-weight lift can
+ * be the same difficulty but far kinder to a sore joint).
  */
-export function findEasierAlternatives(target: AltExercise, all: AltExercise[], limit = 6): Array<AltExercise & { difficulty: number }> {
+export function findEasierAlternatives(
+  target: AltExercise,
+  all: AltExercise[],
+  limit = 6
+): AltResult[] {
   const td = estimateDifficulty(target);
   const flow = FLOW[target.sessionType];
+
   const scored = all
-    .filter((e) => e.id !== target.id && FLOW[e.sessionType] === flow && shareMuscle(target, e))
-    .map((e) => ({ ...e, difficulty: estimateDifficulty(e) }));
+    .filter((e) => e.id !== target.id && FLOW[e.sessionType] === flow)
+    .map((e) => ({ ...e, match: matchQuality(target, e), difficulty: estimateDifficulty(e) }))
+    // A different primary muscle is not an alternative, it's a different exercise.
+    .filter((e) => e.match > 0);
+
   const easier = scored.filter((e) => e.difficulty < td);
-  const pool = (easier.length ? easier : scored.filter((e) => e.difficulty <= td))
-    .sort((a, b) => b.difficulty - a.difficulty || a.name.localeCompare(b.name));
-  return pool.slice(0, limit);
+  const pool = easier.length ? easier : scored.filter((e) => e.difficulty <= td);
+
+  return pool
+    .sort(
+      (a, b) =>
+        b.match - a.match || // same sub-muscle first
+        b.difficulty - a.difficulty || // then the smallest step down
+        a.name.localeCompare(b.name)
+    )
+    .slice(0, limit)
+    .map((e) => ({ ...e, exactSubMuscle: e.match === 2 }));
 }

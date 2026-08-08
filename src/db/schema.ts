@@ -437,7 +437,13 @@ export const smokingEntries = sqliteTable('smoking_entries', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   date: text('date').notNull(), // ISO date
-  quantity: integer('quantity').notNull().default(1), // cigarettes
+  quantity: integer('quantity').notNull().default(1), // units of `productKey`
+  /**
+   * Which nicotine product (see data/nicotineProducts). NULL means cigarettes —
+   * every entry logged before alternatives existed was a cigarette, so the old
+   * rows stay correct without a backfill.
+   */
+  productKey: text('product_key'),
   trigger: text('trigger'), // optional context tag (stress, coffee, social…)
   createdAt: integer('created_at')
     .notNull()

@@ -13,6 +13,8 @@
  *    well-documented; modelled here as a bounded, clearly-labelled estimate.
  */
 
+import { productOrDefault } from '@/data/nicotineProducts';
+
 export const MINUTES_LOST_PER_CIGARETTE = 11;
 export const NICOTINE_MG_PER_CIGARETTE = 1.1; // absorbed
 export const TAR_MG_PER_CIGARETTE = 10;
@@ -39,6 +41,56 @@ export const DEFAULT_SMOKING_SETTINGS: SmokingSettings = {
 /** Minutes of life expectancy associated with a number of cigarettes. */
 export function lifeMinutesLost(cigarettes: number): number {
   return Math.round(cigarettes * MINUTES_LOST_PER_CIGARETTE);
+}
+
+// ── Mixed products (cigarettes, shisha, pouches, patches…) ───────────────────
+
+export interface NicotineUse {
+  /** catalogue key from data/nicotineProducts; null means cigarettes */
+  productKey?: string | null;
+  quantity: number;
+}
+
+/**
+ * Cigarette-equivalents of **combustion**, which is what the health model is
+ * actually built on. A pouch or a patch contributes zero here — not because
+ * they are harmless, but because the 11-minutes-per-cigarette figure and the
+ * carbon-monoxide aerobic penalty are both consequences of inhaling smoke, and
+ * applying them to something you never lit would be inventing a number.
+ */
+export function combustedEquivalents(uses: NicotineUse[]): number {
+  return uses.reduce((sum, u) => {
+    const p = productOrDefault(u.productKey);
+    return sum + u.quantity * p.cigaretteEquivalent;
+  }, 0);
+}
+
+/** Total nicotine absorbed across any mix of products, mg. */
+export function totalNicotineMg(uses: NicotineUse[], s: SmokingSettings): number {
+  const total = uses.reduce((sum, u) => {
+    const p = productOrDefault(u.productKey);
+    // Cigarettes honour the user's own per-cigarette setting; everything else
+    // uses the product's own figure.
+    const perUnit = p.key === 'cigarette' ? s.nicotineMgPerCig || p.nicotineMg : p.nicotineMg;
+    return sum + u.quantity * perUnit;
+  }, 0);
+  return Math.round(total * 10) / 10;
+}
+
+/**
+ * Share of today's nicotine that came from something burned, 0..1.
+ * The single most useful number for anyone switching: it goes down as you move
+ * off cigarettes even while total nicotine stays flat, which is exactly what
+ * successful switching looks like and what a plain cigarette count hides.
+ */
+export function combustedShare(uses: NicotineUse[], s: SmokingSettings): number {
+  const all = totalNicotineMg(uses, s);
+  if (all <= 0) return 0;
+  const burned = totalNicotineMg(
+    uses.filter((u) => productOrDefault(u.productKey).combusted),
+    s
+  );
+  return Math.round((burned / all) * 100) / 100;
 }
 
 export function moneyCost(cigarettes: number, s: SmokingSettings): number {

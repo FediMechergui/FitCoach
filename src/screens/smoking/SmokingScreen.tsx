@@ -16,6 +16,7 @@ import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSmokingStore } from '@/stores/smokingStore';
+import { NICOTINE_GROUPS, findNicotineProduct } from '@/data/nicotineProducts';
 import { dailySeries, smokingCorrelation } from '@/repositories/smokingRepo';
 import {
   currentQuitMilestone,
@@ -142,7 +143,9 @@ function SmokingSetup({ editing, onDone }: { editing?: boolean; onDone?: () => v
 function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
-  const { profile, today, impact, add, undo, disable } = useSmokingStore();
+  const { profile, today, impact, add, undo, disable, nicotineToday, smokedShare } =
+    useSmokingStore();
+  const [showProducts, setShowProducts] = useState(false);
   const [correlation] = useState(() => smokingCorrelation(30));
   const [series] = useState(() => dailySeries(21));
 
@@ -192,6 +195,27 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
             </Pressable>
           </Row>
         </Row>
+        {/* Nicotine across everything, and how much of it you burned. */}
+        {nicotineToday > 0 && (
+          <Text variant="caption" color="textFaint" style={{ marginTop: 8 }}>
+            {nicotineToday} mg nicotine today
+            {smokedShare < 1
+              ? ` · ${Math.round(smokedShare * 100)}% of it from smoking`
+              : ' · all of it from smoking'}
+          </Text>
+        )}
+
+        {/* Alternatives — snus, pouches, vape, NRT. */}
+        <Pressable onPress={() => setShowProducts((v) => !v)} hitSlop={6} style={{ marginTop: 10 }}>
+          <Row gap={6} style={{ alignItems: 'center' }}>
+            <Icon icon={showProducts ? 'core.chevronUp' : 'core.chevronDown'} size={14} color={theme.colors.primary} />
+            <Text variant="caption" color="primary">
+              {showProducts ? 'Hide' : 'Log something else — snus, pouch, vape, patch…'}
+            </Text>
+          </Row>
+        </Pressable>
+        {showProducts && <NicotineProductPicker onPick={(key) => add(1, undefined, key)} />}
+
         {target != null && (
           <View style={{ marginTop: 10 }}>
             <ProgressBar progress={target ? today / target : 0} color={overTarget ? theme.colors.danger : theme.colors.warning} />
@@ -367,6 +391,61 @@ function CompareRow({
         </View>
         <Text variant="caption" color="textMuted" style={{ width: 64, textAlign: 'right' }}>{format(clean)}</Text>
       </Row>
+    </View>
+  );
+}
+
+/**
+ * Pick what you actually used.
+ *
+ * Grouped worst-first so the ordering itself carries the message, and each
+ * group states its own trade-off rather than leaving the user to infer that
+ * everything on the list is equivalent. Only combusted items move the health
+ * figures; the rest still count toward the day's nicotine, because dependence
+ * is real even when the damage is much lower.
+ */
+function NicotineProductPicker({ onPick }: { onPick: (key: string) => void }) {
+  const theme = useTheme();
+  const [openKey, setOpenKey] = useState<string | null>(null);
+
+  return (
+    <View style={{ gap: 10, marginTop: 8 }}>
+      {NICOTINE_GROUPS.map((g) => (
+        <View key={g.label} style={{ gap: 6 }}>
+          <Text variant="label" color="textMuted">{g.label}</Text>
+          <Text variant="caption" color="textFaint">{g.blurb}</Text>
+          {g.keys.map((k) => {
+            const p = findNicotineProduct(k);
+            if (!p) return null;
+            const open = openKey === k;
+            return (
+              <View key={k}>
+                <Row style={{ alignItems: 'center', paddingVertical: 4 }}>
+                  <Pressable onPress={() => setOpenKey(open ? null : k)} hitSlop={6} style={{ flex: 1 }}>
+                    <Text variant="body">{p.label}</Text>
+                    <Text variant="caption" color="textFaint">
+                      {p.nicotineMg} mg nicotine / {p.unitLabel}
+                      {p.combusted ? ' · burned' : ' · smoke-free'}
+                      {p.isNrt ? ' · licensed medicine' : ''}
+                    </Text>
+                  </Pressable>
+                  <Button title={`+1`} size="sm" variant="secondary" onPress={() => onPick(k)} fullWidth={false} />
+                </Row>
+                {open && (
+                  <Text variant="caption" color="textMuted" style={{ paddingBottom: 6 }}>
+                    {p.note}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      ))}
+      <Text variant="caption" color="textFaint">
+        Only the burned ones count toward the life-cost and aerobic figures — that is where the tar
+        and carbon monoxide are. Everything here still counts toward your nicotine, because the
+        dependence is just as real.
+      </Text>
     </View>
   );
 }

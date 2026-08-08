@@ -1651,6 +1651,52 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
     subMuscle: 'rear_delt', trackingType: 'reps_only', met: 3,
     description: 'The face pull with a band instead of a cable — anchor it at head height. Travels in a bag, so there is no excuse on the road.',
   }),
+
+  // ── Triceps machines & cable variety (v2.28) ────────────────────────────────
+  // The library had sixteen triceps movements and exactly one machine. Machines
+  // matter here more than for most muscles: the triceps is where people train
+  // closest to failure, and a fixed path lets you do that without a spotter and
+  // without the elbow pain that free-weight extensions can bring on.
+  S('triceps-extension-machine', 'Triceps Extension Machine', 'triceps', 'machine', 'triceps_extension', ['triceps'], MC, {
+    subMuscle: 'triceps_long', met: 3.5,
+    description: 'Seated machine extension. The pad fixes your upper arm, so the elbow does the work and nothing else can cheat the rep — the easiest way to take triceps to genuine failure safely.',
+  }),
+  S('assisted-dip-machine', 'Assisted Dip Machine', 'triceps', 'machine', 'vertical_push', ['triceps', 'chest', 'shoulders'], MC, {
+    subMuscle: 'triceps_long', met: 4,
+    description: 'Dips with a counterweight, so you pick the difficulty. The bridge between bench dips and a full bodyweight dip — and note the weight here is ASSISTANCE, so a lower number means a harder set.',
+  }),
+  S('smith-close-grip-bench', 'Smith Close-Grip Bench Press', 'triceps', 'machine', 'horizontal_push', ['triceps', 'chest'], MC, {
+    subMuscle: 'triceps_lateral', met: 4.5,
+    description: 'Close-grip pressing on a fixed bar path. Lets you push heavy triceps work close to failure with no spotter.',
+  }),
+  S('rope-pushdown', 'Rope Pushdown', 'triceps', 'cable', 'triceps_extension', ['triceps'], CB, {
+    subMuscle: 'triceps_lateral', met: 3.5,
+    description: 'Pushdown with a rope, spreading the ends apart at the bottom. The extra rotation at lockout is what people prefer over the straight bar.',
+  }),
+  S('v-bar-pushdown', 'V-Bar Pushdown', 'triceps', 'cable', 'triceps_extension', ['triceps'], CB, {
+    subMuscle: 'triceps_lateral', met: 3.5,
+    description: 'Angled bar pushdown — kinder on the wrists than a straight bar, and you can load it heavier than a rope.',
+  }),
+  S('reverse-grip-pushdown', 'Reverse-Grip Pushdown', 'triceps', 'cable', 'triceps_extension', ['triceps'], CB, {
+    subMuscle: 'triceps_lateral', met: 3.5,
+    description: 'Underhand single- or double-hand pushdown. Often reported to bias the inner triceps; keep the load light because the grip gives out first.',
+  }),
+  S('cable-kickback', 'Cable Kickback', 'triceps', 'cable', 'triceps_extension', ['triceps'], CB, {
+    subMuscle: 'triceps_lateral', met: 3,
+    description: 'The dumbbell kickback with constant tension — the cable keeps loading the lockout, which is exactly where the dumbbell version goes weightless.',
+  }),
+  S('ez-bar-overhead-extension', 'EZ-Bar Overhead Extension', 'triceps', 'barbell', 'triceps_extension', ['triceps'], BB, {
+    subMuscle: 'triceps_long', met: 4,
+    description: 'Overhead extension with an EZ bar. Overhead is where the long head is stretched, which is the position it responds to best.',
+  }),
+  S('db-single-arm-overhead-extension', 'Single-Arm Overhead Extension', 'triceps', 'dumbbell', 'triceps_extension', ['triceps'], DB_, {
+    subMuscle: 'triceps_long', met: 3.5,
+    description: 'One arm at a time overhead, so a stronger side cannot carry the weaker one. Support the working elbow with your free hand.',
+  }),
+  S('bodyweight-skullcrusher', 'Bodyweight Skullcrusher', 'triceps', 'bodyweight', 'triceps_extension', ['triceps'], BW, {
+    subMuscle: 'triceps_long', trackingType: 'reps_only', met: 4,
+    description: 'Extensions against a bar or rings set at hip height — lower your head behind the bar and press back out. Change the difficulty by walking your feet in or out.',
+  }),
 ];
 
 /**

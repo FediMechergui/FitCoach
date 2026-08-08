@@ -13,7 +13,7 @@ import { Row, Divider, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSessionStore } from '@/stores/sessionStore';
 import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
-import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS } from '@/data/exercises';
+import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
 import { formatDuration } from '@/lib/format';
 import type { ExerciseLogView } from '@/repositories/sessionRepo';
 import { getExercise, listExercises } from '@/repositories/exerciseRepo';
@@ -364,7 +364,16 @@ function ExerciseSection({ detail, accent, isLifting }: { detail: ExerciseLogVie
           }
         />
       ) : (
-        detail.map((lv) => <ExerciseLogCard key={lv.log.id} lv={lv} accent={accent} isLifting={isLifting} />)
+        detail.map((lv, i) => (
+          <ExerciseLogCard
+            key={lv.log.id}
+            lv={lv}
+            accent={accent}
+            isLifting={isLifting}
+            canMoveUp={i > 0}
+            canMoveDown={i < detail.length - 1}
+          />
+        ))
       )}
 
       <Button
@@ -387,7 +396,19 @@ function fieldsFor(t: ExerciseLogView['trackingType']) {
   };
 }
 
-function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accent: string; isLifting: boolean }) {
+function ExerciseLogCard({
+  lv,
+  accent,
+  isLifting,
+  canMoveUp,
+  canMoveDown,
+}: {
+  lv: ExerciseLogView;
+  accent: string;
+  isLifting: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}) {
   const theme = useTheme();
   const store = useSessionStore();
   const f = fieldsFor(lv.trackingType);
@@ -440,6 +461,23 @@ function ExerciseLogCard({ lv, accent, isLifting }: { lv: ExerciseLogView; accen
             {lv.exerciseName}
           </Text>
         </Row>
+        {/* Running order — the sequence you actually do them in. */}
+        <Pressable
+          onPress={() => canMoveUp && store.moveExercise(lv.log.id, 'up')}
+          hitSlop={8}
+          disabled={!canMoveUp}
+          style={{ paddingHorizontal: 4, opacity: canMoveUp ? 1 : 0.25 }}
+        >
+          <Icon icon="core.chevronUp" size={18} color={theme.colors.textFaint} />
+        </Pressable>
+        <Pressable
+          onPress={() => canMoveDown && store.moveExercise(lv.log.id, 'down')}
+          hitSlop={8}
+          disabled={!canMoveDown}
+          style={{ paddingHorizontal: 4, opacity: canMoveDown ? 1 : 0.25 }}
+        >
+          <Icon icon="core.chevronDown" size={18} color={theme.colors.textFaint} />
+        </Pressable>
         <Pressable onPress={() => setShowAlts((v) => !v)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
           <Icon icon="core.swap" size={18} color={showAlts ? accent : theme.colors.textFaint} />
         </Pressable>
@@ -601,11 +639,12 @@ function AlternativePicker({
 }) {
   const theme = useTheme();
   const store = useSessionStore();
-  const alts = useMemo(() => {
-    const target = getExercise(exerciseId);
-    if (!target) return [];
-    return findEasierAlternatives(target, listExercises({}));
-  }, [exerciseId]);
+  const target = useMemo(() => getExercise(exerciseId), [exerciseId]);
+  const alts = useMemo(
+    () => (target ? findEasierAlternatives(target, listExercises({})) : []),
+    [target]
+  );
+  const targetSub = target?.subMuscle ? SUB_MUSCLE_LABELS[target.subMuscle] ?? null : null;
 
   const swap = (newId: number) => {
     store.swapExercise(logId, newId);
@@ -614,14 +653,25 @@ function AlternativePicker({
 
   return (
     <View style={{ gap: 6, backgroundColor: theme.colors.surfaceAlt, borderRadius: theme.radius.md, padding: 10 }}>
-      <Text variant="label" color="textMuted">Too hard? Swap for an easier one — same muscle</Text>
+      <Text variant="label" color="textMuted">
+        Too hard? Swap for an easier one — same muscle{targetSub ? ` · ${targetSub}` : ''}
+      </Text>
       {alts.length === 0 ? (
-        <Text variant="caption" color="textFaint">No easier alternative found for this muscle.</Text>
+        <Text variant="caption" color="textFaint">
+          Nothing in the library trains this muscle more easily. Rather than offer you a different
+          exercise that happens to share a muscle group, it offers nothing.
+        </Text>
       ) : (
         alts.map((a) => (
           <Pressable key={a.id} onPress={() => swap(a.id)}>
             <Row style={{ justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
-              <Text variant="body" style={{ flex: 1 }} numberOfLines={1}>{a.name}</Text>
+              <View style={{ flex: 1 }}>
+                <Text variant="body" numberOfLines={1}>{a.name}</Text>
+                {/* Say which ones hit the identical head, not just the muscle. */}
+                <Text variant="caption" color={a.exactSubMuscle ? 'success' : 'textFaint'}>
+                  {a.exactSubMuscle ? 'same sub-muscle' : 'same muscle'}
+                </Text>
+              </View>
               <Row gap={4} style={{ alignItems: 'center' }}>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <View

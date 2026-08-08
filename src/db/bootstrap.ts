@@ -29,8 +29,9 @@ import { seedExerciseLibrary } from './seed';
  *   17 → 18 v2.23: set_entries.to_failure (proximity-to-failure tracking)
  *   18 → 19 v2.26: +23 shoulder exercises (face pull, cuff work, machines)
  *   19 → 20 v2.27: supplement pill counts (units per serving / units taken)
+ *   20 → 21 v2.28: smoking_entries.product_key + 10 triceps exercises
  */
-const SCHEMA_VERSION = 20;
+const SCHEMA_VERSION = 21;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -90,6 +91,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   // v20 — count the pills, not just the tick
   { table: 'supplement_stack', column: 'units_per_serving', ddl: 'INTEGER' },
   { table: 'supplement_logs', column: 'units_taken', ddl: 'REAL' },
+  // v21 — nicotine alternatives (snus, pouches, vape, NRT) alongside cigarettes
+  { table: 'smoking_entries', column: 'product_key', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -380,6 +383,7 @@ CREATE TABLE IF NOT EXISTS smoking_entries (
   user_id INTEGER NOT NULL,
   date TEXT NOT NULL,
   quantity INTEGER NOT NULL DEFAULT 1,
+  product_key TEXT,
   trigger TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );

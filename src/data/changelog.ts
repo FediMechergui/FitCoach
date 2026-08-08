@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.28',
+    date: '2026-08-01',
+    title: 'Reorder your session, stricter swaps, triceps machines, nicotine alternatives',
+    highlights: [
+      'Reorder exercises in a session — up and down arrows on each card set the order you actually do them in. (Drag-and-drop would need a whole new APK; arrows ship today over the air.)',
+      'Triceps went from 16 exercises to 26, and from ONE machine to four: Triceps Extension Machine, Assisted Dip Machine, Smith Close-Grip Bench, plus Rope, V-Bar and Reverse-Grip Pushdowns, Cable Kickback, EZ-Bar and Single-Arm Overhead Extensions, and a Bodyweight Skullcrusher.',
+      'The "find an easier one" swap is no longer random. It was accepting any exercise that shared ANY muscle group — and a bench press lists triceps among its groups, so asking for an easier skullcrusher could offer you a bench press. Worse, a rear-delt fly could be swapped for an overhead press: a press in place of a pull, the exact trade that builds the imbalance the fly was fixing.',
+      'Now it matches the muscle AND the head, strictly. Ask for an easier skullcrusher and you get dips, close-grip bench and the extension machine — all long head. Ask for an easier rear-delt fly and you get face pulls, external rotations and Y-raises. If nothing in the library genuinely trains that head more easily, it says so rather than offering you something plausible and wrong.',
+      'Smoking tracker now covers what you actually use: snus, nicotine pouches, vape, heated tobacco, shisha, cigars, roll-ups, and the licensed stop-smoking medicines (gum, lozenge, patch).',
+      'It gets the maths right, which matters more than the list. Nicotine is what makes it addictive; SMOKE is what does the damage — so only the things you burn count toward the life-cost and aerobic-capacity figures. Six pouches count as zero cigarettes. They still count toward your nicotine, because the dependence is just as real.',
+      'Shisha is the other half of that honesty: one session counts as TEN cigarettes, not one. A session runs 30–60 minutes and the water cools the smoke without filtering it, so the volume inhaled is many times a cigarette — plus the carbon monoxide from burning charcoal.',
+      'New figure: what share of today\'s nicotine came from smoking. It falls as you switch even while total nicotine stays flat — which is exactly what a successful switch looks like, and what a plain cigarette count hides completely.',
+      'Every product carries an honest note on its own trade-off, and none of the smoke-free ones is called safe.',
+    ],
+  },
+  {
     version: '2.27',
     date: '2026-08-01',
     title: 'Count your pills, and the real story on Shilajit & Spiruline',

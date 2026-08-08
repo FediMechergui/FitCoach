@@ -136,6 +136,44 @@ export function removeExerciseLog(logId: number): void {
   db.delete(exerciseLogs).where(eq(exerciseLogs.id, logId)).run();
 }
 
+/**
+ * Move an exercise up or down the running order of its session.
+ *
+ * `orderIndex` was written once at insert and never touched again, so the order
+ * you added exercises in was the order you were stuck with. This swaps the
+ * index with its neighbour, then renumbers the whole session 0..n-1 — because
+ * exercises deleted earlier leave gaps, and swapping raw values across a gap
+ * silently does nothing.
+ *
+ * Returns false when the move isn't possible (already at the end), so the UI
+ * can leave the control disabled rather than pretending something happened.
+ */
+export function moveExerciseLog(logId: number, direction: 'up' | 'down'): boolean {
+  const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
+  if (!row) return false;
+
+  const siblings = db
+    .select()
+    .from(exerciseLogs)
+    .where(eq(exerciseLogs.sessionId, row.sessionId))
+    .orderBy(exerciseLogs.orderIndex)
+    .all();
+
+  const at = siblings.findIndex((s) => s.id === logId);
+  const to = direction === 'up' ? at - 1 : at + 1;
+  if (at < 0 || to < 0 || to >= siblings.length) return false;
+
+  const reordered = [...siblings];
+  [reordered[at], reordered[to]] = [reordered[to], reordered[at]];
+  // Renumber densely so a later swap can't fall through a gap left by a delete.
+  reordered.forEach((s, i) => {
+    if (s.orderIndex !== i) {
+      db.update(exerciseLogs).set({ orderIndex: i }).where(eq(exerciseLogs.id, s.id)).run();
+    }
+  });
+  return true;
+}
+
 /** Last set logged for an exercise (for the "Repeat last set" quick-button). */
 export function lastSetForExercise(exerciseId: number, userId: number = PRIMARY_USER_ID): SetEntry | undefined {
   const logs = db

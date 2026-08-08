@@ -7,6 +7,7 @@ import {
   finalizeSession,
   getSessionDetail,
   lastSetForExercise,
+  moveExerciseLog,
   removeExerciseLog,
   startSession,
   updateSet,
@@ -57,6 +58,7 @@ interface SessionState {
   editSet: (setId: number, patch: SetDraft) => void;
   removeSet: (setId: number) => void;
   removeExercise: (logId: number) => void;
+  moveExercise: (logId: number, direction: 'up' | 'down') => void;
   /** Replace an exercise with an easier alternative (removes old log, adds new). */
   swapExercise: (logId: number, newExerciseId: number) => number | null;
   startRest: (seconds: number) => void;
@@ -164,6 +166,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   removeExercise: (logId) => {
     removeExerciseLog(logId);
     get().refresh();
+  },
+  moveExercise: (logId, direction) => {
+    if (moveExerciseLog(logId, direction)) get().refresh();
   },
 
   swapExercise: (logId, newExerciseId) => {

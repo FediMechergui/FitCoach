@@ -63,6 +63,16 @@ import {
 import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../src/lib/oneRepMax';
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
+import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
+import {
+  buildDailyWheel,
+  eligibleChallenges,
+  wheelRotationDeg,
+  challengeProgress,
+  isChallengeComplete,
+  WHEEL_SIZE,
+} from '../src/lib/challengeWheel';
+import { ICONS } from '../src/constants/icon-map';
 import { combustedEquivalents, totalNicotineMg, combustedShare } from '../src/lib/smoking';
 import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
 import { SUPPLEMENTS, findSupplement, servingUnits } from '../src/data/supplements';
@@ -642,10 +652,18 @@ const allKeys = dup.slots.flatMap((s) => s.items.map((i) => i.key));
 check('Overlapping goals de-duplicate supplements', new Set(allKeys).size === allKeys.length, allKeys.join(','));
 
 console.log('\nAchievements:');
-check('Exactly 120 badges, all with SVG art', ACHIEVEMENTS.length === 120 && ACHIEVEMENTS.every((a) => a.svg.startsWith('<svg') && a.svg.endsWith('</svg>')));
-check('12 categories, 10 badges each', ACHIEVEMENT_CATEGORIES.length === 12 && [1,2,3,4,5,6,7,8,9,10,11,12].every((c) => ACHIEVEMENTS.filter((a) => a.category === c).length === 10));
+/*
+ * Written against the catalogue's SHAPE rather than a pinned count: every
+ * category holds exactly ten badges and ids run 1..n contiguously. Hard-coding
+ * 120 made these fail on the next addition for a reason unrelated to what they
+ * test.
+ */
+const badgeCount = ACHIEVEMENTS.length;
+check('Every badge carries real SVG art', ACHIEVEMENTS.every((a) => a.svg.startsWith('<svg') && a.svg.endsWith('</svg>')), `${badgeCount} badges`);
+check('Ten badges in every category', ACHIEVEMENT_CATEGORIES.every((_, i) => ACHIEVEMENTS.filter((a) => a.category === i + 1).length === 10), `${ACHIEVEMENT_CATEGORIES.length} categories`);
+check('Categories and badges stay in step', badgeCount === ACHIEVEMENT_CATEGORIES.length * 10);
 check('Every badge has criteria text', ACHIEVEMENTS.every((a) => a.criteria.length > 0));
-check('Badge ids are unique and contiguous 1..120', new Set(ACHIEVEMENTS.map((a) => a.id)).size === 120 && Math.min(...ACHIEVEMENTS.map((a) => a.id)) === 1 && Math.max(...ACHIEVEMENTS.map((a) => a.id)) === 120);
+check('Badge ids are unique and contiguous from 1', new Set(ACHIEVEMENTS.map((a) => a.id)).size === badgeCount && Math.min(...ACHIEVEMENTS.map((a) => a.id)) === 1 && Math.max(...ACHIEVEMENTS.map((a) => a.id)) === badgeCount);
 check('Category matches ceil(id/10) for every badge', ACHIEVEMENTS.every((a) => a.category === Math.ceil(a.id / 10)));
 check('A good share of badges are auto-tracked', TRACKED_ACHIEVEMENT_COUNT >= 70, `${TRACKED_ACHIEVEMENT_COUNT}`);
 // Build a zeroed stats object and a maxed one to exercise the rules.
@@ -663,6 +681,8 @@ const zeroStats: AchievementStats = {
   napCount: 0, meditationSessions: 0, meditationMinutes7d: 0, balancedDayDone: 0,
   hasBodyFat: false, hasAllMeasurements: false, weighInCount: 0, goalIsRecompOrPerf: false,
   specialSessionCount: 0, distinctSpecialPrograms: 0, distinctSessionTypes: 0,
+  challengesSpun: 0, challengesCompleted: 0, challengeStreakBest: 0,
+  challengeHardCompleted: 0, challengeCategories: 0, challengePoints: 0,
 };
 const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
 check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
@@ -902,6 +922,85 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nDaily challenge wheel:');
+{
+  const allOn = { enabled: { prayer: true, smoking: true, sleep: true, supplements: true, nutrition: true } };
+  const nothingOn = { enabled: {} };
+
+  check('Every challenge is measurable and has a positive target', CHALLENGES.every((c) => !!c.metric && c.target > 0));
+  check('Challenge keys are unique', new Set(CHALLENGES.map((c) => c.key)).size === CHALLENGES.length);
+  check('All five categories are represented', new Set(CHALLENGES.map((c) => c.category)).size === 5);
+  check('All three difficulties are represented', new Set(CHALLENGES.map((c) => c.difficulty)).size === 3);
+  check('Harder challenges are worth more', DIFFICULTY_POINTS.hard > DIFFICULTY_POINTS.medium && DIFFICULTY_POINTS.medium > DIFFICULTY_POINTS.easy);
+
+  /*
+   * The property the whole feature rests on. A wheel that rolls fresh
+   * randomness per tap is a wheel you re-spin until it gives you "8,000 steps".
+   * The date decides; the animation only reveals.
+   */
+  const a = buildDailyWheel('2026-08-02', allOn)!;
+  const b = buildDailyWheel('2026-08-02', allOn)!;
+  check('The same day always gives the same challenge', a.challenge.key === b.challenge.key, a.challenge.key);
+  check('…and the same wheel, in the same order', a.segments.map((s) => s.key).join() === b.segments.map((s) => s.key).join());
+  const c = buildDailyWheel('2026-08-03', allOn)!;
+  check('A different day gives a different wheel', a.segments.map((s) => s.key).join() !== c.segments.map((s) => s.key).join());
+
+  // Over a month the wheel must not fixate on one challenge or one slot.
+  const month = Array.from({ length: 30 }, (_, i) => buildDailyWheel(`2026-09-${String(i + 1).padStart(2, '0')}`, allOn)!);
+  check('A month of spins gives real variety', new Set(month.map((w) => w.challenge.key)).size >= 10, `${new Set(month.map((w) => w.challenge.key)).size} distinct in 30 days`);
+  check('The winning slot is not always the same', new Set(month.map((w) => w.winningIndex)).size >= 4, `${new Set(month.map((w) => w.winningIndex)).size} distinct slots`);
+  check('Every wheel is full and its winner is on it', month.every((w) => w.segments.length === WHEEL_SIZE && w.segments[w.winningIndex] === w.challenge));
+
+  /*
+   * An impossible challenge is worse than none: it teaches you to ignore the
+   * wheel. With every optional tracker off, nothing that depends on one may
+   * appear.
+   */
+  const bare = buildDailyWheel('2026-08-02', nothingOn)!;
+  check('Gated challenges never appear when their tracker is off', bare.segments.every((s) => !s.requires), bare.segments.filter((s) => s.requires).map((s) => s.key).join());
+  check('…and there are still enough left to spin', bare.segments.length >= 5, `${bare.segments.length}`);
+  check('Enabling a tracker lets its challenges back in', eligibleChallenges(allOn).length > eligibleChallenges(nothingOn).length);
+
+  // Recently-seen challenges are pushed out, but never at the cost of an empty wheel.
+  const recent = buildDailyWheel('2026-08-02', { ...allOn, recentKeys: a.segments.map((s) => s.key) })!;
+  check('Recent challenges are rotated out of the wheel', recent.segments.some((s) => !a.segments.includes(s)));
+  const everythingRecent = buildDailyWheel('2026-08-02', { ...allOn, recentKeys: CHALLENGES.map((c) => c.key) })!;
+  check('Repeating beats an empty wheel', everythingRecent.segments.length === WHEEL_SIZE);
+
+  // Rotation geometry — the wedge must land under the pointer at the top.
+  check('A winner at slot 0 needs no offset', wheelRotationDeg(0, 8) % 360 === 0);
+  check('Slot 2 of 8 rotates back by 90°', wheelRotationDeg(2, 8) % 360 === 270, `${wheelRotationDeg(2, 8) % 360}`);
+  check('The spin always turns forward, never backward', [0, 1, 4, 7].every((i) => wheelRotationDeg(i, 8) > 0));
+  check('A zero-segment wheel cannot divide by zero', wheelRotationDeg(0, 0) === 0);
+
+  // Progress maths.
+  check('Progress is a clean 0..1 fraction', challengeProgress(4000, 8000) === 0.5 && challengeProgress(9000, 8000) === 1 && challengeProgress(-5, 8000) === 0);
+  check('A zero target cannot divide by zero', challengeProgress(5, 0) === 0);
+  check('Completion needs the target actually met', isChallengeComplete(7999, 8000) === false && isChallengeComplete(8000, 8000) === true);
+
+  // Every challenge icon must resolve, or the wheel renders blank wedges.
+  const iconOk = (k: string) => { const [g, n] = k.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; };
+  check('Every challenge icon resolves', CHALLENGES.every((c) => iconOk(c.icon)), CHALLENGES.filter((c) => !iconOk(c.icon)).map((c) => c.icon).join());
+
+  // The achievements that hang off it.
+  const challengeBadges = ACHIEVEMENTS.filter((x) => x.category === 13);
+  check('Daily-challenge achievements exist', challengeBadges.length === 10);
+  check('…and every one is auto-tracked from data', challengeBadges.every((x) => evaluateAchievement(x, zeroStats).tracked));
+  check('…and none is unlocked on an empty account', challengeBadges.every((x) => !evaluateAchievement(x, zeroStats).unlocked));
+
+  // The table has to reach existing installs.
+  const bootSrc5 = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('daily_challenges is in the CREATE TABLE DDL', /CREATE TABLE IF NOT EXISTS daily_challenges/.test(bootSrc5));
+  check('One challenge per day is enforced by the database', /UNIQUE INDEX IF NOT EXISTS idx_daily_challenges_user_date/.test(bootSrc5));
+  const sv3 = Number((bootSrc5.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the challenge table', sv3 >= 22, `${sv3}`);
+  // Re-spinning for an easier challenge must be impossible.
+  const chalRepo = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('A day already spun is never re-spun', /const existing = challengeForDate\(date, userId\);\s*\n\s*if \(existing\) return existing;/.test(chalRepo));
+  check('Completion is measured, never self-declared', /if \(!m\.complete\) return row;/.test(chalRepo));
+  check('A completed challenge is never un-completed', /if \(!row \|\| row\.completedAt\) return row;/.test(chalRepo));
 }
 
 console.log('\nTriceps coverage & strict alternative matching:');

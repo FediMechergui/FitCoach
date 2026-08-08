@@ -22,6 +22,8 @@ export type RootStackParamList = {
   ProgramPicker: { sessionType: SessionType };
   /** themed military / historical / lifestyle programmes */
   SpecialPrograms: undefined;
+  /** spin-the-wheel daily challenge */
+  DailyChallenge: undefined;
   SpecialProgramDetail: { programKey: string };
   ActiveSession: { sessionId: number };
   /**

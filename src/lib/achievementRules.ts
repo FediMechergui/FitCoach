@@ -125,6 +125,18 @@ const RULES: Record<number, Rule> = {
   118: (s) => ({ current: s.distinctSpecialPrograms, target: 3 }),
   119: (s) => ({ current: s.specialSessionCount, target: 10 }),
   120: (s) => ({ current: s.distinctSessionTypes, target: 8 }),
+
+  // 13. Daily Challenges
+  121: (s) => ({ current: s.challengesSpun, target: 1 }),
+  122: (s) => ({ current: s.challengesCompleted, target: 1 }),
+  123: (s) => ({ current: s.challengesCompleted, target: 5 }),
+  124: (s) => ({ current: s.challengesCompleted, target: 25 }),
+  125: (s) => ({ current: s.challengesCompleted, target: 100 }),
+  126: (s) => ({ current: s.challengeStreakBest, target: 7 }),
+  127: (s) => ({ current: s.challengeStreakBest, target: 30 }),
+  128: (s) => ({ current: s.challengeHardCompleted, target: 10 }),
+  129: (s) => ({ current: s.challengeCategories, target: 5 }),
+  130: (s) => ({ current: s.challengePoints, target: 500 }),
 };
 
 export function evaluateAchievement(def: AchievementDef, s: AchievementStats): AchievementProgress {

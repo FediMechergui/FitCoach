@@ -18,6 +18,7 @@ import { dayNutrition, dailyIntakeSince } from './nutritionRepo';
 import { getNutritionGoal, getUser, latestWeight, weighInHistory, PRIMARY_USER_ID } from './userRepo';
 import { growthReport } from './growthRepo';
 import { computeCardRating } from './cardRepo';
+import { challengeStats } from './challengeRepo';
 import { MICRO_KEYS, percentRdi } from '@/lib/micros';
 import { SUPPLEMENTS } from '@/data/supplements';
 import { daysAgoISO, lastNDates, todayISO, toISODate } from '@/lib/date';
@@ -99,6 +100,13 @@ export interface AchievementStats {
   goalIsRecompOrPerf: boolean;
   specialSessionCount: number;
   distinctSpecialPrograms: number;
+  // ── Daily challenges ──
+  challengesSpun: number;
+  challengesCompleted: number;
+  challengeStreakBest: number;
+  challengeHardCompleted: number;
+  challengeCategories: number;
+  challengePoints: number;
   distinctSessionTypes: number;
 }
 
@@ -285,6 +293,14 @@ function computeAchievementStats(userId: number): AchievementStats {
   const allPrayersStreak = trailingStreak((d) => (prayersByDate.get(d)?.size ?? 0) >= 5);
   const fajrLogged = prayerRows.some((r) => r.prayer === 'fajr');
 
+  // ── daily challenges ──
+  // `safe` because the table only exists from v22; an older database must not
+  // take the whole achievements screen down.
+  const chal = safe(() => challengeStats(userId), {
+    spun: 0, completed: 0, points: 0, streak: 0, bestStreak: 0,
+    hardCompleted: 0, distinctCategories: 0, distinctChallenges: 0,
+  });
+
   // ── naps ──
   const napCount = safe(() => db.select().from(napLogs).where(eq(napLogs.userId, userId)).all().length, 0);
 
@@ -399,6 +415,12 @@ function computeAchievementStats(userId: number): AchievementStats {
     goalIsRecompOrPerf,
     specialSessionCount,
     distinctSpecialPrograms,
+    challengesSpun: chal.spun,
+    challengesCompleted: chal.completed,
+    challengeStreakBest: chal.bestStreak,
+    challengeHardCompleted: chal.hardCompleted,
+    challengeCategories: chal.distinctCategories,
+    challengePoints: chal.points,
     distinctSessionTypes,
   };
 }
@@ -418,6 +440,8 @@ const ZERO_STATS: AchievementStats = {
   napCount: 0, meditationSessions: 0, meditationMinutes7d: 0, balancedDayDone: 0,
   hasBodyFat: false, hasAllMeasurements: false, weighInCount: 0, goalIsRecompOrPerf: false,
   specialSessionCount: 0, distinctSpecialPrograms: 0, distinctSessionTypes: 0,
+  challengesSpun: 0, challengesCompleted: 0, challengeStreakBest: 0,
+  challengeHardCompleted: 0, challengeCategories: 0, challengePoints: 0,
 };
 
 /** Public entry — never throws; a failure yields zeroed stats, not a white screen. */

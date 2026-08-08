@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.29',
+    date: '2026-08-02',
+    title: 'Spin the wheel — a daily challenge, tracked automatically',
+    highlights: [
+      'New: a spin wheel on the Train tab. One spin a day, and whatever it lands on is your challenge until midnight.',
+      '27 challenges across five categories — Move, Lift, Fuel, Mind and Care. 18,000 steps. Twenty hard sets. Three sets to failure. Thirty grams of fibre. Ten minutes of stillness. A clean day. Try an exercise you have never done.',
+      'Every challenge is MEASURED, not ticked off. It reads the data you already log, so you complete it by going and doing the thing — the app notices on its own. A challenge you grade yourself on is just a to-do list.',
+      'You cannot re-spin for an easier one. The day\'s result is decided by the date, so closing the app, reopening it or changing the clock all give the same answer — the wheel reveals your challenge rather than choosing it. That is the only thing that makes finishing one mean anything.',
+      'The wheel only offers what you can actually do: no smoke-free day if you do not track smoking, no prayer challenge if prayer tracking is off. An impossible challenge just teaches you to ignore the wheel.',
+      'It also avoids repeating itself — anything you have seen in the last fortnight gets rotated out while there are enough others left.',
+      'Progress bar, streak, best streak and points (easy 10, medium 20, hard 35), plus a history of what you were given and whether you got it.',
+      '10 new achievements: First Spin, Challenge Accepted, Five Down, Twenty-Five, The Hundred, Unbroken Week, The Long Run, No Easy Way, All-Rounder and Five Hundred Points. That takes the catalogue to 130.',
+    ],
+  },
+  {
     version: '2.28',
     date: '2026-08-01',
     title: 'Reorder your session, stricter swaps, triceps machines, nicotine alternatives',

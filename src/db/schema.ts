@@ -767,6 +767,28 @@ export const customFoods = sqliteTable('custom_foods', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+/**
+ * The daily challenge the wheel landed on, one row per day.
+ *
+ * The row is written when you spin, so the challenge is locked in — the wheel
+ * cannot be re-spun for a softer one, which is the only thing that makes
+ * completing it mean anything. `completedAt` is stamped by the app when the
+ * measured metric first reaches its target, never by a manual "done" tap.
+ */
+export const dailyChallenges = sqliteTable('daily_challenges', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(), // ISO date — one challenge per day
+  challengeKey: text('challenge_key').notNull(),
+  spunAt: integer('spun_at').notNull(),
+  completedAt: integer('completed_at'),
+  /** metric value at the moment it was completed, for the history list */
+  finalValue: real('final_value'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const coachTips = sqliteTable('coach_tips', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -826,3 +848,4 @@ export type PrayerSettings = typeof prayerSettings.$inferSelect;
 export type FastingProfile = typeof fastingProfiles.$inferSelect;
 export type FastingLog = typeof fastingLogs.$inferSelect;
 export type CustomFood = typeof customFoods.$inferSelect;
+export type DailyChallenge = typeof dailyChallenges.$inferSelect;

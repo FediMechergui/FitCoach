@@ -43,6 +43,7 @@ export const ICONS = {
     chevronUp: def('Ionicons', 'chevron-up'),
     chevronDown: def('Ionicons', 'chevron-down'),
     check: def('Ionicons', 'checkmark-circle'),
+    target: def('MaterialCommunityIcons', 'bullseye-arrow'),
     checkFilled: def('Ionicons', 'checkbox'),
     checkEmpty: def('Ionicons', 'square-outline'),
     close: def('Ionicons', 'close'),
@@ -234,6 +235,7 @@ export const ICONS = {
     soda: def('MaterialCommunityIcons', 'bottle-soda-classic-outline'),
     caffeine: def('MaterialCommunityIcons', 'lightning-bolt-outline'),
     protein: def('MaterialCommunityIcons', 'egg-fried'),
+    veg: def('MaterialCommunityIcons', 'carrot'),
     carbs: def('MaterialCommunityIcons', 'bread-slice'),
     fat: def('MaterialCommunityIcons', 'oil'),
     calories: def('MaterialCommunityIcons', 'fire'),
@@ -248,6 +250,11 @@ export const ICONS = {
     money: def('MaterialCommunityIcons', 'cash-multiple'),
     life: def('MaterialCommunityIcons', 'timer-sand'),
     trend: def('MaterialCommunityIcons', 'chart-line-variant'),
+    // Alternatives to cigarettes + the smoke-free day challenge
+    quit: def('MaterialCommunityIcons', 'smoking-off'),
+    vape: def('MaterialCommunityIcons', 'cloud'),
+    pouch: def('MaterialCommunityIcons', 'sticker-check'),
+    nrt: def('MaterialCommunityIcons', 'bandage'),
   },
 
   // Sleep tracker
@@ -342,6 +349,7 @@ export const ICONS = {
 
   // Prayers & fasting
   faith: {
+    prayer: def('MaterialCommunityIcons', 'hands-pray'),
     crescent: def('MaterialCommunityIcons', 'moon-waning-crescent'),
     dawn: def('MaterialCommunityIcons', 'weather-sunset-up'),
     sunrise: def('MaterialCommunityIcons', 'weather-sunset'),

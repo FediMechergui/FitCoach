@@ -26,7 +26,8 @@ export const ACHIEVEMENT_CATEGORIES: string[] = [
   "Faith & Fasting",
   "Micronutrients & Supplement Stacks",
   "Self-Care & Devotion",
-  "Body Mastery & Special Ops"
+  "Body Mastery & Special Ops",
+  "Daily Challenges"
 ];
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -154,6 +155,18 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 118, category: 12, name: "Warrior's Path", criteria: "Complete sessions from 3 different Special Programmes.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#FFF3E0\" stroke=\"#FFCC80\" stroke-width=\"2\"/><path d=\"M20 20l8 24 4-10 4 10 8-24-6 4-6-8-6 8-6-4z\" fill=\"#EF6C00\"/></svg>" },
   { id: 119, category: 12, name: "Elite Operator", criteria: "Complete 10 Special Programme sessions.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#FFFDE7\" stroke=\"#FFF59D\" stroke-width=\"2\"/><path d=\"M32 14l4.7 9.5 10.5 1.5-7.6 7.4 1.8 10.4L32 37.5l-9.4 4.8 1.8-10.4-7.6-7.4 10.5-1.5L32 14z\" fill=\"#F9A825\"/><path d=\"M24 46h16v4H24z\" fill=\"#F9A825\"/></svg>" },
   { id: 120, category: 12, name: "The Complete Athlete", criteria: "Log a session in all 8 training categories at least once.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#EDE7F6\" stroke=\"#B39DDB\" stroke-width=\"2\"/><path d=\"M32 16a16 16 0 100 32 16 16 0 000-32zm0 4v24m-12-12h24m-9-9L23 41m18 0L23 23\" stroke=\"#5E35B1\" stroke-width=\"2\" fill=\"none\"/></svg>" },
+
+  // ── 13. Daily Challenges ──
+  { id: 121, category: 13, name: "First Spin", criteria: "Spin the wheel for your first daily challenge.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#FFF3E0\" stroke=\"#FFB74D\" stroke-width=\"2\"/><path d=\"M32 14a18 18 0 100 36 18 18 0 000-36zm0 4a14 14 0 0114 14H32V18z\" fill=\"#F57C00\"/><circle cx=\"32\" cy=\"32\" r=\"4\" fill=\"#FFF3E0\"/></svg>" },
+  { id: 122, category: 13, name: "Challenge Accepted", criteria: "Complete your first daily challenge.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#E8F5E9\" stroke=\"#A5D6A7\" stroke-width=\"2\"/><path d=\"M28 42L16 30l3-3 9 9 17-17 3 3z\" fill=\"#2E7D32\"/></svg>" },
+  { id: 123, category: 13, name: "Five Down", criteria: "Complete 5 daily challenges.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#E3F2FD\" stroke=\"#90CAF9\" stroke-width=\"2\"/><path d=\"M32 15l4.7 9.5 10.5 1.5-7.6 7.4 1.8 10.4L32 39l-9.4 4.8 1.8-10.4-7.6-7.4 10.5-1.5L32 15z\" fill=\"#1565C0\"/></svg>" },
+  { id: 124, category: 13, name: "Twenty-Five", criteria: "Complete 25 daily challenges.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#F3E5F5\" stroke=\"#CE93D8\" stroke-width=\"2\"/><path d=\"M20 44V28h6v16h-6zm9 0V20h6v24h-6zm9 0V34h6v10h-6z\" fill=\"#7B1FA2\"/></svg>" },
+  { id: 125, category: 13, name: "The Hundred", criteria: "Complete 100 daily challenges.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#FFFDE7\" stroke=\"#FFF59D\" stroke-width=\"2\"/><path d=\"M32 14l14 5v9c0 10-6 18-14 22-8-4-14-12-14-22v-9l14-5z\" fill=\"#F9A825\"/><path d=\"M27 33l3 3 7-7\" stroke=\"#FFFDE7\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\"/></svg>" },
+  { id: 126, category: 13, name: "Unbroken Week", criteria: "Complete a daily challenge 7 days in a row.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#FBE9E7\" stroke=\"#FFAB91\" stroke-width=\"2\"/><path d=\"M32 12s-10 10-10 20a10 10 0 0020 0c0-10-10-20-10-20zm0 26a6 6 0 01-6-6c0-4 6-10 6-10s6 6 6 10a6 6 0 01-6 6z\" fill=\"#D84315\"/></svg>" },
+  { id: 127, category: 13, name: "The Long Run", criteria: "Complete a daily challenge 30 days in a row.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#E0F7FA\" stroke=\"#80DEEA\" stroke-width=\"2\"/><path d=\"M42 16h-2v-4h-4v4H28v-4h-4v4h-2a4 4 0 00-4 4v24a4 4 0 004 4h20a4 4 0 004-4V20a4 4 0 00-4-4zm0 28H22V26h20v18zm-11-3l9-9-3-3-6 6-3-3-3 3 6 6z\" fill=\"#00838F\"/></svg>" },
+  { id: 128, category: 13, name: "No Easy Way", criteria: "Complete 10 hard daily challenges.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#ECEFF1\" stroke=\"#B0BEC5\" stroke-width=\"2\"/><path d=\"M32 12l6 12 13 2-9.5 9 2.5 13-12-6.5L20 48l2.5-13-9.5-9 13-2z\" fill=\"#37474F\"/></svg>" },
+  { id: 129, category: 13, name: "All-Rounder", criteria: "Complete a challenge in all 5 categories (Move, Lift, Fuel, Mind, Care).", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#EDE7F6\" stroke=\"#B39DDB\" stroke-width=\"2\"/><path d=\"M32 14l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z\" fill=\"#5E35B1\"/></svg>" },
+  { id: 130, category: 13, name: "Five Hundred Points", criteria: "Earn 500 challenge points.", svg: "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" fill=\"#E8F5E9\" stroke=\"#A5D6A7\" stroke-width=\"2\"/><path d=\"M18 40l8-10 6 6 8-12 6 6v10z\" fill=\"#388E3C\"/><circle cx=\"44\" cy=\"20\" r=\"5\" fill=\"#66BB6A\"/></svg>" },
 ];
 
 export function achievementsInCategory(cat: number): AchievementDef[] {

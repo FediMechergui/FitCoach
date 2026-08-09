@@ -81,7 +81,7 @@ import { projectComposition, compareToActual, explainGap, fatLossFraction, leanG
 import { distributeSessionCalories, activeSecondsFor, caloriesForReference } from '../src/lib/exerciseCalories';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
-import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
+import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
 import { estimateDifficulty, findEasierAlternatives, matchQuality, type AltExercise } from '../src/lib/exerciseAlternatives';
@@ -951,6 +951,22 @@ console.log('\nElite-sport programmes & meal routines:');
    * the Train-tab card silently failed to apply. A registered route nobody can
    * navigate to is invisible, so both halves are now checked.
    */
+  /*
+   * The same failure twice: data added, UI never told about it. Both screens
+   * kept their own hard-coded category array, so Elite Sport shipped complete
+   * and invisible. They now render SPECIAL_CATEGORY_ORDER, which is derived
+   * from the META and appends anything the preferred order forgot — so a new
+   * category cannot fail to appear.
+   */
+  check('Every category is in the render order', SPECIAL_CATEGORY_ORDER.length === Object.keys(SPECIAL_CATEGORY_META).length, `${SPECIAL_CATEGORY_ORDER.length} of ${Object.keys(SPECIAL_CATEGORY_META).length}`);
+  check('…including athlete', SPECIAL_CATEGORY_ORDER.includes('athlete'));
+  check('…with no duplicates', new Set(SPECIAL_CATEGORY_ORDER).size === SPECIAL_CATEGORY_ORDER.length);
+  for (const f of ['src/screens/train/SpecialProgramsScreen.tsx', 'src/screens/nutrition/ProgrammeMealsScreen.tsx']) {
+    const src = fs.readFileSync(f, 'utf8');
+    check(`${f.split('/').pop()} renders the shared order`, /SPECIAL_CATEGORY_ORDER\.map\(/.test(src));
+    check(`${f.split('/').pop()} keeps no private category list`, !/const CATEGORY_ORDER/.test(src));
+  }
+
   const trainSrc = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
   check('The Daily Challenge is reachable from the Train tab', /navigate\('DailyChallenge'\)/.test(trainSrc));
   const navSrc = fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8');

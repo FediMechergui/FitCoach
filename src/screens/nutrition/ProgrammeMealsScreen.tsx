@@ -7,11 +7,10 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
-import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, type SpecialCategory } from '@/data/specialPrograms';
+import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER } from '@/data/specialPrograms';
 import { dietNutrition, mealToDiaryInputs, type MealNutrition } from '@/lib/specialDiet';
 import { addPreciseFood } from '@/repositories/nutritionRepo';
 
-const CATEGORY_ORDER: SpecialCategory[] = ['military', 'historical', 'superhero', 'counters', 'lifestyle'];
 
 /**
  * Every Special Programme diet, meal by meal, loggable straight into the diary
@@ -39,7 +38,7 @@ export function ProgrammeMealsScreen() {
         </View>
       </Row>
 
-      {CATEGORY_ORDER.map((cat) => (
+      {SPECIAL_CATEGORY_ORDER.map((cat) => (
         <View key={cat} style={{ gap: theme.spacing.sm }}>
           <SectionHeader title={SPECIAL_CATEGORY_META[cat].label} />
           {SPECIAL_PROGRAMS.filter((p) => p.category === cat).map((p) => {

@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.31',
+    date: '2026-08-03',
+    title: 'Elite Sport now actually shows up',
+    highlights: [
+      'Fixed: the eight Elite Sport programmes were added but never appeared on the Special Programmes page. Both that screen and the Nutrition programme-meals page kept their own hard-coded list of sections, so a new category existed in the data and was invisible on screen.',
+      'They now render the category list itself, and that list appends anything missing rather than dropping it — so a new section can no longer fail to appear. Elite Sport sits second, right after Military.',
+      'This is the same mistake as last release\'s missing Daily Challenge button, so there is now a check for this shape of bug too: it fails the build if any category exists in the data but not in what the screens render.',
+    ],
+  },
+  {
     version: '2.30',
     date: '2026-08-03',
     title: 'Challenge button fixed, saved meals, and how elite athletes train',

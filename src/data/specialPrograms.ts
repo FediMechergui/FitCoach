@@ -2401,6 +2401,30 @@ export function specialProgramsFor(category: SpecialCategory): SpecialProgram[] 
   return SPECIAL_PROGRAMS.filter((p) => p.category === category);
 }
 
+/**
+ * The order categories are shown in, guaranteed to include every one of them.
+ *
+ * The screens used to keep their own hard-coded array, and adding a category
+ * meant remembering to edit two unrelated files — which is exactly how the
+ * Elite Sport programmes shipped complete and invisible. The preferred order
+ * below is a *preference*: anything missing from it is appended rather than
+ * dropped, so a new category can never fail to render.
+ */
+const PREFERRED_ORDER: SpecialCategory[] = [
+  'military',
+  'athlete',
+  'historical',
+  'superhero',
+  'counters',
+  'lifestyle',
+];
+
+export const SPECIAL_CATEGORY_ORDER: SpecialCategory[] = (() => {
+  const all = Object.keys(SPECIAL_CATEGORY_META) as SpecialCategory[];
+  const ordered = PREFERRED_ORDER.filter((c) => all.includes(c));
+  return [...ordered, ...all.filter((c) => !ordered.includes(c))];
+})();
+
 export function findSpecialProgram(key: string): SpecialProgram | undefined {
   return SPECIAL_PROGRAMS.find((p) => p.key === key);
 }

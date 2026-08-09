@@ -14,8 +14,8 @@ import { LEVEL_LABEL } from '@/data/programs';
 import {
   SPECIAL_PROGRAMS,
   SPECIAL_CATEGORY_META,
+  SPECIAL_CATEGORY_ORDER,
   specialWeeklyMinutes,
-  type SpecialCategory,
 } from '@/data/specialPrograms';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -26,7 +26,6 @@ const LEVEL_COLOR: Record<string, string> = {
   advanced: '#E5533D',
 };
 
-const CATEGORY_ORDER: SpecialCategory[] = ['military', 'historical', 'superhero', 'counters', 'lifestyle'];
 
 export function SpecialProgramsScreen() {
   const theme = useTheme();
@@ -54,7 +53,7 @@ export function SpecialProgramsScreen() {
         </Row>
       </Card>
 
-      {CATEGORY_ORDER.map((cat) => {
+      {SPECIAL_CATEGORY_ORDER.map((cat) => {
         const meta = SPECIAL_CATEGORY_META[cat];
         const programs = SPECIAL_PROGRAMS.filter((p) => p.category === cat);
         return (

@@ -81,7 +81,7 @@ import { projectComposition, compareToActual, explainGap, fatLossFraction, leanG
 import { distributeSessionCalories, activeSecondsFor, caloriesForReference } from '../src/lib/exerciseCalories';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
-import { SPECIAL_PROGRAMS, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
+import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
 import { estimateDifficulty, findEasierAlternatives, matchQuality, type AltExercise } from '../src/lib/exerciseAlternatives';
@@ -503,7 +503,10 @@ check('Special-programme keys are unique', new Set(SPECIAL_PROGRAMS.map((p) => p
 check('Every programme has origin, ethos and an authenticity note', SPECIAL_PROGRAMS.every((p) => p.origin.length > 40 && p.ethos.length > 10 && p.authenticityNote.length > 30));
 check('Every programme ships a diet with a sample day and notes', SPECIAL_PROGRAMS.every((p) => p.diet.approach.length > 40 && p.diet.sampleDay.length >= 3 && p.diet.notes.length >= 1));
 check('Every day declares a session type, focus and prescription', SPECIAL_PROGRAMS.every((p) => p.days.length >= 3 && p.days.every((d) => !!d.sessionType && d.focus.length > 10 && d.prescription.length > 5 && d.minutes > 0)));
-check('All five categories are populated', (['military','historical','superhero','lifestyle','counters'] as const).every((c) => specialProgramsFor(c).length >= 2));
+// Every declared category must carry programmes — checked against the META
+// itself rather than a hard-coded list, so adding a category can't leave it
+// silently empty.
+check('Every declared category is populated', (Object.keys(SPECIAL_CATEGORY_META) as Array<keyof typeof SPECIAL_CATEGORY_META>).every((c) => specialProgramsFor(c).length >= 2), Object.keys(SPECIAL_CATEGORY_META).filter((c) => specialProgramsFor(c as never).length < 2).join(', '));
 check('The named programmes are all present', ['mil-army-acft','mil-seal-prep','mil-spetsnaz','mil-firefighter','mil-france-legion','his-roman-legion','his-spartan-agoge','his-shaolin','his-dagestan','his-aztec','his-mongol','his-gladiator','his-ninja','his-islamic-conquest','his-chinese-warrior','his-zulu-impi','his-egypt-warrior','life-office','life-morning','life-prison'].every((k) => !!findSpecialProgram(k)));
 check('Bodybuilder legends present (Arnold, Ronnie, Dorian)', ['hero-arnold','hero-ronnie','hero-dorian'].every((k) => findSpecialProgram(k)?.category === 'superhero'));
 check('Quick-counter programmes present (nicotine, impulse, focus)', ['ctr-nicotine','ctr-urge-reset','ctr-focus-shift'].every((k) => findSpecialProgram(k)?.category === 'counters'));
@@ -922,6 +925,64 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nElite-sport programmes & meal routines:');
+{
+  const athletes = specialProgramsFor('athlete');
+  check('Elite-sport programmes exist', athletes.length === 8, `${athletes.length}`);
+  check('The named sports are all present', ['ath-footballer', 'ath-basketballer', 'ath-boxer', 'ath-sprinter', 'ath-marathoner', 'ath-swimmer', 'ath-cyclist', 'ath-tennis'].every((k) => findSpecialProgram(k)?.category === 'athlete'));
+  /*
+   * These describe how professionals train, which means describing the parts
+   * that hurt people. Each of the four sports with a well-known injury or
+   * fuelling failure mode has to name it rather than sell the glamour.
+   */
+  check('Boxing is honest about head impacts and sparring', /head impacts are cumulative/i.test(findSpecialProgram('ath-boxer')?.safetyNote ?? ''));
+  check('Football names the hamstring mechanism', /hamstring/i.test(findSpecialProgram('ath-footballer')?.safetyNote ?? ''));
+  check('Distance running warns about under-fuelling (RED-S)', /RED-S|under-fuelling/i.test(findSpecialProgram('ath-marathoner')!.diet.notes.join(' ')));
+  check('Cycling names the watts-per-kilogram trap', /watts per kilogram/i.test(findSpecialProgram('ath-cyclist')!.diet.notes.join(' ')));
+  check('Swimming explains the shoulder is the limiting factor', /shoulder/i.test(findSpecialProgram('ath-swimmer')?.safetyNote ?? ''));
+  check('Sprinting says the volume is meant to be low', /volume/i.test(findSpecialProgram('ath-sprinter')?.authenticityNote ?? ''));
+  check('Every elite programme carries a loggable diet', athletes.every((p) => !!SPECIAL_DIET_BUILDS[p.key]));
+  check('…aligned with its own sample day', athletes.every((p) => SPECIAL_DIET_BUILDS[p.key].length === p.diet.sampleDay.length));
+
+  /*
+   * The Daily Challenge shipped with no way to reach it — the edit that added
+   * the Train-tab card silently failed to apply. A registered route nobody can
+   * navigate to is invisible, so both halves are now checked.
+   */
+  const trainSrc = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
+  check('The Daily Challenge is reachable from the Train tab', /navigate\('DailyChallenge'\)/.test(trainSrc));
+  const navSrc = fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8');
+  check('…and its route is registered', /name="DailyChallenge"/.test(navSrc));
+  // Anything registered ought to be reachable from somewhere in the app.
+  const screenFiles = ['src/screens', 'src/components'].flatMap((d) =>
+    fs.readdirSync(d, { recursive: true, encoding: 'utf8' } as never).map((f: string) => `${d}/${f}`)
+  ).filter((f) => f.endsWith('.tsx'));
+  const allScreenSrc = screenFiles.map((f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } }).join('\n');
+  const routes = [...navSrc.matchAll(/name="(\w+)"/g)].map((m) => m[1]);
+  // navigate / replace / push all count as a way in.
+  const orphans = routes.filter(
+    (r) => r !== 'Main' && r !== 'Onboarding' && !new RegExp(`(navigate|replace|push)\\('${r}'`).test(allScreenSrc)
+  );
+  check('No screen is registered but unreachable', orphans.length === 0, orphans.join(', '));
+
+  // Meal routines: the snapshot decision is the load-safe one.
+  const mrRepo = fs.readFileSync('src/repositories/mealRoutineRepo.ts', 'utf8');
+  check('Routines snapshot macros rather than catalogue ids', /foodName: e\.foodName/.test(mrRepo) && !/foodId/.test(mrRepo));
+  /*
+   * An honest-log entry is a free-text estimate, not a food. Re-logging one
+   * would replay a guess as though it had been measured.
+   */
+  check('Honest-log entries are excluded from routines', /e\.logMode !== 'honest'/.test(mrRepo));
+  check('A whole-day routine keeps each item in its own meal', /wholeDay \? i\.mealType/.test(mrRepo));
+  check('Applying a routine logs the saved amount, not a re-scaled one', /quantity: 1, \/\/ the snapshot is already the eaten amount/.test(mrRepo));
+  const bootSrc6 = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('meal_routines is in the CREATE TABLE DDL', /CREATE TABLE IF NOT EXISTS meal_routines/.test(bootSrc6));
+  const sv4 = Number((bootSrc6.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the routines table', sv4 >= 23, `${sv4}`);
+  const nutSrc2 = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
+  check('Routines are offered per meal AND for the whole day', /mealType=\{meal\}/.test(nutSrc2) && /mealType=\{null\}/.test(nutSrc2));
 }
 
 console.log('\nDaily challenge wheel:');

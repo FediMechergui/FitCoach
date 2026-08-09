@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.30',
+    date: '2026-08-03',
+    title: 'Challenge button fixed, saved meals, and how elite athletes train',
+    highlights: [
+      'Fixed: the Daily Challenge shipped with no way to reach it. The wheel and its screen were both there, but the button on the Train tab never made it in — it is there now, above Special Programmes. There is also a check that fails the build if any screen is ever registered without a route into it.',
+      'Saved meals. Log a breakfast you eat often, tap "Save this meal as a routine", name it, and it becomes a chip you can tap to log the whole thing again. Long-press a chip to delete it.',
+      'You can also save a whole DAY — every meal and how it was split. That is the one for fasting: the distribution across your eating window is the thing worth keeping, not any single plate. A saved day fills all its meals in one tap.',
+      'Routines store a snapshot of the actual macros, not links into the food database. That database is replaced every time the app updates, so a routine holding references would quietly drift or break — a snapshot re-logs exactly what you saved, indefinitely. Honest-log entries are skipped, since re-logging an estimate as though it were measured would be dishonest.',
+      'New Elite Sport section in Special Programmes — how professionals actually train, which is usually not what people assume.',
+      'Footballer (the real MD-4 to MD-1 club week, built around high-speed running), Basketballer (jumping and landing, single-leg strength), Boxer (dawn road work, bag and pad rounds, a twelve-week camp), Sprinter (almost entirely rest — six to eight minutes between efforts, because sprinting tired is not sprint training), Marathon Runner (80% easy, 20% hard), Swimmer (kilometres in the pool and the dryland that saves the shoulder), Cyclist (long easy base, savage intervals) and Tennis Player (deceleration and rotational power).',
+      'Each carries the injury or fuelling failure mode its sport is actually known for: hamstrings in football, cumulative head impacts in boxing, RED-S in distance running, the watts-per-kilogram trap in cycling, swimmer\'s shoulder. All eight come with a loggable diet.',
+    ],
+  },
+  {
     version: '2.29',
     date: '2026-08-02',
     title: 'Spin the wheel — a daily challenge, tracked automatically',

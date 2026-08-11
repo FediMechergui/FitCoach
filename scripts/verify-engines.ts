@@ -63,6 +63,7 @@ import {
 import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../src/lib/oneRepMax';
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
+import { BADGE_IMAGES } from '../src/data/badgeImages';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
 import {
   buildDailyWheel,
@@ -925,6 +926,94 @@ console.log('\nSchema ↔ migration integrity:');
   // The warm-up credits several steps at once, so the listener must add the
   // returned count rather than incrementing by one.
   check('Accelerometer listener banks the whole credited count', /mem\.steps \+= credited/.test(walkSrc));
+}
+
+console.log('\nCodebase audit (references, schema parity, navigation):');
+{
+  // Every achievement must have pre-rendered badge art — the SVG path crashes
+  // natively, so a missing PNG silently downgrades to a generic medallion.
+  const artless = ACHIEVEMENTS.filter((a) => !(BADGE_IMAGES as Record<number, string>)[a.id]);
+  check('Every achievement has rendered badge art', artless.length === 0, artless.map((a) => a.id).join(','));
+
+  // Every icon key in every catalogue resolves — a bad key renders blank.
+  const iconOk2 = (k: string) => { const [g, n] = (k ?? '').split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; };
+  const badIcons = [
+    ...EXLIB.map((e) => [`exercise ${e.slug}`, e.icon]),
+    ...SPECIAL_PROGRAMS.map((p) => [`special ${p.key}`, p.icon]),
+    ...SUPPLEMENTS.map((s) => [`supp ${s.key}`, s.icon]),
+    ...NICOTINE_PRODUCTS.map((p) => [`nicotine ${p.key}`, p.icon]),
+  ].filter(([, k]) => !iconOk2(k));
+  check('Every catalogue icon key resolves', badIcons.length === 0, badIcons.slice(0, 4).map(([w, k]) => `${k}@${w}`).join(', '));
+
+  /*
+   * Drizzle schema ↔ runtime DDL parity, table by table and column by column.
+   * A column in the schema but not the CREATE TABLE breaks fresh installs the
+   * moment anything selects it — the family of bug that has bitten before.
+   */
+  const normEol = (p: string) => fs.readFileSync(p, 'utf8').split('\r\n').join('\n');
+  const schemaSrc2 = normEol('src/db/schema.ts');
+  const bootSrc7 = normEol('src/db/bootstrap.ts');
+  const schemaTableRe = /sqliteTable\('(\w+)',\s*\{([\s\S]*?)\n\}\)/g;
+  const parityIssues: string[] = [];
+  let tm: RegExpExecArray | null;
+  let tablesChecked = 0;
+  while ((tm = schemaTableRe.exec(schemaSrc2))) {
+    const [, table, body] = tm;
+    tablesChecked++;
+    const tok = `CREATE TABLE IF NOT EXISTS ${table} (`;
+    const at = bootSrc7.indexOf(tok);
+    if (at < 0) { parityIssues.push(`table ${table} missing`); continue; }
+    const ddlBody = bootSrc7.slice(at + tok.length, bootSrc7.indexOf(');', at));
+    const ddlCols = new Set(ddlBody.split('\n').map((l) => l.trim().split(/\s+/)[0]).filter(Boolean));
+    for (const col of [...body.matchAll(/(?:text|integer|real)\('(\w+)'/g)].map((x) => x[1])) {
+      if (!ddlCols.has(col)) parityIssues.push(`${table}.${col}`);
+    }
+  }
+  check('Every drizzle table and column exists in the runtime DDL', parityIssues.length === 0, parityIssues.slice(0, 5).join(', ') || `${tablesChecked} tables`);
+  check('The parity scan actually parsed the schema', tablesChecked >= 25, `${tablesChecked}`);
+
+  // Every navigation target must be a registered route — the inverse of the
+  // orphan check, catching typos and screens navigated to but never registered.
+  const rootNav = normEol('src/navigation/RootNavigator.tsx');
+  const tabNav = normEol('src/navigation/TabNavigator.tsx');
+  const registeredRoutes = new Set([
+    ...[...rootNav.matchAll(/name="(\w+)"/g)].map((x) => x[1]),
+    ...[...tabNav.matchAll(/name="(\w+)"/g)].map((x) => x[1]),
+  ]);
+  const walkDir = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walkDir(`${dir}/${e.name}`) : e.name.endsWith('.tsx') ? [`${dir}/${e.name}`] : []);
+  const badTargets: string[] = [];
+  for (const f of [...walkDir('src/screens'), ...walkDir('src/components')]) {
+    for (const t of [...normEol(f).matchAll(/(?:navigate|replace|push)\('(\w+)'/g)].map((x) => x[1])) {
+      if (!registeredRoutes.has(t)) badTargets.push(`${f} → ${t}`);
+    }
+  }
+  check('Every navigation call targets a registered route', badTargets.length === 0, badTargets.slice(0, 3).join('; '));
+}
+
+console.log('\nAudit fixes — smoking figures & wheel stability:');
+{
+  const smokeRepo2 = fs.readFileSync('src/repositories/smokingRepo.ts', 'utf8');
+  /*
+   * Health figures run on combustion-weighted counts; nicotine and money must
+   * NOT. Weighted nicotine reads a pouch-only week as zero and a shisha session
+   * as ten cigarettes' worth — false in both directions — and weighted money
+   * prices a shisha session as ten cigarettes off the pack price.
+   */
+  check('Weekly nicotine reads the actual products', /nicotineWeekMg: Math\.round\(nicotineMgSince\(/.test(smokeRepo2));
+  check('Money counts only real cigarettes (the one known price)', /export function cigaretteMoneySince/.test(smokeRepo2) && /key === 'cigarette'/.test(smokeRepo2));
+  check('The year projection derives from measured spend', /\(weekMoney \/ 7\) \* 365/.test(smokeRepo2));
+  check('Life-cost still uses the combustion-weighted count', /lifeMinutesWeek: lifeMinutesLost\(week\)/.test(smokeRepo2));
+  // The quit-recovery timeline describes what happens when SMOKE stops.
+  check('Smoke-free hours reset only on combusted products', /combusted\)/.test(smokeRepo2.slice(smokeRepo2.indexOf('export function smokeFreeHours'), smokeRepo2.indexOf('export function smokeFreeStreak'))));
+  const chalRepo2 = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('A Clean Day is broken only by smoking, not by a pouch', /\.some\(\(r\) => productOrDefault\(r\.productKey\)\.combusted\)/.test(chalRepo2));
+  /*
+   * The wheel must be stable across the whole day. recentKeys including the
+   * current date meant a spin immediately rotated its own challenge off the
+   * wheel, leaving the pointer on the wrong wedge.
+   */
+  check("Recent-challenge exclusion stops BEFORE the day being spun", /lt\(dailyChallenges\.date, before\)/.test(chalRepo2));
 }
 
 console.log('\nElite-sport programmes & meal routines:');

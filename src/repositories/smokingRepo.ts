@@ -178,6 +178,43 @@ export function cigarettesSince(sinceISO: string, userId: number = PRIMARY_USER_
   return total;
 }
 
+/** Raw entries in a window, for the figures that must NOT be combustion-weighted. */
+function entriesSince(sinceISO: string, userId: number) {
+  return db
+    .select()
+    .from(smokingEntries)
+    .where(and(eq(smokingEntries.userId, userId), gte(smokingEntries.date, sinceISO)))
+    .all();
+}
+
+/**
+ * Nicotine absorbed in a window, from the actual products used.
+ *
+ * This must not run through the combustion-weighted count: weighting is right
+ * for the health figures (smoke is what harms) and wrong for nicotine — a week
+ * of pouches would read zero nicotine while a single shisha session would read
+ * ten cigarettes' worth, both false.
+ */
+export function nicotineMgSince(sinceISO: string, settings: SmokingSettings, userId: number = PRIMARY_USER_ID): number {
+  return totalNicotineMg(
+    entriesSince(sinceISO, userId).map((r) => ({ productKey: r.productKey, quantity: r.quantity })),
+    settings
+  );
+}
+
+/**
+ * Money spent on actual cigarettes in a window. Only cigarettes: the pack
+ * price is the one price the profile knows, and pricing a pouch or a shisha
+ * session off it would be an invented number. Alternatives therefore show no
+ * cost rather than a wrong one.
+ */
+export function cigaretteMoneySince(sinceISO: string, settings: SmokingSettings, userId: number = PRIMARY_USER_ID): number {
+  const cigUnits = entriesSince(sinceISO, userId)
+    .filter((r) => productOrDefault(r.productKey).key === 'cigarette')
+    .reduce((sum, r) => sum + r.quantity, 0);
+  return moneyCost(cigUnits, settings);
+}
+
 /** Average cigarettes/day over the last N days (counts all days in window). */
 export function avgCigarettesPerDay(days = 7, userId: number = PRIMARY_USER_ID): number {
   const since = daysAgoISO(days - 1);
@@ -193,15 +230,37 @@ export function dailySeries(days = 30, userId: number = PRIMARY_USER_ID): Array<
 
 /** Hours since the most recent cigarette (Infinity if none ever logged). */
 export function smokeFreeHours(userId: number = PRIMARY_USER_ID): number {
-  const last = db
+  /*
+   * Hours since the last thing that was BURNED — not the last entry. The
+   * recovery timeline this feeds (CO normalising at 12 h, circulation at two
+   * weeks…) describes what happens when smoke stops, and those benefits arrive
+   * for a switcher regardless of the pouches or gum they switched to. Counting
+   * a pouch as a reset would pin them at "20 minutes" forever and hide exactly
+   * the progress the switch was for.
+   */
+  const rows = db
     .select()
     .from(smokingEntries)
     .where(eq(smokingEntries.userId, userId))
     .orderBy(desc(smokingEntries.createdAt))
-    .limit(1)
-    .get();
-  if (!last) return Infinity;
-  return (Date.now() - last.createdAt) / 3_600_000;
+    .limit(50)
+    .all();
+  const lastSmoked = rows.find((r) => productOrDefault(r.productKey).combusted);
+  if (!lastSmoked) {
+    // Nothing combusted in the recent window; look once more across everything.
+    const any = rows.length
+      ? db
+          .select()
+          .from(smokingEntries)
+          .where(eq(smokingEntries.userId, userId))
+          .all()
+          .filter((r) => productOrDefault(r.productKey).combusted)
+          .sort((a, b) => b.createdAt - a.createdAt)[0]
+      : undefined;
+    if (!any) return Infinity;
+    return (Date.now() - any.createdAt) / 3_600_000;
+  }
+  return (Date.now() - lastSmoked.createdAt) / 3_600_000;
 }
 
 /**
@@ -248,19 +307,30 @@ export function smokingImpact(userId: number = PRIMARY_USER_ID): SmokingImpact |
   if (!profile?.enabled) return null;
   const settings = settingsFromProfile(profile);
 
+  /*
+   * Two different counts on purpose. `week` is combustion-weighted (a shisha
+   * session counts ~10, a pouch 0) and drives the HEALTH figures — life cost
+   * and the CO-driven aerobic penalty are consequences of smoke. Nicotine and
+   * money read the actual products instead: weighting them would report zero
+   * nicotine for a pouch-only week and price a shisha session as ten
+   * cigarettes, both fabrications.
+   */
   const today = dayCigarettes(todayISO(), userId);
   const week = cigarettesSince(daysAgoISO(6), userId);
   const avg = avgCigarettesPerDay(7, userId);
   const yearProjectedCigs = avg * 365;
+  const weekAgo = daysAgoISO(6);
+  const weekMoney = cigaretteMoneySince(weekAgo, settings, userId);
 
   return {
     today,
     week,
     avgPerDay: avg,
     dailyTarget: profile.dailyTarget ?? null,
-    nicotineWeekMg: Math.round(nicotineMg(week, settings)),
-    moneyWeek: Math.round(moneyCost(week, settings) * 100) / 100,
-    moneyYearProjected: Math.round(moneyCost(yearProjectedCigs, settings)),
+    nicotineWeekMg: Math.round(nicotineMgSince(weekAgo, settings, userId)),
+    moneyWeek: Math.round(weekMoney * 100) / 100,
+    // Projected from the measured cigarette spend, not the weighted count.
+    moneyYearProjected: Math.round((weekMoney / 7) * 365),
     currency: settings.currency,
     lifeMinutesWeek: lifeMinutesLost(week),
     lifeHoursYearProjected: Math.round(lifeMinutesLost(yearProjectedCigs) / 60),

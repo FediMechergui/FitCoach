@@ -1,4 +1,4 @@
-import { and, desc, eq, gte } from 'drizzle-orm';
+import { and, desc, eq, gte, lt } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   beverageEntries,
@@ -18,6 +18,7 @@ import {
 import { CHALLENGES, findChallenge, type ChallengeDef, type ChallengeMetric } from '@/data/challenges';
 import { buildDailyWheel, isChallengeComplete, type ChallengeContext, type DailyWheel } from '@/lib/challengeWheel';
 import { hardSetCredit } from '@/lib/effort';
+import { productOrDefault } from '@/data/nicotineProducts';
 import { daysAgoISO, todayISO } from '@/lib/date';
 import { dayNutrition } from './nutritionRepo';
 import { getDailySteps } from './activityRepo';
@@ -45,12 +46,20 @@ export function challengeForDate(
     .get();
 }
 
-/** Challenge keys landed on in the last two weeks, so the wheel varies. */
-function recentKeys(userId: number, days = 14): string[] {
+/**
+ * Challenge keys landed on in the two weeks BEFORE `date`, so the wheel varies.
+ *
+ * Strictly before: today's own spin must not count as "recent", because the
+ * wheel is rebuilt on every visit. Including today meant that the moment you
+ * spun, the rebuilt wheel rotated today's challenge out of its own segments —
+ * and the settled pointer sat on some other wedge than the challenge shown
+ * beneath it.
+ */
+function recentKeys(userId: number, before: string, days = 14): string[] {
   return db
     .select({ key: dailyChallenges.challengeKey })
     .from(dailyChallenges)
-    .where(and(eq(dailyChallenges.userId, userId), gte(dailyChallenges.date, daysAgoISO(days))))
+    .where(and(eq(dailyChallenges.userId, userId), gte(dailyChallenges.date, daysAgoISO(days)), lt(dailyChallenges.date, before)))
     .all()
     .map((r) => r.key);
 }
@@ -60,7 +69,7 @@ export function wheelForToday(
   date: string = todayISO(),
   userId: number = PRIMARY_USER_ID
 ): DailyWheel | null {
-  return buildDailyWheel(date, { ...ctx, recentKeys: recentKeys(userId) });
+  return buildDailyWheel(date, { ...ctx, recentKeys: recentKeys(userId, date) });
 }
 
 /**
@@ -288,12 +297,19 @@ function allStackTaken(date: string, userId: number): number {
 
 /** 1 when nothing at all was logged in the smoking tracker that day. */
 function smokeFree(date: string, userId: number): number {
-  const any = db
+  /*
+   * The challenge says "without smoking anything", and it means it literally:
+   * a nicotine pouch or a piece of NRT gum is not smoking, and failing the
+   * challenge for using one punishes exactly the substitution the smoking
+   * tracker exists to encourage. Only combusted products break a clean day.
+   */
+  const smoked = db
     .select()
     .from(smokingEntries)
     .where(and(eq(smokingEntries.userId, userId), eq(smokingEntries.date, date)))
-    .get();
-  return any ? 0 : 1;
+    .all()
+    .some((r) => productOrDefault(r.productKey).combusted);
+  return smoked ? 0 : 1;
 }
 
 function sleepFor(date: string, userId: number): number {

@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.32',
+    date: '2026-08-04',
+    title: 'Full codebase audit — six bugs found and fixed',
+    highlights: [
+      'Swept the whole codebase for the class of bug that has bitten before: things that exist in the data but never made it to the screen, and figures fed by the wrong number.',
+      'Fixed: switching to pouches or gum showed ZERO weekly nicotine, while one shisha session showed ten cigarettes\' worth. Nicotine now reads what you actually used. Money had the same flaw — it now counts real cigarettes only, the one product whose price the app knows, rather than pricing a shisha session off the pack price.',
+      'Fixed: the quit-recovery timeline (carbon monoxide normalising at 12 hours, circulation at two weeks…) reset every time you logged a pouch — pinning a switcher at "20 minutes" forever. Those milestones describe what happens when SMOKE stops, so only smoking resets them now. Your smoke-free clock keeps running through the alternatives you switched to.',
+      'Fixed: the "A Clean Day" challenge failed if you used a nicotine pouch. Its own words are "without smoking anything" — a pouch is not smoking, and failing you for the exact substitution the tracker encourages was backwards.',
+      'Fixed: the challenge wheel pointed at the wrong wedge after spinning. The moment you spun, the wheel rebuilt itself with today\'s challenge excluded as "recent" — so the pointer settled on a different segment than the challenge shown beneath it.',
+      'Fixed: the ten Daily Challenge badges had no rendered art and showed as generic medallions. All 130 badges now carry their real art.',
+      'Fixed: six broken icon references (four push-up variants, the plate pinch, and the boxer programme) that rendered blank.',
+      'All of it is now enforced permanently: the test suite checks every icon reference in every catalogue, every badge\'s art, every database column against the runtime schema, and every navigation call against the registered routes — 620 checks, up from 608.',
+    ],
+  },
+  {
     version: '2.31',
     date: '2026-08-03',
     title: 'Elite Sport now actually shows up',

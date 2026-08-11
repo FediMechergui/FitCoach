@@ -63,6 +63,9 @@ export const ICONS = {
     kettlebell: def('MaterialCommunityIcons', 'kettlebell'),
     band: def('MaterialCommunityIcons', 'vector-line'),
     calisthenics: def('MaterialCommunityIcons', 'human-handsup'),
+    // Referenced by grip / push-up variants — absent keys render blank.
+    plate: def('MaterialCommunityIcons', 'poker-chip'),
+    pushup: def('MaterialCommunityIcons', 'human-handsdown'),
     pullup: def('MaterialCommunityIcons', 'human-handsup'),
     core: def('MaterialCommunityIcons', 'ab-testing'),
     legs: def('MaterialCommunityIcons', 'yoga'),
@@ -108,6 +111,7 @@ export const ICONS = {
   },
 
   sport: {
+    boxing: def('MaterialCommunityIcons', 'boxing-glove'),
     soccer: def('MaterialCommunityIcons', 'soccer'),
     tennis: def('MaterialCommunityIcons', 'tennis'),
     padel: def('MaterialCommunityIcons', 'tennis-ball'),

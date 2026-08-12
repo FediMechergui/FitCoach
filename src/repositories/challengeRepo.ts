@@ -208,6 +208,17 @@ export function measureMetric(
         return smokeFree(date, userId);
       case 'sleepHours':
         return sleepFor(date, userId);
+      case 'burnedKcal': {
+        /*
+         * Training sessions + walks. No double count: walk calories roll into
+         * daily_step_logs, and on-foot SESSIONS contribute steps to that table
+         * but never calories (contributeSteps passes 0), so the two sources
+         * are disjoint by construction.
+         */
+        const fromSessions = sessionsOn(date, userId).reduce((s, x) => s + (x.caloriesBurned ?? 0), 0);
+        const fromWalks = getDailySteps(date, userId)?.caloriesBurned ?? 0;
+        return Math.round(fromSessions + fromWalks);
+      }
       default:
         return 0;
     }

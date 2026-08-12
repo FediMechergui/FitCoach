@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.35',
+    date: '2026-08-05',
+    title: 'Every supplement audited for macros, and 17 new wheel challenges',
+    highlights: [
+      'Audited the entire supplement catalogue: does each one carry the micros and macros it really has? Micros were already right everywhere. Four products were hiding real energy.',
+      'Whey was the big one — a scoop is 120 kcal and 24 g of protein, and its own note used to tell you to log it as food by hand. Taking it from your stack now writes those calories and protein into your diary automatically, exactly matching the whey entry in the food database, so a scoop counts the same whichever way you log it. Just don\'t log the same scoop both ways.',
+      'Collagen now counts its ~36 kcal — but deliberately NOT as protein. It is missing tryptophan and low in leucine, so it cannot do what your protein target measures, and letting it inflate that number would quietly mislead the muscle-growth gates. The calories are real; the protein claim would not be.',
+      'Citrulline (6 g ≈ 24 kcal) and beta-alanine (3.2 g ≈ 13 kcal) count their amino-acid calories. The generic Omega-3 counts its ~2 g of carrier fat, same as your GSN one. Creatine stays at zero because it genuinely is not an energy substrate — no pill invents calories it does not have, and a test now pins the exact list.',
+      'The wheel grew from 27 to 44 challenges. New: 10,000 Steps, Forty-Five Minutes, Seven Kilometres, Burn 400 and Burn 700 (a NEW measured metric — tracked calories from training and walking combined), Twenty-Five Hard Sets, Three Muscle Groups, Five To Failure, Two New Moves, Protein Big Day (150 g), Twenty-Five Grams of Fibre, Four Honest Meals, Four Litres, Fifteen Minutes Still, Half an Hour of Mobility, Eight Hours, and Five Acts of Care.',
+      'Every metric is verified to be wired into the measuring code — a challenge that could never complete because its metric reads permanent zero is the same bug family as the invisible button, and there is now a test for it.',
+    ],
+  },
+  {
     version: '2.34',
     date: '2026-08-04',
     title: 'Your GSN stack, with real macro and micro accounting',

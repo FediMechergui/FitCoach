@@ -85,7 +85,14 @@ export const SUPPLEMENTS: SupplementDef[] = [
   { key: 'iron', label: 'Iron', category: 'micronutrient', icon: 'supp.mineral', defaultDose: '18 mg', timing: 'With vitamin C, away from coffee/tea', micros: { iron_mg: 18 } },
   { key: 'vitamin-c', label: 'Vitamin C', category: 'micronutrient', icon: 'supp.pill', defaultDose: '500 mg', micros: { vitaminC_mg: 500 } },
   { key: 'vitamin-b12', label: 'Vitamin B12', category: 'micronutrient', icon: 'supp.pill', defaultDose: '500 µg', timing: 'Important on a vegan diet', micros: { vitaminB12_ug: 500 } },
-  { key: 'omega-3', label: 'Omega-3 Fish Oil', category: 'micronutrient', icon: 'supp.oil', defaultDose: '1000 mg EPA+DHA', timing: 'With a meal', micros: { omega3_mg: 1000, vitaminD_ug: 2 } },
+  {
+    key: 'omega-3', label: 'Omega-3 Fish Oil', category: 'micronutrient', icon: 'supp.oil',
+    defaultDose: '1000 mg EPA+DHA', timing: 'With a meal',
+    micros: { omega3_mg: 1000, vitaminD_ug: 2 },
+    // A gram of EPA+DHA rides in roughly 2 g of total oil — real fat, real
+    // energy, logged automatically like food.
+    macros: { calories: 18, fatG: 2 },
+  },
   { key: 'calcium', label: 'Calcium', category: 'micronutrient', icon: 'supp.mineral', defaultDose: '500 mg', timing: 'Split doses; with food', micros: { calcium_mg: 500 } },
   { key: 'folate', label: 'Folic Acid', category: 'micronutrient', icon: 'supp.pill', defaultDose: '400 µg', timing: 'Important pre/early pregnancy', micros: { folate_ug: 400 } },
 
@@ -180,21 +187,30 @@ export const SUPPLEMENTS: SupplementDef[] = [
   },
   {
     key: 'beta-alanine', label: 'Beta-Alanine', category: 'ergogenic', icon: 'supp.scoop',
-    defaultDose: '3.2–6.4 g/day', timing: 'Daily; split doses reduce tingles',
+    defaultDose: '3.2 g/day', timing: 'Daily; split doses reduce tingles',
+    // 3.2 g of amino acid ≈ 13 kcal — small, but grams are grams.
+    macros: { calories: 13 },
     evidenceLevel: 'moderate',
     evidence: 'Moderate evidence for high-intensity efforts lasting 1–4 minutes. Works by raising muscle carnosine over weeks — like creatine, it\'s a consistency play, not a pre-workout kick.',
   },
   {
     key: 'citrulline', label: 'L-Citrulline / Malate', category: 'ergogenic', icon: 'supp.scoop',
-    defaultDose: '6–8 g', timing: '~60 min pre-workout',
+    defaultDose: '6 g', timing: '~60 min pre-workout',
+    // 6 g of amino acid ≈ 24 kcal. Free-form aminos — calories only, not
+    // protein toward the target.
+    macros: { calories: 24 },
     evidenceLevel: 'moderate',
     evidence: 'Moderate evidence for a small boost in training volume and reduced soreness via improved blood flow. Real but modest.',
   },
   {
     key: 'whey', label: 'Whey / Protein Powder', category: 'ergogenic', icon: 'supp.scoop',
-    defaultDose: '1 scoop (~25 g protein)', timing: 'Anytime to hit your protein target',
+    defaultDose: '1 scoop (~24 g protein)', unitsPerServing: 1, unitLabel: 'scoop',
+    timing: 'Anytime to hit your protein target',
+    // Identical to the FOOD_DB 'whey' entry, so a scoop counts the same
+    // whichever way it gets logged. Don't log it BOTH ways for one scoop.
+    macros: { calories: 120, proteinG: 24, carbsG: 3, fatG: 1.5 },
     evidenceLevel: 'strong',
-    evidence: 'A convenient protein source, not magic — it helps only insofar as it fills your daily protein target (log it as a food to count the protein). Whole-food protein works just as well.',
+    evidence: 'A convenient protein source, not magic — it helps only insofar as it fills your daily protein target. Taking it here logs its 120 kcal and 24 g of protein into your diary automatically, so don\'t also log it as a food for the same scoop. Whole-food protein works just as well.',
   },
   {
     key: 'ashwagandha', label: 'Ashwagandha', category: 'ergogenic', icon: 'supp.leaf',
@@ -246,9 +262,18 @@ export const SUPPLEMENTS: SupplementDef[] = [
   },
   {
     key: 'collagen', label: 'Collagen', category: 'ergogenic', icon: 'supp.scoop',
-    defaultDose: '10–15 g', timing: 'With vitamin C, ~60 min pre-training',
+    defaultDose: '10 g', unitsPerServing: 1, unitLabel: 'scoop',
+    timing: 'With vitamin C, ~60 min pre-training',
+    /*
+     * Deliberately calories-only. Ten grams of collagen is ~36 kcal of amino
+     * acids, so the energy is real and counted — but it is missing tryptophan
+     * and low in leucine, so it cannot do what the protein target exists to
+     * measure. Recording it as 9 g of protein would let a collagen habit
+     * quietly inflate the number that drives the muscle-growth gates.
+     */
+    macros: { calories: 36 },
     evidenceLevel: 'limited',
-    evidence: 'Limited but growing evidence for tendon/joint and skin support. As a muscle-protein source it\'s low quality (missing tryptophan) — don\'t count it toward your protein target.',
+    evidence: 'Limited but growing evidence for tendon/joint and skin support. Its ~36 kcal per scoop count toward your day automatically, but deliberately NOT toward your protein target: collagen is missing tryptophan and low in leucine, so it can\'t do the job your protein number is tracking. Whey or food protein is what moves that.',
   },
   {
     key: 'zma', label: 'ZMA (Zinc-Magnesium-B6)', category: 'ergogenic', icon: 'supp.mineral',

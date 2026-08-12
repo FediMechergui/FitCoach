@@ -1096,6 +1096,19 @@ console.log('\nDaily challenge wheel:');
   const nothingOn = { enabled: {} };
 
   check('Every challenge is measurable and has a positive target', CHALLENGES.every((c) => !!c.metric && c.target > 0));
+  check('The wheel now has 44 challenges to draw from', CHALLENGES.length === 44, `${CHALLENGES.length}`);
+  /*
+   * The wiring guard for challenges: a metric named in the data but without a
+   * `case` in measureMetric would read as permanent zero — a challenge that can
+   * never complete, which is worse than none. Same failure shape as the
+   * missing button and the invisible category.
+   */
+  const measureSrc = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  const unwired = [...new Set(CHALLENGES.map((c) => c.metric))].filter((m) => !measureSrc.includes(`case '${m}':`));
+  check('Every challenge metric is wired into measureMetric', unwired.length === 0, unwired.join(', '));
+  // burnedKcal must not double-count walks against on-foot sessions.
+  check('Burned-kcal sums sessions and walks disjointly', /fromSessions \+ fromWalks/.test(measureSrc) && /caloriesBurned \?\? 0/.test(measureSrc));
+  check('Each category offers at least 3 challenges', (['move', 'lift', 'fuel', 'mind', 'care'] as const).every((c) => CHALLENGES.filter((x) => x.category === c).length >= 3), (['move', 'lift', 'fuel', 'mind', 'care'] as const).map((c) => `${c}:${CHALLENGES.filter((x) => x.category === c).length}`).join(' '));
   check('Challenge keys are unique', new Set(CHALLENGES.map((c) => c.key)).size === CHALLENGES.length);
   check('All five categories are represented', new Set(CHALLENGES.map((c) => c.category)).size === 5);
   check('All three difficulties are represented', new Set(CHALLENGES.map((c) => c.difficulty)).size === 3);
@@ -1333,7 +1346,30 @@ console.log('\nSupplements — Shilajit, Spiruline & pill counting:');
   // ── Fish oil: the macro path ──
   check('Fish oil records only the omega-3 that matters (300 mg)', gsnFish.micros?.omega3_mg === 300);
   check('Fish oil carries its real energy (10 kcal, 1 g fat)', gsnFish.macros?.calories === 10 && gsnFish.macros?.fatG === 1);
-  check('No other pill invents calories', SUPPLEMENTS.filter((s) => s.macros).every((s) => s.key === 'gsn-fish-oil'));
+  /*
+   * The macro-bearing set is exactly the products that genuinely carry energy:
+   * the fish oils (fat), whey (a protein food in a tub), collagen and the
+   * free-form aminos (amino acids are ~4 kcal/g whether or not they count as
+   * protein). Everything else is a pill with no meaningful energy, and a pill
+   * inventing calories would be as wrong as one hiding them.
+   */
+  const macroKeys = SUPPLEMENTS.filter((s) => s.macros).map((s) => s.key).sort();
+  check('Exactly the energy-carrying supplements have macros', macroKeys.join(',') === ['beta-alanine', 'citrulline', 'collagen', 'gsn-fish-oil', 'omega-3', 'whey'].join(','), macroKeys.join(','));
+  const wheySupp = SUPPLEMENTS.find((s) => s.key === 'whey')!;
+  const wheyFood = FOOD_DB.find((f) => f.id === 'whey')!;
+  // One scoop must count identically whichever way it gets logged.
+  check('Whey supplement matches the whey food exactly', wheySupp.macros?.calories === wheyFood.calories && wheySupp.macros?.proteinG === wheyFood.protein && wheySupp.macros?.carbsG === wheyFood.carbs && wheySupp.macros?.fatG === wheyFood.fat);
+  /*
+   * Collagen is energy but not protein: missing tryptophan, low leucine, so it
+   * cannot do what the protein target measures. Recording it as protein would
+   * let a collagen habit inflate the number driving the muscle-growth gates.
+   */
+  const collagenSupp = SUPPLEMENTS.find((s) => s.key === 'collagen')!;
+  check('Collagen counts calories but never protein', (collagenSupp.macros?.calories ?? 0) > 0 && collagenSupp.macros?.proteinG === undefined);
+  check('…and its note says why', /tryptophan/i.test(collagenSupp.evidence ?? ''));
+  check('Aminos carry calories only, no protein claim', ['beta-alanine', 'citrulline'].every((k) => { const d = SUPPLEMENTS.find((s) => s.key === k)!; return (d.macros?.calories ?? 0) > 0 && d.macros?.proteinG === undefined; }));
+  check('Both fish oils carry their fat', ['gsn-fish-oil', 'omega-3'].every((k) => (SUPPLEMENTS.find((s) => s.key === k)?.macros?.fatG ?? 0) > 0));
+  check('Whey warns against logging the same scoop twice', /don't also log it as a food/i.test(wheySupp.evidence ?? ''));
   const suppRepo2 = fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8');
   check('Macro supplements write a linked diary row', /foodEntryId = addPreciseFood\(/.test(suppRepo2));
   check('The diary row scales with a part portion', /def\.macros\.calories \* fraction/.test(suppRepo2));

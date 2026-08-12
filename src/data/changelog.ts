@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.33',
+    date: '2026-08-04',
+    title: 'Herbz TestoBooster in the catalogue',
+    highlights: [
+      'Added Herbz TestoBooster with the exact values from its label: 2 capsules per portion, vitamin C 80 mg and magnesium 70 mg per serving, plus moringa 150 mg and ginseng 70 mg. Find it under Supplements and tap "Add to stack" — pill counting works on it like everything else.',
+      'The vitamin C and magnesium count toward your daily micronutrient totals, because they are real. Nothing is recorded for the herbs, because the label gives them no nutrient values and the app does not invent numbers.',
+      'The honest note, since this catalogue does not sell hope: at these doses, nothing in the formula has good evidence for raising testosterone — the ginseng is a third of the lowest trial dose, the moringa studies use grams and rodents. It is best understood as a small C + magnesium supplement. Notably absent: zinc and vitamin D, the two nutrients with the strongest deficiency-to-testosterone link.',
+      'What genuinely moves testosterone is already tracked by this app: sleep, hard training, body fat in a healthy range, enough dietary fat, and limited alcohol. If a blood test says you are truly low, that is a doctor conversation.',
+      'One caution: ginseng can interact with anticoagulants and diabetes medication, and can disturb sleep taken late — the entry says to take it in the morning.',
+    ],
+  },
+  {
     version: '2.32',
     date: '2026-08-04',
     title: 'Full codebase audit — six bugs found and fixed',

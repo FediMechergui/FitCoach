@@ -1310,6 +1310,24 @@ console.log('\nSupplements — Shilajit, Spiruline & pill counting:');
   check('Both are marked as limited evidence', spiruline.evidenceLevel === 'limited' && shilajit.evidenceLevel === 'limited');
   check('Both carry a pill count for the new tracking', !!spiruline.unitsPerServing && !!shilajit.unitsPerServing);
 
+  // ── Herbz TestoBooster (the user's own product, from its label) ──
+  const herbz = SUPPLEMENTS.find((s) => s.key === 'herbz-testobooster')!;
+  check('Herbz TestoBooster exists with the label\'s serving', !!herbz && herbz.unitsPerServing === 2 && herbz.unitLabel === 'capsule');
+  check('Its C and Mg match the label exactly', herbz.micros?.vitaminC_mg === 80 && herbz.micros?.magnesium_mg === 70);
+  // The label prints no vitamin values for the herbs, so none may be invented.
+  check('Nothing is invented beyond the two labelled nutrients', Object.keys(herbz.micros ?? {}).length === 2);
+  /*
+   * A "testo booster" entry is exactly where this catalogue could slide into
+   * selling hope. The note must compare each dose to what trials actually use,
+   * say plainly that the formula is not evidenced to raise testosterone, and
+   * point at the things that genuinely move it.
+   */
+  check('Its note compares label doses to trial doses', /GRAMS|1–3 g|200 mg/.test(herbz.evidence ?? ''));
+  check('It says plainly the testosterone claim is unsupported', /nothing in this formula.*raising testosterone/i.test(herbz.evidence ?? ''));
+  check('It names what actually moves testosterone', /sleep/i.test(herbz.evidence ?? '') && /body fat/i.test(herbz.evidence ?? ''));
+  check('It flags the ginseng interactions', /anticoagulant/i.test(herbz.evidence ?? ''));
+  check('It is marked limited evidence, not promoted', herbz.evidenceLevel === 'limited');
+
   // Every catalogue entry that counts pills must say what to call them.
   const badUnits = SUPPLEMENTS.filter((s) => s.unitsPerServing && !s.unitLabel);
   check('Any supplement with a pill count names the unit', badUnits.length === 0, badUnits.map((s) => s.key).join(', '));

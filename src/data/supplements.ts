@@ -159,6 +159,23 @@ export const SUPPLEMENTS: SupplementDef[] = [
       'FitCoach deliberately adds NO vitamins or minerals from shilajit to your daily totals. Its mineral content varies enormously by source and batch, and there is no honest number to use — a plausible-looking figure would be worse than a blank.',
   },
   {
+    // A specific branded product the user takes; values transcribed from its
+    // own label (per 2-capsule serving, 20 servings per pot).
+    key: 'herbz-testobooster', label: 'Herbz TestoBooster', category: 'ergogenic', icon: 'supp.leaf',
+    defaultDose: '2 capsules', unitsPerServing: 2, unitLabel: 'capsule',
+    timing: 'Morning with food; ginseng late in the day can disturb sleep',
+    // The C and Mg are real micronutrients and count toward daily totals.
+    // Moringa and ginseng carry no vitamin/mineral values on the label, so
+    // nothing is invented for them.
+    micros: { vitaminC_mg: 80, magnesium_mg: 70 },
+    evidenceLevel: 'limited',
+    evidence:
+      'What is actually in a serving, against what the research uses: Moringa 150 mg — moringa is a genuinely nutrient-dense leaf, but studies use it as a food powder in GRAMS, and its testosterone claims come from rodent work; 150 mg is a token amount. Ginseng 70 mg — Panax ginseng has moderate human evidence for fatigue and erectile function, but the classic trials use ~200 mg of standardised extract to 1–3 g of root daily; this is a third of even the low end, and the label does not say which ginseng or what extract. Vitamin C 80 mg — a genuine, useful top-up (about 100% of the reference intake); no effect on testosterone. Magnesium 70 mg — about a fifth of the daily reference; magnesium relates to testosterone mainly when you are deficient and training hard, and the studies showing that used several times this dose.\n\n' +
+      'Said plainly: nothing in this formula, at these doses, has good evidence for raising testosterone in a healthy man. It is best understood as a small vitamin C and magnesium supplement with herbal garnish — those two are counted toward your daily micronutrients, honestly. It is also notable for what it leaves out: zinc and vitamin D, the two nutrients with the strongest deficiency-to-testosterone link, are not in it.\n\n' +
+      'What actually moves testosterone, all of it tracked by this app: sleeping 7–9 hours, training hard (especially the legs), keeping body fat in a healthy range, eating enough fat, and not drinking heavily. If a blood test says you are genuinely low, that is a doctor conversation, not a capsule one.\n\n' +
+      'Safety: ginseng can interact with anticoagulants and diabetes medication, and can disturb sleep taken late. Avoid in pregnancy. Nothing here is dangerous at these doses for a healthy adult.',
+  },
+  {
     key: 'l-theanine', label: 'L-Theanine', category: 'ergogenic', icon: 'supp.leaf',
     defaultDose: '100–200 mg', timing: 'With caffeine, or for calm focus',
     evidenceLevel: 'moderate',

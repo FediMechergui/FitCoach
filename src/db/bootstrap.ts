@@ -32,8 +32,9 @@ import { seedExerciseLibrary } from './seed';
  *   20 → 21 v2.28: smoking_entries.product_key + 10 triceps exercises
  *   21 → 22 v2.29: daily_challenges table (spin-the-wheel daily challenge)
  *   22 → 23 v2.30: meal_routines table (saved meals & day distributions)
+ *   23 → 24 v2.34: supplement_logs.food_entry_id (macro-bearing supplements)
  */
-const SCHEMA_VERSION = 23;
+const SCHEMA_VERSION = 24;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -95,6 +96,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'supplement_logs', column: 'units_taken', ddl: 'REAL' },
   // v21 — nicotine alternatives (snus, pouches, vape, NRT) alongside cigarettes
   { table: 'smoking_entries', column: 'product_key', ddl: 'TEXT' },
+  // v24 — supplements with real macros (fish oil) write a linked diary row
+  { table: 'supplement_logs', column: 'food_entry_id', ddl: 'INTEGER' },
 ];
 
 function ensureColumns(): void {
@@ -349,6 +352,7 @@ CREATE TABLE IF NOT EXISTS supplement_logs (
   category TEXT NOT NULL,
   dose TEXT,
   units_taken REAL,
+  food_entry_id INTEGER,
   micros TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );

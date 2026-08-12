@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.34',
+    date: '2026-08-04',
+    title: 'Your GSN stack, with real macro and micro accounting',
+    highlights: [
+      'Added your four GSN products with the exact values from their labels: MultiVitamins (19 nutrients, all at 300% of reference), Zinc Bisglycinate 30 mg, MAG+ B-Complex (415 mg magnesium bisglycinate + B1/B6/B9/B12), and Fish Oil Omega 3 (180 mg EPA + 120 mg DHA per softgel). All in Supplements — tap "Add to stack" on each.',
+      'Everything on the labels counts toward your daily micronutrients, including chromium, which the app did not track before and now does (120 µg in the multi, reference intake 40 µg).',
+      'The fish oil is the first supplement with real MACROS, and you asked for exactly this: each softgel logs its 10 kcal and 1 g of fat into your diary automatically, so the calorie ring and energy balance see it like food. Delete the supplement log and its calories leave with it. No other pill invents energy it does not have.',
+      'One warning worth reading, on both entries: the multi already contains 30 mg of zinc. Taking it AND the standalone zinc the same day totals 60 mg — well past the 40 mg daily upper limit, and chronic zinc excess depletes copper. Alternate them, or keep the standalone zinc for days you skip the multi. The Micros screen tracks the total and flags the excess in red.',
+      'Also flagged honestly: the multi\'s 42 mg iron sits close to the 45 mg upper limit (unnecessary for a man who is not deficient), and its vitamin A is 80% of the upper limit from one capsule — go easy on liver the same week.',
+      'The omega-3 recorded is the 300 mg of EPA+DHA that matters, not the 1000 mg of total oil — trials showing effects use 1–3 g of EPA+DHA daily, so one softgel is maintenance and three matches the low end of the research.',
+    ],
+  },
+  {
     version: '2.33',
     date: '2026-08-04',
     title: 'Herbz TestoBooster in the catalogue',

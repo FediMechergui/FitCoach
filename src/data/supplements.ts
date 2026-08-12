@@ -11,7 +11,9 @@ import type { MicroProfile } from '@/lib/micros';
  *    that aren't RDI micronutrients. These are tracked for dose & consistency
  *    with HONEST evidence notes — strong, moderate or limited — never hype.
  *
- * None of this touches the calorie/macro engine.
+ * Supplements normally carry no energy, so none of this touches the
+ * calorie/macro engine — except the few with a real `macros` field (fish oil),
+ * which log a linked diary row so their calories count like food's.
  */
 
 export type SupplementCategory = 'micronutrient' | 'ergogenic';
@@ -32,6 +34,13 @@ export interface SupplementDef {
   unitLabel?: 'capsule' | 'tablet' | 'softgel' | 'scoop';
   /** per-dose micronutrient contribution (micronutrient pills only) */
   micros?: Partial<MicroProfile>;
+  /**
+   * Real energy per serving, for the few supplements that carry any — fish oil
+   * is a gram of fat per softgel. Logged as a linked diary row so it flows
+   * through the same calorie engine as food, and deleting the supplement log
+   * removes its calories with it. Most pills have none and omit this.
+   */
+  macros?: { calories: number; proteinG?: number; carbsG?: number; fatG?: number };
   timing?: string;
   evidenceLevel?: EvidenceLevel; // ergogenics
   evidence?: string;
@@ -79,6 +88,54 @@ export const SUPPLEMENTS: SupplementDef[] = [
   { key: 'omega-3', label: 'Omega-3 Fish Oil', category: 'micronutrient', icon: 'supp.oil', defaultDose: '1000 mg EPA+DHA', timing: 'With a meal', micros: { omega3_mg: 1000, vitaminD_ug: 2 } },
   { key: 'calcium', label: 'Calcium', category: 'micronutrient', icon: 'supp.mineral', defaultDose: '500 mg', timing: 'Split doses; with food', micros: { calcium_mg: 500 } },
   { key: 'folate', label: 'Folic Acid', category: 'micronutrient', icon: 'supp.pill', defaultDose: '400 µg', timing: 'Important pre/early pregnancy', micros: { folate_ug: 400 } },
+
+  // ── The user's actual products (GSN), values transcribed from their labels ──
+  {
+    key: 'gsn-multivitamin', label: 'MultiVitamins – GSN', category: 'micronutrient', icon: 'supp.pill',
+    defaultDose: '1 capsule', unitsPerServing: 1, unitLabel: 'capsule',
+    timing: 'With a meal',
+    // Label states 300% AJR across the board (D is 300% of the old 5 µg NRV).
+    micros: {
+      vitaminA_ug: 2400, vitaminB6_mg: 4.2, vitaminB12_ug: 7.5, vitaminC_mg: 240,
+      vitaminD_ug: 15, vitaminE_mg: 36, vitaminK_ug: 225, biotin_ug: 150,
+      riboflavin_mg: 4.2, thiamin_mg: 3.3, pantothenic_mg: 18, folate_ug: 600,
+      niacin_mg: 48, chromium_ug: 120, copper_mg: 3, iodine_ug: 450,
+      iron_mg: 42, manganese_mg: 6, zinc_mg: 30,
+    },
+    evidenceLevel: 'moderate',
+    evidence:
+      'A deliberately high-dosed multi — everything on the label is 300% of the reference intake. Three lines deserve attention rather than applause. Iron 42 mg: close to the 45 mg daily upper limit, and a man who is not deficient has no use for it — unabsorbed iron is not free. Vitamin A 2400 µg: 80% of the 3000 µg upper limit from one capsule, so go easy on liver in the same week. Zinc 30 mg: fine alone, but see the standalone zinc below — the two together on the same day total 60 mg, well above the 40 mg upper limit, and chronic zinc excess depletes copper. The app tracks uppers on the Micros screen and will flag the day red when that happens. One capsule a day, never doubled.',
+  },
+  {
+    key: 'gsn-zinc', label: 'Zinc Bisglycinate – GSN', category: 'micronutrient', icon: 'supp.mineral',
+    defaultDose: '1 capsule (30 mg)', unitsPerServing: 1, unitLabel: 'capsule',
+    timing: 'With food; not the same day as the multi',
+    micros: { zinc_mg: 30 },
+    evidenceLevel: 'moderate',
+    evidence:
+      'Zinc genuinely matters for testosterone — but only in the direction of correcting a deficiency; extra zinc on top of enough does nothing further. Bisglycinate is a well-absorbed form and 30 mg is a solid corrective dose. THE WARNING THAT MATTERS: the GSN multi already contains 30 mg of zinc. Taken together every day that is 60 mg — far past the 40 mg upper limit — and chronic high zinc quietly causes copper deficiency (anaemia, nerve symptoms). Alternate them, or reserve this for days you skip the multi. The Micros screen tracks the total and flags the excess.',
+  },
+  {
+    key: 'gsn-mag-b', label: 'MAG+ B-Complex – GSN', category: 'micronutrient', icon: 'supp.mineral',
+    defaultDose: '1 capsule', unitsPerServing: 1, unitLabel: 'capsule',
+    timing: 'Evening — magnesium suits the end of the day',
+    micros: { magnesium_mg: 415, thiamin_mg: 1.1, vitaminB6_mg: 1.4, folate_ug: 200, vitaminB12_ug: 2.5 },
+    evidenceLevel: 'moderate',
+    evidence:
+      'Magnesium bisglycinate 415 mg with a modest B-complex at ~100% reference doses. Magnesium has decent evidence for sleep quality and muscle function, and bisglycinate is the form least likely to upset the gut — though 415 mg is slightly past the 350 mg guideline for supplemental magnesium, which for this form usually means nothing worse than loose stools if you are sensitive. The B-vitamins overlap with the multi; that is harmless (B excess is excreted) but is also why the fatigue claims on the label add little if the multi is already covering them.',
+  },
+  {
+    key: 'gsn-fish-oil', label: 'Fish Oil Omega 3 – GSN', category: 'micronutrient', icon: 'supp.oil',
+    defaultDose: '1 softgel (1000 mg)', unitsPerServing: 1, unitLabel: 'softgel',
+    timing: 'With a meal containing fat',
+    // EPA 180 + DHA 120 = 300 mg long-chain omega-3 per softgel.
+    micros: { omega3_mg: 300 },
+    // The one product here with real energy: a gram of fat is a gram of fat.
+    macros: { calories: 10, fatG: 1 },
+    evidenceLevel: 'moderate',
+    evidence:
+      'A standard 30/20 fish oil: each 1000 mg softgel carries 180 mg EPA + 120 mg DHA — 300 mg of the omega-3s that matter, which is what the app records (the other 700 mg is carrier fats). Omega-3 has solid evidence for triglycerides and modest evidence for joint and mood outcomes; most trials showing effects use 1–3 g of EPA+DHA daily, so one softgel is a maintenance dose and three softgels would match the low end of the trials. Its 10 kcal of fat per softgel is logged into your diary automatically and removed if you delete the log — small, but the app does not pretend fat is free. Prefer a brand with an oxidation (TOTOX) figure; rancid fish oil is worse than none.',
+  },
   {
     // Labelled the way it's sold here (and across France/North Africa):
     // "Spiruline". Same organism — Arthrospira platensis — just the French name.

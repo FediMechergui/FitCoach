@@ -1310,6 +1310,40 @@ console.log('\nSupplements — Shilajit, Spiruline & pill counting:');
   check('Both are marked as limited evidence', spiruline.evidenceLevel === 'limited' && shilajit.evidenceLevel === 'limited');
   check('Both carry a pill count for the new tracking', !!spiruline.unitsPerServing && !!shilajit.unitsPerServing);
 
+  // ── The GSN stack (the user's own products, from their labels) ──
+  const gsnMulti = SUPPLEMENTS.find((s) => s.key === 'gsn-multivitamin')!;
+  const gsnZinc = SUPPLEMENTS.find((s) => s.key === 'gsn-zinc')!;
+  const gsnMag = SUPPLEMENTS.find((s) => s.key === 'gsn-mag-b')!;
+  const gsnFish = SUPPLEMENTS.find((s) => s.key === 'gsn-fish-oil')!;
+  check('All four GSN products exist', !!gsnMulti && !!gsnZinc && !!gsnMag && !!gsnFish);
+  // Spot-check the multi against its label (all lines are 300% AJR).
+  check('GSN multi matches its label', gsnMulti.micros?.vitaminA_ug === 2400 && gsnMulti.micros?.iron_mg === 42 && gsnMulti.micros?.zinc_mg === 30 && gsnMulti.micros?.iodine_ug === 450 && gsnMulti.micros?.chromium_ug === 120);
+  check('Chromium is now a real tracked micronutrient', (MICRO_KEYS as readonly string[]).includes('chromium_ug'));
+  check('GSN zinc matches its label', gsnZinc.micros?.zinc_mg === 30 && Object.keys(gsnZinc.micros ?? {}).length === 1);
+  check('GSN Mag+B matches its label', gsnMag.micros?.magnesium_mg === 415 && gsnMag.micros?.folate_ug === 200 && gsnMag.micros?.vitaminB12_ug === 2.5);
+  /*
+   * The multi and the standalone zinc together are 60 mg/day — past the 40 mg
+   * upper limit, with copper depletion the documented consequence of chronic
+   * excess. Both notes must carry that warning; a catalogue that records the
+   * doses but not the interaction is doing half the job.
+   */
+  check('The zinc-stacking warning is on both entries', /60 mg/.test(gsnMulti.evidence ?? '') && /60 mg/.test(gsnZinc.evidence ?? '') && /copper/i.test(gsnZinc.evidence ?? ''));
+  check('The multi flags its iron and vitamin A honestly', /45 mg/.test(gsnMulti.evidence ?? '') && /3000 µg|upper limit/.test(gsnMulti.evidence ?? ''));
+
+  // ── Fish oil: the macro path ──
+  check('Fish oil records only the omega-3 that matters (300 mg)', gsnFish.micros?.omega3_mg === 300);
+  check('Fish oil carries its real energy (10 kcal, 1 g fat)', gsnFish.macros?.calories === 10 && gsnFish.macros?.fatG === 1);
+  check('No other pill invents calories', SUPPLEMENTS.filter((s) => s.macros).every((s) => s.key === 'gsn-fish-oil'));
+  const suppRepo2 = fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8');
+  check('Macro supplements write a linked diary row', /foodEntryId = addPreciseFood\(/.test(suppRepo2));
+  check('The diary row scales with a part portion', /def\.macros\.calories \* fraction/.test(suppRepo2));
+  check('The diary row carries no micros (no double count)', !/micros:/.test(suppRepo2.slice(suppRepo2.indexOf('foodEntryId = addPreciseFood'), suppRepo2.indexOf('db.insert(supplementLogs)'))));
+  check('Deleting the log deletes its calories with it', /row\?\.foodEntryId != null/.test(suppRepo2) && /db\.delete\(foodEntries\)/.test(suppRepo2));
+  const bootSrc8 = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('food_entry_id is in the DDL and the migration', /food_entry_id INTEGER/.test(bootSrc8) && /column: 'food_entry_id'/.test(bootSrc8));
+  const sv5 = Number((bootSrc8.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the macro-supplement migration', sv5 >= 24, `${sv5}`);
+
   // ── Herbz TestoBooster (the user's own product, from its label) ──
   const herbz = SUPPLEMENTS.find((s) => s.key === 'herbz-testobooster')!;
   check('Herbz TestoBooster exists with the label\'s serving', !!herbz && herbz.unitsPerServing === 2 && herbz.unitLabel === 'capsule');

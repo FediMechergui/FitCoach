@@ -18,7 +18,7 @@ export const MICRO_KEYS = [
   'biotin_ug', 'folate_ug', 'vitaminB12_ug',
   // Minerals
   'calcium_mg', 'iron_mg', 'magnesium_mg', 'phosphorus_mg', 'potassium_mg',
-  'sodium_mg', 'zinc_mg', 'copper_mg', 'manganese_mg', 'selenium_ug', 'iodine_ug',
+  'sodium_mg', 'zinc_mg', 'copper_mg', 'manganese_mg', 'selenium_ug', 'iodine_ug', 'chromium_ug',
   // Other
   'omega3_mg',
 ] as const;
@@ -62,6 +62,8 @@ export const MICRO_DEFS: MicroDef[] = [
   { key: 'copper_mg', label: 'Copper', unit: 'mg', group: 'mineral', rdi: { m: 0.9, f: 0.9 }, upper: 10 },
   { key: 'manganese_mg', label: 'Manganese', unit: 'mg', group: 'mineral', rdi: { m: 2.3, f: 1.8 }, upper: 11 },
   { key: 'selenium_ug', label: 'Selenium', unit: 'µg', group: 'mineral', rdi: { m: 55, f: 55 }, upper: 400 },
+  // Added for the GSN multivitamin; the EU NRV is 40 µg, no upper established.
+  { key: 'chromium_ug', label: 'Chromium', unit: 'µg', group: 'mineral', rdi: { m: 40, f: 40 } },
   { key: 'iodine_ug', label: 'Iodine', unit: 'µg', group: 'mineral', rdi: { m: 150, f: 150 }, upper: 1100 },
   { key: 'omega3_mg', label: 'Omega-3 (ALA)', unit: 'mg', group: 'other', rdi: { m: 1600, f: 1100 } },
 ];

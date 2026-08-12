@@ -1,8 +1,9 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { supplementLogs, supplementStack, type SupplementLog, type SupplementStack } from '@/db/schema';
-import { findSupplement } from '@/data/supplements';
+import { foodEntries, supplementLogs, supplementStack, type SupplementLog, type SupplementStack } from '@/db/schema';
+import { findSupplement, servingUnits } from '@/data/supplements';
 import { scaleMicros } from '@/lib/micros';
+import { addPreciseFood } from './nutritionRepo';
 import { daysAgoISO, todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -102,15 +103,46 @@ export function logSupplement(
     opts.unitsTaken != null && Number.isFinite(opts.unitsTaken) && opts.unitsTaken > 0
       ? opts.unitsTaken
       : perServing;
+  const date = opts.date ?? todayISO();
+  const fraction = perServing && units ? units / perServing : 1;
+
+  /*
+   * A supplement with real energy writes a diary row, so its calories flow
+   * through the same engine as food — the ring, the energy strip, projections.
+   * Fish oil is a gram of fat per softgel; small, but fat is not free. The row
+   * id is stored on the log so deleting the log deletes its calories too.
+   */
+  let foodEntryId: number | null = null;
+  if (def.macros) {
+    foodEntryId = addPreciseFood(
+      {
+        mealType: 'snack',
+        foodName: `${def.label} (supplement)`,
+        quantity: 1,
+        servingSize: servingUnits(def) ?? def.defaultDose,
+        calories: def.macros.calories * fraction,
+        proteinG: (def.macros.proteinG ?? 0) * fraction,
+        carbsG: (def.macros.carbsG ?? 0) * fraction,
+        fatG: (def.macros.fatG ?? 0) * fraction,
+        fiberG: 0,
+        // Micros stay on the supplement log — carrying them here too would
+        // count them twice on the Micros screen.
+        date,
+      },
+      userId
+    );
+  }
+
   db.insert(supplementLogs)
     .values({
       userId,
-      date: opts.date ?? todayISO(),
+      date,
       key,
       label: def.label,
       category: def.category,
       dose: opts.dose ?? def.defaultDose ?? null,
       unitsTaken: units ?? null,
+      foodEntryId,
       // Micros scale with the fraction of a portion actually taken — half the
       // pills is half the iron, and pretending otherwise inflates the day.
       micros: def.micros
@@ -149,6 +181,13 @@ export function totalUnitsToday(date: string = todayISO(), userId: number = PRIM
 }
 
 export function deleteSupplementLog(id: number): void {
+  // A macro-bearing supplement wrote a diary row when it was logged; removing
+  // the log must remove those calories with it, or an undone fish-oil tap
+  // would keep its fat in the day forever.
+  const row = db.select().from(supplementLogs).where(eq(supplementLogs.id, id)).get();
+  if (row?.foodEntryId != null) {
+    db.delete(foodEntries).where(eq(foodEntries.id, row.foodEntryId)).run();
+  }
   db.delete(supplementLogs).where(eq(supplementLogs.id, id)).run();
 }
 

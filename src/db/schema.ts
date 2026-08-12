@@ -385,6 +385,12 @@ export const supplementLogs = sqliteTable('supplement_logs', {
   dose: text('dose'),
   /** how many pills were actually swallowed for this entry */
   unitsTaken: real('units_taken'),
+  /**
+   * The diary row this log created, when the supplement carries real macros
+   * (fish oil is 10 kcal of fat per softgel). Linked so deleting the log
+   * deletes its calories too — the same reversible-delete rule sessions follow.
+   */
+  foodEntryId: integer('food_entry_id'),
   /** micronutrient contribution (JSON Partial<MicroProfile>) if any */
   micros: text('micros'),
   createdAt: integer('created_at')

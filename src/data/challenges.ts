@@ -103,7 +103,7 @@ export const CHALLENGES: ChallengeDef[] = [
   { key: 'sets-25', label: 'Twenty-Five Hard Sets', detail: 'A high-volume day. Bring food and patience.', metric: 'hardSets', target: 25, unit: 'sets', difficulty: 'hard', category: 'lift', icon: 'strength.dumbbell', accent: '#FF8A3D' },
   { key: 'muscles-3', label: 'Three Muscle Groups', detail: 'Touch three different muscle groups today.', metric: 'distinctMuscles', target: 3, unit: 'groups', difficulty: 'easy', category: 'lift', icon: 'strength.machine', accent: '#FF8A3D' },
   { key: 'failure-5', label: 'Five To Failure', detail: 'Five sets to the true end. Save them for the last set of each exercise.', metric: 'failureSets', target: 5, unit: 'sets', difficulty: 'hard', category: 'lift', icon: 'strength.barbell', accent: '#FF8A3D' },
-  { key: 'new-exercise-2', label: 'Two New Moves', detail: 'Two exercises you have never logged. The library has 580.', metric: 'newExerciseTried', target: 2, unit: '', difficulty: 'medium', category: 'lift', icon: 'core.add', accent: '#FF8A3D' },
+  { key: 'new-exercise-2', label: 'Two New Moves', detail: 'Two exercises you have never logged. The library has hundreds you have not tried.', metric: 'newExerciseTried', target: 2, unit: '', difficulty: 'medium', category: 'lift', icon: 'core.add', accent: '#FF8A3D' },
 
   // ── Fuel ──
   { key: 'water-goal', label: 'Hit Your Water', detail: 'Reach your daily hydration goal.', metric: 'waterMl', target: 2500, unit: 'ml', difficulty: 'easy', category: 'fuel', icon: 'nutrition.water', accent: '#4FC3F7' },

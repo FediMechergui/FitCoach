@@ -180,6 +180,29 @@ export function totalUnitsToday(date: string = todayISO(), userId: number = PRIM
   return rows.reduce((sum, r) => sum + (r.units ?? 0), 0);
 }
 
+/**
+ * Diary rows that belong to supplements, not meals, for a day.
+ *
+ * Two consumers need this distinction: meal routines must not snapshot a
+ * fish-oil row (re-applying the routine would re-log its calories as food, and
+ * taking the supplement that day would then double them), and the
+ * "log your meals" challenge must not be satisfied by a pill.
+ */
+export function supplementFoodEntryIds(
+  date: string = todayISO(),
+  userId: number = PRIMARY_USER_ID
+): Set<number> {
+  return new Set(
+    db
+      .select({ foodEntryId: supplementLogs.foodEntryId })
+      .from(supplementLogs)
+      .where(and(eq(supplementLogs.userId, userId), eq(supplementLogs.date, date)))
+      .all()
+      .map((r) => r.foodEntryId)
+      .filter((id): id is number => id != null)
+  );
+}
+
 export function deleteSupplementLog(id: number): void {
   // A macro-bearing supplement wrote a diary row when it was logged; removing
   // the log must remove those calories with it, or an undone fish-oil tap

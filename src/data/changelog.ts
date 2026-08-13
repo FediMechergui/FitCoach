@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.36',
+    date: '2026-08-05',
+    title: 'Second audit — four subtle bugs in how features interact',
+    highlights: [
+      'This pass hunted the seams BETWEEN features, where the last audit could not look.',
+      'Fixed: saving a meal routine could capture the diary rows that supplements write automatically (fish oil, whey). Re-applying that routine re-logged their calories as food — and taking the supplement the same day then counted them twice. Routines now snapshot only what you actually logged as food.',
+      'Fixed: the "Four Honest Meals" and "Log Every Meal" challenges could be part-filled by a pill — a fish-oil tap auto-writes a snack entry, which counted as a logged meal. Supplement rows no longer satisfy a meal slot; the challenge measures what it says it measures.',
+      'Fixed: the muscle-balance chart\'s time window was shifted by one timezone offset — a date meant as local midnight was being read as UTC midnight, so sets logged near the window\'s edge could fall out of (or into) the wrong month.',
+      'Fixed: a challenge described the library as having 580 exercises — it has 583 and keeps growing, so the copy no longer embeds a number that goes stale, and a test forbids it coming back.',
+      'Also checked and found sound: all volume maths against missing rep counts, every date helper for local-vs-UTC consistency, the calorie engine\'s handling of supplement rows (they correctly count as energy), and the deletion chains for linked rows.',
+      'All four fixes are locked in by tests — 660 checks, up from 654.',
+    ],
+  },
+  {
     version: '2.35',
     date: '2026-08-05',
     title: 'Every supplement audited for macros, and 17 new wheel challenges',

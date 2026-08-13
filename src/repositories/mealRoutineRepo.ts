@@ -3,6 +3,7 @@ import { db } from '@/db/client';
 import { mealRoutines, type MealRoutine, type MealType } from '@/db/schema';
 import { roundGrams, roundKcal } from '@/lib/format';
 import { addPreciseFood, foodEntriesForDay } from './nutritionRepo';
+import { supplementFoodEntryIds } from './supplementsRepo';
 import { todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -91,8 +92,17 @@ export function saveMealRoutine(
   date: string = todayISO(),
   userId: number = PRIMARY_USER_ID
 ): number {
+  /*
+   * Two kinds of diary rows are excluded from the snapshot. Honest-log entries
+   * are estimates, and re-logging a guess as though it were measured would be
+   * dishonest. Supplement-created rows (fish oil, whey) belong to the
+   * supplement log that made them — snapshot one and re-applying the routine
+   * re-logs those calories as food, and taking the supplement the same day
+   * then counts them twice.
+   */
+  const suppRows = supplementFoodEntryIds(date, userId);
   const entries = foodEntriesForDay(date, userId).filter(
-    (e) => e.logMode !== 'honest' && (mealType === null || e.mealType === mealType)
+    (e) => e.logMode !== 'honest' && !suppRows.has(e.id) && (mealType === null || e.mealType === mealType)
   );
   const items: RoutineItem[] = entries.map((e) => ({
     foodName: e.foodName ?? 'Food',
@@ -181,8 +191,11 @@ export function saveableEntryCount(
   date: string = todayISO(),
   userId: number = PRIMARY_USER_ID
 ): number {
+  // Mirrors saveMealRoutine's filter exactly, so the "save (n items)" label
+  // never promises rows the save would then skip.
+  const suppRows = supplementFoodEntryIds(date, userId);
   return foodEntriesForDay(date, userId).filter(
-    (e) => e.logMode !== 'honest' && (mealType === null || e.mealType === mealType)
+    (e) => e.logMode !== 'honest' && !suppRows.has(e.id) && (mealType === null || e.mealType === mealType)
   ).length;
 }
 

@@ -991,6 +991,33 @@ console.log('\nCodebase audit (references, schema parity, navigation):');
   check('Every navigation call targets a registered route', badTargets.length === 0, badTargets.slice(0, 3).join('; '));
 }
 
+console.log('\nAudit fixes — supplement rows vs meals, date parsing:');
+{
+  /*
+   * Supplement-created diary rows (fish oil, whey) belong to the supplement
+   * log that made them. Two consumers must exclude them: meal routines
+   * (snapshotting one means re-applying re-logs its calories as food, and
+   * taking the supplement the same day doubles them) and the "log your meals"
+   * challenge (a pill must not fill a meal slot).
+   */
+  const suppRepo3 = fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8');
+  check('The supplement-row helper exists once, shared', /export function supplementFoodEntryIds/.test(suppRepo3));
+  const mrRepo2 = fs.readFileSync('src/repositories/mealRoutineRepo.ts', 'utf8');
+  check('Meal routines never snapshot supplement rows', (mrRepo2.match(/!suppRows\.has\(e\.id\)/g) ?? []).length === 2, 'save + count must both filter');
+  const chalRepo3 = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('A pill cannot fill a meal slot for the challenge', /m\.some\(\(e\) => !suppRows\.has\(e\.id\)\)/.test(chalRepo3));
+
+  // A LOCAL ISO date fed to new Date() parses as UTC midnight, skewing any
+  // cutoff it is compared against. Differences of two such dates are fine
+  // (offsets cancel); absolute comparisons are not.
+  const statsSrc2 = fs.readFileSync('src/repositories/statsRepo.ts', 'utf8');
+  check('Muscle balance uses a local-midnight cutoff', /const since = startOfDayMs\(daysAgoISO\(days\)\)/.test(statsSrc2));
+  check('No absolute cutoff parses a local date as UTC', !/const since = new Date\(daysAgoISO/.test(statsSrc2));
+
+  // Challenge copy must not embed counts that go stale as the library grows.
+  check('No challenge hard-codes the library size', CHALLENGES.every((c) => !/library has \d/.test(c.detail)));
+}
+
 console.log('\nAudit fixes — smoking figures & wheel stability:');
 {
   const smokeRepo2 = fs.readFileSync('src/repositories/smokingRepo.ts', 'utf8');

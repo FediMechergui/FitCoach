@@ -23,6 +23,7 @@ import { daysAgoISO, todayISO } from '@/lib/date';
 import { dayNutrition } from './nutritionRepo';
 import { getDailySteps } from './activityRepo';
 import { getNutritionGoal, PRIMARY_USER_ID } from './userRepo';
+import { supplementFoodEntryIds } from './supplementsRepo';
 
 /**
  * The daily challenge: spinning, measuring and completing.
@@ -165,8 +166,16 @@ export function measureMetric(
         return dayNutrition(date, userId).fiber;
       case 'caloriesLogged': {
         const n = dayNutrition(date, userId);
-        // Meals that actually contain something — an empty meal isn't a log.
-        return (Object.values(n.byMeal) as Array<unknown[]>).filter((m) => m.length > 0).length;
+        /*
+         * A meal counts when it holds something the user actually logged.
+         * Supplement-created rows are excluded: a fish-oil tap auto-writes a
+         * snack entry, and "log your meals honestly" being satisfied by a pill
+         * defeats the challenge it's measuring.
+         */
+        const suppRows = supplementFoodEntryIds(date, userId);
+        return (Object.values(n.byMeal) as Array<Array<{ id: number }>>).filter((m) =>
+          m.some((e) => !suppRows.has(e.id))
+        ).length;
       }
       case 'withinCalorieTarget': {
         const goal = getNutritionGoal(userId);

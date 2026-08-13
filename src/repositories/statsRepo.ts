@@ -7,7 +7,7 @@ import {
   setEntries,
   type SessionType,
 } from '@/db/schema';
-import { daysAgoISO, startOfWeek, toISODate, todayISO } from '@/lib/date';
+import { startOfDayMs, daysAgoISO, startOfWeek, toISODate, todayISO } from '@/lib/date';
 import { estimate1RMFromSet, type ORMFormula } from '@/lib/oneRepMax';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -178,7 +178,10 @@ export function sessionTypeCounts(days = 30, userId: number = PRIMARY_USER_ID): 
 }
 
 export function muscleGroupBalance(days = 30, userId: number = PRIMARY_USER_ID): Record<string, number> {
-  const since = new Date(daysAgoISO(days)).getTime();
+  // startOfDayMs, not new Date(iso): the string is a LOCAL date, and Date's
+  // ISO parser reads it as UTC midnight — shifting the cutoff by the timezone
+  // offset against the local session timestamps it's compared to.
+  const since = startOfDayMs(daysAgoISO(days));
   const rows = db
     .select({
       muscleGroups: exercises.muscleGroups,

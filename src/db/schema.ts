@@ -768,6 +768,18 @@ export const customFoods = sqliteTable('custom_foods', {
   fiber: real('fiber').notNull().default(0),
   category: text('category'),
   caloriesEstimated: integer('calories_estimated', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * For a COMPOSED food — one built from other foods with quantities — the
+   * component list as JSON. Each component is a full macro+micro snapshot of
+   * the food at the moment it was added, scaled by its servings, not a live
+   * reference into the catalogue: the catalogue is replaced on every update, so
+   * a reference-based recipe would drift or break. The row's own macros above
+   * are the SUM of these, kept in sync on every edit so logging a composed food
+   * is exactly as fast and simple as logging any other.
+   */
+  componentsJson: text('components_json'),
+  /** micronutrients summed from the components (JSON Partial<MicroProfile>) */
+  microsJson: text('micros_json'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

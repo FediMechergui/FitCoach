@@ -34,8 +34,9 @@ import { seedExerciseLibrary } from './seed';
  *   22 → 23 v2.30: meal_routines table (saved meals & day distributions)
  *   23 → 24 v2.34: supplement_logs.food_entry_id (macro-bearing supplements)
  *   24 → 25 v2.37: weather_readings table
+ *   25 → 26 v2.38: custom_foods.components_json / micros_json (composed meals)
  */
-const SCHEMA_VERSION = 25;
+const SCHEMA_VERSION = 26;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -99,6 +100,9 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'smoking_entries', column: 'product_key', ddl: 'TEXT' },
   // v24 — supplements with real macros (fish oil) write a linked diary row
   { table: 'supplement_logs', column: 'food_entry_id', ddl: 'INTEGER' },
+  // v26 — composed foods: a dish built from other foods with quantities
+  { table: 'custom_foods', column: 'components_json', ddl: 'TEXT' },
+  { table: 'custom_foods', column: 'micros_json', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -632,6 +636,8 @@ CREATE TABLE IF NOT EXISTS custom_foods (
   fiber REAL NOT NULL DEFAULT 0,
   category TEXT,
   calories_estimated INTEGER NOT NULL DEFAULT 0,
+  components_json TEXT,
+  micros_json TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_custom_foods_user ON custom_foods(user_id, name);

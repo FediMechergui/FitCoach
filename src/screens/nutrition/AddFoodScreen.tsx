@@ -181,6 +181,20 @@ function PreciseMode({ meal }: { meal: MealType }) {
                 </Row>
               </Card>
             </Pressable>
+            {/* A dish built from other foods — totals AND micros summed from the parts. */}
+            <Pressable onPress={() => navigation.navigate('ComposeFood', {})}>
+              <Card accent={theme.colors.accent}>
+                <Row gap={10} style={{ alignItems: 'center' }}>
+                  <Icon icon="nutrition.compose" size={20} color={theme.colors.accent} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="bodyStrong">Compose a dish from other foods</Text>
+                    <Text variant="caption" color="textMuted">
+                      Couscous ×1.5, lamb ×1, chickpeas ×0.5 — saved as one food, micros included.
+                    </Text>
+                  </View>
+                </Row>
+              </Card>
+            </Pressable>
             <Text variant="caption" color="textFaint">
               {results.length} food{results.length === 1 ? '' : 's'}
             </Text>
@@ -212,7 +226,8 @@ function PreciseMode({ meal }: { meal: MealType }) {
                     hitSlop={10}
                     onPress={() => {
                       const id = customFoodIdFrom(item.id);
-                      if (id != null) navigation.navigate('CustomFood', { id });
+                      // A composed dish edits in the composer; a plain custom food in its own form.
+                      if (id != null) navigation.navigate(item.isComposed ? 'ComposeFood' : 'CustomFood', { id });
                     }}
                   >
                     <Icon icon="core.edit" size={18} color={theme.colors.textMuted} />

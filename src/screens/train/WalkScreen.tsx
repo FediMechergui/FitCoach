@@ -18,6 +18,9 @@ import { useWalkStore } from '@/stores/walkStore';
 import { useUserStore } from '@/stores/userStore';
 import { useLiveWalk } from '@/hooks/usePedometer';
 import { walkCalories } from '@/lib/met';
+import { WeatherCard } from '@/components/WeatherCard';
+import { latestReading } from '@/repositories/weatherRepo';
+import { weatherAdvice, HEAT_BAND_COLOR, HEAT_BAND_LABEL } from '@/lib/weather';
 import type { LatLng } from '@/lib/geo';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
 
@@ -242,6 +245,18 @@ export function WalkScreen() {
         </Text>
       )}
 
+      {/*
+        The one activity that is always outdoors, so the weather matters most
+        here. Before you start: is it safe, and what pace to expect. During: a
+        one-line reminder, since heat advice matters more at minute 40 than at
+        minute 0.
+      */}
+      {!walk.active ? (
+        <WeatherCard plannedActiveMin={initialMode === 'run' ? 40 : 60} />
+      ) : (
+        <WalkWeatherLine />
+      )}
+
       {!walk.active ? (
         <Button
           title={walk.starting ? 'Starting…' : `Start ${initialMode === 'run' ? 'Run' : 'Walk'}`}
@@ -269,6 +284,27 @@ function SourceRow({ ok, label, detail }: { ok: boolean; label: string; detail: 
         <Text variant="label" style={{ color }}>{label}</Text>
         <Text variant="caption" color="textMuted">{detail}</Text>
       </View>
+    </Row>
+  );
+}
+
+/**
+ * A single line while moving: the band, and the one thing to remember. Reads
+ * the stored reading only — no fetch mid-session, the foreground service is
+ * busy enough.
+ */
+function WalkWeatherLine() {
+  const theme = useTheme();
+  const reading = latestReading();
+  if (!reading) return null;
+  const advice = weatherAdvice(reading, { plannedActiveMin: 45 });
+  if (advice.band === 'ideal' || advice.band === 'cool') return null;
+  return (
+    <Row gap={8} style={{ alignItems: 'center', paddingHorizontal: 4 }}>
+      <Icon icon="weather.thermo" size={14} color={HEAT_BAND_COLOR[advice.band]} />
+      <Text variant="caption" color="textMuted" style={{ flex: 1 }} numberOfLines={2}>
+        {HEAT_BAND_LABEL[advice.band]}, feels like {Math.round(advice.feelsLike)}° — {advice.points[0]}
+      </Text>
     </Row>
   );
 }

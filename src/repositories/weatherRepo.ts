@@ -76,6 +76,6 @@ export function weatherAdjustedWaterGoal(
   const r = latestReading(todayISO(), userId);
   if (!r) return { totalMl: baseMl, extraMl: 0, feelsLike: null };
   const fl = feelsLikeC(r);
-  const extra = extraWaterMl(fl, plannedActiveMin);
+  const extra = extraWaterMl(fl, plannedActiveMin, { tempC: r.tempC, humidityPct: r.humidityPct });
   return { totalMl: baseMl + extra, extraMl: extra, feelsLike: fl };
 }

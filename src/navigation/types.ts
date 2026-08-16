@@ -43,6 +43,8 @@ export type RootStackParamList = {
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
   /** create a user-entered food, or edit one by id */
   CustomFood: { id?: number } | undefined;
+  /** build a dish from other foods with quantities, or edit one by id */
+  ComposeFood: { id?: number } | undefined;
   Micronutrients: undefined;
   Supplements: undefined;
   SupplementPlan: undefined;

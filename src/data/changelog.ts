@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.38',
+    date: '2026-08-06',
+    title: 'Humidity, weather on your walks, and dishes composed from other foods',
+    highlights: [
+      'Humidity now counts on its own. It already shaped the "feels like" figure — but two days at the same feels-like are NOT equal for sweat: at 60% humidity evaporation still cools you, at 90% almost none of the sweat evaporates, so you pour out more of it for less cooling. The water goal and expected pace now carry a separate humidity term on top of the temperature effect, and the advice names the humidity outright when it is high ("33°C at 85% humidity — sweat is barely evaporating").',
+      'Weather on the Walk / Run screen — the one activity that is always outdoors. The full card before you start (is it safe, what pace to expect, how much to drink), and a one-line reminder while you are moving, since heat advice matters more at minute 40 than at minute 0. The in-session line reads the stored reading only, never fetching mid-walk.',
+      'Compose a dish from other foods. In the food search, "Compose a dish from other foods": pick couscous ×1.5, lamb ×1, chickpeas ×0.5, olive oil ×2 — from the database or from your own foods, even other composed dishes for a set meal — and save it as one food. Log it in a tap, and use it in meal routines like anything else.',
+      'The whole point: the totals AND the micronutrients are summed from the parts. A composed plate carries the lamb\'s iron and B12 and the greens\' vitamin K into your day exactly as if you had logged the parts separately — where a plain custom food carries none, because there is nothing to sum from and nothing is invented.',
+      'Each part is saved as a snapshot at the moment you add it, so the dish you save is the dish you log next month, even if a food in the database is corrected underneath it. Change a quantity later and every figure rescales exactly. A dish cannot contain itself.',
+      'Migration checked against a pre-update database; 763 checks in all, up from 724.',
+    ],
+  },
+  {
     version: '2.37',
     date: '2026-08-05',
     title: 'Weather that changes your day, and a digestion clock for every meal',

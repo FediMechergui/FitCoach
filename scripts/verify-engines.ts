@@ -67,7 +67,11 @@ import { BADGE_IMAGES } from '../src/data/badgeImages';
 import {
   heatIndexC, windChillC, feelsLikeC, heatBand, extraWaterMl, calorieCostMultiplier,
   pacePenaltyPct, weatherAdvice, isReadingFresh, HEAT_BAND_LABEL, HEAT_BAND_COLOR,
+  humiditySweatFactor,
 } from '../src/lib/weather';
+import {
+  makeComponent, composeTotals, rescaleComponent, parseComponents, describeComponents, wouldCreateCycle,
+} from '../src/lib/composedFood';
 import {
   digestionMinutes, digestionStatus, currentDigestion, formatWait,
   intensityForSessionType, mealsFromEntries, type MealForDigestion,
@@ -1022,7 +1026,25 @@ console.log('\nWeather engine:');
   check('Hot weather adds meaningfully more', extraWaterMl(34, 60) >= 700, `${extraWaterMl(34, 60)}`);
   check('Extra water scales with planned training', extraWaterMl(34, 120) > extraWaterMl(34, 30));
   check('A hot rest day still adds something (resting sweat)', extraWaterMl(34, 0) > 0);
-  check('The extra is capped at a sane ceiling', extraWaterMl(45, 600) <= 2500);
+  check('The extra is capped at a sane ceiling', extraWaterMl(45, 600, { tempC: 45, humidityPct: 100 }) <= 3000);
+  // ── Humidity: the piece feels-like does NOT capture ──
+  // Two days at the same feels-like are not equal for sweat. At 90% humidity
+  // almost none of it evaporates, so the body pours out more for less cooling.
+  check('Humidity factor is 1 in dry air', humiditySweatFactor(30, 30) === 1);
+  check('Humidity factor rises toward 1.4 in saturated warm air', humiditySweatFactor(30, 100) > 1.35 && humiditySweatFactor(30, 100) <= 1.4, `${humiditySweatFactor(30, 100)}`);
+  check('Humidity does nothing in the cold (you are not sweating)', humiditySweatFactor(10, 100) === 1);
+  check('Unknown humidity is 1, not a guess', humiditySweatFactor(30, null) === 1);
+  check('Same feels-like, humid day needs MORE water', extraWaterMl(32, 60, { tempC: 30, humidityPct: 90 }) > extraWaterMl(32, 60, { tempC: 30, humidityPct: 40 }));
+  check('Humid heat costs more pace than dry heat', pacePenaltyPct(32, { tempC: 30, humidityPct: 90 }) > pacePenaltyPct(32, { tempC: 30, humidityPct: 40 }));
+  check('Humidity adds nothing to pace when it is not hot', pacePenaltyPct(18, { tempC: 18, humidityPct: 95 }) === 0);
+  check('The advice names very high humidity explicitly', weatherAdvice({ tempC: 33, humidityPct: 85, windKmh: 5, observedAt: Date.now(), source: 'manual' }, { plannedActiveMin: 60 }).points.some((p) => /85% humidity/.test(p)));
+  const wRepoH = fs.readFileSync('src/repositories/weatherRepo.ts', 'utf8');
+  check('The water goal passes humidity through', /extraWaterMl\(fl, plannedActiveMin, \{ tempC: r\.tempC, humidityPct: r\.humidityPct \}\)/.test(wRepoH));
+  // ── Walk/Run: the one activity that is always outdoors ──
+  const walkSrcW = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
+  check('The Walk/Run screen shows weather before you start', /<WeatherCard plannedActiveMin=/.test(walkSrcW));
+  check('…and a one-line reminder while moving', /<WalkWeatherLine \/>/.test(walkSrcW) && /function WalkWeatherLine/.test(walkSrcW));
+  check('The in-session line never fetches (foreground service is busy)', !/fetchLiveWeather/.test(walkSrcW.slice(walkSrcW.indexOf('function WalkWeatherLine'))));
   check('Cold adds no water (thirst blunted, note handles it)', extraWaterMl(-5, 60) === 0);
   // ── Calorie multiplier is modest and never applied to logs ──
   check('Calorie multiplier stays within a sane band', [45, 34, 27, 18, 3, -8].every((t) => calorieCostMultiplier(t) >= 1 && calorieCostMultiplier(t) <= 1.1));
@@ -1061,6 +1083,67 @@ console.log('\nWeather engine:');
   check('Weather-adjusted water goal is base + extra', /totalMl: baseMl \+ extra/.test(wRepo));
   check('Both Home and Nutrition use the adjusted goal', /weatherAdjustedWaterGoal\(/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')) && /weatherAdjustedWaterGoal\(/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
   check('Nutrition explains the extra rather than hiding it', /for the heat/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
+}
+
+console.log('\nComposed foods (a dish from other foods with quantities):');
+{
+  const couscous = FOOD_DB.find((f) => f.id === 'tn-couscous-plain')!;
+  const lamb = FOOD_DB.find((f) => f.id === 'tn-lamb')!;
+  const chickpeas = FOOD_DB.find((f) => f.id === 'tn-chickpeas')!;
+  const asC = (f: typeof couscous) => ({ id: f.id, name: f.name, serving: f.serving, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat, fiber: f.fiber, micros: f.micros ?? null });
+
+  // ── A component is the food × servings, snapshotted ──
+  const c1 = makeComponent(asC(couscous), 1.5);
+  check('A component scales macros by servings', near(c1.calories, couscous.calories * 1.5, 0.01) && near(c1.proteinG, couscous.protein * 1.5, 0.01));
+  check('…and scales micros by servings too', (c1.micros?.selenium_ug ?? 0) > 0 && near(c1.micros!.selenium_ug!, (couscous.micros!.selenium_ug!) * 1.5, 0.05));
+  check('Nonsense servings default to 1, never 0 or negative', makeComponent(asC(lamb), -2).servings === 1 && makeComponent(asC(lamb), NaN).servings === 1);
+
+  // ── The dish is the sum of its parts, macros AND micros ──
+  const plate = [c1, makeComponent(asC(lamb), 1), makeComponent(asC(chickpeas), 0.5)];
+  const t = composeTotals(plate);
+  const expectKcal = couscous.calories * 1.5 + lamb.calories + chickpeas.calories * 0.5;
+  check('Totals sum the parts exactly', near(t.calories, Math.round(expectKcal), 1), `${t.calories} vs ${Math.round(expectKcal)}`);
+  check('Protein sums the parts', near(t.proteinG, couscous.protein * 1.5 + lamb.protein + chickpeas.protein * 0.5, 0.15));
+  /*
+   * The reason to compose rather than guess a number for the finished plate:
+   * the lamb's iron and B12 must ride along into the totals exactly as they
+   * would if the parts had been logged separately.
+   */
+  check("The lamb's B12 and iron survive into the dish", (t.micros?.vitaminB12_ug ?? 0) > 0 && (t.micros?.iron_mg ?? 0) > 0);
+  check('Dish micros equal the sum of component micros', near(t.micros!.iron_mg!, (c1.micros?.iron_mg ?? 0) + (lamb.micros?.iron_mg ?? 0) + (chickpeas.micros?.iron_mg ?? 0) * 0.5, 0.05));
+  check('Totals carry no float tails', Number.isInteger(t.calories) && String(t.proteinG).replace(/[^.]/g, '').length <= 1 && (String(t.proteinG).split('.')[1]?.length ?? 0) <= 1);
+  check('An empty dish is zero with no micros', composeTotals([]).calories === 0 && composeTotals([]).micros === null);
+
+  // ── Rescaling a component keeps its snapshot exact ──
+  const doubled = rescaleComponent(c1, 3);
+  check('Rescaling doubles every figure', near(doubled.calories, c1.calories * 2, 0.01) && near(doubled.micros!.selenium_ug!, c1.micros!.selenium_ug! * 2, 0.05));
+  check('Rescaling to the same servings is a no-op', rescaleComponent(c1, 1.5) === c1);
+  check('Rescaling to nonsense keeps the old value', rescaleComponent(c1, 0).servings === 1.5);
+
+  // ── Serialisation and display ──
+  check('Components round-trip through JSON', parseComponents(JSON.stringify(plate)).length === 3 && parseComponents('garbage').length === 0 && parseComponents(null).length === 0);
+  check('The description names parts and quantities', /×1\.5/.test(describeComponents(plate)) && /×0\.5/.test(describeComponents(plate)));
+  check('Long lists truncate with a count', /\+2 more/.test(describeComponents([...plate, ...plate], 4)));
+
+  // ── A dish may not contain itself ──
+  check('Self-inclusion is a cycle', wouldCreateCycle('custom:7', ['custom:7']));
+  check('Another dish is not', !wouldCreateCycle('custom:8', ['custom:7']));
+
+  // ── Wiring: stored as a snapshot, logged like any food, edited in the composer ──
+  const cfRepo = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('Composed foods store their components as a snapshot', /componentsJson: JSON\.stringify\(input\.components\)/.test(cfRepo));
+  check('…with the row macros pre-summed so logging is one read', /calories: t\.calories,\s*\n\s*protein: t\.proteinG/.test(cfRepo));
+  check('…and their summed micros stored for the Micros screen', /microsJson: t\.micros \? JSON\.stringify\(t\.micros\) : null/.test(cfRepo));
+  check('Composed calories are real sums, not marked estimated', /caloriesEstimated: false,\s*\n\s*componentsJson/.test(cfRepo));
+  check('The composer can pick from own foods AND the catalogue', /composableFoods\(/.test(cfRepo) && /listCustomFoods\(userId\)\.map/.test(cfRepo));
+  check('A dish is excluded from its own picker', /excludeId \? all\.filter\(\(f\) => f\.id !== excludeId\)/.test(cfRepo));
+  const addSrc = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
+  check('The composer is reachable from the food search', /navigate\('ComposeFood', \{\}\)/.test(addSrc));
+  check('Editing a composed dish opens the composer, not the plain form', /item\.isComposed \? 'ComposeFood' : 'CustomFood'/.test(addSrc));
+  const bootSrcC = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('components_json and micros_json are in DDL and migration', /components_json TEXT/.test(bootSrcC) && /column: 'components_json'/.test(bootSrcC) && /column: 'micros_json'/.test(bootSrcC));
+  const svC = Number((bootSrcC.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the composed-food migration', svC >= 26, `${svC}`);
 }
 
 console.log('\nDigestion clock:');
@@ -1810,7 +1893,13 @@ console.log('\nCustom foods — calories from macros:');
   const repoSrc = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
   check('Custom foods live in their own table, not FOOD_DB', !/FOOD_DB\.push|FOOD_DB\s*=/.test(repoSrc));
   check('Custom food ids are namespaced away from catalogue ids', /CUSTOM_FOOD_PREFIX = 'custom:'/.test(repoSrc));
-  check('Custom foods carry no invented micronutrients', !/micros:/.test(repoSrc));
+  /*
+   * A plain custom food carries no micros (nothing to derive from, none
+   * invented). A COMPOSED food carries the SUM of its parts' micros — real
+   * data, not invented. The check is that micros only ever come from
+   * parseMicros(f.microsJson), i.e. from a stored sum, never fabricated.
+   */
+  check('Custom-food micros come only from a stored component sum', /micros: parseMicros\(f\.microsJson\)/.test(repoSrc) && !/micros: \{/.test(repoSrc));
 }
 {
   /*

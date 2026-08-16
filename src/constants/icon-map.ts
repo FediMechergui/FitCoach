@@ -240,6 +240,7 @@ export const ICONS = {
     caffeine: def('MaterialCommunityIcons', 'lightning-bolt-outline'),
     protein: def('MaterialCommunityIcons', 'egg-fried'),
     veg: def('MaterialCommunityIcons', 'carrot'),
+    compose: def('MaterialCommunityIcons', 'pot-mix'),
     carbs: def('MaterialCommunityIcons', 'bread-slice'),
     fat: def('MaterialCommunityIcons', 'oil'),
     calories: def('MaterialCommunityIcons', 'fire'),

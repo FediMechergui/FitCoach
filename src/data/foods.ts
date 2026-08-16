@@ -34,6 +34,8 @@ export interface FoodItem {
   isCustom?: boolean;
   /** True when the calorie figure was derived from macros rather than entered. */
   caloriesEstimated?: boolean;
+  /** True for a user-built dish assembled from other foods with quantities. */
+  isComposed?: boolean;
 }
 
 const GENERIC_FOODS: FoodItem[] = [

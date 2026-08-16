@@ -3,6 +3,8 @@ import { db } from '@/db/client';
 import { customFoods, type CustomFood } from '@/db/schema';
 import type { FoodItem } from '@/data/foods';
 import { caloriesFromMacros } from '@/lib/foodMath';
+import { composeTotals, parseComponents, type ComposableFood, type FoodComponent } from '@/lib/composedFood';
+import type { MicroProfile } from '@/lib/micros';
 import { PRIMARY_USER_ID } from './userRepo';
 
 /**
@@ -126,6 +128,10 @@ export function toFoodItem(f: CustomFood): FoodItem {
     category: f.category ?? undefined,
     isCustom: true,
     caloriesEstimated: f.caloriesEstimated,
+    // A composed food carries the micros summed from its parts; a plain
+    // custom food has none (nothing to sum from, and none is invented).
+    micros: parseMicros(f.microsJson) ?? undefined,
+    isComposed: !!f.componentsJson,
   };
 }
 
@@ -134,4 +140,112 @@ export function customFoodIdFrom(foodId: string): number | null {
   if (!isCustomFoodId(foodId)) return null;
   const n = parseInt(foodId.slice(CUSTOM_FOOD_PREFIX.length), 10);
   return Number.isFinite(n) ? n : null;
+}
+
+// ── Composed foods: a dish built from other foods with quantities ────────────
+
+export interface ComposedFoodInput {
+  name: string;
+  serving: string;
+  category: string | null;
+  components: FoodComponent[];
+}
+
+/**
+ * Save a composed food. The row's macros are the SUM of its components —
+ * written on every save so logging it stays a single-row read, and so the
+ * search list can show its calories without parsing JSON. Micros are summed
+ * too and stored alongside, so a plate of couscous with lamb carries the iron
+ * and B12 of the lamb into your daily totals, exactly as the parts would.
+ */
+export function createComposedFood(input: ComposedFoodInput, userId: number = PRIMARY_USER_ID): number {
+  const t = composeTotals(input.components);
+  const row = db
+    .insert(customFoods)
+    .values({
+      userId,
+      name: input.name.trim() || 'Composed meal',
+      serving: input.serving.trim() || '1 plate',
+      calories: t.calories,
+      protein: t.proteinG,
+      carbs: t.carbsG,
+      fat: t.fatG,
+      fiber: t.fiberG,
+      category: input.category?.trim() || null,
+      // Summed from real per-food figures, not estimated from macros.
+      caloriesEstimated: false,
+      componentsJson: JSON.stringify(input.components),
+      microsJson: t.micros ? JSON.stringify(t.micros) : null,
+    })
+    .returning({ id: customFoods.id })
+    .get();
+  return row?.id ?? 0;
+}
+
+export function updateComposedFood(id: number, input: ComposedFoodInput, userId: number = PRIMARY_USER_ID): void {
+  const t = composeTotals(input.components);
+  db.update(customFoods)
+    .set({
+      name: input.name.trim() || 'Composed meal',
+      serving: input.serving.trim() || '1 plate',
+      calories: t.calories,
+      protein: t.proteinG,
+      carbs: t.carbsG,
+      fat: t.fatG,
+      fiber: t.fiberG,
+      category: input.category?.trim() || null,
+      caloriesEstimated: false,
+      componentsJson: JSON.stringify(input.components),
+      microsJson: t.micros ? JSON.stringify(t.micros) : null,
+    })
+    .where(and(eq(customFoods.id, id), eq(customFoods.userId, userId)))
+    .run();
+}
+
+export const isComposed = (f: CustomFood): boolean => !!f.componentsJson;
+
+export function componentsOf(f: CustomFood): FoodComponent[] {
+  return parseComponents(f.componentsJson);
+}
+
+/**
+ * Everything the composer can pick from: the catalogue plus the user's own
+ * foods (including other composed ones — a "set meal" of a saved plate and a
+ * drink is a legitimate thing to want). `excludeId` keeps a food from
+ * containing itself.
+ */
+export function composableFoods(
+  catalogue: FoodItem[],
+  excludeId?: string,
+  userId: number = PRIMARY_USER_ID
+): ComposableFood[] {
+  const own = listCustomFoods(userId).map((f) => ({
+    id: `${CUSTOM_FOOD_PREFIX}${f.id}`,
+    name: f.name,
+    serving: f.serving,
+    calories: f.calories,
+    protein: f.protein,
+    carbs: f.carbs,
+    fat: f.fat,
+    fiber: f.fiber,
+    micros: parseMicros(f.microsJson),
+  }));
+  const all: ComposableFood[] = [
+    ...own,
+    ...catalogue.map((f) => ({
+      id: f.id, name: f.name, serving: f.serving, calories: f.calories,
+      protein: f.protein, carbs: f.carbs, fat: f.fat, fiber: f.fiber, micros: f.micros ?? null,
+    })),
+  ];
+  return excludeId ? all.filter((f) => f.id !== excludeId) : all;
+}
+
+function parseMicros(json: string | null): Partial<MicroProfile> | null {
+  if (!json) return null;
+  try {
+    const v = JSON.parse(json);
+    return v && typeof v === 'object' ? (v as Partial<MicroProfile>) : null;
+  } catch {
+    return null;
+  }
 }

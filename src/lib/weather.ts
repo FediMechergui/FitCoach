@@ -117,15 +117,42 @@ export const HEAT_BAND_COLOR: Record<HeatBand, string> = {
 };
 
 /**
+ * How much harder sweat has to work because of humidity, as a multiplier on
+ * fluid needs. 1.0 in dry air, rising toward 1.4 in saturated air.
+ *
+ * This is the piece "feels like" does NOT capture. The heat index already
+ * raises the apparent temperature for humidity, but two days at the same
+ * feels-like are not equal for sweat: at 60% humidity evaporation still
+ * removes heat efficiently, at 90% almost none of the sweat evaporates, so the
+ * body pours out more of it for less cooling. Fluid loss is therefore driven by
+ * humidity ON TOP OF the temperature effect, not merely through it. Below 20 °C
+ * it barely matters (you aren't sweating much to begin with), so the term only
+ * engages in warmth.
+ */
+export function humiditySweatFactor(tempC: number, humidityPct: number | null): number {
+  if (humidityPct == null || tempC < 20) return 1;
+  // Ramp from no effect at 40% RH to +40% at 100% RH, scaled in over 20–26 °C.
+  const humidityRamp = clamp((humidityPct - 40) / 60, 0, 1);
+  const warmthRamp = clamp((tempC - 20) / 6, 0, 1);
+  return 1 + 0.4 * humidityRamp * warmthRamp;
+}
+
+/**
  * Extra fluid to drink today, ml, on top of the base goal.
  *
  * Sweat losses rise steeply with heat: roughly an extra 250–500 ml per hour of
- * activity in warm conditions, up to a litre or more an hour in genuine heat.
- * The figure here is per-day and scaled by planned activity minutes, capped so
- * a hot day cannot demand an absurd total. Cold adds nothing to the target
- * (though thirst is blunted in cold, which the note mentions).
+ * activity in warm conditions, up to a litre or more an hour in genuine heat —
+ * and MORE again when humidity stops that sweat evaporating (see
+ * humiditySweatFactor). The figure is per-day, scaled by planned activity
+ * minutes, and capped so a hot day cannot demand an absurd total. Cold adds
+ * nothing to the target (though thirst is blunted in cold, which the note
+ * mentions).
  */
-export function extraWaterMl(feelsLike: number, plannedActiveMin: number): number {
+export function extraWaterMl(
+  feelsLike: number,
+  plannedActiveMin: number,
+  humidity?: { tempC: number; humidityPct: number | null }
+): number {
   if (feelsLike < 24) return 0;
   const hours = Math.max(0.5, plannedActiveMin / 60);
   let perHour: number;
@@ -135,7 +162,8 @@ export function extraWaterMl(feelsLike: number, plannedActiveMin: number): numbe
   // Resting sweat rises too on a genuinely hot day, so there's a floor even
   // with no training planned.
   const restingBonus = feelsLike >= 30 ? 300 : feelsLike >= 24 ? 150 : 0;
-  return Math.min(2500, Math.round(perHour * hours + restingBonus));
+  const humid = humidity ? humiditySweatFactor(humidity.tempC, humidity.humidityPct) : 1;
+  return Math.min(3000, Math.round((perHour * hours + restingBonus) * humid));
 }
 
 /**
@@ -158,17 +186,31 @@ export function calorieCostMultiplier(feelsLike: number): number {
 }
 
 /**
- * How much slower to expect endurance pace, as a fraction. Aerobic performance
- * degrades measurably from the mid-20s and sharply past the mid-30s; this is
- * for setting expectations, so a slower run in heat is read as the weather and
- * not as lost fitness.
+ * How much slower to expect endurance pace, as a percentage. Aerobic
+ * performance degrades measurably from the mid-20s and sharply past the
+ * mid-30s; humidity worsens it independently, because a runner who cannot
+ * shed heat has to slow down to stop core temperature climbing. This is for
+ * setting expectations, so a slower run in heat is read as the weather and not
+ * as lost fitness.
  */
-export function pacePenaltyPct(feelsLike: number): number {
-  if (feelsLike < 22) return 0;
-  if (feelsLike < 27) return 3;
-  if (feelsLike < 32) return 7;
-  if (feelsLike < 38) return 12;
-  return 20;
+export function pacePenaltyPct(
+  feelsLike: number,
+  humidity?: { tempC: number; humidityPct: number | null }
+): number {
+  let base: number;
+  if (feelsLike < 22) base = 0;
+  else if (feelsLike < 27) base = 3;
+  else if (feelsLike < 32) base = 7;
+  else if (feelsLike < 38) base = 12;
+  else base = 20;
+  if (!humidity || base === 0) return base;
+  // Humid air adds up to ~5 points on top of the heat penalty.
+  const extra = (humiditySweatFactor(humidity.tempC, humidity.humidityPct) - 1) * 12.5;
+  return Math.round(base + extra);
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
 }
 
 export interface WeatherAdvice {
@@ -201,28 +243,30 @@ export function weatherAdvice(w: WeatherReading, ctx: WeatherContext): WeatherAd
   const points: string[] = [];
   let headline: string;
   let cautionOutdoors = false;
-  const water = extraWaterMl(fl, ctx.plannedActiveMin);
-  const pace = pacePenaltyPct(fl);
+  const hum = { tempC: w.tempC, humidityPct: w.humidityPct };
+  const water = extraWaterMl(fl, ctx.plannedActiveMin, hum);
+  const pace = pacePenaltyPct(fl, hum);
   const humid = w.humidityPct != null && w.humidityPct >= 60;
+  const veryHumid = w.humidityPct != null && w.humidityPct >= 80;
 
   switch (band) {
     case 'extreme':
       headline = 'Extreme heat — move hard training indoors or to dawn.';
       cautionOutdoors = true;
-      points.push(`Feels like ${fl}°C. Sweat can no longer cool you effectively — heat illness risk is real, not theoretical.`);
+      points.push(`Feels like ${fl}°C${veryHumid ? ` at ${w.humidityPct}% humidity` : ''}. Sweat can no longer cool you effectively — heat illness risk is real, not theoretical.`);
       points.push(`Drink about ${water} ml more than usual today, with salt in it.`);
       points.push(`Expect endurance pace to be ~${pace}% slower; that is the weather, not lost fitness.`);
       break;
     case 'hot':
       headline = 'Hot — shorten, slow down, and drink ahead of thirst.';
       cautionOutdoors = fl >= 34;
-      points.push(`Feels like ${fl}°C${humid ? ' with high humidity, so sweat evaporates poorly' : ''}.`);
+      points.push(`Feels like ${fl}°C${veryHumid ? ` at ${w.humidityPct}% humidity — sweat is barely evaporating, so you lose more of it for less cooling` : humid ? ' with high humidity, so sweat evaporates poorly' : ''}.`);
       points.push(`Add roughly ${water} ml of fluid today, more if you sweat heavily. Salt matters as much as water.`);
       points.push(`Endurance pace ~${pace}% slower is normal today. Keep hard sets, but rest longer between them.`);
       break;
     case 'warm':
       headline = 'Warm — a good day to train, with a little more water.';
-      points.push(`Feels like ${fl}°C. Add about ${water} ml of fluid across the day.`);
+      points.push(`Feels like ${fl}°C${veryHumid ? ` and humid (${w.humidityPct}%)` : ''}. Add about ${water} ml of fluid across the day.`);
       if (pace > 0) points.push(`Long endurance efforts may run ~${pace}% slower than in cool weather.`);
       break;
     case 'ideal':

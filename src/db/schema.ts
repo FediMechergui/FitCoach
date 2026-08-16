@@ -822,6 +822,26 @@ export const mealRoutines = sqliteTable('meal_routines', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+/**
+ * Weather readings, one row per fetch or manual entry. Kept as history so a
+ * day's advice can be reconstructed and so trends (training in heat) are
+ * possible later. `source` is shown in the UI: a typed number and a fetched
+ * one deserve different confidence.
+ */
+export const weatherReadings = sqliteTable('weather_readings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(),
+  tempC: real('temp_c').notNull(),
+  humidityPct: real('humidity_pct'),
+  windKmh: real('wind_kmh'),
+  source: text('source', { enum: ['live', 'manual'] }).notNull(),
+  observedAt: integer('observed_at').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const coachTips = sqliteTable('coach_tips', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -883,3 +903,4 @@ export type FastingLog = typeof fastingLogs.$inferSelect;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type DailyChallenge = typeof dailyChallenges.$inferSelect;
 export type MealRoutine = typeof mealRoutines.$inferSelect;
+export type WeatherReadingRow = typeof weatherReadings.$inferSelect;

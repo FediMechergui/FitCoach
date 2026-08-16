@@ -18,6 +18,10 @@ import { deleteRoutine, listRoutines, type RoutineView } from '@/repositories/ro
 import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
 import { fromISODate, toISODate } from '@/lib/date';
+import { DigestionCard } from '@/components/DigestionCard';
+import { WeatherCard } from '@/components/WeatherCard';
+import { mealsFromEntries, type MealForDigestion } from '@/lib/digestion';
+import { foodEntriesForDay } from '@/repositories/nutritionRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -29,12 +33,15 @@ export function TrainScreen() {
   const begin = useSessionStore((s) => s.begin);
   const [recent, setRecent] = useState<Session[]>([]);
   const [routines, setRoutines] = useState<RoutineView[]>([]);
+  const [digestMeals, setDigestMeals] = useState<MealForDigestion[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       resume();
       setRecent(listSessions({ limit: 8 }));
       setRoutines(listRoutines());
+      // Re-read on focus so a meal logged a minute ago shows up before you start.
+      setDigestMeals(mealsFromEntries(foodEntriesForDay(toISODate())));
     }, [resume])
   );
 
@@ -103,6 +110,14 @@ export function TrainScreen() {
         variant="ghost"
         onPress={() => navigation.navigate('LogSession')}
       />
+
+      {/*
+        Before you start: is the last meal out of the way, and what is the
+        weather asking of you? Both are the training-side questions these
+        engines exist to answer, so they sit above the session pickers.
+      */}
+      <DigestionCard meals={digestMeals} defaultIntensity="hard" />
+      <WeatherCard plannedActiveMin={60} />
 
       {/* Spin once a day for a challenge you didn't choose */}
       <Pressable onPress={() => navigation.navigate('DailyChallenge')}>

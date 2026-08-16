@@ -64,6 +64,14 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
+import {
+  heatIndexC, windChillC, feelsLikeC, heatBand, extraWaterMl, calorieCostMultiplier,
+  pacePenaltyPct, weatherAdvice, isReadingFresh, HEAT_BAND_LABEL, HEAT_BAND_COLOR,
+} from '../src/lib/weather';
+import {
+  digestionMinutes, digestionStatus, currentDigestion, formatWait,
+  intensityForSessionType, mealsFromEntries, type MealForDigestion,
+} from '../src/lib/digestion';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
 import {
   buildDailyWheel,
@@ -989,6 +997,118 @@ console.log('\nCodebase audit (references, schema parity, navigation):');
     }
   }
   check('Every navigation call targets a registered route', badTargets.length === 0, badTargets.slice(0, 3).join('; '));
+}
+
+console.log('\nWeather engine:');
+{
+  // ── Heat index: a standard regression, checked against published values ──
+  check('Heat index at 32°C / 70% RH ≈ 41°C', near(heatIndexC(32, 70), 41, 1.5), `${heatIndexC(32, 70)}`);
+  check('Heat index at 38°C / 60% RH is dangerous (~52°C)', heatIndexC(38, 60) > 48, `${heatIndexC(38, 60)}`);
+  check('Below 27°C the heat index is just the temperature', heatIndexC(22, 90) === 22);
+  check('Unknown humidity returns temperature, not a guess', heatIndexC(35, null) === 35);
+  // ── Wind chill ──
+  check('Wind chill at 0°C / 30 km/h ≈ -6.5°C', near(windChillC(0, 30), -6.5, 1), `${windChillC(0, 30)}`);
+  check('Above 10°C wind chill does not apply', windChillC(15, 40) === 15);
+  check('Calm air has no wind chill', windChillC(-5, 2) === -5);
+  // ── Bands and their colours cover every value ──
+  check('Bands span the whole scale', ['cold', 'cool', 'ideal', 'warm', 'hot', 'extreme'].every((b) => !!HEAT_BAND_LABEL[b as never] && !!HEAT_BAND_COLOR[b as never]));
+  check('Band edges are monotonic', heatBand(-10) === 'cold' && heatBand(8) === 'cool' && heatBand(18) === 'ideal' && heatBand(27) === 'warm' && heatBand(34) === 'hot' && heatBand(42) === 'extreme');
+  // ── Feels-like picks the right correction ──
+  check('feelsLike uses heat index when hot', feelsLikeC({ tempC: 33, humidityPct: 75, windKmh: 5 }) > 33);
+  check('feelsLike uses wind chill when cold', feelsLikeC({ tempC: 2, humidityPct: 50, windKmh: 30 }) < 2);
+  check('feelsLike is untouched in the comfortable middle', feelsLikeC({ tempC: 18, humidityPct: 90, windKmh: 40 }) === 18);
+  // ── Hydration: adds on heat, never subtracts, capped ──
+  check('Ideal weather adds no water', extraWaterMl(18, 60) === 0);
+  check('Hot weather adds meaningfully more', extraWaterMl(34, 60) >= 700, `${extraWaterMl(34, 60)}`);
+  check('Extra water scales with planned training', extraWaterMl(34, 120) > extraWaterMl(34, 30));
+  check('A hot rest day still adds something (resting sweat)', extraWaterMl(34, 0) > 0);
+  check('The extra is capped at a sane ceiling', extraWaterMl(45, 600) <= 2500);
+  check('Cold adds no water (thirst blunted, note handles it)', extraWaterMl(-5, 60) === 0);
+  // ── Calorie multiplier is modest and never applied to logs ──
+  check('Calorie multiplier stays within a sane band', [45, 34, 27, 18, 3, -8].every((t) => calorieCostMultiplier(t) >= 1 && calorieCostMultiplier(t) <= 1.1));
+  check('Ideal weather has no calorie effect', calorieCostMultiplier(18) === 1);
+  const sessSrcW = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('Weather is NOT baked into logged session calories', !/calorieCostMultiplier/.test(sessSrcW) && !/weather/i.test(sessSrcW));
+  // ── Pace penalty rises with heat ──
+  check('Pace penalty rises monotonically', pacePenaltyPct(18) === 0 && pacePenaltyPct(25) < pacePenaltyPct(30) && pacePenaltyPct(30) < pacePenaltyPct(36) && pacePenaltyPct(36) < pacePenaltyPct(42));
+  // ── Advice: personal context actually changes the output ──
+  const hot = { tempC: 36, humidityPct: 60, windKmh: 5, observedAt: Date.now(), source: 'manual' as const };
+  const cold = { tempC: 1, humidityPct: 60, windKmh: 25, observedAt: Date.now(), source: 'manual' as const };
+  const base = { plannedActiveMin: 60 };
+  check('Extreme heat advises against hard outdoor training', weatherAdvice(hot, base).cautionOutdoors === true);
+  check('Ideal weather does not', weatherAdvice({ ...hot, tempC: 18, humidityPct: 50 }, base).cautionOutdoors === false);
+  check('A respiratory condition adds airway advice in the cold', weatherAdvice(cold, { ...base, respiratoryCondition: true }).points.some((p) => /respiratory|airway/i.test(p)));
+  check('…and NOT in the heat (where it is irrelevant)', !weatherAdvice(hot, { ...base, respiratoryCondition: true }).points.some((p) => /respiratory/i.test(p)));
+  check('A cardiac condition escalates heat to caution', weatherAdvice({ ...hot, tempC: 31, humidityPct: 50 }, { ...base, cardiacCondition: true }).cautionOutdoors === true);
+  check('Fasting in heat mentions the eating window', weatherAdvice(hot, { ...base, fasting: true }).points.some((p) => /eating window/i.test(p)));
+  check('Every band produces a headline and at least one point', ([-8, 8, 18, 27, 34, 42] as const).every((t) => { const a = weatherAdvice({ ...hot, tempC: t, humidityPct: 50, windKmh: 10 }, base); return a.headline.length > 10 && a.points.length >= 1; }));
+  // ── Freshness ──
+  check('A 2-hour-old reading is fresh', isReadingFresh({ ...hot, observedAt: Date.now() - 2 * 3_600_000 }));
+  check('A 5-hour-old reading is stale', !isReadingFresh({ ...hot, observedAt: Date.now() - 5 * 3_600_000 }));
+  // ── Fetch service: privacy and failure posture ──
+  const fetchSrc = fs.readFileSync('src/services/weatherFetch.ts', 'utf8');
+  check('Live fetch needs no API key or account', !/api[_-]?key|token|appid/i.test(fetchSrc));
+  check('Coordinates are rounded before leaving the device', /toFixed\(2\)/.test(fetchSrc));
+  check('Fetch never throws into the UI', /catch \{[\s\S]*return null;/.test(fetchSrc));
+  check('Fetch has a timeout so it cannot hang the screen', /AbortController/.test(fetchSrc));
+  // ── Schema ──
+  const bootSrcW = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('weather_readings is in the CREATE TABLE DDL', /CREATE TABLE IF NOT EXISTS weather_readings/.test(bootSrcW));
+  const svW = Number((bootSrcW.match(/SCHEMA_VERSION = (\d+)/) || [])[1] ?? 0);
+  check('Schema version is at or past the weather table', svW >= 25, `${svW}`);
+  // ── Hydration wiring: adds, never subtracts, explained ──
+  const wRepo = fs.readFileSync('src/repositories/weatherRepo.ts', 'utf8');
+  check('Weather-adjusted water goal is base + extra', /totalMl: baseMl \+ extra/.test(wRepo));
+  check('Both Home and Nutrition use the adjusted goal', /weatherAdjustedWaterGoal\(/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')) && /weatherAdjustedWaterGoal\(/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
+  check('Nutrition explains the extra rather than hiding it', /for the heat/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
+}
+
+console.log('\nDigestion clock:');
+{
+  const meal = (calories: number, fatG: number, proteinG = 20, fiberG = 4, agoMin = 0): MealForDigestion => ({
+    calories, fatG, proteinG, carbsG: 50, fiberG, eatenAt: Date.now() - agoMin * 60_000,
+  });
+  // ── Calibration against the standard gastric-emptying ranges ──
+  const snack = digestionMinutes(meal(200, 3, 4, 2), 'moderate');
+  const mixed = digestionMinutes(meal(600, 20, 30, 6), 'moderate');
+  const fatty = digestionMinutes(meal(900, 40, 35, 6), 'hard');
+  check('A 200 kcal carb snack clears in ~1 h', snack >= 40 && snack <= 75, `${snack} min`);
+  check('A 600 kcal mixed meal needs ~2–3 h', mixed >= 110 && mixed <= 190, `${mixed} min`);
+  check('A 900 kcal fatty meal before hard training needs 4 h+', fatty >= 240, `${fatty} min`);
+  check('Water / a hydration row needs essentially no wait', digestionMinutes(meal(0, 0, 0, 0)) <= 5);
+  // ── The levers move the right way ──
+  check('More fat means longer', digestionMinutes(meal(600, 40)) > digestionMinutes(meal(600, 10)));
+  check('More food means longer', digestionMinutes(meal(900, 20)) > digestionMinutes(meal(400, 20)));
+  check('More fibre means longer', digestionMinutes(meal(600, 20, 20, 15)) > digestionMinutes(meal(600, 20, 20, 2)));
+  check('Hard training needs longer than light', digestionMinutes(meal(600, 20), 'hard') > digestionMinutes(meal(600, 20), 'moderate') && digestionMinutes(meal(600, 20), 'moderate') > digestionMinutes(meal(600, 20), 'light'));
+  check('Never absurd: capped at 5 h', digestionMinutes(meal(3000, 150, 100, 40), 'hard') <= 300);
+  check('Never zero for real food: floored at 5 min', digestionMinutes(meal(25, 0, 0, 0)) >= 5);
+  // ── Status and countdown ──
+  const fresh = digestionStatus(meal(600, 20), 'moderate');
+  check('A meal eaten just now is not ready', !fresh.ready && fresh.remainingMin > 0 && fresh.progress === 0);
+  const old = digestionStatus(meal(600, 20, 20, 4, 400), 'hard');
+  check('A meal from 6+ hours ago is ready for anything', old.ready && old.readyFor === 'hard' && old.progress === 1);
+  // 100 min after a 600 kcal meal: past the ~78 min a walk needs, short of the
+  // ~130 a normal session needs — so the honest answer is "light, not yet hard".
+  const half = digestionStatus(meal(600, 20, 20, 4, 100), 'hard');
+  check('Part-way through: readyFor answers what you CAN do now', half.readyFor === 'light' && !half.ready, `${half.readyFor}`);
+  check('…and too soon for anything reads as null, not a flattering guess', digestionStatus(meal(600, 20, 20, 4, 30), 'hard').readyFor === null);
+  check('readyAt is eatenAt plus the required minutes', Math.abs(fresh.readyAt - (Date.now() + fresh.requiredMin * 60_000)) < 2000);
+  // ── The governing meal ──
+  const meals = [meal(600, 20, 20, 4, 30), meal(200, 3, 4, 2, 10), meal(500, 15, 20, 4, 600)];
+  const gov = currentDigestion(meals, 'moderate');
+  check('The most-pending meal governs, cleared ones ignored', !!gov && gov.remainingMin > 0);
+  check('An empty stomach reads as clear', currentDigestion([], 'hard') === null);
+  check('All-cleared meals read as clear', currentDigestion([meal(600, 20, 20, 4, 600)], 'hard') === null);
+  // ── Presentation ──
+  check('Wait formats read naturally', formatWait(0) === 'clear' && formatWait(45) === '45 min' && formatWait(80) === '1 h 20' && formatWait(120) === '2 h');
+  check('Session types map to sensible intensities', intensityForSessionType('strength') === 'hard' && intensityForSessionType('mindbody') === 'light' && intensityForSessionType('cardio') === 'moderate');
+  check('mealsFromEntries carries the eaten time', mealsFromEntries([{ calories: 500, proteinG: 20, carbsG: 50, fatG: 15, fiberG: 4, createdAt: 12345 }])[0].eatenAt === 12345);
+  // ── Wiring: shown where the decision is made, and only for today ──
+  const nutSrcD = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
+  check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
+  check('The Train tab asks the question at hard intensity', /<DigestionCard meals=\{digestMeals\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
+  check('Home shows the compact summary', /<DigestionCard meals=\{digestMeals\} compact/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
 }
 
 console.log('\nAudit fixes — supplement rows vs meals, date parsing:');

@@ -352,6 +352,18 @@ export const ICONS = {
   },
 
   // Prayers & fasting
+  // Weather & digestion (v2.37)
+  weather: {
+    thermo: def('MaterialCommunityIcons', 'thermometer'),
+    sun: def('MaterialCommunityIcons', 'weather-sunny'),
+    wind: def('MaterialCommunityIcons', 'weather-windy'),
+    humidity: def('MaterialCommunityIcons', 'water-percent'),
+  },
+  digest: {
+    stomach: def('MaterialCommunityIcons', 'stomach'),
+    clock: def('MaterialCommunityIcons', 'timer-sand'),
+  },
+
   faith: {
     prayer: def('MaterialCommunityIcons', 'hands-pray'),
     crescent: def('MaterialCommunityIcons', 'moon-waning-crescent'),

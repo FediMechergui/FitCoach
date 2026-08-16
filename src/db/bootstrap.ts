@@ -33,8 +33,9 @@ import { seedExerciseLibrary } from './seed';
  *   21 → 22 v2.29: daily_challenges table (spin-the-wheel daily challenge)
  *   22 → 23 v2.30: meal_routines table (saved meals & day distributions)
  *   23 → 24 v2.34: supplement_logs.food_entry_id (macro-bearing supplements)
+ *   24 → 25 v2.37: weather_readings table
  */
-const SCHEMA_VERSION = 24;
+const SCHEMA_VERSION = 25;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -658,6 +659,19 @@ CREATE TABLE IF NOT EXISTS meal_routines (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_meal_routines_user ON meal_routines(user_id, meal_type);
+
+CREATE TABLE IF NOT EXISTS weather_readings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  temp_c REAL NOT NULL,
+  humidity_pct REAL,
+  wind_kmh REAL,
+  source TEXT NOT NULL,
+  observed_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_weather_readings_user_date ON weather_readings(user_id, date);
 `;
 
 let initialized = false;

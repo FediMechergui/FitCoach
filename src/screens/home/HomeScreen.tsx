@@ -1,4 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { WeatherCard } from '@/components/WeatherCard';
+import { DigestionCard } from '@/components/DigestionCard';
+import { mealsFromEntries } from '@/lib/digestion';
+import { foodEntriesForDay } from '@/repositories/nutritionRepo';
+import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { View, Pressable, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -114,13 +119,17 @@ export function HomeScreen() {
     setRefreshing(false);
   };
 
+  // Digestion inputs re-derive whenever the food snapshot changes.
+  const digestMeals = useMemo(() => mealsFromEntries(foodEntriesForDay(todayISO())), [food]);
   const calTarget = goal?.calorieTarget ?? 2200;
   const calConsumed = food?.calories ?? 0;
   // Rounded even though dayNutrition already rounds its total: the subtraction
   // itself can reintroduce a tail if the target is ever fractional, and this
   // number is rendered raw into the ring.
   const calRemaining = roundKcal(Math.max(0, calTarget - calConsumed));
-  const waterGoal = goal?.waterGoalMl ?? 2500;
+  // The weather adds to the base water goal on hot days — never subtracts.
+  const waterAdj = useMemo(() => weatherAdjustedWaterGoal(goal?.waterGoalMl ?? 2500), [goal, food]);
+  const waterGoal = waterAdj.totalMl;
   const water = beverages?.hydrationMl ?? 0;
 
   const hour = new Date().getHours();
@@ -155,6 +164,10 @@ export function HomeScreen() {
 
       {/* Daily check-in streak meter */}
       {usage && <StreakMeter streak={usage} />}
+
+      {/* Today's weather and what it changes; whether the last meal has cleared */}
+      <WeatherCard />
+      <DigestionCard meals={digestMeals} compact />
 
       {/* Primary rings */}
       <Card>

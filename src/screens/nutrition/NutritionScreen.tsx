@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,6 +24,9 @@ import type { FastingState } from '@/lib/fasting';
 import { BEVERAGE_PRESETS, WATER_QUICK_ADD } from '@/data/beverages';
 import { mealIcon } from '@/constants/icon-map';
 import { MealRoutineBar } from '@/components/MealRoutineBar';
+import { DigestionCard, MealDigestionLine } from '@/components/DigestionCard';
+import { mealsFromEntries } from '@/lib/digestion';
+import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { addDays, todayISO } from '@/lib/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -39,6 +42,11 @@ export function NutritionScreen() {
   const navigation = useNavigation<Nav>();
   const { date, food, beverages, setDate, refresh, removeFood, addDrink, removeDrink } = useNutritionStore();
   const goal = useUserStore((s) => s.goal);
+  // Every diary row for the day, flattened, as digestion inputs.
+  const digestMeals = useMemo(
+    () => mealsFromEntries(food ? (Object.values(food.byMeal) as Array<typeof food.byMeal.breakfast>).flat() : []),
+    [food]
+  );
   const smokingEnabled = useSmokingStore((s) => s.enabled);
   const smokingToday = useSmokingStore((s) => s.today);
   const smokingImpact = useSmokingStore((s) => s.impact);
@@ -63,7 +71,12 @@ export function NutritionScreen() {
 
   const calTarget = goal?.calorieTarget ?? 2200;
   const cal = food?.calories ?? 0;
-  const waterGoal = goal?.waterGoalMl ?? 2500;
+  // Weather adds to the base goal on hot days; only today's reading applies.
+  const waterAdj = useMemo(
+    () => (date === todayISO() ? weatherAdjustedWaterGoal(goal?.waterGoalMl ?? 2500) : { totalMl: goal?.waterGoalMl ?? 2500, extraMl: 0, feelsLike: null }),
+    [goal, date, food]
+  );
+  const waterGoal = waterAdj.totalMl;
   const water = beverages?.hydrationMl ?? 0;
   const caffeine = beverages?.caffeineMg ?? 0;
   const caffeineLimit = goal?.caffeineSoftLimitMg ?? 400;
@@ -188,7 +201,9 @@ export function NutritionScreen() {
             </ProgressRing>
             <View>
               <Text variant="bodyStrong">{(water / 1000).toFixed(2)} L</Text>
-              <Text variant="caption" color="textMuted">of {(waterGoal / 1000).toFixed(1)} L</Text>
+              <Text variant="caption" color="textMuted">
+                of {(waterGoal / 1000).toFixed(1)} L{waterAdj.extraMl > 0 ? ` (+${(waterAdj.extraMl / 1000).toFixed(1)} for the heat)` : ''}
+              </Text>
             </View>
           </Row>
           <Row gap={6}>
@@ -268,6 +283,9 @@ export function NutritionScreen() {
       */}
       <MealRoutineBar mealType={null} date={date} onChanged={refresh} />
 
+      {/* Is the last meal out of the way? Today only — yesterday's lunch is not a training question. */}
+      {date === todayISO() && <DigestionCard meals={digestMeals} />}
+
       {/* Meals */}
       {MEAL_TYPES.map((meal) => {
         const entries = food?.byMeal[meal] ?? [];
@@ -305,6 +323,10 @@ export function NutritionScreen() {
                         <Text variant="caption" color="textFaint">
                           {Math.round(e.calories)} kcal · P{Math.round(e.proteinG)} C{Math.round(e.carbsG)} F{Math.round(e.fatG)}
                         </Text>
+                        {/* Only today's meals have a live digestion clock; a past day's is history. */}
+                        {date === todayISO() && e.calories >= 20 && (
+                          <MealDigestionLine meal={mealsFromEntries([e])[0]} />
+                        )}
                       </View>
                       <Pressable onPress={() => removeFood(e.id)} hitSlop={8}>
                         <Icon icon="core.close" size={16} color={theme.colors.textFaint} />

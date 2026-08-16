@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.37',
+    date: '2026-08-05',
+    title: 'Weather that changes your day, and a digestion clock for every meal',
+    highlights: [
+      'Weather. A card on Home and Train shows today\'s temperature, the "feels like" (heat index in heat, wind chill in cold), and what it changes for you specifically. It fetches live conditions for wherever your phone is — no account, no API key, coordinates rounded to ~1 km — and works offline from the last reading, or from numbers you type in from any weather app. The advice is identical either way, and the card says which it is.',
+      'What the weather actually moves: your water goal rises on hot days (the ring on Home and Nutrition says "+0.4 L for the heat" so it is never a mystery number); expected endurance pace is flagged slower so a hot run reads as weather, not lost fitness; and extreme heat or a cardiovascular condition on file tips it to "move hard training indoors or to dawn". Cold flags a longer warm-up, blunted thirst, and — if you have a respiratory condition on file — cold-air airway advice. Fasting in heat gets its own line about fitting fluid into the eating window.',
+      'Deliberately NOT changed by weather: your logged calories. Heat and cold do raise energy cost by a few percent, but rewriting a session\'s calories on the strength of a reading you might have typed wrong would corrupt the log for a second-order effect. It stays advisory.',
+      'Digestion clock. Every meal you log today shows when it will have cleared enough to train — "normal session at 14:20 · hard at 15:05" — and a card on Home, Nutrition and Train answers the real question: can I train NOW, and if not, when? Pick Light / Normal / Hard, because the honest answer depends on it: a heavy lunch that rules out sprints is fine for a walk.',
+      'The model is calibrated to standard stomach-emptying ranges — a 200 kcal snack about an hour, a 600 kcal mixed meal a bit over two, a 900 kcal fatty meal before hard training four-plus — with fat as the biggest brake, then protein and fibre. It is an estimate and says so; your own tolerance is the final word.',
+      'Both features are pure maths checked by 64 new tests: published heat-index values, the wind-chill formula, hydration that adds on heat and never subtracts, and every digestion lever moving the right way. 724 checks in all.',
+    ],
+  },
+  {
     version: '2.36',
     date: '2026-08-05',
     title: 'Second audit — four subtle bugs in how features interact',

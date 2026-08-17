@@ -3,40 +3,47 @@ import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '../ui/Text';
+import { macroEnergyShares } from '@/lib/foodMath';
 
 interface MacroDonutProps {
   protein: number; // grams
-  carbs: number;
+  carbs: number; // grams, fibre included (as on every label)
   fat: number;
+  /** grams of fibre, already counted inside `carbs` — carved out as its own slice */
+  fiber?: number;
   size?: number;
   strokeWidth?: number;
   centerLabel?: string;
   centerValue?: string;
 }
 
-/** Macro breakdown ring chart (calorie-share of P/C/F). */
+/**
+ * Macro breakdown ring chart — calorie share of protein / carbs / fibre / fat.
+ * The split itself is `macroEnergyShares` in lib/foodMath (pure, tested);
+ * fibre is carved out of the carb slice there, never added on top.
+ */
 export function MacroDonut({
   protein,
   carbs,
   fat,
+  fiber = 0,
   size = 140,
   strokeWidth = 16,
   centerLabel,
   centerValue,
 }: MacroDonutProps) {
   const theme = useTheme();
-  const pC = protein * 4;
-  const cC = carbs * 4;
-  const fC = fat * 9;
-  const total = pC + cC + fC || 1;
+  const shares = macroEnergyShares({ protein, carbs, fat, fiber });
 
   const r = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * r;
 
+  // Fibre sits beside carbs, because that is where it came from.
   const segments = [
-    { frac: pC / total, color: theme.colors.protein },
-    { frac: cC / total, color: theme.colors.carbs },
-    { frac: fC / total, color: theme.colors.fat },
+    { frac: shares.protein, color: theme.colors.protein },
+    { frac: shares.carbs, color: theme.colors.carbs },
+    { frac: shares.fiber, color: theme.colors.fiber },
+    { frac: shares.fat, color: theme.colors.fat },
   ];
 
   let offset = 0;

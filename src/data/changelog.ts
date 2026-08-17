@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     highlights: [
       'Fibre now appears beside protein, carbs and fat for the day — a fourth bar on the Nutrition dashboard and a fourth tile on Home. It was always being counted (every food, custom food and composed dish carries fibre; it already discounts your calories) but it never had a place on screen.',
       'It comes with a target that moves with you: 14 g per 1000 kcal of your calorie target — the ratio the adult reference intakes (38 g men, 25 g women) were originally derived from, so it rises for a 3500-kcal athlete instead of stopping at a population number — and never below the WHO adult minimum of 25 g, so a deep cut does not drag it down.',
-      'It stays out of the energy donut on purpose: fibre lives inside the carb figure, so it is not a fourth slice of the calories — it is a fourth thing to hit.',
-      '777 checks in all, up from 763.',
+      'And a fourth slice on the ring beside the carbs, in its own green. Fibre lives inside the carb grams on every label, so it is not added on top — it is carved out of the carb slice, at the 2 kcal/g the app already uses when it estimates a food\'s calories. That way the ring and the number in its centre agree about where the energy came from. With no fibre logged the ring is exactly what it was.',
+      '785 checks in all, up from 763.',
     ],
   },
   {

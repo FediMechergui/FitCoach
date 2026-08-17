@@ -62,6 +62,30 @@ export function caloriesFromMacros(m: MacroInput): number {
   );
 }
 
+/**
+ * Energy shares of a set of macros — the slices of the donut. The same
+ * arithmetic as caloriesFromMacros, un-rounded and normalised to 1, so the
+ * ring and the number in its centre agree about where the energy came from.
+ *
+ * Fibre is not added on top of carbs — it IS part of the carb grams — so it is
+ * carved out of the carb slice: net carbs at 4 kcal/g, fibre at 2 kcal/g. With
+ * no fibre this is the classic three-way split, unchanged. An empty day
+ * returns all zeros rather than NaN.
+ */
+export function macroEnergyShares(m: MacroInput): { protein: number; carbs: number; fiber: number; fat: number } {
+  const protein = safe(m.protein);
+  const carbs = safe(m.carbs);
+  const fat = safe(m.fat);
+  const fiber = Math.min(safe(m.fiber), carbs);
+  const netCarbs = carbs - fiber;
+  const pC = protein * KCAL_PER_G_PROTEIN;
+  const cC = netCarbs * KCAL_PER_G_CARB;
+  const fbC = fiber * KCAL_PER_G_FIBRE;
+  const fC = fat * KCAL_PER_G_FAT;
+  const total = pC + cC + fbC + fC || 1;
+  return { protein: pC / total, carbs: cC / total, fiber: fbC / total, fat: fC / total };
+}
+
 export interface ResolvedCalories {
   calories: number;
   /** true when the figure was derived from macros rather than entered */

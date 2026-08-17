@@ -125,6 +125,7 @@ export function NutritionScreen() {
             protein={food?.protein ?? 0}
             carbs={food?.carbs ?? 0}
             fat={food?.fat ?? 0}
+            fiber={food?.fiber ?? 0}
             centerValue={`${Math.round(cal)}`}
             centerLabel={`/ ${calTarget}`}
           />
@@ -132,7 +133,6 @@ export function NutritionScreen() {
             <MacroRow label="Protein" value={food?.protein ?? 0} target={goal?.proteinG ?? 0} color={theme.colors.protein} />
             <MacroRow label="Carbs" value={food?.carbs ?? 0} target={goal?.carbsG ?? 0} color={theme.colors.carbs} />
             <MacroRow label="Fat" value={food?.fat ?? 0} target={goal?.fatG ?? 0} color={theme.colors.fat} />
-            {/* Fibre sits inside the carb figure, so it stays out of the donut — but it gets its own bar. */}
             <MacroRow label="Fibre" value={food?.fiber ?? 0} target={fiberTarget} color={theme.colors.fiber} />
           </View>
         </Row>

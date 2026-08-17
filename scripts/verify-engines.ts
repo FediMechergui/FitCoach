@@ -87,7 +87,7 @@ import {
 } from '../src/lib/challengeWheel';
 import { ICONS } from '../src/constants/icon-map';
 import { combustedEquivalents, totalNicotineMg, combustedShare } from '../src/lib/smoking';
-import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood } from '../src/lib/foodMath';
+import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood, macroEnergyShares } from '../src/lib/foodMath';
 import { SUPPLEMENTS, findSupplement, servingUnits } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
@@ -2096,7 +2096,24 @@ console.log('\nFibre — the fourth bar:');
   const nutScreenSrc = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
   check('Nutrition shows a fibre bar beside protein, carbs and fat', /<MacroRow label="Fibre" value=\{food\?\.fiber \?\? 0\} target=\{fiberTarget\}/.test(nutScreenSrc));
   check('The fibre target follows the calorie target', /fiberTarget = recommendedFiberG\(calTarget\)/.test(nutScreenSrc));
-  check('Fibre stays out of the energy donut (it is inside carbs)', !/MacroDonut[\s\S]{0,200}fiber=/.test(nutScreenSrc));
+  check('The donut receives the day\'s fibre', /<MacroDonut[\s\S]{0,200}fiber=\{food\?\.fiber \?\? 0\}/.test(nutScreenSrc));
+
+  // The donut slice: fibre is carved OUT of carbs (it is inside the carb
+  // grams), at the same 2 kcal/g discount foodMath uses — never added on top.
+  const s = macroEnergyShares({ protein: 100, carbs: 200, fat: 50, fiber: 30 });
+  // 400 + 170*4 + 30*2 + 450 = 1590 kcal
+  check('Shares sum to 1', Math.abs(s.protein + s.carbs + s.fiber + s.fat - 1) < 1e-9);
+  check('Fibre is carved out of carbs, not added on top', Math.abs(s.carbs - 680 / 1590) < 1e-9 && Math.abs(s.fiber - 60 / 1590) < 1e-9, `${s.carbs} ${s.fiber}`);
+  check('Fibre is weighted at 2 kcal/g, matching the calorie estimate', Math.abs(s.fiber / s.carbs - (30 * 2) / (170 * 4)) < 1e-9);
+  const s0 = macroEnergyShares({ protein: 100, carbs: 200, fat: 50 });
+  check('No fibre → the classic three-way split, unchanged', s0.fiber === 0 && Math.abs(s0.carbs - 800 / 1650) < 1e-9);
+  const sOver = macroEnergyShares({ protein: 0, carbs: 10, fat: 0, fiber: 25 });
+  check('Fibre above carbs is capped so the carb slice never goes negative', sOver.carbs === 0 && sOver.fiber === 1);
+  const sEmpty = macroEnergyShares({ protein: 0, carbs: 0, fat: 0, fiber: 0 });
+  check('An empty day draws nothing, not NaN', sEmpty.protein === 0 && sEmpty.fiber === 0 && !Number.isNaN(sEmpty.fat));
+  const donutSrc = fs.readFileSync('src/components/charts/MacroDonut.tsx', 'utf8');
+  check('The fibre slice sits beside the carb slice', /shares\.carbs, color: theme\.colors\.carbs \},\s*\{ frac: shares\.fiber/.test(donutSrc));
+  check('The donut draws foodMath\'s split, not its own arithmetic', /macroEnergyShares\(\{ protein, carbs, fat, fiber \}\)/.test(donutSrc) && !/\* 9\b/.test(donutSrc));
   const homeScreenSrc = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
   check('Home shows a fibre tile with the same target', /label="Fibre"[\s\S]{0,120}recommendedFiberG\(goal\?\.calorieTarget/.test(homeScreenSrc));
   const themeSrc = fs.readFileSync('src/theme/index.ts', 'utf8');

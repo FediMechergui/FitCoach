@@ -243,6 +243,7 @@ export const ICONS = {
     compose: def('MaterialCommunityIcons', 'pot-mix'),
     carbs: def('MaterialCommunityIcons', 'bread-slice'),
     fat: def('MaterialCommunityIcons', 'oil'),
+    fiber: def('MaterialCommunityIcons', 'leaf'),
     calories: def('MaterialCommunityIcons', 'fire'),
   },
 

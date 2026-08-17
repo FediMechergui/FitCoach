@@ -1,6 +1,6 @@
 /* Smoke-test the pure domain engines against known values. Run: npx tsx scripts/verify-engines.ts */
 import fs from 'node:fs';
-import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, GOAL_BLURBS, GOAL_NOTES, GOAL_ORDER } from '../src/lib/calories';
+import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, GOAL_BLURBS, GOAL_NOTES, GOAL_ORDER, recommendedFiberG, FIBRE_MIN_G, FIBRE_G_PER_1000_KCAL } from '../src/lib/calories';
 import { epley1RM, brzycki1RM, estimate1RM } from '../src/lib/oneRepMax';
 import { caloriesFromMet, netCaloriesFromMet, gradeMultiplier, walkCalories, walkRunMet } from '../src/lib/met';
 import { estimateBodyType, bmi } from '../src/lib/bodyType';
@@ -2077,6 +2077,31 @@ console.log('\nStep detector — rejecting motion that is not walking:');
     bumpDet.onSample(0, 0, 1 + (i === 100 ? 0.8 : 0), t);
   }
   check('One isolated jolt is not a step', bumpDet.steps === 0, `${bumpDet.steps}`);
+}
+
+console.log('\nFibre — the fourth bar:');
+{
+  // IOM ratio above the floor, WHO floor beneath it.
+  check('2200 kcal → 31 g (14 g per 1000 kcal)', recommendedFiberG(2200) === 31, `${recommendedFiberG(2200)}`);
+  check('3500 kcal athlete → 49 g, not a population number', recommendedFiberG(3500) === 49, `${recommendedFiberG(3500)}`);
+  check('A deep cut never drops below the WHO 25 g floor', recommendedFiberG(1400) === FIBRE_MIN_G && recommendedFiberG(1000) === FIBRE_MIN_G);
+  check('The floor is the WHO adult minimum', FIBRE_MIN_G === 25 && FIBRE_G_PER_1000_KCAL === 14);
+  check('Garbage in yields the floor, never NaN', recommendedFiberG(NaN) === FIBRE_MIN_G && recommendedFiberG(-5) === FIBRE_MIN_G);
+  check('The 2700-kcal male reference reproduces the 38 g AI', recommendedFiberG(2700) === 38);
+  check('The 1800-kcal female reference reproduces the 25 g AI', recommendedFiberG(1800) === 25);
+
+  // The day total already exists in the repository; the screens must render it.
+  const nutRepoSrc = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
+  check('The day summary sums and rounds fibre', /total\.fiber \+= e\.fiberG/.test(nutRepoSrc) && /fiber: roundGrams\(total\.fiber\)/.test(nutRepoSrc));
+  const nutScreenSrc = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
+  check('Nutrition shows a fibre bar beside protein, carbs and fat', /<MacroRow label="Fibre" value=\{food\?\.fiber \?\? 0\} target=\{fiberTarget\}/.test(nutScreenSrc));
+  check('The fibre target follows the calorie target', /fiberTarget = recommendedFiberG\(calTarget\)/.test(nutScreenSrc));
+  check('Fibre stays out of the energy donut (it is inside carbs)', !/MacroDonut[\s\S]{0,200}fiber=/.test(nutScreenSrc));
+  const homeScreenSrc = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  check('Home shows a fibre tile with the same target', /label="Fibre"[\s\S]{0,120}recommendedFiberG\(goal\?\.calorieTarget/.test(homeScreenSrc));
+  const themeSrc = fs.readFileSync('src/theme/index.ts', 'utf8');
+  check('Fibre has its own colour token', /fiber: '#[0-9A-Fa-f]{6}'/.test(themeSrc));
+  check('The fibre icon resolves', !!(ICONS as Record<string, Record<string, unknown>>).nutrition?.fiber);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

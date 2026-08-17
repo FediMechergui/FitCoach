@@ -34,6 +34,8 @@ export const palette = {
   protein: '#FF6B9D',
   carbs: '#4F8CFF',
   fat: '#FFB454',
+  // Fibre is plants; a leaf green, kept apart from the teal accent/success.
+  fiber: '#7ED37E',
   calories: '#FF7A59',
   water: '#4FC3F7',
   caffeine: '#B58750',

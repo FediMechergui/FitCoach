@@ -216,3 +216,30 @@ export function refineTDEE(params: {
 export function recommendedWaterMl(weightKg: number): number {
   return Math.max(2000, Math.round((weightKg * 35) / 50) * 50);
 }
+
+/**
+ * Fibre target, in grams per day.
+ *
+ * Fibre is not a macro the calculator "splits" — it sits inside the carb
+ * figure and carries ~2 kcal/g (see foodMath.ts) — but it is the one part of
+ * the carb column that predicts health outcomes on its own, so it gets a
+ * target and its own bar. Two references, combined:
+ *
+ *   • IOM / DRI: 14 g per 1000 kcal. This is how the adult "adequate intakes"
+ *     (38 g men, 25 g women, lower over 50) were actually derived — from the
+ *     median energy intake of each group — so scaling with the person's own
+ *     calorie target reproduces them, and rises for a 3500-kcal athlete
+ *     instead of stopping at a population number.
+ *   • WHO (2023 guideline): at least 25 g/day for adults. This is the floor,
+ *     so a deep cut does not drag the target down to a figure that no longer
+ *     protects.
+ *
+ * Derived, not stored: it moves with the calorie target and is never edited
+ * by hand, so it lives beside the calculator rather than on the goal row.
+ */
+export const FIBRE_G_PER_1000_KCAL = 14;
+export const FIBRE_MIN_G = 25;
+export function recommendedFiberG(calorieTarget: number): number {
+  const kcal = Number.isFinite(calorieTarget) && calorieTarget > 0 ? calorieTarget : 0;
+  return Math.max(FIBRE_MIN_G, Math.round((kcal / 1000) * FIBRE_G_PER_1000_KCAL));
+}

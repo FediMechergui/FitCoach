@@ -28,6 +28,7 @@ import { DigestionCard, MealDigestionLine } from '@/components/DigestionCard';
 import { mealsFromEntries } from '@/lib/digestion';
 import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { addDays, todayISO } from '@/lib/date';
+import { recommendedFiberG } from '@/lib/calories';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const MEAL_LABELS: Record<MealType, string> = {
@@ -71,6 +72,7 @@ export function NutritionScreen() {
 
   const calTarget = goal?.calorieTarget ?? 2200;
   const cal = food?.calories ?? 0;
+  const fiberTarget = recommendedFiberG(calTarget);
   // Weather adds to the base goal on hot days; only today's reading applies.
   const waterAdj = useMemo(
     () => (date === todayISO() ? weatherAdjustedWaterGoal(goal?.waterGoalMl ?? 2500) : { totalMl: goal?.waterGoalMl ?? 2500, extraMl: 0, feelsLike: null }),
@@ -130,6 +132,8 @@ export function NutritionScreen() {
             <MacroRow label="Protein" value={food?.protein ?? 0} target={goal?.proteinG ?? 0} color={theme.colors.protein} />
             <MacroRow label="Carbs" value={food?.carbs ?? 0} target={goal?.carbsG ?? 0} color={theme.colors.carbs} />
             <MacroRow label="Fat" value={food?.fat ?? 0} target={goal?.fatG ?? 0} color={theme.colors.fat} />
+            {/* Fibre sits inside the carb figure, so it stays out of the donut — but it gets its own bar. */}
+            <MacroRow label="Fibre" value={food?.fiber ?? 0} target={fiberTarget} color={theme.colors.fiber} />
           </View>
         </Row>
       </Card>

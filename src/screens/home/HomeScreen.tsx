@@ -37,6 +37,7 @@ import { PRAYER_NAMES } from '@/lib/prayers';
 import type { CoachTip } from '@/db/schema';
 import { roundKcal } from '@/lib/format';
 import { todayISO } from '@/lib/date';
+import { recommendedFiberG } from '@/lib/calories';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const CATEGORY_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
@@ -337,12 +338,22 @@ export function HomeScreen() {
           sub={`of ${goal?.carbsG ?? 0}g`}
           accent={theme.colors.carbs}
         />
+      </Row>
+      {/* Four tiles across would wrap the labels, so the macros run 2×2. */}
+      <Row>
         <StatTile
           icon="nutrition.fat"
           label="Fat"
           value={`${Math.round(food?.fat ?? 0)}g`}
           sub={`of ${goal?.fatG ?? 0}g`}
           accent={theme.colors.fat}
+        />
+        <StatTile
+          icon="nutrition.fiber"
+          label="Fibre"
+          value={`${Math.round(food?.fiber ?? 0)}g`}
+          sub={`of ${recommendedFiberG(goal?.calorieTarget ?? 2200)}g`}
+          accent={theme.colors.fiber}
         />
       </Row>
 

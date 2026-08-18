@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, SectionHeader, EmptyState, Divider } from '@/components/ui/misc';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
+import { PageHero } from '@/components/ui/PageHero';
 import { ExerciseIllustration } from '@/components/ExerciseIllustration';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS, WARMUPS_BY_MUSCLE } from '@/data/exercises';
 import type { RootStackParamList } from '@/navigation/types';
@@ -36,7 +37,7 @@ export function ExerciseStatsScreen() {
   if (progression.length === 0) {
     return (
       <Screen>
-        <Text variant="h1">{name}</Text>
+        <PageHero icon="stats.progression" color={theme.colors.primary} title={name} />
         {exercise && <ExerciseGuide exercise={exercise} />}
         <EmptyState
           icon="stats.progression"
@@ -58,7 +59,7 @@ export function ExerciseStatsScreen() {
 
   return (
     <Screen>
-      <Text variant="h1">{name}</Text>
+      <PageHero icon="stats.progression" color={theme.colors.primary} title={name} />
       {exercise && <ExerciseGuide exercise={exercise} />}
 
       <Row>

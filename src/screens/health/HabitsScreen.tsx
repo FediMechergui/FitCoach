@@ -12,6 +12,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useHabitsStore } from '@/stores/habitsStore';
 import { habitCorrelation, habitDailySeries } from '@/repositories/habitsRepo';
 import { HABIT_CATALOGUE, findHabit, timeEquivalents, type HabitImpact } from '@/lib/habits';
@@ -32,14 +33,7 @@ export function HabitsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="habits.generic" size={28} color={theme.colors.mindbody} />
-        <Text variant="h1">Habits</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Track habits you want to understand or change. FitCoach shows the honest impact — the
-        time it costs and how it maps onto your own sleep and training — without judgment.
-      </Text>
+      <PageHero icon="habits.generic" color={theme.colors.mindbody} title="Habits" subtitle="Track habits you want to understand or change. FitCoach shows the honest impact — the time it costs and how it maps onto your own sleep and training — without judgment." />
 
       {/* Active habits */}
       {profiles.map((p) => (

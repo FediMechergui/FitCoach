@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useHormonesStore } from '@/stores/hormonesStore';
 import {
   HORMONE_CATALOGUE,
@@ -47,15 +48,7 @@ export function HormonesScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="hormone.gland" size={28} color={theme.colors.accent} />
-        <Text variant="h1" style={{ flex: 1 }}>Hormones</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        The endocrine signals that shape your training, recovery, appetite and mood — what raises
-        or lowers each, and the signs of running low or high. Flag any you're low/high in or
-        monitoring so your reports stay relevant.
-      </Text>
+      <PageHero icon="hormone.gland" color={theme.colors.accent} title="Hormones" subtitle="The endocrine signals that shape your training, recovery, appetite and mood — what raises or lowers each, and the signs of running low or high. Flag any you're low/high in or monitoring so your reports stay relevant." />
       <Card accent={theme.colors.warning}>
         <Row gap={10} style={{ alignItems: 'flex-start' }}>
           <Icon icon="core.info" size={18} color={theme.colors.warning} />

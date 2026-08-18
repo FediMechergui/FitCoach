@@ -4,6 +4,15 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from './Text';
 import { Icon } from './Icon';
 
+/**
+ * A section title with an optional action at the right edge.
+ *
+ * Rhythm: the screen lays children out with a uniform 16 gap, which would put
+ * a header exactly as far from the section above as from its own content — so
+ * nothing reads as a group. The header therefore takes extra room above and
+ * pulls its content closer beneath (a negative bottom margin subtracts from
+ * the parent's gap), giving roughly 24 above / 12 below everywhere at once.
+ */
 export function SectionHeader({
   title,
   action,
@@ -13,21 +22,24 @@ export function SectionHeader({
   action?: string;
   onAction?: () => void;
 }) {
+  const theme = useTheme();
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 4,
+        marginTop: theme.spacing.sm,
+        marginBottom: -theme.spacing.xs,
       }}
     >
       <Text variant="h3">{title}</Text>
       {action ? (
-        <Pressable onPress={onAction}>
+        <Pressable onPress={onAction} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           <Text variant="label" color="primary">
             {action}
           </Text>
+          <Icon icon="core.forward" size={14} color={theme.colors.primary} />
         </Pressable>
       ) : null}
     </View>

@@ -4,11 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
-import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Row } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { upsertNutritionGoal } from '@/repositories/userRepo';
@@ -55,10 +55,7 @@ export function GoalsScreen() {
 
   return (
     <Screen>
-      <Text variant="body" color="textMuted">
-        These override the auto-calculated targets. Use “Auto-recalculate” to reset them
-        from your profile & latest weight.
-      </Text>
+      <PageHero icon="nutrition.calories" color={theme.colors.calories} title="Targets" subtitle="These override the auto-calculated targets. Use “Auto-recalculate” to reset them from your profile & latest weight." />
 
       <Card style={{ gap: theme.spacing.md }}>
         <Input label="Daily calories" value={calories} onChangeText={setCalories} suffix="kcal" keyboardType="numeric" />

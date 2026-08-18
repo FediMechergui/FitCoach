@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Row, SectionHeader, Badge, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { metaFor } from '@/constants/sessionTypes';
 import {
@@ -64,25 +65,19 @@ export function ProgramPickerScreen() {
   if (programs.length === 0) {
     return (
       <Screen>
-        <Text variant="h1">{meta.label} programs</Text>
-        <Text variant="body" color="textMuted">
-          No pre-built program for this category yet — pick a method instead, or start a free session.
-        </Text>
+        <PageHero icon={meta.icon} color={meta.color} title={`${meta.label} programs`} subtitle="No pre-built program for this category yet — pick a method instead, or start a free session." />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon={meta.icon} size={26} color={meta.color} />
-        <View style={{ flex: 1 }}>
-          <Text variant="h1">{meta.label} programs</Text>
-          <Text variant="caption" color="textMuted">
-            A whole week planned out — pick the program, then today's day.
-          </Text>
-        </View>
-      </Row>
+      <PageHero
+        icon={meta.icon}
+        color={meta.color}
+        title={`${meta.label} programs`}
+        subtitle="A whole week planned out — pick the program, then today's day."
+      />
 
       <SectionHeader title="Choose a program" />
       {programs.map((p) => {

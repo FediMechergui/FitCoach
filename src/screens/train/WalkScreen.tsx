@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { StatTile } from '@/components/ui/StatTile';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Row, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { RouteMap } from '@/components/RouteMap';
 import type { RootStackParamList } from '@/navigation/types';
 import { useWalkStore } from '@/stores/walkStore';
@@ -128,13 +129,17 @@ export function WalkScreen() {
 
   return (
     <Screen>
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text variant="h1">{initialMode === 'run' ? 'Run' : 'Walk'}</Text>
-        <Badge
-          label={walk.active ? SOURCE_LABEL[walk.source] : hardwareAvailable === false ? 'Accelerometer' : 'Pedometer'}
-          color={hardwareAvailable === false ? theme.colors.warning : theme.colors.accent}
-        />
-      </Row>
+      <PageHero
+        icon={initialMode === 'run' ? 'cardio.running' : 'cardio.walk'}
+        color={theme.colors.outdoor}
+        title={initialMode === 'run' ? 'Run' : 'Walk'}
+        right={
+          <Badge
+            label={walk.active ? SOURCE_LABEL[walk.source] : hardwareAvailable === false ? 'Accelerometer' : 'Pedometer'}
+            color={hardwareAvailable === false ? theme.colors.warning : theme.colors.accent}
+          />
+        }
+      />
 
       <Card>
         <View style={{ alignItems: 'center', gap: theme.spacing.md }}>

@@ -13,6 +13,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, SectionHeader, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   currentFastingState,
@@ -87,11 +88,12 @@ export function FastingScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="faith.fasting" size={28} color={theme.colors.warning} />
-        <Text variant="h1" style={{ flex: 1 }}>Fasting</Text>
-        {enabled && <Badge label={mode === 'ramadan' ? 'Ramadan' : 'Intermittent'} color={theme.colors.warning} />}
-      </Row>
+      <PageHero
+        icon="faith.fasting"
+        color={theme.colors.warning}
+        title="Fasting"
+        right={enabled ? <Badge label={mode === 'ramadan' ? 'Ramadan' : 'Intermittent'} color={theme.colors.warning} /> : undefined}
+      />
 
       {!enabled ? (
         <>

@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER } from '@/data/specialPrograms';
 import { dietNutrition, mealToDiaryInputs, type MealNutrition } from '@/lib/specialDiet';
 import { addPreciseFood } from '@/repositories/nutritionRepo';
@@ -28,15 +29,12 @@ export function ProgrammeMealsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="nutrition.calories" size={26} color={theme.colors.calories} />
-        <View style={{ flex: 1 }}>
-          <Text variant="h1">Programme meals</Text>
-          <Text variant="caption" color="textMuted">
-            Eat like a legionary, a monk or a hero — every meal logs with its real macros & micros.
-          </Text>
-        </View>
-      </Row>
+      <PageHero
+        icon="nutrition.calories"
+        color={theme.colors.calories}
+        title="Programme meals"
+        subtitle="Eat like a legionary, a monk or a hero — every meal logs with its real macros & micros."
+      />
 
       {SPECIAL_CATEGORY_ORDER.map((cat) => (
         <View key={cat} style={{ gap: theme.spacing.sm }}>

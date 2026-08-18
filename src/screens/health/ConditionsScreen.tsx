@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Row, SectionHeader } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useConditionsStore } from '@/stores/conditionsStore';
 import {
   CONDITION_CATALOGUE,
@@ -33,15 +34,7 @@ export function ConditionsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="health.medical" size={28} color={theme.colors.danger} />
-        <Text variant="h1" style={{ flex: 1 }}>Health conditions</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Tell FitCoach about any chronic conditions so your coach tips and exported reports
-        include the right considerations. This is not medical advice — always follow your
-        clinician.
-      </Text>
+      <PageHero icon="health.medical" color={theme.colors.danger} title="Health conditions" subtitle="Tell FitCoach about any chronic conditions so your coach tips and exported reports include the right considerations. This is not medical advice — always follow your clinician." />
 
       {activeKeys.size > 0 && (
         <>

@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useUserStore } from '@/stores/userStore';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import {
@@ -72,14 +73,7 @@ export function DietPlanScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="nutrition.calories" size={26} color={theme.colors.calories} />
-        <Text variant="h1" style={{ flex: 1 }}>Diet plan</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        A day of meals built to hit your targets. Tap “Shuffle” for a fresh combination with the
-        same macros, switch the style, or log a meal straight to your diary.
-      </Text>
+      <PageHero icon="nutrition.calories" color={theme.colors.calories} title="Diet plan" subtitle="A day of meals built to hit your targets. Tap “Shuffle” for a fresh combination with the same macros, switch the style, or log a meal straight to your diary." />
 
       {/* Target summary */}
       <Card accent={theme.colors.calories}>

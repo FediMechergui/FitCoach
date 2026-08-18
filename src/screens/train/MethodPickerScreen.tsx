@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Row, SectionHeader, Badge, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { metaFor } from '@/constants/sessionTypes';
 import { methodsFor, EFFORT_LABEL, type TrainingMethod } from '@/data/trainingMethods';
@@ -62,13 +63,7 @@ export function MethodPickerScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon={meta.icon} size={26} color={meta.color} />
-        <View style={{ flex: 1 }}>
-          <Text variant="h1">{meta.label}</Text>
-          <Text variant="caption" color="textMuted">{meta.blurb}</Text>
-        </View>
-      </Row>
+      <PageHero icon={meta.icon} color={meta.color} title={meta.label} subtitle={meta.blurb} />
 
       {/* Splits — strength only, since a split is a muscle-group rotation */}
       {sessionType === 'strength' && (

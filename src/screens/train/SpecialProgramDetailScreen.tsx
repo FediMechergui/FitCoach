@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Row, SectionHeader, Badge, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { metaFor } from '@/constants/sessionTypes';
 import { LEVEL_LABEL } from '@/data/programs';
@@ -69,25 +70,7 @@ export function SpecialProgramDetailScreen() {
 
   return (
     <Screen>
-      {/* Header */}
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <View
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 16,
-            backgroundColor: program.accent + '22',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon icon={program.icon} size={28} color={program.accent} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text variant="h1">{program.name}</Text>
-          <Text variant="caption" color="textMuted">{program.tagline}</Text>
-        </View>
-      </Row>
+      <PageHero icon={program.icon} color={program.accent} title={program.name} subtitle={program.tagline} />
 
       <Row gap={6} style={{ flexWrap: 'wrap' }}>
         <Badge label={LEVEL_LABEL[program.level]} color={program.accent} />

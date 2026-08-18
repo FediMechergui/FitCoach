@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Row, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { BadgeSvg } from '@/components/BadgeSvg';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, type AchievementDef } from '@/data/achievements';
 import { achievementStats, type AchievementStats } from '@/repositories/achievementsRepo';
@@ -43,10 +44,7 @@ export function AchievementsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="card.trophy" size={28} color={theme.colors.warning} />
-        <Text variant="h1" style={{ flex: 1 }}>Achievements</Text>
-      </Row>
+      <PageHero icon="card.trophy" color={theme.colors.warning} title="Achievements" />
 
       {/* Overall progress */}
       <Card accent={theme.colors.warning} style={{ gap: 8 }}>

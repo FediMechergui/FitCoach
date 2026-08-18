@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Chip } from '@/components/ui/Chip';
 import { Row, SectionHeader, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { LEVEL_LABEL } from '@/data/programs';
 import {
@@ -33,15 +34,12 @@ export function SpecialProgramsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="mindbody.special" size={28} color={theme.colors.accent} />
-        <View style={{ flex: 1 }}>
-          <Text variant="h1">Special Programmes</Text>
-          <Text variant="caption" color="textMuted">
-            Train like a soldier, a monk, a legionary — each with its own week and its own diet.
-          </Text>
-        </View>
-      </Row>
+      <PageHero
+        icon="mindbody.special"
+        color={theme.colors.accent}
+        title="Special programmes"
+        subtitle="Train like a soldier, a monk, a legionary — each with its own week and its own diet."
+      />
 
       <Card accent={theme.colors.textFaint} style={{ gap: 4 }}>
         <Row gap={8} style={{ alignItems: 'flex-start' }}>

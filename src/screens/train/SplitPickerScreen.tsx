@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { SPLITS, type SplitDay, type SplitTemplate } from '@/data/splits';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
@@ -42,11 +43,7 @@ export function SplitPickerScreen() {
 
   return (
     <Screen>
-      <Text variant="h1">Training split</Text>
-      <Text variant="body" color="textMuted">
-        Pick a split and a day — FitCoach pre-loads that day's exercises so you can just start
-        lifting. You can add or remove anything once you're in.
-      </Text>
+      <PageHero icon="strength.barbell" color={theme.colors.strength} title="Training split" subtitle="Pick a split and a day — FitCoach pre-loads that day's exercises so you can just start lifting. You can add or remove anything once you're in." />
 
       <SectionHeader title="Choose a split" />
       {SPLITS.map((s) => {

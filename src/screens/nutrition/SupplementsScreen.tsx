@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useSupplementsStore } from '@/stores/supplementsStore';
 import { supplementStreak, unitsTakenToday } from '@/repositories/supplementsRepo';
 import type { SupplementStack } from '@/db/schema';
@@ -42,15 +43,7 @@ export function SupplementsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="supp.pill" size={28} color={theme.colors.accent} />
-        <Text variant="h1">Supplements</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Track pills and powders. Vitamin/mineral supplements count toward your Micronutrients
-        totals; performance supplements are tracked for dose and consistency with honest
-        evidence. None of this changes your calories or macros.
-      </Text>
+      <PageHero icon="supp.pill" color={theme.colors.accent} title="Supplements" subtitle="Track pills and powders. Vitamin and mineral supplements count toward your micronutrient totals; the few with real energy — whey, fish oil, collagen — log their calories to your diary automatically; performance supplements are tracked for dose and consistency, with honest evidence." />
 
       {/* Goal-based plan builder */}
       <Pressable onPress={() => navigation.navigate('SupplementPlan')}>

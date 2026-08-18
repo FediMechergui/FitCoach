@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
 import { StatTile } from '@/components/ui/StatTile';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useCycleStore } from '@/stores/cycleStore';
 import { PHASE_GUIDANCE, CYCLE_SYMPTOMS, computeCycle } from '@/lib/cycle';
 import { todayISO, toISODate } from '@/lib/date';
@@ -45,14 +46,7 @@ function CycleSetup() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="cycle.flower" size={28} color={theme.colors.protein} />
-        <Text variant="h1" style={{ flex: 1 }}>Cycle tracking</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Track your menstrual cycle to see how your hormones influence energy, strength and
-        recovery — and time training and nutrition to work with your body, not against it.
-      </Text>
+      <PageHero icon="cycle.flower" color={theme.colors.protein} title="Cycle tracking" subtitle="Track your menstrual cycle to see how your hormones influence energy, strength and recovery — and time training and nutrition to work with your body, not against it." />
       <Card style={{ gap: theme.spacing.md }}>
         <Row>
           <View style={{ flex: 1 }}>
@@ -97,13 +91,12 @@ function CycleDashboard() {
 
   return (
     <Screen>
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Row gap={10} style={{ alignItems: 'center' }}>
-          <Icon icon="cycle.flower" size={26} color={g.color} />
-          <Text variant="h1">Cycle</Text>
-        </Row>
-        <Text variant="caption" color="textMuted">Day {state.dayOfCycle} / {state.cycleLength}</Text>
-      </Row>
+      <PageHero
+        icon="cycle.flower"
+        color={g.color}
+        title="Cycle"
+        right={<Text variant="caption" color="textMuted">Day {state.dayOfCycle} / {state.cycleLength}</Text>}
+      />
 
       {/* Phase card */}
       <Card accent={g.color} style={{ gap: 8 }}>

@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Row, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { CHANGELOG } from '@/data/changelog';
 
 export function ChangelogScreen() {
@@ -14,10 +15,7 @@ export function ChangelogScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="card.star" size={26} color={theme.colors.primary} />
-        <Text variant="h1">What's new</Text>
-      </Row>
+      <PageHero icon="card.star" color={theme.colors.primary} title="What's new" />
 
       {CHANGELOG.map((entry, i) => (
         <Card key={entry.version} accent={i === 0 ? theme.colors.primary : theme.colors.border} style={{ gap: 8 }}>

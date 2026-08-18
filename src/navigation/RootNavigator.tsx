@@ -57,6 +57,12 @@ export function RootNavigator() {
   const user = useUserStore((s) => s.user);
   const onboarded = !!user?.onboardedAt;
 
+  /*
+   * Title ownership: a page has exactly one title. Pages that open with a
+   * PageHero (icon tile + h1) get title: '' here, so the native header carries
+   * only the back arrow; forms, lists and modals without a hero keep the bar
+   * title. Never both — verify-engines enforces the pairing.
+   */
   const headerBase = {
     headerStyle: { backgroundColor: theme.colors.bg },
     headerTintColor: theme.colors.text,
@@ -81,13 +87,13 @@ export function RootNavigator() {
             component={SessionTypePickerScreen}
             options={{ title: 'Start a Session', presentation: 'modal' }}
           />
-          <Stack.Screen name="LogSession" component={LogSessionScreen} options={{ title: 'Log Past Session', presentation: 'modal' }} />
-          <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: 'Training Split' }} />
-          <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: 'Training Methods' }} />
-          <Stack.Screen name="ProgramPicker" component={ProgramPickerScreen} options={{ title: 'Programs' }} />
-          <Stack.Screen name="SpecialPrograms" component={SpecialProgramsScreen} options={{ title: 'Special Programmes' }} />
-          <Stack.Screen name="DailyChallenge" component={ChallengeScreen} options={{ title: 'Daily Challenge' }} />
-          <Stack.Screen name="SpecialProgramDetail" component={SpecialProgramDetailScreen} options={{ title: 'Programme' }} />
+          <Stack.Screen name="LogSession" component={LogSessionScreen} options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: '' }} />
+          <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: '' }} />
+          <Stack.Screen name="ProgramPicker" component={ProgramPickerScreen} options={{ title: '' }} />
+          <Stack.Screen name="SpecialPrograms" component={SpecialProgramsScreen} options={{ title: '' }} />
+          <Stack.Screen name="DailyChallenge" component={ChallengeScreen} options={{ title: '' }} />
+          <Stack.Screen name="SpecialProgramDetail" component={SpecialProgramDetailScreen} options={{ title: '' }} />
           <Stack.Screen
             name="ActiveSession"
             component={ActiveSessionScreen}
@@ -101,9 +107,9 @@ export function RootNavigator() {
           <Stack.Screen
             name="SessionRecap"
             component={SessionRecapScreen}
-            options={{ title: 'Recap', headerBackVisible: false }}
+            options={{ headerShown: false }}
           />
-          <Stack.Screen name="Walk" component={WalkScreen} options={{ title: 'Walk / Run' }} />
+          <Stack.Screen name="Walk" component={WalkScreen} options={{ title: '' }} />
           <Stack.Screen
             name="SessionHistory"
             component={SessionHistoryScreen}
@@ -130,39 +136,39 @@ export function RootNavigator() {
             component={ComposeFoodScreen}
             options={{ title: 'Compose a Dish', presentation: 'modal' }}
           />
-          <Stack.Screen name="Micronutrients" component={MicronutrientsScreen} options={{ title: 'Micronutrients' }} />
-          <Stack.Screen name="Supplements" component={SupplementsScreen} options={{ title: 'Supplements' }} />
-          <Stack.Screen name="SupplementPlan" component={SupplementPlanScreen} options={{ title: 'Supplement Plan' }} />
-          <Stack.Screen name="DietPlan" component={DietPlanScreen} options={{ title: 'Diet Plan' }} />
-          <Stack.Screen name="ProgrammeMeals" component={ProgrammeMealsScreen} options={{ title: 'Programme Meals' }} />
+          <Stack.Screen name="Micronutrients" component={MicronutrientsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Supplements" component={SupplementsScreen} options={{ title: '' }} />
+          <Stack.Screen name="SupplementPlan" component={SupplementPlanScreen} options={{ title: '' }} />
+          <Stack.Screen name="DietPlan" component={DietPlanScreen} options={{ title: '' }} />
+          <Stack.Screen name="ProgrammeMeals" component={ProgrammeMealsScreen} options={{ title: '' }} />
           <Stack.Screen
             name="ExerciseStats"
             component={ExerciseStatsScreen}
-            options={{ title: 'Progression' }}
+            options={{ title: '' }}
           />
           <Stack.Screen
             name="EditProfile"
             component={EditProfileScreen}
             options={{ title: 'Edit Profile' }}
           />
-          <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Targets' }} />
-          <Stack.Screen name="Smoking" component={SmokingScreen} options={{ title: 'Smoking' }} />
-          <Stack.Screen name="Sleep" component={SleepScreen} options={{ title: 'Sleep' }} />
-          <Stack.Screen name="Work" component={WorkScreen} options={{ title: 'Work Hours' }} />
-          <Stack.Screen name="Habits" component={HabitsScreen} options={{ title: 'Habits' }} />
-          <Stack.Screen name="Alcohol" component={AlcoholScreen} options={{ title: 'Alcohol' }} />
-          <Stack.Screen name="Cycle" component={CycleScreen} options={{ title: 'Cycle' }} />
-          <Stack.Screen name="Conditions" component={ConditionsScreen} options={{ title: 'Health' }} />
-          <Stack.Screen name="Hormones" component={HormonesScreen} options={{ title: 'Hormones' }} />
-          <Stack.Screen name="Body" component={BodyScreen} options={{ title: 'Body' }} />
-          <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: 'Athlete Card' }} />
-          <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: 'Achievements' }} />
-          <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
-          <Stack.Screen name="Growth" component={GrowthScreen} options={{ title: 'Muscle Growth' }} />
-          <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: "What's New" }} />
-          <Stack.Screen name="Trends" component={TrendsScreen} options={{ title: 'Trends' }} />
-          <Stack.Screen name="Prayers" component={PrayersScreen} options={{ title: 'Prayer Times' }} />
-          <Stack.Screen name="Fasting" component={FastingScreen} options={{ title: 'Fasting' }} />
+          <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Smoking" component={SmokingScreen} options={{ title: '' }} />
+          <Stack.Screen name="Sleep" component={SleepScreen} options={{ title: '' }} />
+          <Stack.Screen name="Work" component={WorkScreen} options={{ title: '' }} />
+          <Stack.Screen name="Habits" component={HabitsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Alcohol" component={AlcoholScreen} options={{ title: '' }} />
+          <Stack.Screen name="Cycle" component={CycleScreen} options={{ title: '' }} />
+          <Stack.Screen name="Conditions" component={ConditionsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Hormones" component={HormonesScreen} options={{ title: '' }} />
+          <Stack.Screen name="Body" component={BodyScreen} options={{ title: '' }} />
+          <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: '' }} />
+          <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Growth" component={GrowthScreen} options={{ title: '' }} />
+          <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: '' }} />
+          <Stack.Screen name="Trends" component={TrendsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Prayers" component={PrayersScreen} options={{ title: '' }} />
+          <Stack.Screen name="Fasting" component={FastingScreen} options={{ title: '' }} />
         </>
       )}
     </Stack.Navigator>

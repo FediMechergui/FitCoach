@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge, EmptyState } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { growthReport, type GrowthReport } from '@/repositories/growthRepo';
 import {
   GROWTH_STATUS_COLOR,
@@ -37,7 +38,7 @@ export function GrowthScreen() {
   if (trained.length === 0) {
     return (
       <Screen>
-        <Text variant="h1">Muscle growth</Text>
+        <PageHero icon="stats.muscleMap" color={theme.colors.strength} title="Muscle growth" />
         <EmptyState
           icon="stats.muscleMap"
           title="No strength training logged yet"
@@ -49,15 +50,7 @@ export function GrowthScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="stats.muscleMap" size={28} color={theme.colors.accent} />
-        <Text variant="h1">Muscle growth</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        An honest readout: how closely your real logs match the conditions research ties to
-        hypertrophy — volume (10–20 hard sets/muscle/week), progressive overload, recovery,
-        protein and sleep. No invented numbers.
-      </Text>
+      <PageHero icon="stats.muscleMap" color={theme.colors.accent} title="Muscle growth" subtitle="An honest readout: how closely your real logs match the conditions research ties to hypertrophy — volume (10–20 hard sets/muscle/week), progressive overload, recovery, protein and sleep. No invented numbers." />
 
       {/* Growth gates */}
       <SectionHeader title="Growth conditions" />

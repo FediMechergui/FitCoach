@@ -11,6 +11,7 @@ import { DualLineChart } from '@/components/charts/DualLineChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader } from '@/components/ui/misc';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { PageHero } from '@/components/ui/PageHero';
 import { Pressable } from 'react-native';
 import {
   trendsData,
@@ -68,10 +69,7 @@ export function TrendsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="stats.progression" size={28} color={theme.colors.primary} />
-        <Text variant="h1">Trends</Text>
-      </Row>
+      <PageHero icon="stats.progression" color={theme.colors.primary} title="Trends" />
 
       {/* Granularity + time navigation */}
       <SegmentedControl

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Image, Pressable } from 'react-native';
+import { View, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Row } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useUserStore } from '@/stores/userStore';
 import { computeCardRating } from '@/repositories/cardRepo';
 import { currentMonthKey, getProfilePhoto, setProfilePhoto } from '@/repositories/userRepo';
@@ -65,11 +66,7 @@ export function ProfileCardScreen() {
 
   return (
     <Screen>
-      <Text variant="h1">Athlete Card</Text>
-      <Text variant="body" color="textMuted">
-        Your card is built from your real stats and refreshes as you train. Set this month's
-        photo and share it like a FIFA card.
-      </Text>
+      <PageHero icon="card.star" color={theme.colors.primary} title="Athlete card" subtitle="Your card is built from your real stats and refreshes as you train. Set this month's photo and share it like a FIFA card." />
 
       {/* The card (captured to PNG) */}
       <View style={{ alignItems: 'center' }}>

@@ -116,8 +116,8 @@ export function ProfileScreen() {
 
       {/* Weight */}
       <Card>
-        <SectionHeader title="Weight" />
-        <Row style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+        <Text variant="h3">Weight</Text>
+        <Row style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
           <View>
             <Text variant="display" style={{ fontVariant: ['tabular-nums'] }}>
               {currentWeightKg ? (unit === 'imperial' ? kgToLb(currentWeightKg).toFixed(1) : currentWeightKg.toFixed(1)) : '—'}

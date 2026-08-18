@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useWorkStore } from '@/stores/workStore';
 import { rangeMinutes, minutesToHM } from '@/lib/time';
 
@@ -39,14 +40,7 @@ export function WorkScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="work.briefcase" size={28} color={theme.colors.info} />
-        <Text variant="h1">Work hours</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Log your work day as a time range. Long hours quietly compete with sleep and recovery —
-        seeing them next to your training makes the trade-offs visible.
-      </Text>
+      <PageHero icon="work.briefcase" color={theme.colors.info} title="Work hours" subtitle="Log your work day as a time range. Long hours quietly compete with sleep and recovery — seeing them next to your training makes the trade-offs visible." />
 
       <Card style={{ gap: theme.spacing.md }}>
         <View style={{ alignItems: 'center' }}>

@@ -12,6 +12,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { AlcoholType } from '@/db/schema';
 import { useAlcoholStore } from '@/stores/alcoholStore';
 import { ALCOHOL_PRESETS, computeDrink, bacLabel } from '@/lib/alcohol';
@@ -48,10 +49,7 @@ export function AlcoholScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="alcohol.beer" size={28} color={theme.colors.warning} />
-        <Text variant="h1">Alcohol</Text>
-      </Row>
+      <PageHero icon="alcohol.beer" color={theme.colors.warning} title="Alcohol" />
 
       {/* Logger */}
       <Card style={{ gap: theme.spacing.md }}>

@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Row, SectionHeader, Divider, Badge, EmptyState } from '@/components/ui/misc';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StatTile } from '@/components/ui/StatTile';
+import { PageHero } from '@/components/ui/PageHero';
 import { ChallengeWheel } from '@/components/ChallengeWheel';
 import {
   DIFFICULTY_COLOR,
@@ -93,6 +94,12 @@ export function ChallengeScreen() {
 
   return (
     <Screen>
+      <PageHero
+        icon="core.target"
+        color={theme.colors.accent}
+        title="Daily challenge"
+        subtitle="One spin a day. Every challenge is measured from what you actually log — never just ticked."
+      />
       <Card style={{ gap: 12, alignItems: 'center' }}>
         <Text variant="h3">{settled ? "Today's challenge" : 'Spin for today'}</Text>
         {!settled && (

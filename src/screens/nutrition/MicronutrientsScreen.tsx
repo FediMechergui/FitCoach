@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Row, SectionHeader, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import { useUserStore } from '@/stores/userStore';
@@ -61,6 +62,7 @@ export function MicronutrientsScreen() {
 
   return (
     <Screen>
+      <PageHero icon="micro.vitamins" color={theme.colors.accent} title="Micronutrients" />
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Pressable onPress={() => setDate(addDays(date, -1))} hitSlop={8}>
           <Icon icon="core.back" size={24} color={theme.colors.textMuted} />

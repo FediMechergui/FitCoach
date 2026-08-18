@@ -14,6 +14,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { NICOTINE_GROUPS, findNicotineProduct } from '@/data/nicotineProducts';
@@ -76,12 +77,7 @@ function SmokingSetup({ editing, onDone }: { editing?: boolean; onDone?: () => v
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="smoking.cigarette" size={30} color={theme.colors.warning} />
-        <Text variant="h1" style={{ flex: 1 }}>
-          {editing ? 'Tracker settings' : 'Smoking tracker'}
-        </Text>
-      </Row>
+      <PageHero icon="smoking.cigarette" color={theme.colors.warning} title={editing ? 'Tracker settings' : 'Smoking tracker'} />
       {!editing && (
         <Text variant="body" color="textMuted">
           Optional and private. Log cigarettes with a tap and FitCoach shows — honestly, no
@@ -165,10 +161,12 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
 
   return (
     <Screen>
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text variant="h1">Smoking</Text>
-        {profile.mode === 'quitting' ? <Badge label="Quitting" color={theme.colors.accent} /> : <Badge label="Tracking" color={theme.colors.textMuted} />}
-      </Row>
+      <PageHero
+        icon="smoking.cigarette"
+        color={profile.mode === 'quitting' ? theme.colors.accent : theme.colors.warning}
+        title="Smoking"
+        right={profile.mode === 'quitting' ? <Badge label="Quitting" color={theme.colors.accent} /> : <Badge label="Tracking" color={theme.colors.textMuted} />}
+      />
 
       {/* Today logger */}
       <Card accent={overTarget ? theme.colors.danger : theme.colors.warning}>

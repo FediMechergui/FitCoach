@@ -2184,5 +2184,45 @@ console.log('\nNutrient completeness — every food, every supplement, every wri
   check('Diet plan shows a fibre pill and per-item fibre', /label="Fb" got=\{plan\.totals\.fiber\} target=\{recommendedFiberG\(target\.calories\)\}/.test(dpSrcN) && /F\{item\.fat\} Fb\{item\.fiber\}/.test(dpSrcN));
 }
 
+console.log('\nLayout — one title per page, uniform heroes, section rhythm:');
+{
+  const navSrcL = fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8');
+  const importsL = Object.fromEntries([...navSrcL.matchAll(/import \{ (\w+) \} from '@\/screens\/([^']+)';/g)].map((m) => [m[1], m[2]]));
+  const routesL = [...navSrcL.matchAll(/<Stack\.Screen\s+name="(\w+)"\s+component=\{(\w+)\}\s+options=\{\{([^}]*)\}\}/g)]
+    .filter((m) => importsL[m[2]])
+    .map((m) => {
+      const src = fs.readFileSync(`src/screens/${importsL[m[2]]}.tsx`, 'utf8');
+      const t = /title: (?:'([^']*)'|"([^"]*)")/.exec(m[3]);
+      return { name: m[1], hero: /<PageHero\b/.test(src), title: t ? (t[1] ?? t[2]) : null, hidden: /headerShown: false/.test(m[3]) };
+    });
+  // A page that opens with a PageHero owns its title; the bar must not repeat it.
+  const doubled = routesL.filter((r) => r.hero && r.title && !r.hidden);
+  check('No page is titled twice (hero + header bar)', doubled.length === 0, doubled.map((r) => r.name).join(', '));
+  // …and a page whose bar title is blank must actually have a hero, or it has no title at all.
+  const untitled = routesL.filter((r) => r.title === '' && !r.hero);
+  check('Every blank-bar page carries a hero', untitled.length === 0, untitled.map((r) => r.name).join(', '));
+  check('The hero pattern is the norm on pushed pages (30+)', routesL.filter((r) => r.hero).length >= 30, `${routesL.filter((r) => r.hero).length}`);
+  check('The rule is documented where the routes live', /Title ownership: a page has exactly one title/.test(navSrcL));
+
+  // No screen still hand-rolls the old hero row — that is how the drift began.
+  const screenFiles = fs.readdirSync('src/screens').flatMap((d) => fs.readdirSync(`src/screens/${d}`).map((f) => `src/screens/${d}/${f}`)).filter((f) => f.endsWith('.tsx') && !/Onboarding/.test(f));
+  const oldHero = screenFiles.filter((f) => /<Row gap=\{12\} style=\{\{ alignItems: 'center' \}\}>\s*<Icon [^\n]*\n\s*<Text variant="h1"/.test(fs.readFileSync(f, 'utf8')));
+  check('No hand-rolled icon + h1 hero rows remain', oldHero.length === 0, oldHero.join(', '));
+
+  const heroSrc = fs.readFileSync('src/components/ui/PageHero.tsx', 'utf8');
+  check('PageHero: tinted 44 tile, 24 icon, h1 title', /width: 44/.test(heroSrc) && /size=\{24\}/.test(heroSrc) && /variant="h1"/.test(heroSrc));
+  check('PageHero: long subtitles run full width beneath, short ones sit inline', /INLINE_SUBTITLE_MAX = 100/.test(heroSrc) && /below \?/.test(heroSrc));
+
+  const miscSrc = fs.readFileSync('src/components/ui/misc.tsx', 'utf8');
+  check('SectionHeader takes room above and pulls its content closer', /marginTop: theme\.spacing\.sm,\s*marginBottom: -theme\.spacing\.xs/.test(miscSrc));
+  check('SectionHeader action has a chevron and a generous hit area', /hitSlop=\{8\}/.test(miscSrc) && /icon="core\.forward" size=\{14\}/.test(miscSrc));
+  // Its rhythm is tuned for the screen's gap; inside a card it is just an h3.
+  const inCard = screenFiles.filter((f) => /<Card[^>]*>\s*<SectionHeader/.test(fs.readFileSync(f, 'utf8')));
+  check('SectionHeader is a page-level element, never a card\'s first child', inCard.length === 0, inCard.join(', '));
+
+  // Copy that stopped being true when supplements started logging calories.
+  check('Supplements intro no longer claims pills never touch calories', !/None of this changes your calories/.test(fs.readFileSync('src/screens/nutrition/SupplementsScreen.tsx', 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

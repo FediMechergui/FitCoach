@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.40',
+    date: '2026-08-18',
+    title: 'Every nutrient accounted for, and every page opens the same way',
+    highlights: [
+      'A full audit of the nutrient data: all 321 foods carry calories, protein, carbs, fat AND fibre, all carry micronutrients, no food declares more fibre than carbs, and no food\'s calories disagree with its own macros. That was already true — now it is enforced, so it stays true.',
+      'Two gaps closed on the supplement side. Whey the supplement now carries the same milk minerals as whey the food, so a scoop counts the same whichever way you log it (calcium, phosphorus, magnesium, potassium — counted once). The generic multivitamin now carries the calcium, manganese and chromium a typical one-a-day actually has; the GSN entry, built from its label, was already complete.',
+      'Fibre now shows wherever the other macros do: the food picker rows and detail card, the dish composer\'s totals and picker, and the diet plan — which carried no fibre at all before. The plan now has a fibre pill against your target and fibre on every item.',
+      'Verified end to end that every way of putting food in the diary — the picker, a composed dish, a saved meal routine, a programme meal, the diet plan — carries both fibre and micronutrients through, and that a supplement\'s micros are logged from its definition, once, never duplicated.',
+      'Layout: every pushed page now opens the same way — a tinted icon tile, the page title, and a one-line subtitle — and no page is titled twice any more (the header bar used to repeat the title the page already showed). Section headings take more room above and sit closer to their content, so groups read as groups; the little action links grew a chevron and a bigger tap area.',
+      '825 checks in all, up from 785.',
+    ],
+  },
+  {
     version: '2.39',
     date: '2026-08-17',
     title: 'Fibre gets its own bar',

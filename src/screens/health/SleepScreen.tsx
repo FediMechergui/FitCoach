@@ -12,6 +12,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useSleepStore } from '@/stores/sleepStore';
 import { sleepTrainingCorrelation } from '@/repositories/sleepRepo';
 import { assessNight, SLEEP_QUALITY_LABELS } from '@/lib/sleep';
@@ -53,10 +54,7 @@ export function SleepScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="sleep.moon" size={28} color={theme.colors.mindbody} />
-        <Text variant="h1">Sleep</Text>
-      </Row>
+      <PageHero icon="sleep.moon" color={theme.colors.mindbody} title="Sleep" />
 
       {/* Log last night */}
       <Card style={{ gap: theme.spacing.md }}>

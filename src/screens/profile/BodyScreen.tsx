@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useUserStore } from '@/stores/userStore';
 import { latestWeight, weighInHistory, type WeighInExtra } from '@/repositories/userRepo';
 import { goalHistoryList } from '@/repositories/goalHistoryRepo';
@@ -124,14 +125,7 @@ export function BodyScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="stats.bodyFat" size={26} color={theme.colors.info} />
-        <Text variant="h1" style={{ flex: 1 }}>Body composition</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Enter what you measure — everything else is calculated. Every save is kept in your history
-        and your calorie & macro targets are recalculated from it.
-      </Text>
+      <PageHero icon="stats.bodyFat" color={theme.colors.info} title="Body composition" subtitle="Enter what you measure — everything else is calculated. Every save is kept in your history and your calorie & macro targets are recalculated from it." />
 
       {/* ── MEASURED: weight ── */}
       <SectionHeader title="You enter · weight" />

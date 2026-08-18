@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { useSupplementsStore } from '@/stores/supplementsStore';
 import {
   SUPPLEMENT_GOALS,
@@ -76,14 +77,7 @@ export function SupplementPlanScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="supp.pill" size={26} color={theme.colors.accent} />
-        <Text variant="h1" style={{ flex: 1 }}>Supplement plan</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Pick what you're actually trying to achieve. FitCoach builds a timed plan from the
-        catalogue, rates each item honestly, and flags the dose caps and interactions that matter.
-      </Text>
+      <PageHero icon="supp.pill" color={theme.colors.accent} title="Supplement plan" subtitle="Pick what you're actually trying to achieve. FitCoach builds a timed plan from the catalogue, rates each item honestly, and flags the dose caps and interactions that matter." />
 
       {/* Goals */}
       <SectionHeader title="Your goals" />

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -8,9 +8,9 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import {
   getPrayerSettings,
   todaysPrayerTimes,
@@ -76,14 +76,7 @@ export function PrayersScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="faith.crescent" size={28} color={theme.colors.meditation} />
-        <Text variant="h1">Prayer times</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Calculated fully offline from the sun's position at your location. Times can differ a
-        couple of minutes from your local mosque — follow the adhan where it matters.
-      </Text>
+      <PageHero icon="faith.crescent" color={theme.colors.meditation} title="Prayer times" subtitle="Calculated fully offline from the sun's position at your location. Times can differ a couple of minutes from your local mosque — follow the adhan where it matters." />
 
       {/* Location setup */}
       <SectionHeader title="Location" />

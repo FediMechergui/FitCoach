@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Row, SectionHeader } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import { exportReport } from '@/services/pdfReport';
 
 export function ReportsScreen() {
@@ -26,14 +27,7 @@ export function ReportsScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="report.pdf" size={28} color={theme.colors.danger} />
-        <Text variant="h1">Reports</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Generate a shareable PDF from your data, tailored for the professional you're working
-        with. It opens the share sheet so you can send or save it.
-      </Text>
+      <PageHero icon="report.pdf" color={theme.colors.danger} title="Reports" subtitle="Generate a shareable PDF from your data, tailored for the professional you're working with. It opens the share sheet so you can send or save it." />
 
       <SectionHeader title="For a Nutritionist" />
       <Card style={{ gap: 10 }} accent={theme.colors.accent}>

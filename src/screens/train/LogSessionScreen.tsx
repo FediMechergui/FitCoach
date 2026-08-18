@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Row, SectionHeader } from '@/components/ui/misc';
+import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { SESSION_TYPE_META, type SessionTypeMeta } from '@/constants/sessionTypes';
 import { logPastSession } from '@/repositories/sessionRepo';
@@ -87,14 +88,7 @@ export function LogSessionScreen() {
 
   return (
     <Screen>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Icon icon="core.calendar" size={26} color={theme.colors.primary} />
-        <Text variant="h1" style={{ flex: 1 }}>Log a past session</Text>
-      </Row>
-      <Text variant="body" color="textMuted">
-        Forgot to start the timer? Record what you did after the fact — just pick the type and the
-        start–finish time. Duration and calories are worked out for you.
-      </Text>
+      <PageHero icon="core.calendar" color={theme.colors.primary} title="Log a past session" subtitle="Forgot to start the timer? Record what you did after the fact — just pick the type and the start–finish time. Duration and calories are worked out for you." />
 
       <SectionHeader title="Type" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>

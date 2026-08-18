@@ -3,6 +3,7 @@ import { WeatherCard } from '@/components/WeatherCard';
 import { DigestionCard } from '@/components/DigestionCard';
 import { mealsFromEntries } from '@/lib/digestion';
 import { foodEntriesForDay } from '@/repositories/nutritionRepo';
+import { recentSmokeEvents } from '@/repositories/smokingRepo';
 import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { View, Pressable, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -122,6 +123,8 @@ export function HomeScreen() {
 
   // Digestion inputs re-derive whenever the food snapshot changes.
   const digestMeals = useMemo(() => mealsFromEntries(foodEntriesForDay(todayISO())), [food]);
+  // Keyed on today's count so logging a cigarette re-reads the events at once.
+  const smokes = useMemo(() => recentSmokeEvents(), [smokingEnabled, smokingToday]);
   const calTarget = goal?.calorieTarget ?? 2200;
   const calConsumed = food?.calories ?? 0;
   // Rounded even though dayNutrition already rounds its total: the subtraction
@@ -168,7 +171,7 @@ export function HomeScreen() {
 
       {/* Today's weather and what it changes; whether the last meal has cleared */}
       <WeatherCard />
-      <DigestionCard meals={digestMeals} compact />
+      <DigestionCard meals={digestMeals} smokes={smokes} compact />
 
       {/* Primary rings */}
       <Card>

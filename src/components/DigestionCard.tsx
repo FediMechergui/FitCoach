@@ -8,16 +8,24 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Row } from '@/components/ui/misc';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import {
-  currentDigestion,
   digestionStatus,
   formatWait,
   INTENSITY_LABEL,
   type MealForDigestion,
   type TrainingIntensity,
 } from '@/lib/digestion';
+import { trainReadiness } from '@/lib/readiness';
+import type { SmokeEvent } from '@/lib/smokeClock';
 
 /**
- * "Can I train yet?" — the meal still in the way, and when it clears.
+ * "Can I train yet?" — everything still in the way, and when it clears.
+ *
+ * Two clocks feed it. The STOMACH: every meal still digesting, stacked into
+ * one load that drains at a rate set by its mix — so a snack an hour after
+ * lunch pushes the time out rather than starting a fresh short timer. The
+ * SMOKE: the acute nicotine window after the last use of anything, plus the
+ * carbon-monoxide load from what was burned, which also stacks. Whichever is
+ * later governs, and the card says which.
  *
  * Re-renders on a one-minute tick so the countdown moves without a manual
  * refresh. Intensity is a control because the honest answer depends on it: a
@@ -25,10 +33,12 @@ import {
  */
 export function DigestionCard({
   meals,
+  smokes = [],
   defaultIntensity = 'moderate',
   compact = false,
 }: {
   meals: MealForDigestion[];
+  smokes?: SmokeEvent[];
   defaultIntensity?: TrainingIntensity;
   compact?: boolean;
 }) {
@@ -40,34 +50,74 @@ export function DigestionCard({
     return () => clearInterval(t);
   }, []);
 
-  const status = useMemo(() => currentDigestion(meals, intensity, now), [meals, intensity, now]);
+  const r = useMemo(() => trainReadiness({ meals, smokes }, intensity, now), [meals, smokes, intensity, now]);
 
-  if (!meals.length) return null;
+  if (!meals.length && !smokes.length) return null;
 
-  const clear = !status;
-  const color = clear ? theme.colors.success : status.progress > 0.66 ? theme.colors.warning : theme.colors.calories;
+  const clear = r.ready;
+  const color = clear ? theme.colors.success : r.progress > 0.66 ? theme.colors.warning : r.governor === 'smoke' ? theme.colors.danger : theme.colors.calories;
+  const headIcon = clear ? 'core.check' : r.governor === 'smoke' ? 'smoking.cigarette' : 'digest.clock';
 
   return (
     <Card accent={color} style={{ gap: 10 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-          <Icon icon={clear ? 'core.check' : 'digest.clock'} size={22} color={color} />
+          <Icon icon={headIcon} size={22} color={color} />
           <View style={{ flex: 1 }}>
             <Text variant="bodyStrong">
-              {clear ? 'Clear to train' : `Wait ${formatWait(status.remainingMin)}`}
+              {clear ? 'Clear to train' : `Wait ${formatWait(r.remainingMin)}`}
             </Text>
             <Text variant="caption" color="textMuted">
               {clear
-                ? `Nothing still digesting — good to go for ${INTENSITY_LABEL[intensity]}.`
-                : status.readyFor
-                  ? `Ready now for ${INTENSITY_LABEL[status.readyFor]}; ${INTENSITY_LABEL[intensity]} at ${clock(status.readyAt)}.`
-                  : `Your last meal is ${Math.round(status.progress * 100)}% through — ${INTENSITY_LABEL[intensity]} at ${clock(status.readyAt)}.`}
+                ? `Nothing in the way — good to go for ${INTENSITY_LABEL[intensity]}.`
+                : r.readyFor
+                  ? `Fine now for ${INTENSITY_LABEL[r.readyFor]}; ${INTENSITY_LABEL[intensity]} at ${clock(r.readyAt)}.`
+                  : `${INTENSITY_LABEL[intensity]} at ${clock(r.readyAt)}.`}
             </Text>
           </View>
         </Row>
       </Row>
 
-      {!clear && <ProgressBar progress={status.progress} color={color} />}
+      {!clear && <ProgressBar progress={r.progress} color={color} />}
+
+      {/* One line per clock that is still running, the governing one first. */}
+      {!clear && (
+        <View style={{ gap: 4 }}>
+          {[r.governor === 'smoke' ? 'smoke' : 'stomach', r.governor === 'smoke' ? 'stomach' : 'smoke'].map((k) => {
+            if (k === 'stomach' && r.stomach) {
+              const s = r.stomach;
+              return (
+                <Row key="stomach" gap={6} style={{ alignItems: 'center' }}>
+                  <Icon icon="digest.stomach" size={13} color={theme.colors.textMuted} />
+                  <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+                    Stomach: ~{s.loadKcal} kcal still digesting
+                    {s.mealCount > 1 ? ` across ${s.mealCount} meals (${s.eatenKcal} kcal eaten)` : ''} — {formatWait(s.remainingMin)}
+                    {r.governor === 'stomach' ? '' : ` (${INTENSITY_LABEL[intensity]} at ${clock(s.readyAt)})`}.
+                  </Text>
+                </Row>
+              );
+            }
+            if (k === 'smoke' && r.smoke) {
+              const k2 = r.smoke;
+              const what = k2.lastCombusted
+                ? `${k2.recentCount} smoked in the last day`
+                : 'nicotine (not smoked)';
+              const why = k2.limitedBy === 'co'
+                ? `carbon monoxide still on board (~${k2.coLoad.toFixed(1)} cigarettes' worth)`
+                : `heart rate and vessels still in the acute nicotine window`;
+              return (
+                <Row key="smoke" gap={6} style={{ alignItems: 'center' }}>
+                  <Icon icon="smoking.cigarette" size={13} color={theme.colors.textMuted} />
+                  <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+                    Smoke: {what}, {why} — {formatWait(k2.remainingMin)}.
+                  </Text>
+                </Row>
+              );
+            }
+            return null;
+          })}
+        </View>
+      )}
 
       {!compact && (
         <>
@@ -81,9 +131,11 @@ export function DigestionCard({
             onChange={(v) => setIntensity(v as TrainingIntensity)}
           />
           <Text variant="caption" color="textFaint">
-            An estimate from meal size, fat, protein and fibre against standard stomach-emptying
-            times — bigger and fattier meals sit longer, and hard training needs an emptier stomach
-            than a walk. Your own tolerance is the final word.
+            The stomach clock stacks everything still digesting and drains it at a rate set by the
+            mix — carbs fastest, then protein, fat and fibre slowest — so a snack on top of lunch
+            waits for both. The smoke clock counts the acute nicotine window after anything, plus
+            carbon monoxide from what was burned, which stacks too. Estimates from standard
+            figures; your own tolerance is the final word.
           </Text>
         </>
       )}
@@ -91,7 +143,7 @@ export function DigestionCard({
   );
 }
 
-/** Per-meal line: how long this particular meal needs. */
+/** Per-meal line: how long this particular meal needs, eaten alone. */
 export function MealDigestionLine({ meal }: { meal: MealForDigestion }) {
   const theme = useTheme();
   const [now, setNow] = useState(Date.now());

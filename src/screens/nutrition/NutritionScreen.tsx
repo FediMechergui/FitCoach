@@ -27,6 +27,7 @@ import { MealRoutineBar } from '@/components/MealRoutineBar';
 import { DigestionCard, MealDigestionLine } from '@/components/DigestionCard';
 import { mealsFromEntries } from '@/lib/digestion';
 import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
+import { recentSmokeEvents } from '@/repositories/smokingRepo';
 import { addDays, todayISO } from '@/lib/date';
 import { recommendedFiberG } from '@/lib/calories';
 
@@ -50,6 +51,7 @@ export function NutritionScreen() {
   );
   const smokingEnabled = useSmokingStore((s) => s.enabled);
   const smokingToday = useSmokingStore((s) => s.today);
+  const smokes = useMemo(() => recentSmokeEvents(), [smokingEnabled, smokingToday]);
   const smokingImpact = useSmokingStore((s) => s.impact);
   const addCig = useSmokingStore((s) => s.add);
   const undoCig = useSmokingStore((s) => s.undo);
@@ -288,7 +290,7 @@ export function NutritionScreen() {
       <MealRoutineBar mealType={null} date={date} onChanged={refresh} />
 
       {/* Is the last meal out of the way? Today only — yesterday's lunch is not a training question. */}
-      {date === todayISO() && <DigestionCard meals={digestMeals} />}
+      {date === todayISO() && <DigestionCard meals={digestMeals} smokes={smokes} />}
 
       {/* Meals */}
       {MEAL_TYPES.map((meal) => {

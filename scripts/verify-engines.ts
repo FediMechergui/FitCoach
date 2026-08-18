@@ -72,10 +72,9 @@ import {
 import {
   makeComponent, composeTotals, rescaleComponent, parseComponents, describeComponents, wouldCreateCycle,
 } from '../src/lib/composedFood';
-import {
-  digestionMinutes, digestionStatus, currentDigestion, formatWait,
-  intensityForSessionType, mealsFromEntries, type MealForDigestion,
-} from '../src/lib/digestion';
+import { digestionMinutes, digestionStatus, currentDigestion, formatWait, intensityForSessionType, mealsFromEntries, mealSlowness, stomachLoad, drain, minutesToDrain, type MealForDigestion } from '../src/lib/digestion';
+import { smokeStatus, currentSmoke, coLoad, minutesToDecay, CO_HALF_LIFE_MIN, CO_THRESHOLD, NICOTINE_ACUTE_MIN } from '../src/lib/smokeClock';
+import { trainReadiness } from '../src/lib/readiness';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
 import {
   buildDailyWheel,
@@ -1146,52 +1145,141 @@ console.log('\nComposed foods (a dish from other foods with quantities):');
   check('Schema version is at or past the composed-food migration', svC >= 26, `${svC}`);
 }
 
-console.log('\nDigestion clock:');
+console.log('\nDigestion clock — a stomach load that stacks:');
 {
+  const NOW = Date.now();
   const meal = (calories: number, fatG: number, proteinG = 20, fiberG = 4, agoMin = 0): MealForDigestion => ({
-    calories, fatG, proteinG, carbsG: 50, fiberG, eatenAt: Date.now() - agoMin * 60_000,
+    calories, fatG, proteinG, carbsG: 50, fiberG, eatenAt: NOW - agoMin * 60_000,
   });
   // ── Calibration against the standard gastric-emptying ranges ──
   const snack = digestionMinutes(meal(200, 3, 4, 2), 'moderate');
   const mixed = digestionMinutes(meal(600, 20, 30, 6), 'moderate');
+  const mixedHard = digestionMinutes(meal(600, 20, 30, 6), 'hard');
   const fatty = digestionMinutes(meal(900, 40, 35, 6), 'hard');
-  check('A 200 kcal carb snack clears in ~1 h', snack >= 40 && snack <= 75, `${snack} min`);
-  check('A 600 kcal mixed meal needs ~2–3 h', mixed >= 110 && mixed <= 190, `${mixed} min`);
+  check('A 200 kcal carb snack: a normal session in ~20–45 min', snack >= 15 && snack <= 45, `${snack} min`);
+  check('A 600 kcal mixed meal: a normal session in ~2 h', mixed >= 100 && mixed <= 150, `${mixed} min`);
+  check('…and hard training in ~2–3 h', mixedHard >= 130 && mixedHard <= 190, `${mixedHard} min`);
   check('A 900 kcal fatty meal before hard training needs 4 h+', fatty >= 240, `${fatty} min`);
-  check('Water / a hydration row needs essentially no wait', digestionMinutes(meal(0, 0, 0, 0)) <= 5);
-  // ── The levers move the right way ──
+  check('Water / a hydration row needs no wait', digestionMinutes(meal(0, 0, 0, 0)) === 0);
+  // ── The levers move the right way, and are about the MIX ──
   check('More fat means longer', digestionMinutes(meal(600, 40)) > digestionMinutes(meal(600, 10)));
   check('More food means longer', digestionMinutes(meal(900, 20)) > digestionMinutes(meal(400, 20)));
   check('More fibre means longer', digestionMinutes(meal(600, 20, 20, 15)) > digestionMinutes(meal(600, 20, 20, 2)));
-  check('Hard training needs longer than light', digestionMinutes(meal(600, 20), 'hard') > digestionMinutes(meal(600, 20), 'moderate') && digestionMinutes(meal(600, 20), 'moderate') > digestionMinutes(meal(600, 20), 'light'));
+  check('More protein means longer', digestionMinutes(meal(600, 10, 60, 4)) > digestionMinutes(meal(600, 10, 15, 4)));
+  check('A carb-heavy meal is the fast reference (slowness ~1)', mealSlowness({ calories: 600, proteinG: 15, fatG: 5, fiberG: 3 }) < 1.1);
+  check('A greasy meal is markedly slower than a lean one of the same size', mealSlowness({ calories: 600, proteinG: 20, fatG: 38, fiberG: 2 }) > mealSlowness({ calories: 600, proteinG: 45, fatG: 5, fiberG: 6 }) * 1.25);
+  check('Slowness is bounded 1..2', mealSlowness({ calories: 100, proteinG: 0, fatG: 11, fiberG: 6 }) <= 2 && mealSlowness({ calories: 100, proteinG: 0, fatG: 0, fiberG: 0 }) === 1);
+  check('Hard training needs longer than normal, normal than light', digestionMinutes(meal(600, 20), 'hard') > digestionMinutes(meal(600, 20), 'moderate') && digestionMinutes(meal(600, 20), 'moderate') > digestionMinutes(meal(600, 20), 'light'));
+  check('A walk after a big meal is fine within the hour', digestionMinutes(meal(600, 20), 'light') <= 45);
   check('Never absurd: capped at 5 h', digestionMinutes(meal(3000, 150, 100, 40), 'hard') <= 300);
-  check('Never zero for real food: floored at 5 min', digestionMinutes(meal(25, 0, 0, 0)) >= 5);
+  check('Even a small bite settles first: hard training waits 30 min', digestionMinutes(meal(60, 0, 0, 0), 'hard') === 30);
+  // ── The drain maths ──
+  check('Draining for zero minutes changes nothing', drain(600, 0, 1.2) === 600);
+  check('Draining reduces the load and never goes negative', drain(600, 60, 1.2) < 600 && drain(50, 600, 1) === 0);
+  check('minutesToDrain inverts drain', Math.abs(drain(600, minutesToDrain(600, 180, 1.3), 1.3) - 180) < 0.5);
+  check('A fuller stomach drains more kcal per minute (but takes longer overall)', (1000 - drain(1000, 30, 1)) > (300 - drain(300, 30, 1)) && minutesToDrain(1000, 180, 1) > minutesToDrain(300, 180, 1));
   // ── Status and countdown ──
-  const fresh = digestionStatus(meal(600, 20), 'moderate');
+  const fresh = digestionStatus(meal(600, 20), 'moderate', NOW);
   check('A meal eaten just now is not ready', !fresh.ready && fresh.remainingMin > 0 && fresh.progress === 0);
-  const old = digestionStatus(meal(600, 20, 20, 4, 400), 'hard');
-  check('A meal from 6+ hours ago is ready for anything', old.ready && old.readyFor === 'hard' && old.progress === 1);
-  // 100 min after a 600 kcal meal: past the ~78 min a walk needs, short of the
-  // ~130 a normal session needs — so the honest answer is "light, not yet hard".
-  const half = digestionStatus(meal(600, 20, 20, 4, 100), 'hard');
-  check('Part-way through: readyFor answers what you CAN do now', half.readyFor === 'light' && !half.ready, `${half.readyFor}`);
-  check('…and too soon for anything reads as null, not a flattering guess', digestionStatus(meal(600, 20, 20, 4, 30), 'hard').readyFor === null);
-  check('readyAt is eatenAt plus the required minutes', Math.abs(fresh.readyAt - (Date.now() + fresh.requiredMin * 60_000)) < 2000);
-  // ── The governing meal ──
-  const meals = [meal(600, 20, 20, 4, 30), meal(200, 3, 4, 2, 10), meal(500, 15, 20, 4, 600)];
-  const gov = currentDigestion(meals, 'moderate');
-  check('The most-pending meal governs, cleared ones ignored', !!gov && gov.remainingMin > 0);
-  check('An empty stomach reads as clear', currentDigestion([], 'hard') === null);
-  check('All-cleared meals read as clear', currentDigestion([meal(600, 20, 20, 4, 600)], 'hard') === null);
+  const old = digestionStatus(meal(600, 20, 20, 4, 400), 'hard', NOW);
+  check('A meal from 6+ hours ago is ready for anything', old.ready && old.readyFor === 'hard' && old.progress === 1 && old.loadKcal === 0);
+  // 100 min after a 600 kcal meal ~300 kcal is left: too much for a normal
+  // session (260) or sprints (180), fine for a walk (500).
+  const half = digestionStatus(meal(600, 20, 20, 4, 100), 'hard', NOW);
+  check('Part-way through: readyFor answers what you CAN do now', half.readyFor === 'light' && !half.ready, `${half.readyFor} @${half.loadKcal}`);
+  check('…and too soon for anything reads as null, not a flattering guess', digestionStatus(meal(600, 20, 20, 4, 5), 'hard', NOW).readyFor === null);
+  check('readyAt is now plus the remaining minutes', fresh.readyAt === NOW + fresh.remainingMin * 60_000);
+  check('The status carries the load and what went in', fresh.loadKcal > 0 && fresh.eatenKcal === 600 && fresh.mealCount === 1);
+  // ── STACKING: the whole point ──
+  const lunch = meal(600, 20, 30, 6, 95);
+  const snack2 = meal(300, 10, 10, 3, 5);
+  const alone1 = currentDigestion([lunch], 'hard', NOW)!;
+  const alone2 = currentDigestion([snack2], 'hard', NOW)!;
+  const both = currentDigestion([lunch, snack2], 'hard', NOW)!;
+  check('A snack on top of a half-digested lunch waits for BOTH', both.remainingMin > alone1.remainingMin && both.remainingMin > alone2.remainingMin, `${alone1.remainingMin} / ${alone2.remainingMin} → ${both.remainingMin}`);
+  // Slightly MORE than the two remainders added: two separate timers would each
+  // get their own base emptying rate, and a real stomach has one. That is the
+  // error the old per-meal model made, and the reason for stacking.
+  check('The stacked load is the lunch remainder plus the snack, sharing one stomach', both.loadKcal >= alone1.loadKcal + alone2.loadKcal - 2 && both.loadKcal <= (alone1.loadKcal + alone2.loadKcal) * 1.05 && both.mealCount === 2 && both.eatenKcal === 900, `${alone1.loadKcal}+${alone2.loadKcal} → ${both.loadKcal}`);
+  const stack = stomachLoad([lunch, snack2], NOW);
+  check('stomachLoad reports the last bite and blends the mix', stack.lastEatenAt === snack2.eatenAt && stack.slowness > 1 && stack.slowness < 2);
+  check('A meal cleared before the next does not stack', stomachLoad([meal(500, 15, 20, 4, 600), meal(300, 10, 10, 3, 5)], NOW).meals.length === 1);
+  check('Meals stamped in the future are ignored', stomachLoad([meal(500, 15, 20, 4, -30)], NOW).loadKcal === 0);
+  check('Order of the input list does not matter', stomachLoad([snack2, lunch], NOW).loadKcal === stack.loadKcal);
+  check('The governing status stacks; cleared ones drop out', !!currentDigestion([meal(600, 20, 20, 4, 30), meal(200, 3, 4, 2, 10), meal(500, 15, 20, 4, 600)], 'moderate', NOW));
+  check('An empty stomach reads as clear', currentDigestion([], 'hard', NOW) === null);
+  check('All-cleared meals read as clear', currentDigestion([meal(600, 20, 20, 4, 600)], 'hard', NOW) === null);
   // ── Presentation ──
   check('Wait formats read naturally', formatWait(0) === 'clear' && formatWait(45) === '45 min' && formatWait(80) === '1 h 20' && formatWait(120) === '2 h');
   check('Session types map to sensible intensities', intensityForSessionType('strength') === 'hard' && intensityForSessionType('mindbody') === 'light' && intensityForSessionType('cardio') === 'moderate');
   check('mealsFromEntries carries the eaten time', mealsFromEntries([{ calories: 500, proteinG: 20, carbsG: 50, fatG: 15, fiberG: 4, createdAt: 12345 }])[0].eatenAt === 12345);
   // ── Wiring: shown where the decision is made, and only for today ──
   const nutSrcD = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
-  check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
-  check('The Train tab asks the question at hard intensity', /<DigestionCard meals=\{digestMeals\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
-  check('Home shows the compact summary', /<DigestionCard meals=\{digestMeals\} compact/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard meals=\{digestMeals\} smokes=\{smokes\}/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
+  check('The Train tab asks the question at hard intensity, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
+  check('Home shows the compact summary, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} compact/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  const cardSrcD = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
+  check('The card names the stacked load and how many meals are in it', /kcal still digesting/.test(cardSrcD) && /across \$\{s\.mealCount\} meals/.test(cardSrcD));
+  check('The card explains that carbs are fast and fat/fibre slow', /carbs fastest, then protein, fat and fibre slowest/.test(cardSrcD));
+}
+
+console.log('\nSmoke clock — after a cigarette, and it stacks:');
+{
+  const NOW = Date.now();
+  const M = 60_000;
+  const cig = (minsAgo: number, qty = 1) => ({ at: NOW - minsAgo * M, combusted: true, cigaretteEquivalent: 1, quantity: qty });
+  const pouch = (minsAgo: number) => ({ at: NOW - minsAgo * M, combusted: false, cigaretteEquivalent: 0, quantity: 1 });
+  const cigar = (minsAgo: number) => ({ at: NOW - minsAgo * M, combusted: true, cigaretteEquivalent: 4, quantity: 1 });
+  const shisha = (minsAgo: number) => ({ at: NOW - minsAgo * M, combusted: true, cigaretteEquivalent: 10, quantity: 1 });
+  const one = smokeStatus([cig(5)], 'hard', NOW)!;
+  check('One cigarette: hard training waits out the acute window (~45 min)', one.remainingMin === 40 && one.limitedBy === 'nicotine', `${one.remainingMin}`);
+  check('…normal 30, a walk 15', smokeStatus([cig(5)], 'moderate', NOW)!.remainingMin === 25 && smokeStatus([cig(5)], 'light', NOW)!.remainingMin === 10);
+  check('…and is clear for anything after 50 min', smokeStatus([cig(50)], 'hard', NOW)!.ready && currentSmoke([cig(50)], 'hard', NOW) === null);
+  check('A pouch or vape gets the acute window but no carbon monoxide', smokeStatus([pouch(5)], 'hard', NOW)!.remainingMin === 25 && smokeStatus([pouch(5)], 'hard', NOW)!.coLoad === 0);
+  const three = smokeStatus([cig(5), cig(30), cig(55)], 'hard', NOW)!;
+  check('Three in an hour: carbon monoxide takes over — well past 45 min', three.limitedBy === 'co' && three.remainingMin > 90, `${three.remainingMin} min, CO ${three.coLoad}`);
+  check('…because the CO load stacks (≈2.8 cigarettes\' worth on board)', three.coLoad > 2.5 && three.coLoad < 3);
+  const two = smokeStatus([cig(5), cig(45)], 'hard', NOW)!;
+  check('Two in an hour is still under the CO threshold — the acute window governs', two.limitedBy === 'nicotine' && two.remainingMin === 40);
+  check('A cigar is several cigarettes: a long CO wait', smokeStatus([cigar(10)], 'hard', NOW)!.remainingMin > 180 && smokeStatus([cigar(10)], 'hard', NOW)!.limitedBy === 'co');
+  check('A shisha session hits the 5 h cap', smokeStatus([shisha(30)], 'hard', NOW)!.remainingMin === 300);
+  check('Even a walk after shisha waits hours', smokeStatus([shisha(30)], 'light', NOW)!.remainingMin > 120);
+  check('A cigarette three hours ago is clear', smokeStatus([cig(180)], 'hard', NOW)!.ready);
+  check('readyFor: 20 min after one cigarette a walk is fine, a session is not', smokeStatus([cig(20)], 'hard', NOW)!.readyFor === 'light');
+  check('CO halves every 4 h', Math.abs(coLoad([cig(240)], NOW) - 0.5) < 0.01 && Math.abs(coLoad([cig(480)], NOW) - 0.25) < 0.01);
+  check('Quantity multiplies the CO load', Math.abs(coLoad([cig(0, 3)], NOW) - 3) < 0.01);
+  check('Events in the future or older than a day are ignored', smokeStatus([cig(-10)], 'hard', NOW) === null && smokeStatus([cig(25 * 60)], 'hard', NOW) === null);
+  check('Nothing logged reads as null, not zero-wait', smokeStatus([], 'hard', NOW) === null && currentSmoke([], 'hard', NOW) === null);
+  check('minutesToDecay: already under → 0; double the threshold → one half-life', minutesToDecay(1, 2) === 0 && Math.abs(minutesToDecay(4, 2) - CO_HALF_LIFE_MIN) < 0.01);
+  check('The thresholds and windows are as documented', CO_THRESHOLD.hard === 2 && CO_THRESHOLD.moderate === 3 && CO_THRESHOLD.light === 5 && NICOTINE_ACUTE_MIN.hard.combusted === 45 && NICOTINE_ACUTE_MIN.hard.other === 30);
+  // ── Repo: events come from the smoking log, with product facts ──
+  const smokeRepoSrc = fs.readFileSync('src/repositories/smokingRepo.ts', 'utf8');
+  check('recentSmokeEvents reads today AND yesterday (a 23:40 cigarette counts at 00:20)', /dayEntries\(todayISO\(\), userId\), \.\.\.dayEntries\(daysAgoISO\(1\), userId\)/.test(smokeRepoSrc));
+  check('…carries each product\'s combustion facts', /combusted: p\.combusted, cigaretteEquivalent: p\.cigaretteEquivalent/.test(smokeRepoSrc));
+  check('…and is empty when the module is off', /if \(!isSmokingEnabled\(userId\)\) return \[\];/.test(smokeRepoSrc));
+  check('The Smoking screen shows the training clock right where you log', /<DigestionCard meals=\{\[\]\} smokes=\{smokes\} defaultIntensity="hard" compact/.test(fs.readFileSync('src/screens/smoking/SmokingScreen.tsx', 'utf8')));
+}
+
+console.log('\nReadiness — the two clocks combined:');
+{
+  const NOW = Date.now();
+  const M = 60_000;
+  const meal = (calories: number, agoMin: number): MealForDigestion => ({ calories, fatG: 20, proteinG: 25, carbsG: 60, fiberG: 5, eatenAt: NOW - agoMin * M });
+  const cig = (minsAgo: number) => ({ at: NOW - minsAgo * M, combusted: true, cigaretteEquivalent: 1, quantity: 1 });
+  check('Nothing in the way: ready, no governor', trainReadiness({ meals: [], smokes: [] }, 'hard', NOW).ready && trainReadiness({ meals: [] }, 'hard', NOW).governor === null);
+  const mealOnly = trainReadiness({ meals: [meal(600, 30)] }, 'hard', NOW);
+  check('A meal alone: the stomach governs', mealOnly.governor === 'stomach' && mealOnly.stomach !== null && mealOnly.smoke === null);
+  const cigOnly = trainReadiness({ meals: [], smokes: [cig(5)] }, 'hard', NOW);
+  check('A cigarette alone: the smoke governs', cigOnly.governor === 'smoke' && cigOnly.smoke !== null && cigOnly.remainingMin === 40);
+  const both = trainReadiness({ meals: [meal(600, 30)], smokes: [cig(5)] }, 'hard', NOW);
+  check('Both: the later one governs and both are reported', both.governor === 'stomach' && both.remainingMin === Math.max(mealOnly.remainingMin, cigOnly.remainingMin) && !!both.smoke && !!both.stomach);
+  const smokeLater = trainReadiness({ meals: [meal(600, 140)], smokes: [cig(2)] }, 'hard', NOW);
+  check('…and it can be the smoke, late in a meal', smokeLater.governor === 'smoke');
+  check('readyFor respects BOTH clocks', trainReadiness({ meals: [meal(600, 30)], smokes: [cig(20)] }, 'hard', NOW).readyFor === 'light' && trainReadiness({ meals: [meal(600, 30)], smokes: [cig(2)] }, 'hard', NOW).readyFor === null);
+  check('readyAt is now plus the governing wait', both.readyAt === NOW + both.remainingMin * M);
+  const cardSrcR = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
+  check('The card uses the combined readiness and names the governor', /trainReadiness\(\{ meals, smokes \}/.test(cardSrcR) && /r\.governor === 'smoke'/.test(cardSrcR));
+  check('The card shows a smoke line with the reason (acute window vs CO)', /acute nicotine window/.test(cardSrcR) && /carbon monoxide still on board/.test(cardSrcR));
 }
 
 console.log('\nAudit fixes — supplement rows vs meals, date parsing:');

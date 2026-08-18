@@ -22,6 +22,7 @@ import {
   type SmokingSettings,
 } from '@/lib/smoking';
 import { productOrDefault } from '@/data/nicotineProducts';
+import type { SmokeEvent } from '@/lib/smokeClock';
 import { PRIMARY_USER_ID } from './userRepo';
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -137,6 +138,25 @@ export function dayEntries(date: string = todayISO(), userId: number = PRIMARY_U
     .where(and(eq(smokingEntries.userId, userId), eq(smokingEntries.date, date)))
     .orderBy(desc(smokingEntries.createdAt))
     .all();
+}
+
+/**
+ * Nicotine use in the last `hours` as events for the smoke clock (see
+ * lib/smokeClock): today's rows plus yesterday's, so a cigarette at 23:40
+ * still counts against a session at 00:20. Each row carries its product's
+ * combustion facts — a pouch has an acute window but no carbon monoxide.
+ * Empty when the module is off.
+ */
+export function recentSmokeEvents(hours = 24, userId: number = PRIMARY_USER_ID): SmokeEvent[] {
+  if (!isSmokingEnabled(userId)) return [];
+  const since = Date.now() - hours * 3_600_000;
+  const rows = [...dayEntries(todayISO(), userId), ...dayEntries(daysAgoISO(1), userId)];
+  return rows
+    .filter((r) => r.createdAt >= since)
+    .map((r) => {
+      const p = productOrDefault(r.productKey);
+      return { at: r.createdAt, combusted: p.combusted, cigaretteEquivalent: p.cigaretteEquivalent, quantity: r.quantity };
+    });
 }
 
 /** Undo the most recent cigarette entry for a day (for the "−" quick button). */

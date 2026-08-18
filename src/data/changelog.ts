@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.41',
+    date: '2026-08-18',
+    title: 'The training clock stacks your meals — and your cigarettes',
+    highlights: [
+      'The stomach clock is now cumulative. It no longer times each meal on its own and shows the biggest: everything still digesting is one load, and a snack an hour after lunch lands on top of what is left of lunch — so the wait is for the whole of it. Lunch alone might clear in an hour, the snack alone in 45 minutes; together it is 2 h 36, because you have one stomach, not two timers.',
+      'The load drains at a rate set by the mix. Carbs are the fast reference; protein slows it moderately; fat is the biggest brake (the gut senses fat and holds the stomach back — a greasy 600 kcal takes half an hour longer than a lean 600); fibre adds bulk. Bigger loads drain more per minute but take longer overall, exactly as the physiology does. The card tells you the load and how many meals are in it.',
+      'How empty you need to be depends on what you are about to do: sprints and heavy squats want a nearly empty stomach, a normal session tolerates more, and a walk after a big meal is fine within the hour — good for it, even. Calibrated against the standard ranges: 250 kcal snack ~30 min before hard training, a 600 kcal meal ~2 h before a normal session and ~2 h 35 before hard, a 1000 kcal fatty one over 4 h.',
+      'And now cigarettes. Two things happen when you smoke, on two clocks: nicotine spikes heart rate and narrows the vessels for 30–60 minutes (every product does this, pouches and vapes included), and — only from what BURNS — carbon monoxide parks part of your blood\'s oxygen capacity for hours, with a 4-hour half-life. That one stacks: one cigarette means ~45 minutes before hard training; three in an hour means nearly two, because the CO from the first two is still on board. A cigar is several cigarettes\' worth; a shisha session is a dozen and hits the 5-hour cap.',
+      'The "can I train?" card on Home, Train and Nutrition now takes whichever clock is later and names it — stomach or smoke — with a line for each while both run, and the Smoking screen shows the training clock right where you log, so the cost of the one you just lit is visible at once. Fine for a walk, not for a session? It says so.',
+      '875 checks in all, up from 825: the drain maths inverts, stacking waits for both, cleared meals drop out, one cigarette vs three, pouches without CO, the two clocks combined.',
+    ],
+  },
+  {
     version: '2.40',
     date: '2026-08-18',
     title: 'Every nutrient accounted for, and every page opens the same way',

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Pressable, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,7 +18,8 @@ import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { NICOTINE_GROUPS, findNicotineProduct } from '@/data/nicotineProducts';
-import { dailySeries, smokingCorrelation } from '@/repositories/smokingRepo';
+import { dailySeries, smokingCorrelation, recentSmokeEvents } from '@/repositories/smokingRepo';
+import { DigestionCard } from '@/components/DigestionCard';
 import {
   currentQuitMilestone,
   nextQuitMilestone,
@@ -142,6 +143,8 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
   const { profile, today, impact, add, undo, disable, nicotineToday, smokedShare } =
     useSmokingStore();
   const [showProducts, setShowProducts] = useState(false);
+  // The training clock: re-read whenever today's count moves.
+  const smokes = useMemo(() => recentSmokeEvents(), [today, nicotineToday]);
   const [correlation] = useState(() => smokingCorrelation(30));
   const [series] = useState(() => dailySeries(21));
 
@@ -225,6 +228,13 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
           </View>
         )}
       </Card>
+
+      {/*
+        The other cost of the one you just lit: how long before training is a
+        good idea again. Only the smoke clock here — the meal clock lives on
+        Home, Train and Nutrition.
+      */}
+      <DigestionCard meals={[]} smokes={smokes} defaultIntensity="hard" compact />
 
       {/* Smoke-free progress */}
       {impact.smokeFreeStreak > 0 && (

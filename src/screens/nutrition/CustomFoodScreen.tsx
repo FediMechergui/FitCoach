@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { FOOD_CATEGORIES } from '@/data/foods';
@@ -54,6 +55,7 @@ export function CustomFoodScreen() {
     existing && !existing.caloriesEstimated ? String(existing.calories) : ''
   );
   const [category, setCategory] = useState<string | null>(existing?.category ?? null);
+  const [form, setForm] = useState<'solid' | 'liquid'>(existing?.form === 'liquid' ? 'liquid' : 'solid');
 
   const macros = {
     protein: parseAmount(protein),
@@ -76,6 +78,7 @@ export function CustomFoodScreen() {
       ...macros,
       category,
       caloriesEstimated: estimated,
+      form,
     };
     if (editingId) updateCustomFood(editingId, input);
     else createCustomFood(input);
@@ -177,6 +180,23 @@ export function CustomFoodScreen() {
               {estimated
                 ? "Worked out from the macros — 4 kcal a gram for protein and carbs, 9 for fat, with fibre at 2. That lands within 10% for 97 of every 100 foods in the database. Type a figure from the label to use it instead."
                 : 'Using the figure you entered.'}
+            </Text>
+          </Card>
+
+          <Card style={{ gap: 10 }}>
+            <Text variant="label" color="textMuted">Solid or liquid</Text>
+            <SegmentedControl
+              options={[
+                { value: 'solid', label: 'Solid' },
+                { value: 'liquid', label: 'Liquid' },
+              ]}
+              value={form}
+              onChange={(v) => setForm(v as 'solid' | 'liquid')}
+            />
+            <Text variant="caption" color="textFaint">
+              {form === 'liquid'
+                ? 'A drink leaves the stomach about twice as fast as the same calories as food, and settles in a quarter of the time — the training clock runs it that way.'
+                : 'Food eaten with a fork or a spoon. If it is a shake, a juice, a soup or a milk, pick Liquid — the training clock will run it faster.'}
             </Text>
           </Card>
 

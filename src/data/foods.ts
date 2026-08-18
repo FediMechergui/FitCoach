@@ -2,6 +2,7 @@ import { TUNISIAN_FOODS } from './foods-tunisian';
 import { FOOD_MICROS } from './foodMicros';
 import { deriveMicros } from './foodComposites';
 import type { MicroProfile } from '@/lib/micros';
+import type { FoodForm } from '@/lib/digestion';
 
 /**
  * Built-in food database for "precise" logging mode (spec §3.5).
@@ -36,7 +37,29 @@ export interface FoodItem {
   caloriesEstimated?: boolean;
   /** True for a user-built dish assembled from other foods with quantities. */
   isComposed?: boolean;
+  /**
+   * How the stomach treats it — the digestion clock runs liquids about twice
+   * as fast and settles them in a quarter of the time. Every catalogue food
+   * carries one (set below); user foods choose theirs.
+   */
+  form?: FoodForm;
 }
+
+/**
+ * Which catalogue foods are drinks. Whole categories first, then the odd ones
+ * out: the generic milk and the whey shake, and the soups — a chorba, a
+ * douwida, a lablabi, a miso are eaten with a spoon but are mostly broth and
+ * clear like one. Porridge and yoghurt eat as solids and stay solid; olive oil
+ * is a liquid but its fat digests slowly, so for the clock it stays solid too.
+ */
+export const LIQUID_CATEGORIES: ReadonlySet<string> = new Set(['Milk', 'Juice', 'Milkshake', 'Tunisian drink']);
+export const LIQUID_FOOD_IDS: ReadonlySet<string> = new Set([
+  'milk', 'whey', 'miso-soup',
+  'tn-chorba-frik', 'tn-douwida', 'tn-lablabi',
+  'ff-milkshake', 'ch-hot-chocolate',
+]);
+export const formOf = (f: Pick<FoodItem, 'id' | 'category'>): FoodForm =>
+  LIQUID_FOOD_IDS.has(f.id) || (f.category != null && LIQUID_CATEGORIES.has(f.category)) ? 'liquid' : 'solid';
 
 const GENERIC_FOODS: FoodItem[] = [
   { id: 'egg', name: 'Egg (whole, large)', serving: '1 egg (50g)', calories: 78, protein: 6.3, carbs: 0.6, fat: 5.3, fiber: 0 },
@@ -98,10 +121,11 @@ const lookupIngredient = (id: string): FoodItem | undefined => {
 };
 
 export const FOOD_DB: FoodItem[] = BASE_FOODS.map((f) => {
+  const form = formOf(f);
   const direct = FOOD_MICROS[f.id];
-  if (direct) return { ...f, micros: direct };
+  if (direct) return { ...f, micros: direct, form };
   const derived = deriveMicros(f.id, lookupIngredient);
-  return derived ? { ...f, micros: derived, microsDerived: true } : f;
+  return derived ? { ...f, micros: derived, microsDerived: true, form } : { ...f, form };
 });
 
 /** Count of foods that carry micronutrient data (for honest UI copy). */

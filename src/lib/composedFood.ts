@@ -36,6 +36,8 @@ export interface FoodComponent {
   fatG: number;
   fiberG: number;
   micros: Partial<MicroProfile> | null;
+  /** liquid or solid of the source food, so a dish of only drinks can default to liquid */
+  form?: 'solid' | 'liquid';
 }
 
 /** A food as the composer sees it — the shape both catalogue and custom foods reduce to. */
@@ -49,6 +51,8 @@ export interface ComposableFood {
   fat: number;
   fiber: number;
   micros?: Partial<MicroProfile> | null;
+  /** liquid or solid; missing means solid */
+  form?: 'solid' | 'liquid';
 }
 
 /** Build one component: the food × servings, snapshotted. */
@@ -65,6 +69,7 @@ export function makeComponent(food: ComposableFood, servings: number): FoodCompo
     fatG: food.fat * n,
     fiberG: food.fiber * n,
     micros: food.micros ? scaleMicros(food.micros, n) : null,
+    form: food.form === 'liquid' ? 'liquid' : 'solid',
   };
 }
 

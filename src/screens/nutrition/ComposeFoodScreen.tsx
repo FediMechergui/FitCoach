@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Chip } from '@/components/ui/Chip';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { FOOD_DB, FOOD_CATEGORIES } from '@/data/foods';
@@ -26,6 +27,7 @@ import {
   CUSTOM_FOOD_PREFIX,
   componentsOf,
   composableFoods,
+  composedFormDefault,
   createComposedFood,
   getCustomFood,
   updateComposedFood,
@@ -58,6 +60,10 @@ export function ComposeFoodScreen() {
   const [serving, setServing] = useState(existing?.serving ?? '1 plate');
   const [category, setCategory] = useState<string | null>(existing?.category ?? null);
   const [components, setComponents] = useState<FoodComponent[]>(() => (existing ? componentsOf(existing) : []));
+  // Liquid or solid: the user's choice; until touched it follows the parts — a
+  // dish of only drinks is a drink (a smoothie), one solid part makes it solid.
+  const [formChoice, setFormChoice] = useState<'solid' | 'liquid' | null>(existing ? (existing.form === 'liquid' ? 'liquid' : 'solid') : null);
+  const form: 'solid' | 'liquid' = formChoice ?? composedFormDefault(components);
 
   // Picker state
   const [picking, setPicking] = useState(false);
@@ -100,7 +106,7 @@ export function ComposeFoodScreen() {
 
   const save = () => {
     if (!complete) return;
-    const input = { name, serving, category, components };
+    const input = { name, serving, category, components, form };
     if (editingId) updateComposedFood(editingId, input);
     else createComposedFood(input);
     navigation.goBack();
@@ -233,6 +239,25 @@ export function ComposeFoodScreen() {
               <Text variant="caption" color="textFaint">{describeComponents(components)}</Text>
             </Card>
           )}
+
+          <Card style={{ gap: 10 }}>
+            <Text variant="label" color="textMuted">Solid or liquid</Text>
+            <SegmentedControl
+              options={[
+                { value: 'solid', label: 'Solid' },
+                { value: 'liquid', label: 'Liquid' },
+              ]}
+              value={form}
+              onChange={(v) => setFormChoice(v as 'solid' | 'liquid')}
+            />
+            <Text variant="caption" color="textFaint">
+              {formChoice === null
+                ? (form === 'liquid' ? 'All the parts are drinks, so this is a drink — change it if the dish is really a solid.' : 'At least one part is solid, so the dish is solid — change it if it is really a smoothie or a soup.')
+                : form === 'liquid'
+                  ? 'The training clock runs a drink about twice as fast as the same calories as food.'
+                  : 'The training clock runs it as food.'}
+            </Text>
+          </Card>
 
           <Card style={{ gap: 10 }}>
             <Text variant="label" color="textMuted">Category (optional)</Text>

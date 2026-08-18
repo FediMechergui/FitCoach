@@ -125,6 +125,8 @@ export function logSupplement(
         carbsG: (def.macros.carbsG ?? 0) * fraction,
         fatG: (def.macros.fatG ?? 0) * fraction,
         fiberG: 0,
+        // A shake is a drink: the digestion clock runs it as one.
+        form: def.macros.form,
         // Micros stay on the supplement log — carrying them here too would
         // count them twice on the Micros screen.
         date,

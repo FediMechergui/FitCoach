@@ -44,7 +44,7 @@ import { EXERCISE_LIBRARY as EXLIB, PRAYER_EXERCISE_MINUTES } from '../src/data/
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../src/data/achievements';
 import { evaluateAchievement, TRACKED_ACHIEVEMENT_COUNT } from '../src/lib/achievementRules';
 import type { AchievementStats } from '../src/repositories/achievementsRepo';
-import { FOOD_DB, FOODS_WITH_MICROS } from '../src/data/foods';
+import { FOOD_DB, FOODS_WITH_MICROS, formOf } from '../src/data/foods';
 import { FOOD_COMPOSITES, deriveMacros } from '../src/data/foodComposites';
 import {
   repsInReserve,
@@ -72,7 +72,7 @@ import {
 import {
   makeComponent, composeTotals, rescaleComponent, parseComponents, describeComponents, wouldCreateCycle,
 } from '../src/lib/composedFood';
-import { digestionMinutes, digestionStatus, currentDigestion, formatWait, intensityForSessionType, mealsFromEntries, mealSlowness, stomachLoad, drain, minutesToDrain, type MealForDigestion } from '../src/lib/digestion';
+import { digestionMinutes, digestionStatus, currentDigestion, formatWait, intensityForSessionType, mealsFromEntries, mealSlowness, stomachLoad, drain, minutesToDrain, LIQUID_SPEED, MIN_SLOWNESS, LIQUID_SETTLE_MIN, type MealForDigestion } from '../src/lib/digestion';
 import { smokeStatus, currentSmoke, coLoad, minutesToDecay, CO_HALF_LIFE_MIN, CO_THRESHOLD, NICOTINE_ACUTE_MIN } from '../src/lib/smokeClock';
 import { trainReadiness } from '../src/lib/readiness';
 import { buildReportHtml } from '../src/lib/reportHtml';
@@ -2502,6 +2502,64 @@ console.log('\nAfter the session — margins scaled by how hard it was:');
   check('The card renders a window as "now — until", and long waits with a weekday', /now — until \$\{clock\(m\.byAt\)\}/.test(cardSrcP) && /\['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'\]/.test(cardSrcP));
   check('Every after-session line is its own meter (bar), except the multi-day next-session line', /\{m\.key !== 'next' && <ProgressBar progress=\{progress\} color=\{barColor\}/.test(cardSrcP) && /elapsedMin \/ m\.waitMin/.test(cardSrcP));
   check('The after-session icons resolve', ['session', 'water', 'eat', 'smoke', 'alcohol', 'cold', 'next'].every((k) => !!(ICONS as Record<string, Record<string, unknown>>).after?.[k]));
+}
+
+console.log('\nLiquid vs solid — a drink is not a plate:');
+{
+  const m = (calories: number, proteinG: number, carbsG: number, fatG: number, fiberG: number, form: 'solid' | 'liquid', eatenAt = 0) => ({ calories, proteinG, carbsG, fatG, fiberG, eatenAt, form });
+  // ── The model ──
+  check('A liquid runs the same composition at half the slowness', Math.abs(mealSlowness(m(300, 12, 40, 9, 4, 'liquid')) - mealSlowness(m(300, 12, 40, 9, 4, 'solid')) / LIQUID_SPEED) < 1e-9 && LIQUID_SPEED === 2);
+  check('The bounds follow: solids 1..2, liquids 0.5..1', MIN_SLOWNESS === 0.5 && mealSlowness(m(300, 0, 75, 0, 0, 'liquid')) === 0.5 && mealSlowness(m(300, 0, 75, 0, 0, 'solid')) === 1);
+  check('A whey shake needs 15 min before hard training, not 30', digestionMinutes(m(120, 24, 3, 1.5, 0, 'liquid'), 'hard') === 15 && digestionMinutes(m(120, 24, 3, 1.5, 0, 'solid'), 'hard') === 30);
+  check('Liquid settle floors are a quarter to a half of solid ones', LIQUID_SETTLE_MIN.hard === 15 && LIQUID_SETTLE_MIN.moderate === 10 && LIQUID_SETTLE_MIN.light === 0);
+  const smoothieL = digestionMinutes(m(500, 10, 90, 5, 3, 'liquid'), 'hard');
+  const smoothieS = digestionMinutes(m(500, 10, 90, 5, 3, 'solid'), 'hard');
+  check('A 500 kcal smoothie clears in about half the time of the same calories as a bowl', smoothieL >= 40 && smoothieL <= 60 && smoothieS >= 90 && smoothieS <= 110 && smoothieL < smoothieS * 0.6, `${smoothieL} vs ${smoothieS}`);
+  check('A soup clears faster than the same calories as solid food', digestionMinutes(m(300, 12, 40, 9, 4, 'liquid'), 'hard') < digestionMinutes(m(300, 12, 40, 9, 4, 'solid'), 'hard'));
+  check('A big fast-food milkshake still needs an hour before sprints — the fat and the size', digestionMinutes(m(550, 12, 90, 16, 0, 'liquid'), 'hard') >= 55);
+  check('Missing form reads as solid — every pre-flag row is byte-identical', digestionMinutes({ calories: 300, proteinG: 12, carbsG: 40, fatG: 9, fiberG: 4, eatenAt: 0 }, 'hard') === digestionMinutes(m(300, 12, 40, 9, 4, 'solid'), 'hard'));
+  // ── Stacking ──
+  const NOW = Date.now();
+  const H = 3_600_000;
+  const lunch = m(600, 30, 60, 20, 6, 'solid', NOW - 95 * 60_000);
+  const shake = m(300, 25, 40, 5, 2, 'liquid', NOW - 5 * 60_000);
+  const bar = m(300, 25, 40, 5, 2, 'solid', NOW - 5 * 60_000);
+  const withShake = currentDigestion([lunch, shake], 'hard', NOW)!;
+  const withBar = currentDigestion([lunch, bar], 'hard', NOW)!;
+  check('A shake on top of lunch clears sooner than the same snack as a bar', withShake.remainingMin < withBar.remainingMin, `${withShake.remainingMin} vs ${withBar.remainingMin}`);
+  check('The stomach load remembers whether the last bite was a drink', stomachLoad([lunch, shake], NOW).lastForm === 'liquid' && stomachLoad([lunch, bar], NOW).lastForm === 'solid');
+  check('A drink as the last bite uses the liquid settle floor', currentDigestion([m(120, 24, 3, 1.5, 0, 'liquid', NOW - 16 * 60_000)], 'hard', NOW) === null && currentDigestion([m(120, 24, 3, 1.5, 0, 'solid', NOW - 16 * 60_000)], 'hard', NOW) !== null);
+  check('mealsFromEntries maps the column, NULL → solid', mealsFromEntries([{ calories: 100, proteinG: 1, carbsG: 20, fatG: 0, fiberG: 0, createdAt: 1, form: 'liquid' }])[0].form === 'liquid' && mealsFromEntries([{ calories: 100, proteinG: 1, carbsG: 20, fatG: 0, fiberG: 0, createdAt: 1, form: null }])[0].form === 'solid');
+  // ── The catalogue: every food marked, and marked right ──
+  check('Every food in the database is marked liquid or solid', FOOD_DB.every((f) => f.form === 'liquid' || f.form === 'solid'));
+  const liquids = FOOD_DB.filter((f) => f.form === 'liquid');
+  check('Milks, juices, milkshakes and the Tunisian drinks are liquid', FOOD_DB.filter((f) => ['Milk', 'Juice', 'Milkshake', 'Tunisian drink'].includes(f.category ?? '')).every((f) => f.form === 'liquid'));
+  check('The generic milk, the whey shake, the soups and the hot chocolate are liquid', ['milk', 'whey', 'miso-soup', 'tn-chorba-frik', 'tn-douwida', 'tn-lablabi', 'ff-milkshake', 'ch-hot-chocolate'].every((id) => FOOD_DB.find((f) => f.id === id)?.form === 'liquid'));
+  check('Bread, rice, chicken, couscous, yoghurt and porridge are solid', ['whole-wheat-bread', 'white-rice', 'chicken-breast', 'tn-couscous-full', 'greek-yogurt', 'tn-oatmeal', 'olive-oil'].every((id) => FOOD_DB.find((f) => f.id === id)?.form === 'solid'));
+  check('About forty drinks in the catalogue — not zero, not half of it', liquids.length >= 35 && liquids.length <= 60, `${liquids.length}`);
+  check('The rule lives in one place (formOf) and is applied to every catalogue food', /form: formOf\(f\)|const form = formOf\(f\);/.test(fs.readFileSync('src/data/foods.ts', 'utf8')) && formOf({ id: 'x', category: 'Juice' }) === 'liquid' && formOf({ id: 'whey', category: undefined }) === 'liquid' && formOf({ id: 'x', category: 'Bread' }) === 'solid');
+  // ── Schema and every write path ──
+  const bootL = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('SCHEMA_VERSION is 27 or later', Number(/const SCHEMA_VERSION = (\d+);/.exec(bootL)?.[1]) >= 27);
+  check('form is in the DDL of both tables AND in ADDED_COLUMNS for both', (bootL.match(/^\s*form TEXT,\s*$/gm) ?? []).length === 2 && /table: 'food_entries', column: 'form'/.test(bootL) && /table: 'custom_foods', column: 'form'/.test(bootL));
+  const nutRepoL = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
+  check('addPreciseFood stores form (NULL when not given)', /form: input\.form \?\? null,/.test(nutRepoL));
+  check('AddFood passes the food\'s form', /form: selected\.form,/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')));
+  const mrL = fs.readFileSync('src/repositories/mealRoutineRepo.ts', 'utf8');
+  check('Meal routines snapshot and re-log form', /form: e\.form \?\? null,/.test(mrL) && /form: i\.form \?\? undefined,/.test(mrL));
+  check('Programme meals and the diet plan pass form', /form: base\.form,/.test(fs.readFileSync('src/lib/specialDiet.ts', 'utf8')) && /form: food\?\.form,/.test(fs.readFileSync('src/screens/nutrition/DietPlanScreen.tsx', 'utf8')));
+  check('The whey supplement logs its diary row as a liquid', findSupplement('whey')?.macros?.form === 'liquid' && /form: def\.macros\.form,/.test(fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8')));
+  const cfL = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('Custom foods store their form (solid when unsure) and read it back', /form: input\.form \?\? 'solid',/.test(cfL) && /form: f\.form === 'liquid' \? 'liquid' : 'solid',/.test(cfL));
+  check('A composed dish of only drinks defaults to liquid; one solid part makes it solid', /components\.length > 0 && components\.every\(\(c\) => c\.form === 'liquid'\) \? 'liquid' : 'solid'/.test(cfL));
+  check('…and components carry their source food\'s form so the default can be computed', /form: food\.form === 'liquid' \? 'liquid' : 'solid',/.test(fs.readFileSync('src/lib/composedFood.ts', 'utf8')));
+  // ── The place to choose ──
+  const customScr = fs.readFileSync('src/screens/nutrition/CustomFoodScreen.tsx', 'utf8');
+  const composeScr = fs.readFileSync('src/screens/nutrition/ComposeFoodScreen.tsx', 'utf8');
+  check('The custom-food form offers Solid / Liquid', /Solid or liquid/.test(customScr) && /value: 'liquid', label: 'Liquid'/.test(customScr) && /form,\s*\};/.test(customScr));
+  check('The dish composer offers it too, defaulting from the parts', /Solid or liquid/.test(composeScr) && /formChoice \?\? composedFormDefault\(components\)/.test(composeScr) && /const input = \{ name, serving, category, components, form \};/.test(composeScr));
+  check('The picker shows which foods are drinks', /liquid — clears the stomach about twice as fast/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')));
+  check('The readiness card explains drinks run faster', /a drink about twice as fast/.test(fs.readFileSync('src/components/DigestionCard.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

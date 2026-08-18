@@ -34,6 +34,8 @@ export interface CustomFoodInput {
   fiber: number;
   category: string | null;
   caloriesEstimated: boolean;
+  /** liquid or solid — the user's choice; solid when unsure */
+  form?: 'solid' | 'liquid';
 }
 
 export function listCustomFoods(userId: number = PRIMARY_USER_ID): CustomFood[] {
@@ -100,6 +102,7 @@ function normalise(input: CustomFoodInput) {
     fiber,
     category: input.category?.trim() || null,
     caloriesEstimated: entered > 0 ? false : true,
+    form: input.form ?? 'solid',
   };
 }
 
@@ -128,6 +131,7 @@ export function toFoodItem(f: CustomFood): FoodItem {
     category: f.category ?? undefined,
     isCustom: true,
     caloriesEstimated: f.caloriesEstimated,
+    form: f.form === 'liquid' ? 'liquid' : 'solid',
     // A composed food carries the micros summed from its parts; a plain
     // custom food has none (nothing to sum from, and none is invented).
     micros: parseMicros(f.microsJson) ?? undefined,
@@ -149,6 +153,13 @@ export interface ComposedFoodInput {
   serving: string;
   category: string | null;
   components: FoodComponent[];
+  /** liquid or solid; when omitted, a dish of only drinks is a drink, anything else is solid */
+  form?: 'solid' | 'liquid';
+}
+
+/** A dish made only of drinks is a drink (a smoothie); one solid part makes it solid. */
+export function composedFormDefault(components: Array<{ form?: 'solid' | 'liquid' | null }>): 'solid' | 'liquid' {
+  return components.length > 0 && components.every((c) => c.form === 'liquid') ? 'liquid' : 'solid';
 }
 
 /**
@@ -176,6 +187,7 @@ export function createComposedFood(input: ComposedFoodInput, userId: number = PR
       caloriesEstimated: false,
       componentsJson: JSON.stringify(input.components),
       microsJson: t.micros ? JSON.stringify(t.micros) : null,
+      form: input.form ?? composedFormDefault(input.components),
     })
     .returning({ id: customFoods.id })
     .get();
@@ -197,6 +209,7 @@ export function updateComposedFood(id: number, input: ComposedFoodInput, userId:
       caloriesEstimated: false,
       componentsJson: JSON.stringify(input.components),
       microsJson: t.micros ? JSON.stringify(t.micros) : null,
+      form: input.form ?? composedFormDefault(input.components),
     })
     .where(and(eq(customFoods.id, id), eq(customFoods.userId, userId)))
     .run();
@@ -229,12 +242,14 @@ export function composableFoods(
     fat: f.fat,
     fiber: f.fiber,
     micros: parseMicros(f.microsJson),
+    form: (f.form === 'liquid' ? 'liquid' : 'solid') as 'solid' | 'liquid',
   }));
   const all: ComposableFood[] = [
     ...own,
     ...catalogue.map((f) => ({
       id: f.id, name: f.name, serving: f.serving, calories: f.calories,
       protein: f.protein, carbs: f.carbs, fat: f.fat, fiber: f.fiber, micros: f.micros ?? null,
+      form: f.form,
     })),
   ];
   return excludeId ? all.filter((f) => f.id !== excludeId) : all;

@@ -168,8 +168,8 @@ export function DigestionCard({
           />
           <Text variant="caption" color="textFaint">
             The stomach clock stacks everything still digesting and drains it at a rate set by the
-            mix — carbs fastest, then protein, fat and fibre slowest — so a snack on top of lunch
-            waits for both. The smoke clock counts the acute nicotine window after anything, plus
+            mix — carbs fastest, then protein, fat and fibre slowest; a drink about twice as fast as
+            the same calories as food — so a snack on top of lunch waits for both. The smoke clock counts the acute nicotine window after anything, plus
             carbon monoxide from what was burned, which stacks too. Estimates from standard
             figures; your own tolerance is the final word.
           </Text>

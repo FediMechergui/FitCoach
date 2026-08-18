@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.44',
+    date: '2026-08-18',
+    title: 'A drink is not a plate: liquids run the training clock faster',
+    highlights: [
+      'The stomach clock now tells liquids from solids. A drink leaves the stomach far faster than the same calories as food — nutrient drinks half-empty in roughly half the time, and they skip most of the 20–30 minute lag phase solids sit through — so the clock runs a liquid at about twice the speed and settles it in a quarter of the time. A whey shake is 15 minutes before hard training, not 30; a 500 kcal smoothie is ~50 minutes where the same calories as a bowl are ~100; a shake on top of lunch clears half an hour sooner than a protein bar would.',
+      'Every food in the database is now marked liquid or solid — the 12 milks, 12 juices, 6 milkshakes, the Tunisian drinks, the whey shake, the soups (chorba, douwida, lablabi, miso), the fast-food milkshake and hot chocolate are drinks; porridge and yoghurt eat as solids and stay solid; olive oil is a liquid but its fat digests slowly, so for the clock it stays solid too. The picker says "liquid" on the ones that are.',
+      'Every food you add gets a Solid / Liquid choice — on the custom-food form, and on the dish composer, where it defaults from the parts (only drinks → a drink, like a smoothie; one solid part → solid) and can be overridden. Saved meal routines, programme meals, the diet plan and the whey supplement\'s diary row all carry it through, so the clock is right whichever way the food went in.',
+      'Rows logged before this existed read as solid — exactly as they did. Migration checked against a pre-update database.',
+      '992 checks in all, up from 960.',
+    ],
+  },
+  {
     version: '2.43',
     date: '2026-08-18',
     title: 'After the session: the margins to keep, scaled by how hard it was',

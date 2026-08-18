@@ -35,8 +35,10 @@ import { seedExerciseLibrary } from './seed';
  *   23 → 24 v2.34: supplement_logs.food_entry_id (macro-bearing supplements)
  *   24 → 25 v2.37: weather_readings table
  *   25 → 26 v2.38: custom_foods.components_json / micros_json (composed meals)
+ *   26 → 27 v2.44: food_entries.form / custom_foods.form (liquid vs solid — the
+ *                  digestion clock runs liquids faster; NULL reads as solid)
  */
-const SCHEMA_VERSION = 26;
+const SCHEMA_VERSION = 27;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -103,6 +105,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   // v26 — composed foods: a dish built from other foods with quantities
   { table: 'custom_foods', column: 'components_json', ddl: 'TEXT' },
   { table: 'custom_foods', column: 'micros_json', ddl: 'TEXT' },
+  { table: 'food_entries', column: 'form', ddl: 'TEXT' },
+  { table: 'custom_foods', column: 'form', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -332,6 +336,7 @@ CREATE TABLE IF NOT EXISTS food_entries (
   fat_g REAL NOT NULL DEFAULT 0,
   fiber_g REAL NOT NULL DEFAULT 0,
   micros TEXT,
+  form TEXT,
   is_estimated INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
@@ -638,6 +643,7 @@ CREATE TABLE IF NOT EXISTS custom_foods (
   calories_estimated INTEGER NOT NULL DEFAULT 0,
   components_json TEXT,
   micros_json TEXT,
+  form TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_custom_foods_user ON custom_foods(user_id, name);

@@ -60,6 +60,7 @@ export function DietPlanScreen() {
         fatG: food?.fat ?? item.fat,
         fiberG: food?.fiber ?? item.fiber / (item.servings || 1),
         micros: food?.micros,
+        form: food?.form,
       });
     }
     Alert.alert('Added to diary ✓', `${meal.label}: ${meal.items.length} item${meal.items.length === 1 ? '' : 's'} logged.`);

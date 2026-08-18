@@ -13,6 +13,7 @@ import { scaleMicros, type MicroProfile } from '@/lib/micros';
 import { roundGrams, roundKcal } from '@/lib/format';
 import { todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
+import type { FoodForm } from '@/lib/digestion';
 
 // ── Food entries ─────────────────────────────────────────────────────────────
 export interface PreciseFoodInput {
@@ -33,6 +34,8 @@ export interface PreciseFoodInput {
    * "just now" (the row takes the database default). See lib/eatenAt.
    */
   eatenAt?: number;
+  /** liquid or solid — the digestion clock runs liquids faster; omit for solid */
+  form?: FoodForm;
 }
 
 export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY_USER_ID): number {
@@ -55,6 +58,7 @@ export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY
       fatG: input.fatG * q,
       fiberG: (input.fiberG ?? 0) * q,
       micros: micros ? JSON.stringify(micros) : null,
+      form: input.form ?? null,
       isEstimated: false,
     })
     .run();

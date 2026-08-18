@@ -132,6 +132,7 @@ export function mealToDiaryInputs(meal: MealNutrition, date?: string): PreciseFo
       fatG: base.fat,
       fiberG: base.fiber ?? 0,
       micros: base.micros,
+      form: base.form,
       date,
     };
   });

@@ -348,6 +348,12 @@ export const foodEntries = sqliteTable('food_entries', {
   fiberG: real('fiber_g').notNull().default(0),
   /** vitamins/minerals for this entry (JSON Partial<MicroProfile>), scaled by qty */
   micros: text('micros'),
+  /**
+   * 'liquid' | 'solid' — how the stomach treats it: liquids clear far faster and
+   * skip the solid lag phase. NULL means solid, so every row logged before this
+   * existed reads exactly as it did.
+   */
+  form: text('form', { enum: ['solid', 'liquid'] }),
   isEstimated: integer('is_estimated', { mode: 'boolean' })
     .notNull()
     .default(false),
@@ -780,6 +786,8 @@ export const customFoods = sqliteTable('custom_foods', {
   componentsJson: text('components_json'),
   /** micronutrients summed from the components (JSON Partial<MicroProfile>) */
   microsJson: text('micros_json'),
+  /** 'liquid' | 'solid' for the digestion clock; NULL reads as solid */
+  form: text('form', { enum: ['solid', 'liquid'] }),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

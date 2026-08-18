@@ -27,6 +27,8 @@ export interface RoutineItem {
   carbsG: number;
   fatG: number;
   fiberG: number;
+  /** liquid or solid, for the digestion clock; missing = solid */
+  form?: 'solid' | 'liquid' | null;
   /** which meal this item belongs to — used by whole-day routines */
   mealType: MealType;
   /** micronutrients, already scaled to `quantity` */
@@ -113,6 +115,7 @@ export function saveMealRoutine(
     carbsG: e.carbsG,
     fatG: e.fatG,
     fiberG: e.fiberG,
+    form: e.form ?? null,
     mealType: e.mealType,
     micros: e.micros ? safeParse(e.micros) : null,
   }));
@@ -159,6 +162,7 @@ export function applyMealRoutine(
         fatG: i.fatG,
         fiberG: i.fiberG,
         micros: i.micros ?? undefined,
+        form: i.form ?? undefined,
         date,
       },
       userId

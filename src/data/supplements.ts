@@ -40,7 +40,7 @@ export interface SupplementDef {
    * through the same calorie engine as food, and deleting the supplement log
    * removes its calories with it. Most pills have none and omit this.
    */
-  macros?: { calories: number; proteinG?: number; carbsG?: number; fatG?: number };
+  macros?: { calories: number; proteinG?: number; carbsG?: number; fatG?: number; form?: 'solid' | 'liquid' };
   timing?: string;
   evidenceLevel?: EvidenceLevel; // ergogenics
   evidence?: string;
@@ -213,7 +213,7 @@ export const SUPPLEMENTS: SupplementDef[] = [
     // Identical to the FOOD_DB 'whey' entry — macros AND micros — so a scoop
     // counts the same whichever way it gets logged. Don't log it BOTH ways for
     // one scoop. (Whey is a dairy fraction: it carries the milk minerals.)
-    macros: { calories: 120, proteinG: 24, carbsG: 3, fatG: 1.5 },
+    macros: { calories: 120, proteinG: 24, carbsG: 3, fatG: 1.5, form: 'liquid' },
     micros: { calcium_mg: 120, phosphorus_mg: 100, magnesium_mg: 20, potassium_mg: 160 },
     evidenceLevel: 'strong',
     evidence: 'A convenient protein source, not magic — it helps only insofar as it fills your daily protein target. Taking it here logs its 120 kcal and 24 g of protein into your diary automatically, so don\'t also log it as a food for the same scoop. Whole-food protein works just as well.',

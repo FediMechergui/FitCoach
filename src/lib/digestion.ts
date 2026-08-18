@@ -7,12 +7,19 @@
  * away from the gut, which stalls digestion, and running or jumping with a
  * stomach full of food is a reliable recipe for cramp, reflux and nausea.
  *
- * Two facts drive the model:
+ * Three facts drive the model:
  *   1. The stomach lets food through at a rate governed mainly by ENERGY —
  *      roughly 2–4 kcal per minute for a mixed solid meal, a little faster
  *      when it is fuller (a bigger meal empties faster per minute but still
- *      takes longer overall). Liquids and simple carbohydrate clear fastest;
- *      that is the reference speed.
+ *      takes longer overall). Simple carbohydrate clears fastest; that is
+ *      the reference speed for solids.
+ *   3. LIQUIDS are a different case. A drink leaves the stomach far faster
+ *      than the same calories as food: nutrient drinks half-empty in roughly
+ *      half the time of a solid meal, and they skip most of the 20–30 minute
+ *      lag phase that solids sit through before emptying starts at all. So a
+ *      500 kcal smoothie is not a 500 kcal plate — the clock runs it at about
+ *      twice the speed and settles it in a quarter of the time. Every food in
+ *      the catalogue is marked liquid or solid, and so is every food you add.
  *   2. Composition slows it. Fat is the biggest brake (the duodenum senses fat
  *      and holds the stomach back — a fatty meal can take twice as long),
  *      protein slows it moderately, fibre adds bulk and viscosity. Carbs are
@@ -45,6 +52,8 @@
  */
 
 export type TrainingIntensity = 'light' | 'moderate' | 'hard';
+/** How the stomach treats it. Every catalogue food and every custom food carries one. */
+export type FoodForm = 'solid' | 'liquid';
 
 export interface MealForDigestion {
   calories: number;
@@ -54,6 +63,8 @@ export interface MealForDigestion {
   fiberG: number;
   /** epoch ms the meal was eaten (its diary createdAt) */
   eatenAt: number;
+  /** liquid or solid; missing means solid (every row from before the flag) */
+  form?: FoodForm;
 }
 
 // ── Model constants ────────────────────────────────────────────────────────
@@ -74,6 +85,10 @@ export const READY_THRESHOLD_KCAL: Record<TrainingIntensity, number> = { light: 
  * lag phase for the first while before they empty at all.
  */
 export const SETTLE_MIN: Record<TrainingIntensity, number> = { light: 0, moderate: 20, hard: 30 };
+/** A drink barely has a lag phase — a shake needs a quarter of an hour before sprints, not half. */
+export const LIQUID_SETTLE_MIN: Record<TrainingIntensity, number> = { light: 0, moderate: 10, hard: 15 };
+/** Liquids drain at about twice the rate of the same calories as solid food. */
+export const LIQUID_SPEED = 2;
 export const MAX_WAIT_MIN = 300;
 
 /**
@@ -82,14 +97,18 @@ export const MAX_WAIT_MIN = 300;
  * already scale with the calories that set the base time — this term is
  * purely about the mix. Carbs are the remainder: the fast fraction.
  */
-export function mealSlowness(meal: Pick<MealForDigestion, 'calories' | 'proteinG' | 'fatG' | 'fiberG'>): number {
+export function mealSlowness(meal: Pick<MealForDigestion, 'calories' | 'proteinG' | 'fatG' | 'fiberG'> & { form?: FoodForm }): number {
   const kcal = Math.max(1, meal.calories);
   const fatShare = clamp((meal.fatG * 9) / kcal, 0, 1);
   const proteinShare = clamp((meal.proteinG * 4) / kcal, 0, 1);
   const fibrePer100 = clamp((meal.fiberG / kcal) * 100, 0, 6);
-  const s = 1 + 1.2 * Math.max(0, fatShare - 0.15) + 0.4 * Math.max(0, proteinShare - 0.15) + 0.08 * fibrePer100;
-  return clamp(s, 1, 2);
+  const s = clamp(1 + 1.2 * Math.max(0, fatShare - 0.15) + 0.4 * Math.max(0, proteinShare - 0.15) + 0.08 * fibrePer100, 1, 2);
+  // A liquid runs the same composition at LIQUID_SPEED × the rate.
+  return meal.form === 'liquid' ? s / LIQUID_SPEED : s;
 }
+
+/** The slowest a liquid can be, the fastest a solid: the bounds of `mealSlowness`. */
+export const MIN_SLOWNESS = 1 / LIQUID_SPEED;
 
 /** Energy shares of a meal — for showing WHY it is slow or fast. */
 export function mealShares(meal: Pick<MealForDigestion, 'calories' | 'proteinG' | 'carbsG' | 'fatG'>) {
@@ -105,7 +124,7 @@ export function drain(r0: number, minutes: number, s: number): number {
   if (r0 <= 0 || minutes <= 0) return Math.max(0, r0);
   const B = EMPTY_BASE_KCAL_PER_MIN;
   const K = EMPTY_RATE_PER_KCAL;
-  const r = ((B + K * r0) * Math.exp((-K * minutes) / Math.max(1, s)) - B) / K;
+  const r = ((B + K * r0) * Math.exp((-K * minutes) / Math.max(MIN_SLOWNESS, s)) - B) / K;
   return Math.max(0, r);
 }
 
@@ -114,7 +133,7 @@ export function minutesToDrain(r0: number, target: number, s: number): number {
   if (r0 <= target) return 0;
   const B = EMPTY_BASE_KCAL_PER_MIN;
   const K = EMPTY_RATE_PER_KCAL;
-  return (Math.max(1, s) / K) * Math.log((B + K * r0) / (B + K * target));
+  return (Math.max(MIN_SLOWNESS, s) / K) * Math.log((B + K * r0) / (B + K * target));
 }
 
 export interface StomachLoad {
@@ -128,6 +147,8 @@ export interface StomachLoad {
   lastEatenAt: number | null;
   /** total calories of the contributing meals (what went in) */
   eatenKcal: number;
+  /** what the last bite was — a drink settles far faster than a plate */
+  lastForm: FoodForm;
 }
 
 /**
@@ -154,13 +175,15 @@ export function stomachLoad(meals: MealForDigestion[], now = Date.now()): Stomac
     t = m.eatenAt;
   }
   load = drain(load, (now - t) / 60_000, s);
-  if (load < 1) return { loadKcal: 0, slowness: 1, meals: [], lastEatenAt: null, eatenKcal: 0 };
+  if (load < 1) return { loadKcal: 0, slowness: 1, meals: [], lastEatenAt: null, eatenKcal: 0, lastForm: 'solid' };
+  const last = contributing[contributing.length - 1];
   return {
     loadKcal: Math.round(load),
     slowness: Math.round(s * 100) / 100,
     meals: contributing,
-    lastEatenAt: contributing[contributing.length - 1]?.eatenAt ?? null,
+    lastEatenAt: last?.eatenAt ?? null,
     eatenKcal: Math.round(contributing.reduce((a, m) => a + m.calories, 0)),
+    lastForm: last?.form === 'liquid' ? 'liquid' : 'solid',
   };
 }
 
@@ -173,7 +196,8 @@ function waitFor(load: StomachLoad, intensity: TrainingIntensity, now: number): 
   if (load.loadKcal <= 0 || load.lastEatenAt == null) return 0;
   const drainMin = minutesToDrain(load.loadKcal, READY_THRESHOLD_KCAL[intensity], load.slowness);
   const sinceLast = (now - load.lastEatenAt) / 60_000;
-  const settleMin = Math.max(0, SETTLE_MIN[intensity] - sinceLast);
+  const settle = load.lastForm === 'liquid' ? LIQUID_SETTLE_MIN : SETTLE_MIN;
+  const settleMin = Math.max(0, settle[intensity] - sinceLast);
   return Math.round(clamp(Math.max(drainMin, settleMin), 0, MAX_WAIT_MIN));
 }
 
@@ -186,7 +210,8 @@ export function digestionMinutes(meal: MealForDigestion, intensity: TrainingInte
   const kcal = Math.max(0, meal.calories);
   if (kcal < MIN_MEAL_KCAL) return 0;
   const drainMin = minutesToDrain(kcal, READY_THRESHOLD_KCAL[intensity], mealSlowness(meal));
-  return Math.round(clamp(Math.max(drainMin, SETTLE_MIN[intensity]), 0, MAX_WAIT_MIN));
+  const settle = meal.form === 'liquid' ? LIQUID_SETTLE_MIN : SETTLE_MIN;
+  return Math.round(clamp(Math.max(drainMin, settle[intensity]), 0, MAX_WAIT_MIN));
 }
 
 export interface DigestionStatus {
@@ -305,7 +330,7 @@ function clamp(n: number, lo: number, hi: number): number {
  * water/coffee) fall out naturally via the MIN_MEAL_KCAL floor.
  */
 export function mealsFromEntries(
-  entries: Array<{ calories: number; proteinG: number; carbsG: number; fatG: number; fiberG: number; createdAt: number }>
+  entries: Array<{ calories: number; proteinG: number; carbsG: number; fatG: number; fiberG: number; createdAt: number; form?: string | null }>
 ): MealForDigestion[] {
   return entries.map((e) => ({
     calories: e.calories,
@@ -314,5 +339,6 @@ export function mealsFromEntries(
     fatG: e.fatG,
     fiberG: e.fiberG,
     eatenAt: e.createdAt,
+    form: e.form === 'liquid' ? 'liquid' : 'solid',
   }));
 }

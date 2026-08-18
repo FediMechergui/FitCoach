@@ -108,6 +108,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
       fatG: selected.fat,
       fiberG: selected.fiber,
       micros: selected.micros,
+      form: selected.form,
       eatenAt: resolveEatenAt(eatenAt, diaryDate),
     });
     navigation.goBack();
@@ -122,7 +123,9 @@ function PreciseMode({ meal }: { meal: MealType }) {
             <Icon icon="nutrition.calories" color={theme.colors.calories} />
             <View style={{ flex: 1 }}>
               <Text variant="h3">{selected.name}</Text>
-              <Text variant="caption" color="textMuted">{selected.serving}</Text>
+              <Text variant="caption" color="textMuted">
+                {selected.serving} · {selected.form === 'liquid' ? 'liquid — clears the stomach about twice as fast' : 'solid'}
+              </Text>
             </View>
           </Row>
           <Input label="Servings" value={qty} onChangeText={setQty} keyboardType="numeric" />
@@ -226,7 +229,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
                   </Row>
                   <Text variant="caption" color="textMuted">
                     {item.serving} · {item.calories} kcal{item.caloriesEstimated ? '≈' : ''} · P
-                    {item.protein} C{item.carbs} F{item.fat} Fb{item.fiber}
+                    {item.protein} C{item.carbs} F{item.fat} Fb{item.fiber}{item.form === 'liquid' ? ' · liquid' : ''}
                   </Text>
                 </View>
                 {item.isCustom ? (

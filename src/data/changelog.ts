@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.42',
+    date: '2026-08-18',
+    title: 'Log a meal you forgot at the time you actually finished it',
+    highlights: [
+      'When you add a food there is now a "Finished eating" row: Just now (the default — logging as you eat stays one tap), 15 min, 30 min, 1 h, 2 h ago, or At… for an exact time. The training clock counts from THAT moment, so lunch logged at 15:00 but finished at 13:00 no longer reads as if you had just eaten it and holds you back for two hours you have already waited. Works in Precise and Honest mode; a time in the future is clamped to now; on a past diary day the time lands on that day.',
+      'Every diary row now shows when it was eaten and its fibre, so a backdated meal visibly reads at its real time.',
+      'Reports, checked before release: the PDF document is now built by a pure function that is rendered in the test suite against a full profile AND a brand-new one with almost nothing logged — no weigh-in, no goal, no sessions — and must come out whole, with user text escaped. The nutritionist version gained what a nutritionist would ask for first: fibre (7-day and 30-day average against your target), a micronutrient section listing what runs low over the week with the reference intake beside it, and your supplement stack as you take it. If a phone has no share sheet, the app now says where the file was saved instead of returning silently.',
+      'Athlete card, checked before release: sharing and saving no longer fail silently — a denied photos permission, an export error and a successful save each say so, and the buttons cannot be double-tapped. Your card photo is copied into the app\'s own storage instead of the picker\'s cache (which Android may clear), and a photo whose file has gone falls back to the placeholder rather than a blank square on the card.',
+      '920 checks in all, up from 875.',
+    ],
+  },
+  {
     version: '2.41',
     date: '2026-08-18',
     title: 'The training clock stacks your meals — and your cigarettes',

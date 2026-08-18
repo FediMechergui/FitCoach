@@ -19,6 +19,8 @@ import { useNutritionStore } from '@/stores/nutritionStore';
 import { currentFastingState } from '@/repositories/faithRepo';
 import { minutesToHM } from '@/lib/time';
 import { customFoodsAsItems, customFoodIdFrom } from '@/repositories/customFoodRepo';
+import { EatenAtPicker } from '@/components/EatenAtPicker';
+import { resolveEatenAt, type EatenAtChoice } from '@/lib/eatenAt';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type AddFoodRoute = RouteProp<RootStackParamList, 'AddFood'>;
@@ -67,10 +69,13 @@ function PreciseMode({ meal }: { meal: MealType }) {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const addPrecise = useNutritionStore((s) => s.addPrecise);
+  const diaryDate = useNutritionStore((s) => s.date);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [selected, setSelected] = useState<FoodItem | null>(null);
   const [qty, setQty] = useState('1');
+  // When eating finished — "just now" unless said otherwise (see lib/eatenAt).
+  const [eatenAt, setEatenAt] = useState<EatenAtChoice>({ kind: 'now' });
 
   // Re-read on focus so a food just created (or edited) in the modal shows up
   // immediately rather than after a remount.
@@ -103,6 +108,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
       fatG: selected.fat,
       fiberG: selected.fiber,
       micros: selected.micros,
+      eatenAt: resolveEatenAt(eatenAt, diaryDate),
     });
     navigation.goBack();
   };
@@ -120,6 +126,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
             </View>
           </Row>
           <Input label="Servings" value={qty} onChangeText={setQty} keyboardType="numeric" />
+          <EatenAtPicker value={eatenAt} onChange={setEatenAt} dateISO={diaryDate} />
           <Divider />
           <Row style={{ justifyContent: 'space-between' }}>
             <Macro label="Calories" value={`${Math.round(selected.calories * q)}`} color={theme.colors.calories} />
@@ -250,12 +257,14 @@ function HonestMode({ meal }: { meal: MealType }) {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const addHonest = useNutritionStore((s) => s.addHonest);
+  const diaryDate = useNutritionStore((s) => s.date);
   const [text, setText] = useState('');
+  const [eatenAt, setEatenAt] = useState<EatenAtChoice>({ kind: 'now' });
   const estimate = useMemo(() => (text.trim() ? estimateFromDescription(text) : null), [text]);
 
   const save = () => {
     if (!text.trim()) return;
-    addHonest({ mealType: meal, description: text.trim() });
+    addHonest({ mealType: meal, description: text.trim(), eatenAt: resolveEatenAt(eatenAt, diaryDate) });
     navigation.goBack();
   };
 
@@ -297,6 +306,10 @@ function HonestMode({ meal }: { meal: MealType }) {
           </Text>
         </Card>
       )}
+
+      <Card>
+        <EatenAtPicker value={eatenAt} onChange={setEatenAt} dateISO={diaryDate} />
+      </Card>
 
       <Button title="Log it honestly" icon="core.check" onPress={save} disabled={!text.trim()} />
     </View>

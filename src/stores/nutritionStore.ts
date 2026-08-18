@@ -26,6 +26,7 @@ interface NutritionState {
     mealType: MealType;
     description: string;
     override?: { calories: number; proteinG: number; carbsG: number; fatG: number };
+    eatenAt?: number;
   }) => ReturnType<typeof addHonestFood>;
   removeFood: (id: number) => void;
   addDrink: (type: BeverageType, opts?: { volumeMl?: number; caffeineMg?: number }) => void;

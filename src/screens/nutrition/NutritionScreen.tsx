@@ -30,6 +30,7 @@ import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { recentSmokeEvents } from '@/repositories/smokingRepo';
 import { addDays, todayISO } from '@/lib/date';
 import { recommendedFiberG } from '@/lib/calories';
+import { clockOf } from '@/lib/eatenAt';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const MEAL_LABELS: Record<MealType, string> = {
@@ -327,7 +328,7 @@ export function NutritionScreen() {
                           {e.isEstimated ? <Badge label="est." color={theme.colors.warning} /> : null}
                         </Row>
                         <Text variant="caption" color="textFaint">
-                          {Math.round(e.calories)} kcal · P{Math.round(e.proteinG)} C{Math.round(e.carbsG)} F{Math.round(e.fatG)}
+                          {clockOf(e.createdAt)} · {Math.round(e.calories)} kcal · P{Math.round(e.proteinG)} C{Math.round(e.carbsG)} F{Math.round(e.fatG)} Fb{Math.round(e.fiberG)}
                         </Text>
                         {/* Only today's meals have a live digestion clock; a past day's is history. */}
                         {date === todayISO() && e.calories >= 20 && (

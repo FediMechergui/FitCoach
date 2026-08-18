@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Image } from 'react-native';
+import { View, Image, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,7 +13,7 @@ import { PageHero } from '@/components/ui/PageHero';
 import { useUserStore } from '@/stores/userStore';
 import { computeCardRating } from '@/repositories/cardRepo';
 import { currentMonthKey, getProfilePhoto, setProfilePhoto } from '@/repositories/userRepo';
-import { exportCardPng } from '@/services/cardExport';
+import { exportCardPng, persistProfilePhoto, photoStillExists } from '@/services/cardExport';
 import { ATTRIBUTE_LABELS, type CardRating, type AttributeSet } from '@/lib/rating';
 import { ageFromBirthdate } from '@/lib/date';
 
@@ -32,11 +32,16 @@ export function ProfileCardScreen() {
   const cardRef = useRef<View>(null);
   const [rating, setRating] = useState<CardRating | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'share' | 'save' | null>(null);
   const month = currentMonthKey();
 
   const refresh = useCallback(() => {
     setRating(computeCardRating());
-    setPhotoUri(getProfilePhoto(month)?.uri ?? null);
+    const stored = getProfilePhoto(month)?.uri ?? null;
+    setPhotoUri(stored);
+    // A photo whose file has gone (cache cleared) would render as a blank
+    // square on the card — better the placeholder than a hole.
+    if (stored) void photoStillExists(stored).then((ok) => { if (!ok) setPhotoUri(null); });
   }, [month]);
 
   useFocusEffect(useCallback(() => refresh(), [refresh]));
@@ -51,8 +56,25 @@ export function ProfileCardScreen() {
       quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfilePhoto(month, result.assets[0].uri);
-      setPhotoUri(result.assets[0].uri);
+      const durable = await persistProfilePhoto(result.assets[0].uri, month);
+      setProfilePhoto(month, durable);
+      setPhotoUri(durable);
+    }
+  };
+
+  const doExport = async (mode: 'share' | 'save') => {
+    if (busy) return;
+    setBusy(mode);
+    try {
+      const r = await exportCardPng(cardRef, { save: mode === 'save' });
+      if (!r.ok) {
+        if (r.reason === 'permission-denied') Alert.alert('Photos permission needed', 'Allow FitCoach to add to your photos to save the card, or use Share instead.');
+        else if (r.reason === 'error') Alert.alert('Could not export the card', r.message ?? 'Unknown error');
+      } else if (mode === 'save' && r.saved) {
+        Alert.alert('Saved to Photos', 'Your athlete card is in your photo library.');
+      }
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -154,9 +176,9 @@ export function ProfileCardScreen() {
 
       <Row>
         <Button title={photoUri ? 'Change photo' : 'Add photo'} icon="card.camera" variant="secondary" onPress={pickPhoto} style={{ flex: 1 }} fullWidth={false} />
-        <Button title="Share PNG" icon="card.share" onPress={() => exportCardPng(cardRef, { save: false })} style={{ flex: 1 }} fullWidth={false} />
+        <Button title="Share PNG" icon="card.share" loading={busy === 'share'} onPress={() => doExport('share')} style={{ flex: 1 }} fullWidth={false} />
       </Row>
-      <Button title="Save to Photos" icon="card.download" variant="ghost" onPress={() => exportCardPng(cardRef, { save: true })} />
+      <Button title="Save to Photos" icon="card.download" variant="ghost" loading={busy === 'save'} onPress={() => doExport('save')} />
     </Screen>
   );
 }

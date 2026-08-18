@@ -28,6 +28,11 @@ export interface PreciseFoodInput {
   /** per-serving vitamins/minerals; scaled by quantity and stored denormalized */
   micros?: Partial<MicroProfile>;
   date?: string;
+  /**
+   * When eating finished, epoch ms — the digestion clock reads it. Omit for
+   * "just now" (the row takes the database default). See lib/eatenAt.
+   */
+  eatenAt?: number;
 }
 
 export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY_USER_ID): number {
@@ -38,6 +43,7 @@ export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY
     .values({
       userId,
       date: input.date ?? todayISO(),
+      ...(input.eatenAt != null ? { createdAt: input.eatenAt } : {}),
       mealType: input.mealType,
       logMode: 'precise',
       foodName: input.foodName,
@@ -66,6 +72,8 @@ export function addHonestFood(
     description: string;
     override?: { calories: number; proteinG: number; carbsG: number; fatG: number };
     date?: string;
+    /** when eating finished, epoch ms; omit for "just now" */
+    eatenAt?: number;
   },
   userId: number = PRIMARY_USER_ID
 ): { id: number; estimate: ReturnType<typeof estimateFromDescription> } {
@@ -81,6 +89,7 @@ export function addHonestFood(
     .values({
       userId,
       date: input.date ?? todayISO(),
+      ...(input.eatenAt != null ? { createdAt: input.eatenAt } : {}),
       mealType: input.mealType,
       logMode: 'honest',
       freeTextDescription: input.description,
@@ -218,6 +227,7 @@ export interface DailyIntakeRow {
   date: string;
   calories: number;
   protein: number;
+  fiber: number;
 }
 
 export function dailyIntakeSince(sinceISO: string, userId: number = PRIMARY_USER_ID): DailyIntakeRow[] {
@@ -228,13 +238,14 @@ export function dailyIntakeSince(sinceISO: string, userId: number = PRIMARY_USER
     .all();
   const map = new Map<string, DailyIntakeRow>();
   for (const e of rows) {
-    const cur = map.get(e.date) ?? { date: e.date, calories: 0, protein: 0 };
+    const cur = map.get(e.date) ?? { date: e.date, calories: 0, protein: 0, fiber: 0 };
     cur.calories += e.calories;
     cur.protein += e.proteinG;
+    cur.fiber += e.fiberG;
     map.set(e.date, cur);
   }
   return [...map.values()]
-    .map((r) => ({ ...r, calories: roundKcal(r.calories), protein: roundGrams(r.protein) }))
+    .map((r) => ({ ...r, calories: roundKcal(r.calories), protein: roundGrams(r.protein), fiber: roundGrams(r.fiber) }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 

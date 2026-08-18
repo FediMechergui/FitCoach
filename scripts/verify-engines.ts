@@ -75,6 +75,9 @@ import {
 import { digestionMinutes, digestionStatus, currentDigestion, formatWait, intensityForSessionType, mealsFromEntries, mealSlowness, stomachLoad, drain, minutesToDrain, type MealForDigestion } from '../src/lib/digestion';
 import { smokeStatus, currentSmoke, coLoad, minutesToDecay, CO_HALF_LIFE_MIN, CO_THRESHOLD, NICOTINE_ACUTE_MIN } from '../src/lib/smokeClock';
 import { trainReadiness } from '../src/lib/readiness';
+import { buildReportHtml } from '../src/lib/reportHtml';
+import type { ReportData } from '../src/repositories/reportRepo';
+import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib/eatenAt';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
 import {
   buildDailyWheel,
@@ -2310,6 +2313,123 @@ console.log('\nLayout — one title per page, uniform heroes, section rhythm:');
 
   // Copy that stopped being true when supplements started logging calories.
   check('Supplements intro no longer claims pills never touch calories', !/None of this changes your calories/.test(fs.readFileSync('src/screens/nutrition/SupplementsScreen.tsx', 'utf8')));
+}
+
+console.log('\nReports — the PDF document renders from full and sparse data:');
+{
+  const base = {
+    generatedOn: '2026-08-18',
+    profile: { name: 'Fedi', age: 23, sex: 'male' as const, gender: 'male', heightCm: 178, goal: 'build_muscle', activityLevel: 'moderate', bodyType: 'mesomorph' },
+    weightKg: 76.4,
+    bodyComp: { bodyFatPct: 15, fatMassKg: 11.5, leanMassKg: 64.9, muscleMassKg: 36, bodyWaterPct: 60, waterStatus: 'normal', boneMassKg: 3.2, normalizedFFMI: 21.1, ffmi: 20.5, bmi: 24.1, bmiCategory: 'normal', ffmiCategory: 'above average' },
+    weightTrendKgPerWeek: 0.21,
+    nutrition: { calorieTarget: 2700, proteinG: 160, carbsG: 320, fatG: 80, avg7d: { calories: 2610, protein: 152, fiber: 27 }, avg30d: { calories: 2550, protein: 148, fiber: 24 }, fiberTargetG: 38, daysLogged30d: 26, waterGoalMl: 2700, caffeineSoftLimitMg: 400 },
+    micros: { daysWithData: 6, gaps: [{ label: 'Vitamin D', avgAmount: '4.2 µg', rdi: '15 µg', pct: 28 }, { label: 'Magnesium', avgAmount: '190 mg', rdi: '400 mg', pct: 48 }], coveredCount: 17, trackedCount: 25 },
+    supplements: [{ label: 'Multivitamines GSN', dose: '1 capsule', category: 'micronutrient' }, { label: 'Creatine', dose: '5 g/day', category: 'ergogenic' }],
+    training: { sessions30d: 14, streak: 5, weeklyVolume: [{ weekStart: '2026-08-10', volume: 24000 }], sessionMix: { strength: 10, cardio: 4 }, prs: [{ date: '2026-08-12', exerciseName: 'Back Squat', weightKg: 120, reps: 5, est1RM: 140 }], avgStepsPerDay: 8200 },
+    sleep: { lastNight: 7.2, avg7d: 7.0, debt7d: 3, performanceFactor: 0.96, series: [] },
+    alcohol: { todayGrams: 0, todayDrinks: 0, todayCalories: 0, weekGrams: 20, weekDrinks: 2, weekCalories: 140, weeklyLimitG: 100, estimatedPeakBAC: 0, hoursToSober: 0, dryDays7d: 6, series: [] },
+    smoking: { today: 2, week: 18, avgPerDay: 2.6, dailyTarget: 3, nicotineWeekMg: 20, moneyWeek: 7.2, moneyYearProjected: 374, currency: 'TND ', lifeMinutesWeek: 198, lifeHoursYearProjected: 171, aerobicPenaltyPct: 3, restingHrElevationBpm: 4, smokeFreeHours: 5, smokeFreeStreak: 0 },
+    cycle: null,
+    conditions: [{ label: 'Asthma', category: 'respiratory', notes: 'Inhaler before cardio' }],
+    rating: { overall: 74, attributes: { STR: 70, END: 66, CON: 80, NUT: 77, REC: 72, DIS: 79 }, tier: 'Gold' as const, tierColor: '#FFB454' },
+  };
+  const full = { ...base, audience: 'nutritionist' as const } as unknown as ReportData;
+  const html = buildReportHtml(full);
+  check('The nutritionist report renders', html.startsWith('<!DOCTYPE html>') && /Nutrition &amp; Body Report/.test(html));
+  check('…with fibre target and averages', /Fibre target/.test(html) && /38 g/.test(html) && /27 \/ 24 g/.test(html));
+  check('…a micronutrient section listing what runs low', /Micronutrients \(7-day average\)/.test(html) && /Vitamin D/.test(html) && /28%/.test(html) && /17 of 25 tracked/.test(html));
+  check('…the supplement stack', /Supplement Stack/.test(html) && /Multivitamines GSN/.test(html) && /1 capsule/.test(html));
+  check('…PRs, conditions, rating, smoking', /Back Squat/.test(html) && /Asthma/.test(html) && /Overall <strong>74<\/strong>/.test(html) && /Est\. aerobic penalty/.test(html));
+  check('Nutritionist order: Nutrition and Micronutrients come before Training', html.indexOf('<h2>Nutrition</h2>') < html.indexOf('<h2>Micronutrients') && html.indexOf('<h2>Micronutrients') < html.indexOf('<h2>Training'));
+  const coach = buildReportHtml({ ...base, audience: 'coach' } as unknown as ReportData);
+  check('Coach order: Athlete Rating and Training come first', coach.indexOf('<h2>Athlete Rating</h2>') < coach.indexOf('<h2>Nutrition</h2>') && /Training &amp; Recovery Report/.test(coach));
+  // Sparse: a brand-new user with almost nothing logged must still get a document.
+  const sparse = {
+    ...base,
+    audience: 'nutritionist' as const,
+    weightKg: null, bodyComp: null, weightTrendKgPerWeek: null, nutrition: null,
+    micros: { daysWithData: 0, gaps: [], coveredCount: 0, trackedCount: 25 },
+    supplements: [],
+    training: { sessions30d: 0, streak: 0, weeklyVolume: [], sessionMix: {}, prs: [], avgStepsPerDay: 0 },
+    sleep: { lastNight: null, avg7d: null, debt7d: 0, performanceFactor: 1, series: [] },
+    smoking: { ...base.smoking, week: 0, avgPerDay: 0 },
+    cycle: null, conditions: [],
+    profile: { ...base.profile, heightCm: null, bodyType: null },
+  } as unknown as ReportData;
+  let sparseHtml = '';
+  let threw: unknown = null;
+  try { sparseHtml = buildReportHtml(sparse); } catch (e) { threw = e; }
+  check('A sparse profile renders without throwing', threw === null && sparseHtml.length > 500, String(threw));
+  check('…omitting the sections that have nothing (micros, supplements, smoking, body comp)', !/<h2>Micronutrients/.test(sparseHtml) && !/Supplement Stack/.test(sparseHtml) && !/<h2>Smoking<\/h2>/.test(sparseHtml) && !/<h2>Body Composition<\/h2>/.test(sparseHtml));
+  check('…and saying so where it matters', /No PRs recorded yet\./.test(sparseHtml) && /Weight<\/td><td class="v">—/.test(sparseHtml));
+  // Escaping: a name is user text.
+  const nasty = buildReportHtml({ ...base, audience: 'coach', profile: { ...base.profile, name: '<script>alert(1)</script> & co' } } as unknown as ReportData);
+  check('User text is escaped in the document', /&lt;script&gt;/.test(nasty) && !/<script>alert/.test(nasty) && /&amp; co/.test(nasty));
+  // The service is a thin shell around the pure builder, and never fails silently.
+  const svc = fs.readFileSync('src/services/pdfReport.ts', 'utf8');
+  check('pdfReport renders the pure builder', /buildReportHtml\(data\)/.test(svc) && /Print\.printToFileAsync\(\{ html/.test(svc));
+  check('…and tells the user where the file is when no share sheet exists', /Alert\.alert\('Report generated'/.test(svc));
+  check('The Reports screen catches and shows generation errors', /Alert\.alert\('Could not generate report'/.test(fs.readFileSync('src/screens/profile/ReportsScreen.tsx', 'utf8')));
+  // Data side: fibre rides along in daily intake, micros averaged over days WITH data.
+  const nutRepoR = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
+  check('Daily intake rows carry fibre', /cur\.fiber \+= e\.fiberG/.test(nutRepoR) && /fiber: roundGrams\(r\.fiber\)/.test(nutRepoR));
+  const repRepo = fs.readFileSync('src/repositories/reportRepo.ts', 'utf8');
+  check('Report micros average only the days that had micro data', /filter\(\(m\) => m\.foodEntriesWithMicros > 0 \|\| m\.supplementCount > 0\)/.test(repRepo) && /Math\.max\(1, microDays\.length\)/.test(repRepo));
+  check('Report fibre target is the same function the app shows', /fiberTargetG: recommendedFiberG\(goal\.calorieTarget\)/.test(repRepo));
+  check('Report supplement stack comes from the enabled stack with the user\'s serving', /getStack\(userId\)/.test(repRepo) && /servingUnits\(def\) \?\? def\.defaultDose/.test(repRepo));
+}
+
+console.log('\nFinished eating at — the forgotten meal, timed right:');
+{
+  // A fixed "now": local 15:00 today.
+  const nowD = new Date(); nowD.setHours(15, 0, 0, 0);
+  const NOW = nowD.getTime();
+  const todayL = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
+  const yd = new Date(NOW - 86_400_000);
+  const yesterdayL = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`;
+  const M = 60_000;
+  check('parseHHMM reads the usual forms', parseHHMM('13:40') === 820 && parseHHMM('9:05') === 545 && parseHHMM('0940') === 580 && parseHHMM('13h40') === 820 && parseHHMM(' 7.30 ') === 450);
+  check('…and rejects nonsense', parseHHMM('25:00') === null && parseHHMM('13:60') === null && parseHHMM('abc') === null && parseHHMM('') === null);
+  check('"Just now" on today leaves the row to its default (byte-identical to before)', resolveEatenAt({ kind: 'now' }, todayL, NOW) === undefined);
+  check('"30 min ago" on today is now minus 30', resolveEatenAt({ kind: 'ago', minutes: 30 }, todayL, NOW) === NOW - 30 * M);
+  check('"At 13:40" on today is today 13:40', clockOf(resolveEatenAt({ kind: 'clock', hhmm: '13:40' }, todayL, NOW)!) === '13:40' && resolveEatenAt({ kind: 'clock', hhmm: '13:40' }, todayL, NOW)! === NOW - 80 * M);
+  check('A time in the future is clamped to now (never a meal you have not eaten)', resolveEatenAt({ kind: 'clock', hhmm: '18:00' }, todayL, NOW) === NOW && resolveEatenAt({ kind: 'ago', minutes: -60 }, todayL, NOW) === NOW);
+  check('An invalid clock falls back to the default rather than a wrong time', resolveEatenAt({ kind: 'clock', hhmm: '99:99' }, todayL, NOW) === undefined);
+  const yEight = resolveEatenAt({ kind: 'clock', hhmm: '20:00' }, yesterdayL, NOW)!;
+  check('"At 20:00" on a past diary day lands on THAT day at 20:00', clockOf(yEight) === '20:00' && yEight < NOW && yEight > NOW - 24 * 60 * M);
+  check('"Just now" on a past day means unknown → the default', resolveEatenAt({ kind: 'now' }, yesterdayL, NOW) === undefined);
+  check('"1 h ago" on a past day is anchored to that day, not to now', resolveEatenAt({ kind: 'ago', minutes: 60 }, yesterdayL, NOW)! < NOW - 12 * 60 * M);
+  check('Presets start with "Just now" as the default', EATEN_AT_PRESETS[0].choice.kind === 'now' && EATEN_AT_PRESETS.length >= 4);
+  // The digestion clock honours it: a 600 kcal meal "finished 2 h ago" is far along.
+  const eaten = resolveEatenAt({ kind: 'ago', minutes: 120 }, todayL, NOW)!;
+  const st = currentDigestion([{ calories: 600, proteinG: 30, carbsG: 60, fatG: 20, fiberG: 6, eatenAt: eaten }], 'hard', NOW);
+  check('A backdated meal is that far along on the training clock', st !== null && st.elapsedMin === 120 && st.remainingMin < 60, `${st?.elapsedMin} / ${st?.remainingMin}`);
+  check('…and already clear for a normal session, as 2 h after 600 kcal should be', currentDigestion([{ calories: 600, proteinG: 30, carbsG: 60, fatG: 20, fiberG: 6, eatenAt: eaten }], 'moderate', NOW) === null);
+  // Wiring
+  const nutRepoE = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
+  check('addPreciseFood stores eatenAt as createdAt only when given', (nutRepoE.match(/\.\.\.\(input\.eatenAt != null \? \{ createdAt: input\.eatenAt \} : \{\}\)/g) ?? []).length === 2);
+  const addSrcE = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
+  check('AddFood asks in both modes and resolves against the diary date', (addSrcE.match(/<EatenAtPicker value=\{eatenAt\} onChange=\{setEatenAt\} dateISO=\{diaryDate\} \/>/g) ?? []).length === 2 && (addSrcE.match(/eatenAt: resolveEatenAt\(eatenAt, diaryDate\)/g) ?? []).length === 2);
+  check('…defaulting to just now', (addSrcE.match(/useState<EatenAtChoice>\(\{ kind: 'now' \}\)/g) ?? []).length === 2);
+  check('The diary row shows when it was eaten, and its fibre', /\{clockOf\(e\.createdAt\)\} · \{Math\.round\(e\.calories\)\} kcal/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')) && /Fb\{Math\.round\(e\.fiberG\)\}/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
+  const pickerSrc = fs.readFileSync('src/components/EatenAtPicker.tsx', 'utf8');
+  check('The picker says plainly what the clock will do', /the training clock counts from then, not from now/.test(pickerSrc) && /the training clock starts from this moment/.test(pickerSrc));
+}
+
+console.log('\nAthlete card — export never fails silently, photo survives a cache clear:');
+{
+  const ce = fs.readFileSync('src/services/cardExport.ts', 'utf8');
+  check('exportCardPng returns a result instead of throwing', /ok: false; reason: 'no-view' \| 'permission-denied' \| 'error'/.test(ce) && /catch \(e\)/.test(ce) && /return \{ ok: true, uri, saved, shared \}/.test(ce));
+  check('A denied photos permission is reported, not swallowed', /return \{ ok: false, reason: 'permission-denied' \}/.test(ce));
+  check('The picked photo is copied into the app\'s own directory', /FileSystem\.documentDirectory\}profile-photos\//.test(ce) && /FileSystem\.copyAsync\(\{ from: sourceUri, to: dest \}\)/.test(ce));
+  check('…falling back to the original if the copy fails', /catch \{\s*return sourceUri;/.test(ce));
+  const pcs = fs.readFileSync('src/screens/profile/ProfileCardScreen.tsx', 'utf8');
+  check('The card screen persists the photo before storing its URI', /const durable = await persistProfilePhoto\(result\.assets\[0\]\.uri, month\);\s*setProfilePhoto\(month, durable\);/.test(pcs));
+  check('…drops a photo whose file has gone rather than rendering a hole', /photoStillExists\(stored\)\.then\(\(ok\) => \{ if \(!ok\) setPhotoUri\(null\); \}\)/.test(pcs));
+  check('…tells the user about permission and errors, and confirms a save', /Alert\.alert\('Photos permission needed'/.test(pcs) && /Alert\.alert\('Could not export the card'/.test(pcs) && /Alert\.alert\('Saved to Photos'/.test(pcs));
+  check('…and guards against double taps with a busy state', /if \(busy\) return;/.test(pcs) && /loading=\{busy === 'share'\}/.test(pcs) && /loading=\{busy === 'save'\}/.test(pcs));
+  check('The capture view is marked non-collapsable (Android needs a real native view)', /collapsable=\{false\}/.test(pcs));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

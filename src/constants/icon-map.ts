@@ -361,6 +361,16 @@ export const ICONS = {
     wind: def('MaterialCommunityIcons', 'weather-windy'),
     humidity: def('MaterialCommunityIcons', 'water-percent'),
   },
+  // After a session: the margins card
+  after: {
+    session: def('MaterialCommunityIcons', 'clock-check-outline'),
+    water: def('MaterialCommunityIcons', 'cup-water'),
+    eat: def('MaterialCommunityIcons', 'silverware-fork-knife'),
+    smoke: def('MaterialCommunityIcons', 'smoking-off'),
+    alcohol: def('MaterialCommunityIcons', 'glass-cocktail-off'),
+    cold: def('MaterialCommunityIcons', 'snowflake'),
+    next: def('MaterialCommunityIcons', 'calendar-refresh'),
+  },
   digest: {
     stomach: def('MaterialCommunityIcons', 'stomach'),
     clock: def('MaterialCommunityIcons', 'timer-sand'),

@@ -15,6 +15,8 @@ import type { RootStackParamList } from '@/navigation/types';
 import { getSessionDetail } from '@/repositories/sessionRepo';
 import { saveRoutine, sessionExerciseIds, findRoutineByName } from '@/repositories/routinesRepo';
 import { EnergyBalanceCard } from '@/components/EnergyBalanceCard';
+import { PostSessionCard } from '@/components/PostSessionCard';
+import { postSessionFor } from '@/repositories/postSessionRepo';
 import { metaFor, MOOD_EMOJI } from '@/constants/sessionTypes';
 import { formatDurationLong, formatDistance, formatPace } from '@/lib/format';
 import { useUserStore } from '@/stores/userStore';
@@ -29,6 +31,8 @@ export function SessionRecapScreen() {
   const unit = useUserStore((s) => s.user?.unitPreference ?? 'metric');
   const detail = useMemo(() => getSessionDetail(route.params.sessionId), [route.params.sessionId]);
   const { session, logs } = detail;
+  // The margins after THIS session — scaled by what was just logged.
+  const after = useMemo(() => postSessionFor(route.params.sessionId), [route.params.sessionId]);
   const meta = metaFor(session.sessionType);
   const isLifting = meta.flow === 'lifting';
   const prCount = route.params.prCount ?? 0;
@@ -92,6 +96,8 @@ export function SessionRecapScreen() {
           <StatTile icon="cardio.pace" label="Pace" value={formatPace(session.pace, unit)} />
         </Row>
       ) : null}
+
+      {after && <PostSessionCard endedAt={after.endedAt} strain={after.strain} margins={after.margins} />}
 
       {meta.flow === 'mindbody' && (session.moodBefore || session.moodAfter) && (
         <Card>

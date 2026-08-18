@@ -24,6 +24,9 @@ import { latestReading } from '@/repositories/weatherRepo';
 import { weatherAdvice, HEAT_BAND_COLOR, HEAT_BAND_LABEL } from '@/lib/weather';
 import type { LatLng } from '@/lib/geo';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
+import { PostSessionCard } from '@/components/PostSessionCard';
+import { postSessionMargins, sessionStrain } from '@/lib/postSession';
+import { isSmokingEnabled } from '@/repositories/smokingRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type WalkRoute = RouteProp<RootStackParamList, 'Walk'>;
@@ -41,7 +44,7 @@ export function WalkScreen() {
   const weightKg = useUserStore((s) => s.currentWeightKg) ?? 75;
 
   const [hardwareAvailable, setHardwareAvailable] = useState<boolean | null>(null);
-  const [summary, setSummary] = useState<{ steps: number; distanceM: number; calories: number; durationS: number; route: LatLng[] } | null>(null);
+  const [summary, setSummary] = useState<{ steps: number; distanceM: number; calories: number; durationS: number; route: LatLng[]; endedAt: number } | null>(null);
 
   useEffect(() => {
     Pedometer.isAvailableAsync().then(setHardwareAvailable).catch(() => setHardwareAvailable(false));
@@ -92,7 +95,7 @@ export function WalkScreen() {
   const stop = () => {
     const routeAtStop = walk.route;
     const result = walk.stop();
-    if (result) setSummary({ ...result, route: routeAtStop });
+    if (result) setSummary({ ...result, route: routeAtStop, endedAt: Date.now() });
   };
 
   const perms = walk.permissions;
@@ -102,6 +105,14 @@ export function WalkScreen() {
   const gpsActive = walk.usingGps || !!perms?.gps;
 
   if (summary) {
+    // A run is a session too: the margins after it, from its own duration and pace.
+    const strain = sessionStrain({
+      sessionType: initialMode === 'run' ? 'cardio' : 'outdoor',
+      flow: 'cardio',
+      durationMin: summary.durationS / 60,
+      distanceM: summary.distanceM,
+    });
+    const margins = postSessionMargins(strain, 'cardio', { smokingEnabled: isSmokingEnabled() });
     return (
       <Screen>
         <View style={{ alignItems: 'center', gap: 6, paddingVertical: theme.spacing.md }}>
@@ -122,6 +133,7 @@ export function WalkScreen() {
           <StatTile icon="core.timer" label="Time" value={formatDuration(summary.durationS)} />
           <StatTile icon="nutrition.calories" label="Calories" value={`${summary.calories}`} sub="kcal" accent={theme.colors.calories} />
         </Row>
+        <PostSessionCard endedAt={summary.endedAt} strain={strain} margins={margins} title={`After this ${initialMode === 'run' ? 'run' : 'walk'}`} />
         <Button title="Done" onPress={() => navigation.navigate('Main')} />
       </Screen>
     );

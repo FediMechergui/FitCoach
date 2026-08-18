@@ -4,6 +4,8 @@ import { DigestionCard } from '@/components/DigestionCard';
 import { mealsFromEntries } from '@/lib/digestion';
 import { foodEntriesForDay } from '@/repositories/nutritionRepo';
 import { recentSmokeEvents } from '@/repositories/smokingRepo';
+import { activePostSession } from '@/repositories/postSessionRepo';
+import { PostSessionCard } from '@/components/PostSessionCard';
 import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { View, Pressable, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -84,6 +86,7 @@ export function HomeScreen() {
   const [care, setCare] = useState<Record<string, number>>({});
   const [prayersSet, setPrayersSet] = useState<Set<string>>(new Set());
   const [faithOn, setFaithOn] = useState(false);
+  const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
 
   const reload = useCallback(() => {
     setDate(todayISO());
@@ -98,6 +101,8 @@ export function HomeScreen() {
     setCare(getSelfCare());
     setFaithOn(!!getPrayerSettings()?.enabled);
     setPrayersSet(prayersDone());
+    // Today's session, while its smoke / alcohol / eat margins are still running.
+    setAfter(activePostSession());
   }, [setDate, refreshNutrition, loadSmoking, loadSleep, loadCycle, loadUsage]);
 
   const tapCare = (key: string) => {
@@ -172,6 +177,7 @@ export function HomeScreen() {
       {/* Today's weather and what it changes; whether the last meal has cleared */}
       <WeatherCard />
       <DigestionCard meals={digestMeals} smokes={smokes} compact />
+      {after && <PostSessionCard endedAt={after.endedAt} strain={after.strain} margins={after.margins} compact title="After today's session" />}
 
       {/* Primary rings */}
       <Card>

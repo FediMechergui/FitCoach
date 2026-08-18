@@ -78,6 +78,7 @@ import { trainReadiness } from '../src/lib/readiness';
 import { buildReportHtml } from '../src/lib/reportHtml';
 import type { ReportData } from '../src/repositories/reportRepo';
 import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib/eatenAt';
+import { sessionStrain, postSessionMargins, marginStatuses, marginsStillRunning } from '../src/lib/postSession';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
 import {
   buildDailyWheel,
@@ -2430,6 +2431,71 @@ console.log('\nAthlete card — export never fails silently, photo survives a ca
   check('…tells the user about permission and errors, and confirms a save', /Alert\.alert\('Photos permission needed'/.test(pcs) && /Alert\.alert\('Could not export the card'/.test(pcs) && /Alert\.alert\('Saved to Photos'/.test(pcs));
   check('…and guards against double taps with a busy state', /if \(busy\) return;/.test(pcs) && /loading=\{busy === 'share'\}/.test(pcs) && /loading=\{busy === 'save'\}/.test(pcs));
   check('The capture view is marked non-collapsable (Android needs a real native view)', /collapsable=\{false\}/.test(pcs));
+}
+
+console.log('\nAfter the session — margins scaled by how hard it was:');
+{
+  const st = (reps: number, rpe: number | null, toFailure = false) => ({ reps, rpe, toFailure });
+  const easy = sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 20, sets: Array(6).fill(st(10, 6)), volumeKg: 2000, bodyweightKg: 80 });
+  const push = sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 60, sets: Array(16).fill(st(8, 8)), volumeKg: 8000, bodyweightKg: 80 });
+  const legs = sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 90, sets: [...Array(13).fill(st(8, 9)), ...Array(9).fill(st(8, null, true))], volumeKg: 12000, bodyweightKg: 80 });
+  const stroll = sessionStrain({ sessionType: 'outdoor', flow: 'cardio', durationMin: 30, distanceM: 2500 });
+  const run = sessionStrain({ sessionType: 'cardio', flow: 'cardio', durationMin: 45, distanceM: 8000 });
+  const football = sessionStrain({ sessionType: 'sport', flow: 'cardio', durationMin: 90 });
+  const yoga = sessionStrain({ sessionType: 'mindbody', flow: 'mindbody', durationMin: 30 });
+  // ── Calibration ──
+  check('A 20-min easy lift is light', easy.level === 'light', `${easy.score}`);
+  check('A 60-min push day of 16 sets at RPE 8 is hard, not brutal', push.level === 'hard', `${push.score}`);
+  check('A 90-min leg day, 22 sets, some to failure, 12 t is brutal', legs.level === 'brutal' && legs.score >= 0.95, `${legs.score}`);
+  check('A 30-min stroll is light however you slice it', stroll.level === 'light', `${stroll.score}`);
+  check('A 45-min 8 km run is hard', run.level === 'hard', `${run.score}`);
+  check('90 min of football is hard', football.level === 'hard', `${football.score}`);
+  check('30 min of yoga is light — restorative, not strain', yoga.level === 'light' && yoga.score < 0.1);
+  // ── The levers ──
+  check('More hard sets → more strain', sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 60, sets: Array(20).fill(st(8, 8)), volumeKg: 8000, bodyweightKg: 80 }).score > push.score);
+  check('Sets to failure add strain over the same sets at RPE 8', sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 60, sets: Array(16).fill(st(8, null, true)), volumeKg: 8000, bodyweightKg: 80 }).score > push.score);
+  check('Longer → more strain', sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 90, sets: Array(16).fill(st(8, 8)), volumeKg: 8000, bodyweightKg: 80 }).score > push.score);
+  check('Tonnage is relative to bodyweight', sessionStrain({ sessionType: 'strength', flow: 'lifting', durationMin: 60, sets: Array(16).fill(st(8, 8)), volumeKg: 8000, bodyweightKg: 60 }).score > push.score);
+  check('A faster pace → more strain for the same distance', sessionStrain({ sessionType: 'cardio', flow: 'cardio', durationMin: 35, distanceM: 8000 }).parts.intensity > sessionStrain({ sessionType: 'cardio', flow: 'cardio', durationMin: 60, distanceM: 8000 }).parts.intensity);
+  check('The strain names its drivers', legs.drivers.some((d) => /hard sets/.test(d)) && legs.drivers.some((d) => /to failure/.test(d)) && run.drivers.some((d) => /fast pace/.test(d)));
+  check('Score is bounded 0..1', legs.score <= 1 && yoga.score >= 0);
+  // ── Margins ──
+  const mE = postSessionMargins(easy, 'lifting');
+  const mB = postSessionMargins(legs, 'lifting');
+  const g = (ms: typeof mE, k: string) => ms.find((m) => m.key === k)!;
+  check('Eating is a WINDOW, not a wait — and it opens sooner and closes sooner after a brutal session', g(mE, 'eat').byMin! > g(mE, 'eat').waitMin && g(mB, 'eat').byMin! < g(mE, 'eat').byMin! && g(mB, 'eat').byMin === 60);
+  check('Water is now, always', g(mE, 'water').waitMin === 0 && g(mB, 'water').waitMin === 0);
+  check('Smoking: ~1 h after an easy session, ~2.5 h after a brutal one', g(mE, 'smoke').waitMin >= 60 && g(mE, 'smoke').waitMin <= 90 && g(mB, 'smoke').waitMin === 150);
+  check('Alcohol: longer than smoking, up to 5 h after a brutal session', g(mE, 'alcohol').waitMin > g(mE, 'smoke').waitMin && g(mB, 'alcohol').waitMin === 300);
+  check('…and after heavy lifting the advice is honest: none tonight', /none tonight/.test(g(mB, 'alcohol').advice) && !/none tonight/.test(g(mE, 'alcohol').advice));
+  check('Cold plunge: hours away after lifting, fine after cardio', g(mB, 'cold').waitMin >= 240 && g(postSessionMargins(run, 'cardio'), 'cold').waitMin === 0);
+  check('Next hard session: 24 h light → 72 h brutal for lifting', g(mE, 'next').waitMin >= 24 * 60 && g(mB, 'next').waitMin === 72 * 60);
+  check('The smoke line drops out when the module is off', !postSessionMargins(easy, 'lifting', { smokingEnabled: false }).some((m) => m.key === 'smoke'));
+  check('Every margin has a why and an advice', mB.every((m) => m.why.length > 30 && m.advice.length > 10));
+  // ── Statuses over time ──
+  const NOW = Date.now();
+  const ended = NOW - 90 * 60_000; // ended 90 min ago
+  const stat = marginStatuses(mB, ended, NOW);
+  const sm = stat.find((m) => m.key === 'smoke')!;
+  check('90 min after a brutal session: smoking still 60 min away', !sm.open && sm.remainingMin === 60 && sm.openAt === ended + 150 * 60_000);
+  const eat = stat.find((m) => m.key === 'eat')!;
+  check('…and the eating window has closed (30–60 min)', eat.open && eat.inWindow === false && eat.byAt === ended + 60 * 60_000);
+  check('Water is open', stat.find((m) => m.key === 'water')!.open);
+  check('marginsStillRunning is true while smoke/alcohol are ahead…', marginsStillRunning(mB, ended, NOW));
+  check('…false once they have all passed, even though "next session" is days out', !marginsStillRunning(mB, NOW - 6 * 3_600_000, NOW));
+  // ── Wiring ──
+  const recapSrc = fs.readFileSync('src/screens/train/SessionRecapScreen.tsx', 'utf8');
+  check('The recap shows the margins for THIS session', /postSessionFor\(route\.params\.sessionId\)/.test(recapSrc) && /<PostSessionCard endedAt=\{after\.endedAt\} strain=\{after\.strain\} margins=\{after\.margins\} \/>/.test(recapSrc));
+  const walkSrc2 = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
+  check('The walk/run recap shows them too, with the end time captured once', /endedAt: Date\.now\(\) \}\)/.test(walkSrc2) && /<PostSessionCard endedAt=\{summary\.endedAt\}/.test(walkSrc2));
+  const homeSrc2 = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  check('Home carries a compact reminder while margins run', /setAfter\(activePostSession\(\)\)/.test(homeSrc2) && /<PostSessionCard endedAt=\{after\.endedAt\} strain=\{after\.strain\} margins=\{after\.margins\} compact/.test(homeSrc2));
+  const psRepo = fs.readFileSync('src/repositories/postSessionRepo.ts', 'utf8');
+  check('The repo builds strain from completed sets, tonnage, bodyweight and the module flag', /\.filter\(\(s\) => s\.completed\)/.test(psRepo) && /volumeKg: session\.totalVolume/.test(psRepo) && /latestWeight\(userId\)\?\.weightKg/.test(psRepo) && /smokingEnabled: isSmokingEnabled\(userId\)/.test(psRepo));
+  check('…and the Home reminder only looks 12 h back', /12 \* 3_600_000/.test(psRepo));
+  const cardSrcP = fs.readFileSync('src/components/PostSessionCard.tsx', 'utf8');
+  check('The card renders a window as "now — until", and long waits with a weekday', /now — until \$\{clock\(m\.byAt\)\}/.test(cardSrcP) && /\['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'\]/.test(cardSrcP));
+  check('The after-session icons resolve', ['session', 'water', 'eat', 'smoke', 'alcohol', 'cold', 'next'].every((k) => !!(ICONS as Record<string, Record<string, unknown>>).after?.[k]));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

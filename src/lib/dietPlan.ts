@@ -31,18 +31,23 @@ export interface PlanFood {
   protein: number;
   carbs: number;
   fat: number;
+  /** grams, inside `carbs` — carried so the plan can show whether it feeds you enough of it */
+  fiber: number;
 }
+
+/** What a plan actually delivers: the four macros plus the fibre inside the carbs. */
+export type PlanTotals = DietTarget & { fiber: number };
 
 export interface PlanMeal {
   key: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   label: string;
   items: PlanFood[];
-  totals: DietTarget;
+  totals: PlanTotals;
 }
 
 export interface DietPlan {
   meals: PlanMeal[];
-  totals: DietTarget;
+  totals: PlanTotals;
   target: DietTarget;
   style: DietStyle;
   seed: number;
@@ -129,6 +134,7 @@ function scaled(f: FoodItem, servings: number): PlanFood {
     protein: Math.round(f.protein * servings),
     carbs: Math.round(f.carbs * servings),
     fat: Math.round(f.fat * servings),
+    fiber: Math.round((f.fiber ?? 0) * servings),
   };
 }
 
@@ -203,8 +209,9 @@ export function generateDietPlan(
         protein: t.protein + i.protein,
         carbs: t.carbs + i.carbs,
         fat: t.fat + i.fat,
+        fiber: t.fiber + i.fiber,
       }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
     );
     meals.push({ key: split.key, label: split.label, items, totals });
   }
@@ -215,8 +222,9 @@ export function generateDietPlan(
       protein: t.protein + m.totals.protein,
       carbs: t.carbs + m.totals.carbs,
       fat: t.fat + m.totals.fat,
+      fiber: t.fiber + m.totals.fiber,
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
 
   return { meals, totals, target, style, seed };

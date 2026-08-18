@@ -2121,5 +2121,68 @@ console.log('\nFibre — the fourth bar:');
   check('The fibre icon resolves', !!(ICONS as Record<string, Record<string, unknown>>).nutrition?.fiber);
 }
 
+console.log('\nNutrient completeness — every food, every supplement, every write path:');
+{
+  const isNum = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+  // ── Foods: all five macros, present and sane ──
+  const badMacro = FOOD_DB.filter((f) => !(['calories', 'protein', 'carbs', 'fat', 'fiber'] as const).every((k) => isNum(f[k])));
+  check('Every food carries finite kcal, protein, carbs, fat AND fibre', badMacro.length === 0, badMacro.slice(0, 5).map((f) => f.id).join(', '));
+  const fibreOver = FOOD_DB.filter((f) => f.fiber > f.carbs + 0.01);
+  check('No food declares more fibre than carbs (fibre is inside carbs)', fibreOver.length === 0, fibreOver.slice(0, 5).map((f) => f.id).join(', '));
+  const kcalOff = FOOD_DB.filter((f) => Math.abs(caloriesFromMacros(f) - f.calories) > Math.max(25, f.calories * 0.15));
+  check('Every food\'s calories agree with its macros (±15% or 25 kcal)', kcalOff.length === 0, kcalOff.slice(0, 5).map((f) => `${f.id}:${f.calories}vs${caloriesFromMacros(f)}`).join(', '));
+  const PLANT = /vegetable|fruit|legume|grain|nuts|seeds|bread|dried fruit/i;
+  const plantNoFibre = FOOD_DB.filter((f) => PLANT.test(f.category ?? '') && f.carbs >= 5 && f.fiber === 0);
+  check('No plant food with real carbs is missing its fibre', plantNoFibre.length === 0, plantNoFibre.slice(0, 5).map((f) => f.id).join(', '));
+  check('Every food carries micronutrients (321+ foods)', FOODS_WITH_MICROS === FOOD_DB.length && FOOD_DB.length >= 321, `${FOODS_WITH_MICROS}/${FOOD_DB.length}`);
+  const badMicroVal = FOOD_DB.filter((f) => f.micros && Object.values(f.micros).some((v) => !isNum(v)));
+  check('Every food micro value is a finite non-negative number', badMicroVal.length === 0, badMicroVal.slice(0, 5).map((f) => f.id).join(', '));
+
+  // ── Supplements ──
+  const whey = findSupplement('whey')!;
+  const wheyFood = FOOD_DB.find((f) => f.id === 'whey')!;
+  check('Whey the supplement carries the same micros as whey the food', JSON.stringify(whey.micros) === JSON.stringify(wheyFood.micros), JSON.stringify(whey.micros));
+  check('…and the same macros', whey.macros?.calories === wheyFood.calories && whey.macros?.proteinG === wheyFood.protein && whey.macros?.carbsG === wheyFood.carbs && whey.macros?.fatG === wheyFood.fat);
+  const VITAMINS = ['vitaminA_ug', 'vitaminC_mg', 'vitaminD_ug', 'vitaminE_mg', 'vitaminK_ug', 'thiamin_mg', 'riboflavin_mg', 'niacin_mg', 'pantothenic_mg', 'vitaminB6_mg', 'biotin_ug', 'folate_ug', 'vitaminB12_ug'];
+  const multi = findSupplement('multivitamin')!;
+  check('The generic multivitamin carries all 13 vitamins', VITAMINS.every((k) => (multi.micros as Record<string, number>)[k] > 0), VITAMINS.filter((k) => !(multi.micros as Record<string, number>)[k]).join(','));
+  check('…and the minerals a one-a-day actually carries', ['calcium_mg', 'magnesium_mg', 'zinc_mg', 'iron_mg', 'iodine_ug', 'selenium_ug', 'copper_mg', 'manganese_mg', 'chromium_ug'].every((k) => (multi.micros as Record<string, number>)[k] > 0));
+  const gsnMultiV = findSupplement('gsn-multivitamin')!;
+  check('The GSN multivitamin carries all 13 vitamins', VITAMINS.every((k) => (gsnMultiV.micros as Record<string, number>)[k] > 0));
+  const microSupps = SUPPLEMENTS.filter((s) => s.category === 'micronutrient');
+  check('Every micronutrient-category supplement carries micros', microSupps.every((s) => s.micros && Object.keys(s.micros).length > 0), microSupps.filter((s) => !s.micros).map((s) => s.key).join(','));
+  const badSuppVal = SUPPLEMENTS.filter((s) => s.micros && Object.values(s.micros).some((v) => !isNum(v)));
+  check('Every supplement micro value is a finite non-negative number', badSuppVal.length === 0);
+  // Ergogenics with no micronutrients say so by omission — nothing invented.
+  check('Pure ergogenics carry no invented micros', ['creatine', 'caffeine', 'beta-alanine', 'citrulline', 'l-theanine', 'melatonin', 'probiotics'].every((k) => !findSupplement(k)?.micros));
+
+  // ── Every diary write path carries fibre AND micros ──
+  const addFoodSrcN = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
+  check('AddFood logs fibre and micros', /fiberG: selected\.fiber/.test(addFoodSrcN) && /micros: selected\.micros/.test(addFoodSrcN));
+  const mrSrcN = fs.readFileSync('src/repositories/mealRoutineRepo.ts', 'utf8');
+  check('Meal routines snapshot fibre and micros…', /fiberG: e\.fiberG/.test(mrSrcN) && /micros: e\.micros \? safeParse\(e\.micros\) : null/.test(mrSrcN));
+  check('…and re-log both', /fiberG: i\.fiberG/.test(mrSrcN) && /micros: i\.micros \?\? undefined/.test(mrSrcN));
+  const sdSrcN = fs.readFileSync('src/lib/specialDiet.ts', 'utf8');
+  check('Programme meals log fibre and micros', /fiberG: base\.fiber \?\? 0/.test(sdSrcN) && /micros: base\.micros/.test(sdSrcN));
+  const dpSrcN = fs.readFileSync('src/screens/nutrition/DietPlanScreen.tsx', 'utf8');
+  check('Diet plan logs fibre and micros', /fiberG: food\?\.fiber/.test(dpSrcN) && /micros: food\?\.micros/.test(dpSrcN));
+  const cfSrcN = fs.readFileSync('src/lib/composedFood.ts', 'utf8');
+  check('Composed dishes snapshot fibre per component', /fiberG: food\.fiber \* n/.test(cfSrcN));
+  const suppSrcN = fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8');
+  check('Supplement micros are logged from the definition, any category', /micros: def\.micros/.test(suppSrcN));
+  check('…and never duplicated onto the diary row', /Micros stay on the supplement log/.test(suppSrcN));
+
+  // ── Fibre visible wherever the other macros are ──
+  check('AddFood detail shows fibre', /<Macro label="Fibre" value=\{`\$\{Math\.round\(selected\.fiber \* q\)\}g`\}/.test(addFoodSrcN));
+  check('AddFood search rows show fibre', /F\{item\.fat\} Fb\{item\.fiber\}/.test(addFoodSrcN));
+  const composeSrcN = fs.readFileSync('src/screens/nutrition/ComposeFoodScreen.tsx', 'utf8');
+  check('Compose totals show fibre', /<Macro label="Fibre" value=\{`\$\{totals\.fiberG\}g`\}/.test(composeSrcN));
+  check('Compose picker shows fibre', /Fb\{pending\.fiber\}/.test(composeSrcN));
+  const dpl = generateDietPlan(dpTarget, { style: 'balanced', meals: 4, seed: 42 });
+  check('Diet plan items carry fibre', dpl.meals.every((m) => m.items.every((i) => isNum(i.fiber))));
+  check('Diet plan totals sum fibre from the items', dpl.totals.fiber === dpl.meals.reduce((s, m) => s + m.items.reduce((t, i) => t + i.fiber, 0), 0) && dpl.totals.fiber > 0, `${dpl.totals.fiber}`);
+  check('Diet plan shows a fibre pill and per-item fibre', /label="Fb" got=\{plan\.totals\.fiber\} target=\{recommendedFiberG\(target\.calories\)\}/.test(dpSrcN) && /F\{item\.fat\} Fb\{item\.fiber\}/.test(dpSrcN));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

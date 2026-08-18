@@ -19,6 +19,7 @@ import {
 } from '@/lib/dietPlan';
 import { FOOD_DB } from '@/data/foods';
 import { mealIcon } from '@/constants/icon-map';
+import { recommendedFiberG } from '@/lib/calories';
 
 export function DietPlanScreen() {
   const theme = useTheme();
@@ -56,7 +57,7 @@ export function DietPlanScreen() {
         proteinG: food?.protein ?? item.protein,
         carbsG: food?.carbs ?? item.carbs,
         fatG: food?.fat ?? item.fat,
-        fiberG: food?.fiber ?? 0,
+        fiberG: food?.fiber ?? item.fiber / (item.servings || 1),
         micros: food?.micros,
       });
     }
@@ -87,6 +88,7 @@ export function DietPlanScreen() {
           <TargetPill label="P" got={plan.totals.protein} target={target.protein} color={theme.colors.protein} />
           <TargetPill label="C" got={plan.totals.carbs} target={target.carbs} color={theme.colors.carbs} />
           <TargetPill label="F" got={plan.totals.fat} target={target.fat} color={theme.colors.fat} />
+          <TargetPill label="Fb" got={plan.totals.fiber} target={recommendedFiberG(target.calories)} color={theme.colors.fiber} />
         </Row>
         <Text variant="caption" color="textFaint" center style={{ marginTop: 8 }}>
           Plan hits {pct(plan.totals.calories, target.calories)}% of calories · {pct(plan.totals.protein, target.protein)}% protein
@@ -154,7 +156,7 @@ export function DietPlanScreen() {
                     </View>
                   </Row>
                   <Text variant="caption" color="textMuted">
-                    {item.calories} kcal · P{item.protein} C{item.carbs} F{item.fat}
+                    {item.calories} kcal · P{item.protein} C{item.carbs} F{item.fat} Fb{item.fiber}
                   </Text>
                 </Row>
               </View>

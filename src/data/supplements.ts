@@ -72,11 +72,15 @@ export const SUPPLEMENTS: SupplementDef[] = [
   {
     key: 'multivitamin', label: 'Multivitamin', category: 'micronutrient', icon: 'supp.pill',
     defaultDose: '1 tablet', timing: 'With a meal',
+    // A typical European one-a-day at ~100% of the reference intakes: all 13
+    // vitamins and the minerals such tablets actually carry. If yours is a
+    // specific product (GSN, etc.) prefer that entry — it is from the label.
     micros: {
       vitaminA_ug: 800, vitaminC_mg: 80, vitaminD_ug: 5, vitaminE_mg: 12, vitaminK_ug: 30,
       thiamin_mg: 1.1, riboflavin_mg: 1.4, niacin_mg: 16, vitaminB6_mg: 1.4, folate_ug: 200,
       vitaminB12_ug: 2.5, biotin_ug: 50, pantothenic_mg: 6, magnesium_mg: 100, zinc_mg: 10,
       iron_mg: 5, iodine_ug: 150, selenium_ug: 55, copper_mg: 0.9,
+      calcium_mg: 120, manganese_mg: 2, chromium_ug: 40,
     },
   },
   { key: 'vitamin-d', label: 'Vitamin D3', category: 'micronutrient', icon: 'supp.sun', defaultDose: '2000 IU (50 µg)', timing: 'With a fatty meal', micros: { vitaminD_ug: 50 } },
@@ -206,9 +210,11 @@ export const SUPPLEMENTS: SupplementDef[] = [
     key: 'whey', label: 'Whey / Protein Powder', category: 'ergogenic', icon: 'supp.scoop',
     defaultDose: '1 scoop (~24 g protein)', unitsPerServing: 1, unitLabel: 'scoop',
     timing: 'Anytime to hit your protein target',
-    // Identical to the FOOD_DB 'whey' entry, so a scoop counts the same
-    // whichever way it gets logged. Don't log it BOTH ways for one scoop.
+    // Identical to the FOOD_DB 'whey' entry — macros AND micros — so a scoop
+    // counts the same whichever way it gets logged. Don't log it BOTH ways for
+    // one scoop. (Whey is a dairy fraction: it carries the milk minerals.)
     macros: { calories: 120, proteinG: 24, carbsG: 3, fatG: 1.5 },
+    micros: { calcium_mg: 120, phosphorus_mg: 100, magnesium_mg: 20, potassium_mg: 160 },
     evidenceLevel: 'strong',
     evidence: 'A convenient protein source, not magic — it helps only insofar as it fills your daily protein target. Taking it here logs its 120 kcal and 24 g of protein into your diary automatically, so don\'t also log it as a food for the same scoop. Whole-food protein works just as well.',
   },

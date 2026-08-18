@@ -115,7 +115,7 @@ export function ComposeFoodScreen() {
             <Card style={{ gap: 10 }}>
               <Text variant="h3">{pending.name}</Text>
               <Text variant="caption" color="textMuted">
-                {pending.serving} · {pending.calories} kcal · P{pending.protein} C{pending.carbs} F{pending.fat}
+                {pending.serving} · {pending.calories} kcal · P{pending.protein} C{pending.carbs} F{pending.fat} Fb{pending.fiber}
               </Text>
               <Input label="How many servings" value={pendingQty} onChangeText={setPendingQty} keyboardType="numeric" />
               <Row gap={8}>
@@ -223,6 +223,7 @@ export function ComposeFoodScreen() {
                 <Macro label="Protein" value={`${totals.proteinG}g`} color={theme.colors.protein} />
                 <Macro label="Carbs" value={`${totals.carbsG}g`} color={theme.colors.carbs} />
                 <Macro label="Fat" value={`${totals.fatG}g`} color={theme.colors.fat} />
+                <Macro label="Fibre" value={`${totals.fiberG}g`} color={theme.colors.fiber} />
               </Row>
               <Text variant="caption" color="textFaint">
                 {microCount > 0

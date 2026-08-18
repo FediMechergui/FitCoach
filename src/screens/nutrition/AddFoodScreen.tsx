@@ -126,6 +126,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
             <Macro label="Protein" value={`${Math.round(selected.protein * q)}g`} color={theme.colors.protein} />
             <Macro label="Carbs" value={`${Math.round(selected.carbs * q)}g`} color={theme.colors.carbs} />
             <Macro label="Fat" value={`${Math.round(selected.fat * q)}g`} color={theme.colors.fat} />
+            <Macro label="Fibre" value={`${Math.round(selected.fiber * q)}g`} color={theme.colors.fiber} />
           </Row>
         </Card>
         <Row>
@@ -218,7 +219,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
                   </Row>
                   <Text variant="caption" color="textMuted">
                     {item.serving} · {item.calories} kcal{item.caloriesEstimated ? '≈' : ''} · P
-                    {item.protein} C{item.carbs} F{item.fat}
+                    {item.protein} C{item.carbs} F{item.fat} Fb{item.fiber}
                   </Text>
                 </View>
                 {item.isCustom ? (

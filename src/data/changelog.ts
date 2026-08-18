@@ -27,7 +27,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'It scales with the session. A strain score is built from what you actually logged: duration, hard sets and how close to failure they were, tonnage relative to your bodyweight, and for cardio the type and pace. A 20-minute easy lift is "light"; a 60-minute push day of 16 sets at RPE 8 is "hard"; a 90-minute leg day with sets to failure and 12 tonnes moved is "brutal"; a stroll stays light however long it is; an 8 km run at 5:37/km is hard.',
       'The margins, from the evidence: smoking ~1 h after an easy session to ~2.5 h after a brutal one (breathing is still deep so smoke deposits further, carbon monoxide takes the oxygen repair wants, nicotine narrows the vessels flushing the muscles you used); alcohol 1.5 h to 5 h and less of it — around 1.5 g/kg after training cuts muscle protein synthesis by up to a third for the next day even with protein, and after heavy lifting the honest advice is none tonight; a cold plunge 4–6 h away after lifting (it blunts the hypertrophy signal — measurably less muscle over months) but fine after cardio; the same muscles hard again 24–72 h later. Eat: 20–40 g protein and carbs from ~15–30 min (once gut blood flow is back) and within 1–2 h — sooner after harder work. Water: now.',
       'While the day\'s margins are still running, Home carries a compact reminder with the lines still ahead, so "can I have a beer yet?" has an answer without going back to the recap.',
-      '955 checks in all, up from 920.',
+      'And the "can I train?" card before a session now shows the stomach and the smoke as two separate meters — each with its own countdown, its own bar and its own reason — instead of one merged wait, with the headline saying which of the two is holding you. The smoke meter is there whenever the smoking module is on, reading "clear" when it is. Every after-session line has its own bar too.',
+      '960 checks in all, up from 920.',
     ],
   },
   {

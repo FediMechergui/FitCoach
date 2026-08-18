@@ -176,7 +176,7 @@ export function HomeScreen() {
 
       {/* Today's weather and what it changes; whether the last meal has cleared */}
       <WeatherCard />
-      <DigestionCard meals={digestMeals} smokes={smokes} compact />
+      <DigestionCard meals={digestMeals} smokes={smokes} smokingEnabled={smokingEnabled} compact />
       {after && <PostSessionCard endedAt={after.endedAt} strain={after.strain} margins={after.margins} compact title="After today's session" />}
 
       {/* Primary rings */}

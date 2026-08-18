@@ -22,7 +22,7 @@ import { DigestionCard } from '@/components/DigestionCard';
 import { WeatherCard } from '@/components/WeatherCard';
 import { mealsFromEntries, type MealForDigestion } from '@/lib/digestion';
 import { foodEntriesForDay } from '@/repositories/nutritionRepo';
-import { recentSmokeEvents } from '@/repositories/smokingRepo';
+import { recentSmokeEvents, isSmokingEnabled } from '@/repositories/smokingRepo';
 import type { SmokeEvent } from '@/lib/smokeClock';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,6 +37,7 @@ export function TrainScreen() {
   const [routines, setRoutines] = useState<RoutineView[]>([]);
   const [digestMeals, setDigestMeals] = useState<MealForDigestion[]>([]);
   const [smokes, setSmokes] = useState<SmokeEvent[]>([]);
+  const [smokingOn, setSmokingOn] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,6 +48,7 @@ export function TrainScreen() {
       setDigestMeals(mealsFromEntries(foodEntriesForDay(toISODate())));
       // …and a cigarette a minute ago, which is the other thing that should stop you.
       setSmokes(recentSmokeEvents());
+      setSmokingOn(isSmokingEnabled());
     }, [resume])
   );
 
@@ -121,7 +123,7 @@ export function TrainScreen() {
         weather asking of you? Both are the training-side questions these
         engines exist to answer, so they sit above the session pickers.
       */}
-      <DigestionCard meals={digestMeals} smokes={smokes} defaultIntensity="hard" />
+      <DigestionCard meals={digestMeals} smokes={smokes} smokingEnabled={smokingOn} defaultIntensity="hard" />
       <WeatherCard plannedActiveMin={60} />
 
       {/* Spin once a day for a challenge you didn't choose */}

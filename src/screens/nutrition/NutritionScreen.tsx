@@ -291,7 +291,7 @@ export function NutritionScreen() {
       <MealRoutineBar mealType={null} date={date} onChanged={refresh} />
 
       {/* Is the last meal out of the way? Today only — yesterday's lunch is not a training question. */}
-      {date === todayISO() && <DigestionCard meals={digestMeals} smokes={smokes} />}
+      {date === todayISO() && <DigestionCard meals={digestMeals} smokes={smokes} smokingEnabled={smokingEnabled} />}
 
       {/* Meals */}
       {MEAL_TYPES.map((meal) => {

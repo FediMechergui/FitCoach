@@ -234,7 +234,7 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
         good idea again. Only the smoke clock here — the meal clock lives on
         Home, Train and Nutrition.
       */}
-      <DigestionCard meals={[]} smokes={smokes} defaultIntensity="hard" compact />
+      <DigestionCard meals={[]} smokes={smokes} smokingEnabled defaultIntensity="hard" compact />
 
       {/* Smoke-free progress */}
       {impact.smokeFreeStreak > 0 && (

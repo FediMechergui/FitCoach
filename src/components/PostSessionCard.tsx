@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Row } from '@/components/ui/misc';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { formatWait } from '@/lib/digestion';
 import { marginStatuses, STRAIN_LABEL, type Margin, type MarginKey, type Strain } from '@/lib/postSession';
 
@@ -89,6 +90,10 @@ export function PostSessionCard({
           const color =
             st.tone === 'open' || st.tone === 'window' ? theme.colors.success : st.tone === 'late' ? theme.colors.warning : theme.colors.textMuted;
           const isOpen = expanded === m.key;
+          // Each line is its own meter: how far through its margin it is.
+          const elapsedMin = (now - endedAt) / 60_000;
+          const progress = m.waitMin <= 0 ? 1 : Math.min(1, Math.max(0, elapsedMin / m.waitMin));
+          const barColor = st.tone === 'wait' ? (progress > 0.66 ? theme.colors.warning : theme.colors.calories) : color;
           return (
             <Pressable key={m.key} onPress={() => setExpanded(isOpen ? null : m.key)} disabled={compact}>
               <Row gap={8} style={{ alignItems: 'flex-start' }}>
@@ -98,6 +103,7 @@ export function PostSessionCard({
                     <Text variant="body" style={{ flexShrink: 1 }}>{m.label}</Text>
                     <Text variant="caption" color={color} style={{ fontWeight: '700' }}>{st.text}</Text>
                   </Row>
+                  {m.key !== 'next' && <ProgressBar progress={progress} color={barColor} height={compact ? 4 : 5} />}
                   {!compact && (isOpen ? (
                     <>
                       <Text variant="caption" color="textMuted">{m.why}</Text>

@@ -15,30 +15,75 @@ import {
   type TrainingIntensity,
 } from '@/lib/digestion';
 import { trainReadiness } from '@/lib/readiness';
-import type { SmokeEvent } from '@/lib/smokeClock';
+import { smokeStatus, type SmokeEvent } from '@/lib/smokeClock';
+
+const clock = (ms: number): string => {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 /**
- * "Can I train yet?" — everything still in the way, and when it clears.
+ * One meter: a title, its own status at the right, its own bar, one line of
+ * detail. The stomach and the smoke are two different clocks with two
+ * different fixes, so they read as two meters — never merged into one bar.
+ */
+function Meter({
+  icon,
+  title,
+  status,
+  progress,
+  color,
+  detail,
+  compact,
+}: {
+  icon: string;
+  title: string;
+  status: string;
+  progress: number;
+  color: string;
+  detail: string;
+  compact: boolean;
+}) {
+  return (
+    <View style={{ gap: 4 }}>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Row gap={6} style={{ alignItems: 'center', flex: 1 }}>
+          <Icon icon={icon} size={14} color={color} />
+          <Text variant="label">{title}</Text>
+        </Row>
+        <Text variant="caption" color={color} style={{ fontWeight: '700' }}>{status}</Text>
+      </Row>
+      <ProgressBar progress={progress} color={color} height={compact ? 4 : 6} />
+      <Text variant="caption" color="textFaint" numberOfLines={compact ? 1 : 3}>{detail}</Text>
+    </View>
+  );
+}
+
+/**
+ * "Can I train yet?" — two meters, side by side in one card.
  *
- * Two clocks feed it. The STOMACH: every meal still digesting, stacked into
- * one load that drains at a rate set by its mix — so a snack an hour after
- * lunch pushes the time out rather than starting a fresh short timer. The
- * SMOKE: the acute nicotine window after the last use of anything, plus the
- * carbon-monoxide load from what was burned, which also stacks. Whichever is
- * later governs, and the card says which.
+ * STOMACH: every meal still digesting, stacked into one load that drains at a
+ * rate set by its mix — so a snack an hour after lunch pushes the time out
+ * rather than starting a fresh short timer. SMOKE: the acute nicotine window
+ * after the last use of anything, plus the carbon-monoxide load from what was
+ * burned, which also stacks. Each meter has its own countdown and its own
+ * bar; the headline is whichever is later, and says which.
  *
- * Re-renders on a one-minute tick so the countdown moves without a manual
+ * Re-renders on a one-minute tick so the countdowns move without a manual
  * refresh. Intensity is a control because the honest answer depends on it: a
  * heavy lunch that rules out sprints is fine for a walk.
  */
 export function DigestionCard({
   meals,
   smokes = [],
+  smokingEnabled = false,
   defaultIntensity = 'moderate',
   compact = false,
 }: {
   meals: MealForDigestion[];
   smokes?: SmokeEvent[];
+  /** show the smoke meter even when nothing was smoked (module on) */
+  smokingEnabled?: boolean;
   defaultIntensity?: TrainingIntensity;
   compact?: boolean;
 }) {
@@ -51,73 +96,64 @@ export function DigestionCard({
   }, []);
 
   const r = useMemo(() => trainReadiness({ meals, smokes }, intensity, now), [meals, smokes, intensity, now]);
+  // The smoke meter wants the status even when it is clear (to say "clear since").
+  const smokeAny = useMemo(() => smokeStatus(smokes, intensity, now), [smokes, intensity, now]);
 
   if (!meals.length && !smokes.length) return null;
 
   const clear = r.ready;
-  const color = clear ? theme.colors.success : r.progress > 0.66 ? theme.colors.warning : r.governor === 'smoke' ? theme.colors.danger : theme.colors.calories;
+  const headColor = clear ? theme.colors.success : r.progress > 0.66 ? theme.colors.warning : r.governor === 'smoke' ? theme.colors.danger : theme.colors.calories;
   const headIcon = clear ? 'core.check' : r.governor === 'smoke' ? 'smoking.cigarette' : 'digest.clock';
 
+  // ── Stomach meter ──
+  const s = r.stomach;
+  const stomachColor = s ? (s.progress > 0.66 ? theme.colors.warning : theme.colors.calories) : theme.colors.success;
+  const stomachStatus = s ? `wait ${formatWait(s.remainingMin)} · ${clock(s.readyAt)}` : 'clear';
+  const stomachDetail = s
+    ? `~${s.loadKcal} kcal still digesting${s.mealCount > 1 ? ` across ${s.mealCount} meals (${s.eatenKcal} kcal eaten)` : ''}${s.readyFor ? ` — fine now for ${INTENSITY_LABEL[s.readyFor]}` : ''}.`
+    : meals.length
+      ? 'Nothing from today\'s meals is still in the way.'
+      : 'Nothing logged today.';
+
+  // ── Smoke meter ──
+  const k = r.smoke;
+  const smokeColor = k ? (k.progress > 0.66 ? theme.colors.warning : theme.colors.danger) : theme.colors.success;
+  const smokeStatusText = k ? `wait ${formatWait(k.remainingMin)} · ${clock(k.readyAt)}` : 'clear';
+  const smokeDetail = k
+    ? `${k.lastCombusted ? `${k.recentCount} smoked in the last day` : 'nicotine (not smoked)'}, ${
+        k.limitedBy === 'co'
+          ? `carbon monoxide still on board (~${k.coLoad.toFixed(1)} cigarettes' worth)`
+          : 'heart rate and vessels still in the acute nicotine window'
+      }${k.readyFor ? ` — fine now for ${INTENSITY_LABEL[k.readyFor]}` : ''}.`
+    : smokeAny
+      ? `Last one ${formatWait(smokeAny.elapsedMin)} ago — out of the way${smokeAny.coLoad > 0.3 ? ` (CO ~${smokeAny.coLoad.toFixed(1)} cigarettes' worth, fading)` : ''}.`
+      : 'Nothing smoked in the last day.';
+  const showSmoke = smokingEnabled || smokes.length > 0;
+
   return (
-    <Card accent={color} style={{ gap: 10 }}>
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-          <Icon icon={headIcon} size={22} color={color} />
-          <View style={{ flex: 1 }}>
-            <Text variant="bodyStrong">
-              {clear ? 'Clear to train' : `Wait ${formatWait(r.remainingMin)}`}
-            </Text>
-            <Text variant="caption" color="textMuted">
-              {clear
-                ? `Nothing in the way — good to go for ${INTENSITY_LABEL[intensity]}.`
-                : r.readyFor
-                  ? `Fine now for ${INTENSITY_LABEL[r.readyFor]}; ${INTENSITY_LABEL[intensity]} at ${clock(r.readyAt)}.`
-                  : `${INTENSITY_LABEL[intensity]} at ${clock(r.readyAt)}.`}
-            </Text>
-          </View>
-        </Row>
+    <Card accent={headColor} style={{ gap: 10 }}>
+      <Row gap={10} style={{ alignItems: 'center' }}>
+        <Icon icon={headIcon} size={22} color={headColor} />
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyStrong">
+            {clear ? 'Clear to train' : `Wait ${formatWait(r.remainingMin)}`}
+          </Text>
+          <Text variant="caption" color="textMuted">
+            {clear
+              ? `Nothing in the way — good to go for ${INTENSITY_LABEL[intensity]}.`
+              : `${r.governor === 'smoke' ? 'The smoke clock' : 'The stomach clock'} governs — ${INTENSITY_LABEL[intensity]} at ${clock(r.readyAt)}${
+                  r.readyFor ? `; fine now for ${INTENSITY_LABEL[r.readyFor]}` : ''
+                }.`}
+          </Text>
+        </View>
       </Row>
 
-      {!clear && <ProgressBar progress={r.progress} color={color} />}
-
-      {/* One line per clock that is still running, the governing one first. */}
-      {!clear && (
-        <View style={{ gap: 4 }}>
-          {[r.governor === 'smoke' ? 'smoke' : 'stomach', r.governor === 'smoke' ? 'stomach' : 'smoke'].map((k) => {
-            if (k === 'stomach' && r.stomach) {
-              const s = r.stomach;
-              return (
-                <Row key="stomach" gap={6} style={{ alignItems: 'center' }}>
-                  <Icon icon="digest.stomach" size={13} color={theme.colors.textMuted} />
-                  <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-                    Stomach: ~{s.loadKcal} kcal still digesting
-                    {s.mealCount > 1 ? ` across ${s.mealCount} meals (${s.eatenKcal} kcal eaten)` : ''} — {formatWait(s.remainingMin)}
-                    {r.governor === 'stomach' ? '' : ` (${INTENSITY_LABEL[intensity]} at ${clock(s.readyAt)})`}.
-                  </Text>
-                </Row>
-              );
-            }
-            if (k === 'smoke' && r.smoke) {
-              const k2 = r.smoke;
-              const what = k2.lastCombusted
-                ? `${k2.recentCount} smoked in the last day`
-                : 'nicotine (not smoked)';
-              const why = k2.limitedBy === 'co'
-                ? `carbon monoxide still on board (~${k2.coLoad.toFixed(1)} cigarettes' worth)`
-                : `heart rate and vessels still in the acute nicotine window`;
-              return (
-                <Row key="smoke" gap={6} style={{ alignItems: 'center' }}>
-                  <Icon icon="smoking.cigarette" size={13} color={theme.colors.textMuted} />
-                  <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-                    Smoke: {what}, {why} — {formatWait(k2.remainingMin)}.
-                  </Text>
-                </Row>
-              );
-            }
-            return null;
-          })}
-        </View>
-      )}
+      <View style={{ gap: compact ? 8 : 12 }}>
+        <Meter icon="digest.stomach" title="Stomach" status={stomachStatus} progress={s ? s.progress : 1} color={stomachColor} detail={stomachDetail} compact={compact} />
+        {showSmoke && (
+          <Meter icon="smoking.cigarette" title="Smoke" status={smokeStatusText} progress={k ? k.progress : 1} color={smokeColor} detail={smokeDetail} compact={compact} />
+        )}
+      </View>
 
       {!compact && (
         <>
@@ -166,8 +202,3 @@ export function MealDigestionLine({ meal }: { meal: MealForDigestion }) {
     </Row>
   );
 }
-
-const clock = (ms: number): string => {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};

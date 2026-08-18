@@ -1219,10 +1219,15 @@ console.log('\nDigestion clock — a stomach load that stacks:');
   check('mealsFromEntries carries the eaten time', mealsFromEntries([{ calories: 500, proteinG: 20, carbsG: 50, fatG: 15, fiberG: 4, createdAt: 12345 }])[0].eatenAt === 12345);
   // ── Wiring: shown where the decision is made, and only for today ──
   const nutSrcD = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
-  check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard meals=\{digestMeals\} smokes=\{smokes\}/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
-  check('The Train tab asks the question at hard intensity, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
-  check('Home shows the compact summary, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} compact/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\}/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
+  check('The Train tab asks the question at hard intensity, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingOn\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
+  check('Home shows the compact summary, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\} compact/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
   const cardSrcD = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
+  // Two meters, never one merged bar.
+  check('The card draws the stomach and the smoke as two separate meters', /<Meter icon="digest\.stomach" title="Stomach"/.test(cardSrcD) && /<Meter icon="smoking\.cigarette" title="Smoke"/.test(cardSrcD));
+  check('…each with its own bar and its own countdown', (cardSrcD.match(/<ProgressBar progress=\{progress\} color=\{color\}/g) ?? []).length === 1 && /progress=\{s \? s\.progress : 1\}/.test(cardSrcD) && /progress=\{k \? k\.progress : 1\}/.test(cardSrcD));
+  check('The smoke meter shows whenever the module is on, even when clear', /const showSmoke = smokingEnabled \|\| smokes\.length > 0;/.test(cardSrcD) && /Nothing smoked in the last day\./.test(cardSrcD));
+  check('The headline names which clock governs', /The smoke clock' : 'The stomach clock'\} governs/.test(cardSrcD));
   check('The card names the stacked load and how many meals are in it', /kcal still digesting/.test(cardSrcD) && /across \$\{s\.mealCount\} meals/.test(cardSrcD));
   check('The card explains that carbs are fast and fat/fibre slow', /carbs fastest, then protein, fat and fibre slowest/.test(cardSrcD));
 }
@@ -1261,7 +1266,7 @@ console.log('\nSmoke clock — after a cigarette, and it stacks:');
   check('recentSmokeEvents reads today AND yesterday (a 23:40 cigarette counts at 00:20)', /dayEntries\(todayISO\(\), userId\), \.\.\.dayEntries\(daysAgoISO\(1\), userId\)/.test(smokeRepoSrc));
   check('…carries each product\'s combustion facts', /combusted: p\.combusted, cigaretteEquivalent: p\.cigaretteEquivalent/.test(smokeRepoSrc));
   check('…and is empty when the module is off', /if \(!isSmokingEnabled\(userId\)\) return \[\];/.test(smokeRepoSrc));
-  check('The Smoking screen shows the training clock right where you log', /<DigestionCard meals=\{\[\]\} smokes=\{smokes\} defaultIntensity="hard" compact/.test(fs.readFileSync('src/screens/smoking/SmokingScreen.tsx', 'utf8')));
+  check('The Smoking screen shows the training clock right where you log', /<DigestionCard meals=\{\[\]\} smokes=\{smokes\} smokingEnabled defaultIntensity="hard" compact/.test(fs.readFileSync('src/screens/smoking/SmokingScreen.tsx', 'utf8')));
 }
 
 console.log('\nReadiness — the two clocks combined:');
@@ -2495,6 +2500,7 @@ console.log('\nAfter the session — margins scaled by how hard it was:');
   check('…and the Home reminder only looks 12 h back', /12 \* 3_600_000/.test(psRepo));
   const cardSrcP = fs.readFileSync('src/components/PostSessionCard.tsx', 'utf8');
   check('The card renders a window as "now — until", and long waits with a weekday', /now — until \$\{clock\(m\.byAt\)\}/.test(cardSrcP) && /\['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'\]/.test(cardSrcP));
+  check('Every after-session line is its own meter (bar), except the multi-day next-session line', /\{m\.key !== 'next' && <ProgressBar progress=\{progress\} color=\{barColor\}/.test(cardSrcP) && /elapsedMin \/ m\.waitMin/.test(cardSrcP));
   check('The after-session icons resolve', ['session', 'water', 'eat', 'smoke', 'alcohol', 'cold', 'next'].every((k) => !!(ICONS as Record<string, Record<string, unknown>>).after?.[k]));
 }
 

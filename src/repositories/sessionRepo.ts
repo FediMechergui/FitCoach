@@ -40,6 +40,8 @@ export interface ExerciseLogView {
   equipmentType: string | null;
   /** the exercise's own MET, for real per-exercise calorie attribution */
   metValue: number | null;
+  /** movement pattern — compound vs isolation drives the rest prescription */
+  pattern: string | null;
   sets: SetEntry[];
 }
 
@@ -516,6 +518,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
       trackingType: exercises.trackingType,
       equipmentType: exercises.equipmentType,
       metValue: exercises.metValue,
+      pattern: exercises.pattern,
     })
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
@@ -531,6 +534,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
     trackingType: r.trackingType,
     equipmentType: r.equipmentType,
     metValue: r.metValue,
+    pattern: r.pattern ?? null,
     sets: db
       .select()
       .from(setEntries)

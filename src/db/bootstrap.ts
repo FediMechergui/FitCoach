@@ -37,8 +37,10 @@ import { seedExerciseLibrary } from './seed';
  *   25 → 26 v2.38: custom_foods.components_json / micros_json (composed meals)
  *   26 → 27 v2.44: food_entries.form / custom_foods.form (liquid vs solid — the
  *                  digestion clock runs liquids faster; NULL reads as solid)
+ *   27 → 28 v2.45: users.experience_level (beginner / intermediate / advanced —
+ *                  shapes splits, methods and rest; NULL reads as intermediate)
  */
-const SCHEMA_VERSION = 27;
+const SCHEMA_VERSION = 28;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -107,6 +109,7 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'custom_foods', column: 'micros_json', ddl: 'TEXT' },
   { table: 'food_entries', column: 'form', ddl: 'TEXT' },
   { table: 'custom_foods', column: 'form', ddl: 'TEXT' },
+  { table: 'users', column: 'experience_level', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -135,6 +138,7 @@ CREATE TABLE IF NOT EXISTS users (
   body_type TEXT,
   rate_of_change TEXT NOT NULL DEFAULT 'moderate',
   unit_preference TEXT NOT NULL DEFAULT 'metric',
+  experience_level TEXT,
   onboarded_at INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );

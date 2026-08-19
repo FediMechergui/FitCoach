@@ -24,6 +24,7 @@ import {
 import { findMethod } from '@/data/trainingMethods';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { useSessionStore } from '@/stores/sessionStore';
+import { LevelPicker, useExperienceLevel } from '@/components/LevelPicker';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ProgramRoute = RouteProp<RootStackParamList, 'ProgramPicker'>;
@@ -42,7 +43,10 @@ export function ProgramPickerScreen() {
   const meta = metaFor(sessionType);
   const begin = useSessionStore((s) => s.begin);
 
-  const programs = programsFor(sessionType);
+  const level = useExperienceLevel();
+  // Programs at your level first, then the rest — nothing hidden.
+  const order: Record<string, number> = { beginner: 0, intermediate: 1, advanced: 2 };
+  const programs = [...programsFor(sessionType)].sort((a, b) => (a.level === level ? 0 : 1) - (b.level === level ? 0 : 1) || order[a.level] - order[b.level]);
   const [program, setProgram] = useState<TrainingProgram | null>(programs.length === 1 ? programs[0] : null);
   const [day, setDay] = useState<ProgramDay | null>(null);
 
@@ -79,6 +83,8 @@ export function ProgramPickerScreen() {
         subtitle="A whole week planned out — pick the program, then today's day."
       />
 
+      <LevelPicker color={meta.color} compact />
+
       <SectionHeader title="Choose a program" />
       {programs.map((p) => {
         const active = program?.key === p.key;
@@ -103,7 +109,7 @@ export function ProgramPickerScreen() {
                   <Icon icon={p.icon} size={22} color={meta.color} />
                   <Text variant="h3" style={{ flex: 1 }}>{p.name}</Text>
                 </Row>
-                <Badge label={LEVEL_LABEL[p.level]} color={LEVEL_COLOR[p.level]} />
+                <Badge label={p.level === level ? `${LEVEL_LABEL[p.level]} · for you` : LEVEL_LABEL[p.level]} color={LEVEL_COLOR[p.level]} />
               </Row>
               <Text variant="caption" color="textMuted">{p.blurb}</Text>
               <Row gap={8} style={{ flexWrap: 'wrap' }}>

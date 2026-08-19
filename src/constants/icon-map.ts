@@ -71,6 +71,7 @@ export const ICONS = {
     legs: def('MaterialCommunityIcons', 'yoga'),
     push: def('Ionicons', 'arrow-up-circle-outline'),
     pull: def('Ionicons', 'arrow-down-circle-outline'),
+    neck: def('MaterialCommunityIcons', 'head-outline'),
   },
 
   // §8.3 Cardio, Outdoor & Sports

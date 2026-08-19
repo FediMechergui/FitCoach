@@ -72,6 +72,10 @@ export const SUB_MUSCLE_LABELS: Record<string, string> = {
   gastrocnemius: 'Gastrocnemius',
   soleus: 'Soleus',
   adductors: 'Adductors',
+  // Neck
+  neck_flexors: 'Neck Flexors (front — SCM, deep flexors)',
+  neck_extensors: 'Neck Extensors (back — splenius, suboccipitals)',
+  neck_lateral: 'Neck Side Flexors / Rotators (scalenes)',
 };
 
 /**
@@ -90,6 +94,7 @@ export const WARMUPS_BY_MUSCLE: Record<string, string> = {
   calves: 'Ankle circles + bodyweight calf raises ×20',
   core: 'Cat-camel ×10 + pelvic tilts ×15',
   forearms: 'Wrist circles + light grip squeezes ×20',
+  neck: 'Slow nods, turns and tilts ×10 each way, then one round of light 4-way isometric holds (10 s each) — never start the neck cold',
 };
 
 /** Generic form cues shown when an exercise has no bespoke instructions. */
@@ -215,6 +220,7 @@ const DB_ = 'strength.dumbbell';
 const MC = 'strength.machine';
 const CB = 'strength.cable';
 const BW = 'strength.calisthenics';
+const NK = 'strength.neck';
 
 const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   // ══════════════════════════ CHEST ══════════════════════════
@@ -909,6 +915,144 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
     trackingType: 'duration', met: 4,
   }),
   S('v-up', 'V-Up', 'core', 'bodyweight', 'core', ['core'], BW, { trackingType: 'reps_only', met: 4 }),
+
+  // ══════════════════════════ NECK ══════════════════════════
+  // Three sub-muscles: flexors at the front (sternocleidomastoid + deep
+  // flexors), extensors at the back (splenius, semispinalis, suboccipitals),
+  // and the side flexors/rotators (scalenes, SCM working one-sided). The neck
+  // responds to the same progressive overload as anything else — and is the
+  // one group where going slow is not optional: light loads, full control,
+  // never into pain, never jerked.
+  S('plate-neck-flexion', 'Plate Neck Flexion (lying)', 'neck', 'other', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_flexors', equipment: 'plate',
+    description: 'Front of the neck. Lying face-up on a bench, head off the end, a plate (in a towel) on the forehead — curl the chin to the chest and back.',
+    instructions: [
+      'Lie face-up with your head just off the bench; hold a light plate wrapped in a towel on your forehead.',
+      'Tuck the chin and curl the head up until the chin nears the chest, 2 s up.',
+      'Lower under control to a gentle stretch — never let the head drop. 15–25 reps; add weight slowly, over weeks.',
+    ],
+  }),
+  S('plate-neck-extension', 'Plate Neck Extension (prone)', 'neck', 'other', 'core',
+    ['neck', 'traps'], NK, {
+    subMuscle: 'neck_extensors', equipment: 'plate',
+    description: 'Back of the neck. Face-down on a bench, head off the end, plate held on the back of the head — lift the head back and up.',
+    instructions: [
+      'Lie face-down, head off the bench; hold a light plate (towel under it) on the back of your head.',
+      'Lift the head back and up to a comfortable extension, 2 s up — do not crank into the top.',
+      'Lower slowly to a gentle stretch. 15–25 reps; the extensors take more load than the front, but add it slowly.',
+    ],
+  }),
+  S('plate-lateral-neck-flexion', 'Plate Lateral Neck Flexion (side-lying)', 'neck', 'other', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_lateral', equipment: 'plate',
+    description: 'Sides of the neck. Lying on your side, plate on the upper side of the head — bring the ear toward the shoulder and back.',
+    instructions: [
+      'Lie on your side on a bench, head off the end, light plate (in a towel) held on the side of the head.',
+      'Tilt the ear toward the upper shoulder, 2 s, without rotating.',
+      'Lower to a gentle stretch. 12–20 reps each side; both sides, always.',
+    ],
+  }),
+  S('neck-harness-extension', 'Neck Harness Extension', 'neck', 'other', 'core',
+    ['neck', 'traps'], NK, {
+    subMuscle: 'neck_extensors', equipment: 'neck harness',
+    description: 'The wrestler\'s and fighter\'s neck builder: a head harness with a plate hanging from it, seated and bent forward — extend the head back against the load.',
+    instructions: [
+      'Sit on the end of a bench, lean forward with elbows on knees, harness on, plate hanging.',
+      'Start with the chin near the chest; extend the head back and up in 2 s.',
+      'Lower slowly. 15–25 reps. Start lighter than you think — the neck adapts fast but the joints take weeks.',
+    ],
+  }),
+  S('cable-neck-flexion', 'Cable Neck Flexion (harness)', 'neck', 'cable', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_flexors', equipment: 'cable + harness',
+    description: 'Front of the neck against a cable: harness clipped to a low-to-mid pulley behind you, facing away — curl the chin down against the line.',
+    instructions: [
+      'Clip the harness to a low pulley behind you; stand or sit facing away, slight lean forward.',
+      'Curl the chin toward the chest against the cable, 2 s.',
+      'Return under control to neutral — do not let the cable pull the head back past it. 15–20 reps.',
+    ],
+  }),
+  S('neck-machine-4-way', 'Neck Machine (4-way)', 'neck', 'machine', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_extensors',
+    description: 'The four-way neck machine: pad on the forehead, back of the head, or either side — each direction is its own set.',
+    instructions: [
+      'Set the pad height to the middle of the forehead / back of the head / temple.',
+      'Move through a comfortable range in 2 s each way; never force the end range.',
+      'Do all four directions; 12–20 reps each. Light weight, perfect control.',
+    ],
+  }),
+  S('neck-curl-bodyweight', 'Neck Curl (bodyweight)', 'neck', 'bodyweight', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_flexors', trackingType: 'reps_only',
+    description: 'The starting point for the front of the neck: lying face-up, curl the chin to the chest and back — no load but the head.',
+    instructions: [
+      'Lie face-up on the floor or a bench, head supported or just off the end.',
+      'Tuck the chin and curl the head up slowly; hold a second at the top.',
+      'Lower slowly. 20–30 reps; add a plate when 30 is easy.',
+    ],
+  }),
+  S('neck-extension-bodyweight', 'Neck Extension (bodyweight)', 'neck', 'bodyweight', 'core',
+    ['neck', 'traps'], NK, {
+    subMuscle: 'neck_extensors', trackingType: 'reps_only',
+    description: 'The starting point for the back of the neck: face-down, lift the head back and up against gravity.',
+    instructions: [
+      'Lie face-down on a bench, head off the end, arms relaxed.',
+      'Lift the head back and up to a comfortable extension, 2 s; no cranking.',
+      'Lower slowly. 20–30 reps; add a plate when 30 is easy.',
+    ],
+  }),
+  S('isometric-neck-4-way', 'Isometric Neck Holds (4-way, hand resistance)', 'neck', 'bodyweight', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_lateral', trackingType: 'duration', met: 3,
+    description: 'Push the head into your own hand — front, back, each side — and hold. The safest way to start, and all a beginner needs for weeks.',
+    instructions: [
+      'Sit tall. Place a palm on the forehead and push the head forward into it without moving; hold 10–20 s.',
+      'Repeat with the hand on the back of the head (push back), then each side (push the ear toward the hand).',
+      'Breathe throughout; 2–3 rounds of all four. Build the hold time before anything else.',
+    ],
+  }),
+  S('neck-rotation-isometric', 'Neck Rotation Isometric', 'neck', 'bodyweight', 'rotation',
+    ['neck'], NK, {
+    subMuscle: 'neck_lateral', trackingType: 'duration', met: 3,
+    description: 'The rotators: turn the head into your own hand on the cheek and hold — the strength that resists a twist.',
+    instructions: [
+      'Sit tall; place a palm on the cheek/jaw.',
+      'Try to turn the head toward the hand without letting it move; hold 10–15 s.',
+      'Switch sides. 2–3 rounds each; never hold your breath.',
+    ],
+  }),
+  S('band-neck-flexion', 'Band Neck Flexion', 'neck', 'other', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_flexors', equipment: 'band', trackingType: 'reps_only',
+    description: 'Front of the neck against a light band anchored behind you, looped over the forehead (a towel under it).',
+    instructions: [
+      'Anchor a light band behind you at head height; loop it over the forehead with a towel under it.',
+      'Step forward to take the slack; tuck and curl the chin down against it, 2 s.',
+      'Return under control. 15–20 reps; a lighter band before a heavier one.',
+    ],
+  }),
+  S('band-neck-extension', 'Band Neck Extension', 'neck', 'other', 'core',
+    ['neck', 'traps'], NK, {
+    subMuscle: 'neck_extensors', equipment: 'band', trackingType: 'reps_only',
+    description: 'Back of the neck against a band anchored in front of you, looped over the back of the head.',
+    instructions: [
+      'Anchor a light band in front of you at head height; loop it around the back of the head (towel under it).',
+      'Step back to take the slack; extend the head back against it, 2 s, without shrugging.',
+      'Return slowly. 15–20 reps.',
+    ],
+  }),
+  S('band-lateral-neck-flexion', 'Band Lateral Neck Flexion', 'neck', 'other', 'core',
+    ['neck'], NK, {
+    subMuscle: 'neck_lateral', equipment: 'band', trackingType: 'reps_only',
+    description: 'Sides of the neck against a band anchored beside you, looped over the side of the head.',
+    instructions: [
+      'Anchor a light band beside you at head height; loop it over the side of the head away from the anchor.',
+      'Tilt the ear toward the far shoulder against it, 2 s, no rotation.',
+      'Return slowly; 12–20 reps each side.',
+    ],
+  }),
 
   // ══════════════════════════ FOREARMS / GRIP ══════════════════════════
   S('barbell-wrist-curl', 'Barbell Wrist Curl', 'forearms', 'barbell', 'curl', ['forearms'], BB, { met: 3 }),
@@ -1750,6 +1894,8 @@ const SUB_BY_SLUG: Record<string, string> = {
   'side-plank': 'obliques', 'bicycle-crunch': 'obliques', 'russian-twist': 'obliques',
   'db-side-bend': 'obliques', 'cable-woodchopper': 'obliques', 'landmine-rotation': 'obliques',
   'landmine-anti-rotation-press': 'obliques',
+  // Neck
+  'neck-bridge': 'neck_extensors',
 };
 
 for (const e of EXERCISE_LIBRARY) {
@@ -1759,13 +1905,13 @@ for (const e of EXERCISE_LIBRARY) {
 /** Muscle groups used for library filtering. */
 export const MUSCLE_GROUPS = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads',
-  'hamstrings', 'glutes', 'calves', 'core', 'forearms',
+  'hamstrings', 'glutes', 'calves', 'core', 'forearms', 'neck',
 ] as const;
 
 export const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Chest', back: 'Back', shoulders: 'Shoulders', biceps: 'Biceps', triceps: 'Triceps',
   quads: 'Quads', hamstrings: 'Hamstrings', glutes: 'Glutes', calves: 'Calves',
-  core: 'Core / Abs', forearms: 'Forearms', cardio: 'Cardio', mobility: 'Mobility', mind: 'Mind',
+  core: 'Core / Abs', forearms: 'Forearms', neck: 'Neck', cardio: 'Cardio', mobility: 'Mobility', mind: 'Mind',
 };
 
 export const EQUIPMENT_LABELS: Record<string, string> = {

@@ -17,6 +17,8 @@ import { SPLITS } from '@/data/splits';
 import { programsFor } from '@/data/programs';
 import { listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import { useSessionStore } from '@/stores/sessionStore';
+import { LevelPicker, useExperienceLevel } from '@/components/LevelPicker';
+import { slugsForLevel } from '@/lib/level';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type MethodRoute = RouteProp<RootStackParamList, 'MethodPicker'>;
@@ -40,11 +42,15 @@ export function MethodPickerScreen() {
 
   const methods = methodsFor(sessionType);
   const programs = programsFor(sessionType);
+  const level = useExperienceLevel();
+  // Lifting methods pre-load fewer exercises for a beginner (compounds first);
+  // cardio / mind-body / skill methods pre-load their full short list.
+  const trims = sessionType === 'strength' || sessionType === 'calisthenics';
 
   const startMethod = (m: TrainingMethod) => {
     // `style` tags the session with the method so progress can be compared
     // like-for-like later (5×5 vs 5×5, HIIT vs HIIT).
-    begin(sessionType, { label: m.label, style: m.key, prefillSlugs: m.prefillSlugs });
+    begin(sessionType, { label: m.label, style: m.key, prefillSlugs: trims && m.prefillSlugs ? slugsForLevel(m.prefillSlugs, level) : m.prefillSlugs });
     const id = useSessionStore.getState().activeId!;
     navigation.replace('ActiveSession', { sessionId: id });
   };
@@ -64,6 +70,8 @@ export function MethodPickerScreen() {
   return (
     <Screen>
       <PageHero icon={meta.icon} color={meta.color} title={meta.label} subtitle={meta.blurb} />
+
+      <LevelPicker color={meta.color} compact={!trims} />
 
       {/* Splits — strength only, since a split is a muscle-group rotation */}
       {sessionType === 'strength' && (

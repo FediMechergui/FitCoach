@@ -25,6 +25,7 @@ import {
   showOngoingNotification,
 } from '@/services/sessionNotifications';
 import { useUserStore } from './userStore';
+import type { RestPrescription } from '@/lib/restPrescription';
 
 interface SessionState {
   activeId: number | null;
@@ -35,6 +36,8 @@ interface SessionState {
   // Rest timer (strength)
   restEndsAt: number | null;
   restDurationS: number;
+  /** the prescription behind the current rest, when the app chose it */
+  restRx: RestPrescription | null;
 
   resume: () => void;
   begin: (
@@ -61,7 +64,7 @@ interface SessionState {
   moveExercise: (logId: number, direction: 'up' | 'down') => void;
   /** Replace an exercise with an easier alternative (removes old log, adds new). */
   swapExercise: (logId: number, newExerciseId: number) => number | null;
-  startRest: (seconds: number) => void;
+  startRest: (seconds: number, rx?: RestPrescription | null) => void;
   clearRest: () => void;
   finish: (opts?: { moodAfter?: number | null; activity?: ActivityDetail; notes?: string | null; onFoot?: boolean }) => FinalizeResult | null;
   cancel: () => void;
@@ -74,6 +77,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   detail: null,
   restEndsAt: null,
   restDurationS: 90,
+  restRx: null,
 
   resume: () => {
     const active: Session | undefined = activeSession();
@@ -180,7 +184,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return newLogId;
   },
 
-  startRest: (seconds) => set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds }),
+  startRest: (seconds, rx) => set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds, restRx: rx ?? null }),
   clearRest: () => set({ restEndsAt: null }),
 
   finish: (opts) => {

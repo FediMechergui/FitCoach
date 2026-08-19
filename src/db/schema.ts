@@ -47,6 +47,12 @@ export const users = sqliteTable('users', {
   unitPreference: text('unit_preference', { enum: ['metric', 'imperial'] })
     .notNull()
     .default('metric'),
+  /**
+   * Training experience — shapes how much a split or method pre-loads, the
+   * sets/reps prescription and the rest between sets. NULL reads as
+   * intermediate, so nothing changes for anyone until they pick.
+   */
+  experienceLevel: text('experience_level', { enum: ['beginner', 'intermediate', 'advanced'] }),
   onboardedAt: integer('onboarded_at'),
   createdAt: integer('created_at')
     .notNull()

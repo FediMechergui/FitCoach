@@ -38,6 +38,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '2–3 compound lifts · 5 sets × 5 reps · 3–5 min rest · add 2.5 kg when all sets hit.',
     progressBy: 'load', progressNote: 'Progress = the bar goes up. Stalling twice means deload 10%.',
     typicalMinutes: 55,
+    prefillSlugs: ['back-squat', 'bench-press-barbell', 'barbell-row', 'overhead-press', 'deadlift'],
   },
   {
     key: 'str-531', sessionType: 'strength', label: '5/3/1 Waves', icon: 'strength.barbell',
@@ -45,6 +46,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'One main lift to a top set (5/3/1 by week) + accessories. 4-week wave, then reset +2.5–5 kg.',
     progressBy: 'load', progressNote: 'Progress = training max climbing wave over wave, not every session.',
     typicalMinutes: 60,
+    prefillSlugs: ['back-squat', 'bench-press-barbell', 'deadlift', 'overhead-press', 'db-lunge', 'db-one-arm-row'],
   },
   {
     key: 'str-hypertrophy', sessionType: 'strength', label: 'Hypertrophy 8–12', icon: 'strength.dumbbell',
@@ -52,6 +54,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '4–6 exercises · 3–4 sets × 8–12 reps · 60–90 s rest · 10–20 hard sets per muscle per week.',
     progressBy: 'reps', progressNote: 'Progress = more reps at the same load, then add load and repeat.',
     typicalMinutes: 60,
+    prefillSlugs: ['db-incline-press', 'lat-pulldown', 'leg-press', 'db-shoulder-press', 'seated-cable-row', 'leg-curl-machine', 'cable-lateral-raise', 'triceps-pushdown', 'db-curl'],
   },
   {
     key: 'str-gvt', sessionType: 'strength', label: 'German Volume (10×10)', icon: 'strength.barbell',
@@ -59,6 +62,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'One main movement · 10 sets × 10 reps · 60–90 s rest. Run 4–6 weeks max.',
     progressBy: 'load', progressNote: 'Progress = completing all 100 reps, then +2.5 kg next block.',
     typicalMinutes: 65,
+    prefillSlugs: ['back-squat', 'bench-press-barbell', 'barbell-row', 'leg-curl-machine'],
   },
   {
     key: 'str-pyramid', sessionType: 'strength', label: 'Pyramid Sets', icon: 'strength.machine',
@@ -66,6 +70,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '12 → 10 → 8 → 6 reps up in load, optionally back down. 2–3 exercises.',
     progressBy: 'load', progressNote: 'Progress = a heavier top of the pyramid at the same bottom-end reps.',
     typicalMinutes: 50,
+    prefillSlugs: ['bench-press-barbell', 'back-squat', 'barbell-row', 'overhead-press', 'leg-press'],
   },
   {
     key: 'str-cluster', sessionType: 'strength', label: 'Cluster / Rest-Pause', icon: 'strength.kettlebell',
@@ -73,6 +78,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Heavy set to near-failure, rest 15–20 s, repeat ×2–3 as one cluster.',
     progressBy: 'reps', progressNote: 'Progress = more total quality reps in the cluster at the same load.',
     typicalMinutes: 45,
+    prefillSlugs: ['front-squat', 'bench-press-barbell', 'deadlift', 'push-press', 'pull-up'],
   },
 
   // ══════════════ CALISTHENICS ══════════════
@@ -82,6 +88,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Pick 3–4 patterns · 3–5 sets of the hardest variation you can control · full rest.',
     progressBy: 'reps', progressNote: 'Progress = harder variation unlocked, or more clean reps of the current one.',
     typicalMinutes: 45,
+    prefillSlugs: ['pull-up', 'dip', 'pistol-squat', 'handstand-hold', 'l-sit', 'tuck-front-lever'],
   },
   {
     key: 'cal-emom', sessionType: 'calisthenics', label: 'EMOM', icon: 'core.timer',
@@ -89,6 +96,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '10–20 min · a set at the top of each minute · rest is whatever is left.',
     progressBy: 'rounds', progressNote: 'Progress = more reps per minute, or holding the pace for more minutes.',
     typicalMinutes: 20,
+    prefillSlugs: ['burpees', 'pull-up', 'push-up', 'jump-squat', 'hanging-leg-raise'],
   },
   {
     key: 'cal-amrap', sessionType: 'calisthenics', label: 'AMRAP', icon: 'core.timer',
@@ -96,6 +104,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Fixed circuit · as many rounds as possible in 10–20 min · rest as needed.',
     progressBy: 'rounds', progressNote: 'Progress = more rounds in the same window. Directly comparable session to session.',
     typicalMinutes: 20,
+    prefillSlugs: ['push-up', 'pull-up', 'bodyweight-squat', 'dip', 'hollow-body-hold'],
   },
   {
     key: 'cal-circuit', sessionType: 'calisthenics', label: 'Circuit', icon: 'strength.calisthenics',
@@ -103,6 +112,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '5–8 stations · 40 s work / 20 s change · 3–4 laps.',
     progressBy: 'rounds', progressNote: 'Progress = more laps or more reps per station at the same work:rest.',
     typicalMinutes: 30,
+    prefillSlugs: ['push-up', 'inverted-row', 'bodyweight-squat', 'plank', 'mountain-climber', 'glute-bridge'],
   },
 
   // ══════════════ CARDIO ══════════════
@@ -112,6 +122,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '30–90 min steady, able to hold a conversation. Nose-breathing pace.',
     progressBy: 'duration', progressNote: 'Progress = same easy effort covering more distance, or a lower heart rate for the same pace.',
     typicalMinutes: 45,
+    prefillSlugs: ['stationary-bike', 'treadmill-run', 'rowing-machine'],
   },
   {
     key: 'car-liss', sessionType: 'cardio', label: 'LISS', icon: 'cardio.walk',
@@ -119,6 +130,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '30–60 min at a genuinely easy, sustainable pace.',
     progressBy: 'duration', progressNote: 'Progress = more accumulated minutes per week without extra fatigue.',
     typicalMinutes: 40,
+    prefillSlugs: ['incline-walk', 'elliptical', 'stationary-bike'],
   },
   {
     key: 'car-hiit', sessionType: 'cardio', label: 'HIIT', icon: 'cardio.running',
@@ -126,6 +138,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '8–12 × 30 s near-max / 90 s easy. Cap at 1–2 sessions a week.',
     progressBy: 'intensity', progressNote: 'Progress = holding a higher output across all intervals, not just the first.',
     typicalMinutes: 25,
+    prefillSlugs: ['assault-bike', 'burpees', 'jump-rope-double-unders', 'sled-push', 'battle-ropes'],
   },
   {
     key: 'car-intervals', sessionType: 'cardio', label: 'Intervals', icon: 'cardio.pace',
@@ -133,6 +146,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '4–8 × 2–5 min at threshold · equal or half rest.',
     progressBy: 'intensity', progressNote: 'Progress = same pace at lower effort, or more reps at the same pace.',
     typicalMinutes: 40,
+    prefillSlugs: ['treadmill-intervals', 'rowing-intervals', 'bike-intervals'],
   },
   {
     key: 'car-tempo', sessionType: 'cardio', label: 'Tempo', icon: 'cardio.pace',
@@ -140,6 +154,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '20–40 min continuous at a "comfortably hard" pace, plus warm-up/cool-down.',
     progressBy: 'intensity', progressNote: 'Progress = a faster pace held for the same duration.',
     typicalMinutes: 40,
+    prefillSlugs: ['treadmill-run', 'rowing-machine', 'stationary-bike'],
   },
   {
     key: 'car-fartlek', sessionType: 'cardio', label: 'Fartlek', icon: 'cardio.running',
@@ -147,6 +162,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '30–45 min mixing easy running with random surges of 30 s–3 min.',
     progressBy: 'duration', progressNote: 'Progress = more time spent surging within the same run.',
     typicalMinutes: 35,
+    prefillSlugs: ['treadmill-run', 'jump-rope-basic', 'high-knees'],
   },
 
   // ══════════════ MARTIAL ARTS ══════════════
@@ -156,6 +172,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '3–6 rounds × 3 min, focusing on one correction per round.',
     progressBy: 'rounds', progressNote: 'Progress = cleaner mechanics and more rounds held at full intent.',
     typicalMinutes: 20,
+    prefillSlugs: ['ma-shadow-round', 'ma-jab-cross', 'ma-footwork-drill', 'ma-combination-drill'],
   },
   {
     key: 'ma-bag', sessionType: 'martial_arts', label: 'Bag Work', icon: 'martial.bag',
@@ -163,6 +180,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '5–10 rounds × 3 min / 1 min rest. Combinations, then free work.',
     progressBy: 'rounds', progressNote: 'Progress = more rounds at the same output, or higher output per round.',
     typicalMinutes: 35,
+    prefillSlugs: ['ma-bag-round', 'ma-combination-drill', 'ma-kick-drill', 'ma-knee-elbow-drill'],
   },
   {
     key: 'ma-pads', sessionType: 'martial_arts', label: 'Pad Work', icon: 'martial.gloves',
@@ -170,6 +188,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '5–8 rounds × 3 min with a pad holder, drilling set combinations.',
     progressBy: 'rounds', progressNote: 'Progress = sharper timing and combinations landing clean under fatigue.',
     typicalMinutes: 35,
+    prefillSlugs: ['ma-pad-round', 'ma-mitt-work', 'ma-counter-drill', 'ma-defense-drill'],
   },
   {
     key: 'ma-drilling', sessionType: 'martial_arts', label: 'Technical Drilling', icon: 'martial.grapple',
@@ -177,6 +196,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Pick 1–3 techniques · high-rep reps each side · slow, then progressive resistance.',
     progressBy: 'reps', progressNote: 'Progress = the technique working against increasing resistance.',
     typicalMinutes: 30,
+    prefillSlugs: ['ma-combination-drill', 'ma-footwork-drill', 'ma-defense-drill', 'ma-takedown-entries', 'ma-sprawl-drill'],
   },
   {
     key: 'ma-sparring', sessionType: 'martial_arts', label: 'Sparring', icon: 'martial.spar',
@@ -184,6 +204,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '3–6 rounds × 3 min, controlled intensity. Hard sparring at most weekly.',
     progressBy: 'rounds', progressNote: 'Progress = staying composed and technical for more rounds. Track head impacts honestly and rest properly.',
     typicalMinutes: 30,
+    prefillSlugs: ['ma-technical-sparring', 'ma-sparring-round', 'ma-positional-sparring'],
   },
   {
     key: 'ma-rolling', sessionType: 'martial_arts', label: 'Rolling (Grappling)', icon: 'martial.grapple',
@@ -191,6 +212,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '4–8 rounds × 5–6 min with varied partners.',
     progressBy: 'rounds', progressNote: 'Progress = better positions reached and less energy burned per round.',
     typicalMinutes: 45,
+    prefillSlugs: ['ma-shrimping', 'ma-bridging', 'ma-guard-passing', 'ma-guard-retention', 'ma-rolling-round', 'ma-flow-rolling'],
   },
   {
     key: 'ma-forms', sessionType: 'martial_arts', label: 'Forms / Kata', icon: 'martial.belt',
@@ -198,6 +220,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Run the form slowly for precision, then at speed. 5–10 repetitions.',
     progressBy: 'reps', progressNote: 'Progress = cleaner execution and forms retained at full speed.',
     typicalMinutes: 25,
+    prefillSlugs: ['ma-forms-kata', 'ma-weapon-forms', 'horse-stance', 'stance-flow'],
   },
   {
     key: 'ma-conditioning', sessionType: 'martial_arts', label: 'Fight Conditioning', icon: 'cardio.running',
@@ -205,6 +228,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Circuits on 3 min / 1 min round timing — burpees, sprawls, sled, skipping.',
     progressBy: 'rounds', progressNote: 'Progress = output holding steady across later rounds instead of falling off.',
     typicalMinutes: 30,
+    prefillSlugs: ['ma-fight-conditioning', 'ma-skipping', 'burpees', 'ma-neck-conditioning', 'sprawl-drill'],
   },
 
   // ══════════════ OUTDOOR ══════════════
@@ -214,6 +238,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '60–150 min easy. Increase weekly distance by no more than ~10%.',
     progressBy: 'distance', progressNote: 'Progress = more distance at the same easy effort.',
     typicalMinutes: 90,
+    prefillSlugs: ['long-run', 'easy-run'],
   },
   {
     key: 'out-hills', sessionType: 'outdoor', label: 'Hill Repeats', icon: 'cardio.elevation',
@@ -221,6 +246,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '6–10 × 60–90 s uphill hard · jog down recovery.',
     progressBy: 'rounds', progressNote: 'Progress = more repeats, or the same repeats faster.',
     typicalMinutes: 40,
+    prefillSlugs: ['hill-repeats', 'hill-sprints', 'easy-run'],
   },
   {
     key: 'out-hike', sessionType: 'outdoor', label: 'Hike / Ruck', icon: 'cardio.hiking',
@@ -228,6 +254,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '60–180 min over varied terrain, optionally with a weighted pack.',
     progressBy: 'duration', progressNote: 'Progress = more distance, elevation or carried load at the same effort.',
     typicalMinutes: 120,
+    prefillSlugs: ['hiking', 'rucking', 'trekking'],
   },
 
   // ══════════════ SPORT ══════════════
@@ -237,6 +264,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Full game or match. Log the score and how you felt.',
     progressBy: 'duration', progressNote: 'Progress = holding performance deeper into the game.',
     typicalMinutes: 90,
+    prefillSlugs: ['sport-warmup', 'soccer', 'sport-footwork'],
   },
   {
     key: 'spo-drills', sessionType: 'sport', label: 'Skill Drills', icon: 'sport.tennis',
@@ -244,6 +272,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '3–5 drills · high repetition · short rests.',
     progressBy: 'reps', progressNote: 'Progress = higher success rate under speed and fatigue.',
     typicalMinutes: 45,
+    prefillSlugs: ['sport-warmup', 'sport-passing-drill', 'sport-shooting-drill', 'sport-footwork', 'sport-wall-ball'],
   },
 
   // ══════════════ MIND-BODY ══════════════
@@ -253,6 +282,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '30–60 min continuous flow, breath-paced.',
     progressBy: 'duration', progressNote: 'Progress = deeper positions held with calmer breathing.',
     typicalMinutes: 45,
+    prefillSlugs: ['sun-salutations', 'vinyasa-yoga', 'hip-mobility'],
   },
   {
     key: 'mb-yin', sessionType: 'mindbody', label: 'Yin / Long Holds', icon: 'mindbody.stretch',
@@ -260,6 +290,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '3–5 min per position, fully relaxed, 6–10 positions.',
     progressBy: 'duration', progressNote: 'Progress = longer comfortable holds and better end-range.',
     typicalMinutes: 40,
+    prefillSlugs: ['yin-yoga', 'couch-stretch', 'hamstring-routine', 'deep-squat-hold'],
   },
   {
     key: 'mb-mobility', sessionType: 'mindbody', label: 'Mobility Circuit', icon: 'mindbody.stretch',
@@ -267,6 +298,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Target 3–4 joints · controlled articular rotations + loaded stretches.',
     progressBy: 'reps', progressNote: 'Progress = more usable active range, not just passive flexibility.',
     typicalMinutes: 20,
+    prefillSlugs: ['joint-cars', 'hip-mobility', 'shoulder-mobility', 'thoracic-mobility', 'ankle-mobility'],
   },
 
   // ══════════════ MEDITATION ══════════════
@@ -276,6 +308,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Box breathing or 4-7-8 · 5–15 min.',
     progressBy: 'duration', progressNote: 'Progress = longer comfortable sessions and faster down-regulation.',
     typicalMinutes: 10,
+    prefillSlugs: ['box-breathing', 'coherent-breathing', 'physiological-sigh'],
   },
   {
     key: 'med-scan', sessionType: 'meditation', label: 'Body Scan', icon: 'mindbody.meditation',
@@ -283,6 +316,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '10–30 min, moving attention head to toe.',
     progressBy: 'duration', progressNote: 'Progress = staying with it longer without drifting.',
     typicalMinutes: 15,
+    prefillSlugs: ['body-scan', 'progressive-relaxation'],
   },
   {
     key: 'med-sit', sessionType: 'meditation', label: 'Unguided Sit', icon: 'mindbody.meditation',
@@ -290,6 +324,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '10–30 min, one anchor (breath or sound).',
     progressBy: 'duration', progressNote: 'Progress = consistency across the week matters more than session length.',
     typicalMinutes: 15,
+    prefillSlugs: ['unguided-sit', 'mindfulness-breath'],
   },
 
   // ══════════════ CARDIO — MACHINE & PROTOCOL VARIATIONS ══════════════
@@ -306,6 +341,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '5 × (30 s easy / 20 s moderate / 10 s sprint) = one 5-min block · 2–4 blocks · 2 min between.',
     progressBy: 'rounds', progressNote: 'Progress = adding a block. Shown to improve 5 k time on ~half the usual volume.',
     typicalMinutes: 30,
+    prefillSlugs: ['treadmill-run', 'stationary-bike', 'rowing-machine'],
   },
   {
     key: 'car-pyramid', sessionType: 'cardio', label: 'Pyramid Intervals', icon: 'cardio.pace',
@@ -313,6 +349,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Work 1→4→1 min hard with equal easy recoveries. Any machine.',
     progressBy: 'duration', progressNote: 'Progress = a taller pyramid, or the same pyramid at a higher level/pace.',
     typicalMinutes: 35,
+    prefillSlugs: ['treadmill-intervals', 'bike-intervals', 'rowing-intervals'],
   },
   {
     key: 'car-stairs', sessionType: 'cardio', label: 'Stair Machine Climb', icon: 'cardio.stairs',
@@ -348,6 +385,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '30–90 min never exceeding the cap — slow down, even to a walk, rather than break it.',
     progressBy: 'distance', progressNote: 'Progress = covering more ground at the SAME heart rate. That is aerobic fitness, precisely measured.',
     typicalMinutes: 50,
+    prefillSlugs: ['treadmill-run', 'stationary-bike', 'elliptical'],
   },
   {
     key: 'car-recovery', sessionType: 'cardio', label: 'Recovery Spin', icon: 'cardio.cycling',
@@ -371,6 +409,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'One or two movements · ladder up to 5–8 and back · rest = the reps you just did.',
     progressBy: 'reps', progressNote: 'Progress = a taller ladder, or a harder progression at the same height.',
     typicalMinutes: 30,
+    prefillSlugs: ['pull-up', 'push-up', 'dip', 'bodyweight-squat'],
   },
   {
     key: 'cal-greasing', sessionType: 'calisthenics', label: 'Greasing the Groove', icon: 'core.timer',
@@ -378,6 +417,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'One movement, ~50% of max reps, 5–10 times across the day, every day.',
     progressBy: 'reps', progressNote: 'Progress = your max climbs without ever having trained to it. Skill, not fatigue.',
     typicalMinutes: 10,
+    prefillSlugs: ['pull-up', 'push-up', 'dip'],
   },
   {
     key: 'cal-tempo', sessionType: 'calisthenics', label: 'Tempo / Slow Negatives', icon: 'core.timer',
@@ -385,6 +425,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '3–5 sets · 3–5 reps · 4–6 s lowering, 1 s pause, controlled up.',
     progressBy: 'duration', progressNote: 'Progress = a longer negative under control, then more reps at that tempo.',
     typicalMinutes: 35,
+    prefillSlugs: ['push-up', 'pull-up', 'bodyweight-squat', 'nordic-negative', 'dip'],
   },
   {
     key: 'cal-skill', sessionType: 'calisthenics', label: 'Skill Practice (holds)', icon: 'strength.calisthenics',
@@ -392,6 +433,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '15–25 min of short holds with full rest, before any conditioning work.',
     progressBy: 'duration', progressNote: 'Progress = a longer clean hold, or a harder lever position at the same time.',
     typicalMinutes: 25,
+    prefillSlugs: ['handstand-hold', 'wall-handstand', 'l-sit', 'tuck-planche-hold', 'tuck-front-lever', 'back-lever-hold'],
   },
 
   // ══════════════ MARTIAL ARTS — MORE VARIATIONS ══════════════
@@ -452,6 +494,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '4–8 blocks × 4–6 min with short rests.',
     progressBy: 'rounds', progressNote: 'Progress = maintaining quality in the last blocks, not just the first.',
     typicalMinutes: 45,
+    prefillSlugs: ['sport-warmup', 'futsal', 'sport-footwork'],
   },
   {
     key: 'out-tempo', sessionType: 'outdoor', label: 'Tempo Run', icon: 'cardio.pace',
@@ -540,6 +583,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Pick the ONE thing you are worst at · 30–45 min on it alone · film it or get a coach\'s eye.',
     progressBy: 'reps', progressNote: 'Progress = the weakness stops being the weakness. Uncomfortable by design — comfortable practice is maintenance.',
     typicalMinutes: 45,
+    prefillSlugs: ['sport-warmup', 'sport-serve-practice', 'sport-shooting-drill', 'sport-keeper-training'],
   },
   {
     key: 'spo-speed-agility', sessionType: 'sport', label: 'Speed & Agility', icon: 'cardio.agility',
@@ -561,6 +605,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '2 short sessions/week · heavy but low volume · nothing to failure · nothing new within 72 h of a match.',
     progressBy: 'load', progressNote: 'Progress is not the aim — holding strength while playing well is. Match performance is the metric.',
     typicalMinutes: 35,
+    prefillSlugs: ['sport-warmup', 'sport-plyometrics', 'sport-footwork', 'sport-passing-drill'],
   },
   {
     key: 'spo-off-season', sessionType: 'sport', label: 'Off-Season Build', icon: 'strength.barbell',
@@ -568,6 +613,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: '3–4 sessions/week of real strength and conditioning + reduced skill work.',
     progressBy: 'load', progressNote: 'Progress = strength and conditioning markers climbing before pre-season starts.',
     typicalMinutes: 60,
+    prefillSlugs: ['sport-warmup', 'sport-plyometrics', 'shuttle-runs', 'agility-ladder', 'sport-footwork'],
   },
   {
     key: 'spo-return', sessionType: 'sport', label: 'Return to Play', icon: 'mindbody.spa',
@@ -575,6 +621,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Straight-line running → change of direction → non-contact drills → full training → match.',
     progressBy: 'duration', progressNote: 'Progress = clearing each stage with no next-day reaction. Skipping a stage is how re-injury happens.',
     typicalMinutes: 40,
+    prefillSlugs: ['sport-warmup', 'sport-footwork', 'sport-passing-drill', 'brisk-walk'],
   },
 
   // ══════════════ OUTDOOR — more variations ══════════════

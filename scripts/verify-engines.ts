@@ -79,6 +79,9 @@ import { buildReportHtml } from '../src/lib/reportHtml';
 import type { ReportData } from '../src/repositories/reportRepo';
 import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib/eatenAt';
 import { sessionStrain, postSessionMargins, marginStatuses, marginsStillRunning } from '../src/lib/postSession';
+import { prescribeRest, pcrRecovered } from '../src/lib/restPrescription';
+import { EXPERIENCE_LEVELS, LEVEL_LABELS, slugsForLevel, prescriptionLine, levelOrDefault } from '../src/lib/level';
+import { MUSCLE_GROUPS, MUSCLE_LABELS, SUB_MUSCLE_LABELS } from '../src/data/exercises';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
 import {
   buildDailyWheel,
@@ -2560,6 +2563,85 @@ console.log('\nLiquid vs solid — a drink is not a plate:');
   check('The dish composer offers it too, defaulting from the parts', /Solid or liquid/.test(composeScr) && /formChoice \?\? composedFormDefault\(components\)/.test(composeScr) && /const input = \{ name, serving, category, components, form \};/.test(composeScr));
   check('The picker shows which foods are drinks', /liquid — clears the stomach about twice as fast/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')));
   check('The readiness card explains drinks run faster', /a drink about twice as fast/.test(fs.readFileSync('src/components/DigestionCard.tsx', 'utf8')));
+}
+
+console.log('\nRest prescription — ATP-PCr, glycolytic, oxidative; the nervous system; the level:');
+{
+  const base = { durationS: null, bodyweight: false, compound: true, setIndex: 0, sessionElapsedMin: 10, level: 'intermediate' as const };
+  const rx = (o: Partial<Parameters<typeof prescribeRest>[0]>) => prescribeRest({ reps: 8, weightKg: 75, rpe: 8, toFailure: false, ...base, ...o });
+  // ── Energy system classification ──
+  check('A heavy triple at 90% is phosphagen (ATP-PCr)', rx({ reps: 3, weightKg: 135, rpe: 9, best1RMKg: 150 }).system === 'phosphagen');
+  check('A set of 8 at 75% is glycolytic', rx({ reps: 8, weightKg: 75, rpe: 8, best1RMKg: 100 }).system === 'glycolytic');
+  check('A 2-minute hold is oxidative', rx({ reps: null, weightKg: null, rpe: null, durationS: 120, compound: false }).system === 'oxidative');
+  check('Five reps or fewer read as heavy even without a known 1RM', rx({ reps: 5, weightKg: 100, rpe: 8, best1RMKg: null }).system === 'phosphagen');
+  check('%1RM is inferred from reps + RIR when no 1RM is known (8 reps @ RPE 8 ≈ 75%)', Math.abs((rx({ reps: 8, weightKg: 60, rpe: 8, best1RMKg: null }).pctOneRM ?? 0) - 0.75) < 0.01);
+  check('…and taken from the known 1RM when there is one', Math.abs((rx({ reps: 3, weightKg: 135, rpe: 9, best1RMKg: 150 }).pctOneRM ?? 0) - 0.9) < 1e-9);
+  // ── Calibration against the evidence ──
+  check('Heavy triple at 90%: 4–5 min (3–5 min for strength/power at ≥85%)', rx({ reps: 3, weightKg: 135, rpe: 9, best1RMKg: 150 }).restSec >= 240 && rx({ reps: 3, weightKg: 135, rpe: 9, best1RMKg: 150 }).restSec <= 300);
+  check('8 reps at 75%, compound: ~2 min (Schoenfeld: 3 min beat 1 at 8–12)', rx({ reps: 8, weightKg: 75, rpe: 8, best1RMKg: 100 }).restSec === 120);
+  check('The same set to failure: ~3 min — failure costs the nervous system', rx({ reps: 10, weightKg: 70, rpe: null, toFailure: true, best1RMKg: 100 }).restSec >= 180 && rx({ reps: 10, weightKg: 70, rpe: null, toFailure: true, best1RMKg: 100 }).cns === 'high');
+  check('Isolation curls at RPE 8: ~1 min 15', rx({ compound: false, reps: 12, weightKg: 14, rpe: 8, best1RMKg: null }).restSec === 75);
+  check('Endurance range (20+ reps) rests less than a set of 8', rx({ bodyweight: true, reps: 25, weightKg: null, rpe: 7 }).restSec < rx({ bodyweight: true, reps: 8, weightKg: null, rpe: 7 }).restSec);
+  check('A plank rests ~1 min', rx({ compound: false, reps: null, weightKg: null, rpe: null, durationS: 60 }).restSec >= 60 && rx({ compound: false, reps: null, weightKg: null, rpe: null, durationS: 60 }).restSec <= 90);
+  check('Explosive work gets full recovery (power drops fast)', rx({ bodyweight: true, explosive: true, reps: 5, weightKg: null, rpe: 7 }).restSec >= 210);
+  // ── The levers move the right way ──
+  check('Heavier (% 1RM) → longer', rx({ reps: 5, weightKg: 140, rpe: 9, best1RMKg: 150 }).restSec > rx({ reps: 5, weightKg: 110, rpe: 7, best1RMKg: 150 }).restSec);
+  check('Closer to failure → longer', rx({ reps: 10, weightKg: 70, rpe: 9.5, best1RMKg: 100 }).restSec > rx({ reps: 10, weightKg: 70, rpe: 7, best1RMKg: 100 }).restSec);
+  check('Compound → longer than isolation for the same set', rx({ compound: true }).restSec > rx({ compound: false }).restSec);
+  check('Later sets → longer (fatigue accumulates)', rx({ setIndex: 4 }).restSec > rx({ setIndex: 0 }).restSec);
+  check('Deep into the session → longer', rx({ sessionElapsedMin: 80 }).restSec > rx({ sessionElapsedMin: 10 }).restSec);
+  check('A step up on the lift → longer (a progress attempt deserves a full tank)', rx({ isProgress: true }).restSec > rx({ isProgress: false }).restSec);
+  check('Beginner < intermediate < advanced for the same set', rx({ level: 'beginner' }).restSec < rx({ level: 'intermediate' }).restSec && rx({ level: 'intermediate' }).restSec < rx({ level: 'advanced' }).restSec);
+  check('Clamped to 30 s – 5 min and a multiple of 15', [rx({ reps: 1, weightKg: 190, rpe: 9.5, best1RMKg: 200, setIndex: 5, sessionElapsedMin: 90, isProgress: true, toFailure: true }).restSec, rx({ compound: false, reps: 30, weightKg: 5, rpe: 5 }).restSec].every((r) => r >= 30 && r <= 300 && r % 15 === 0));
+  check('Every prescription explains itself', rx({}).reasons.length >= 1 && rx({ reps: 3, weightKg: 135, rpe: 9, best1RMKg: 150 }).reasons.some((r) => /creatine-phosphate/.test(r)));
+  // ── The phosphagen tank ──
+  check('PCr refills ~50% at 30 s, ~75% at 1 min, >90% at 2 min, >97% at 3 min', Math.abs(pcrRecovered(30) - 0.49) < 0.02 && Math.abs(pcrRecovered(60) - 0.74) < 0.02 && pcrRecovered(120) > 0.9 && pcrRecovered(180) > 0.97 && pcrRecovered(0) === 0);
+  // ── Wiring ──
+  const actSrc = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The rest presets include 5 minutes', /const REST_PRESETS = \[60, 90, 120, 180, 300\];/.test(actSrc));
+  check('Logging a set starts the rest the set earned, from the set BEFORE it is written', /const rx = isLifting \? rxFor\(draft\) : null;\s*store\.logSet\(lv\.log\.id, draft\);/.test(actSrc) && /store\.startRest\(rx\.restSec, rx\)/.test(actSrc));
+  check('…using the movement pattern, bodyweight flag, history 1RM, set index, session clock, level and progress', /compound: COMPOUND_PATTERNS\.has\(lv\.pattern \?\? ''\)/.test(actSrc) && /bodyweight: lv\.equipmentType === 'bodyweight'/.test(actSrc) && /best1RMKg: Math\.max\(history\.best1RM, best1RMThisSession\)/.test(actSrc) && /setIndex: completed\.length/.test(actSrc) && /sessionElapsedMin: \(Date\.now\(\) - sessionStart\)/.test(actSrc) && /isProgress: d\.weightKg != null && topWeightBefore > 0 && d\.weightKg > topWeightBefore/.test(actSrc));
+  check('The card says how long and why (energy system, %1RM, CNS, tap for reasons)', /Rest set to/.test(actSrc) && /SYSTEM_LABEL\[lastRx\.system\]/.test(actSrc) && /lastRx\.reasons\.map/.test(actSrc));
+  check('The rest banner shows the creatine-phosphate tank refilling', /Creatine phosphate ~\{pcr\}% refilled/.test(actSrc) && /pcrRecovered\(elapsed\)/.test(actSrc));
+  check('The session detail carries the movement pattern', /pattern: exercises\.pattern,/.test(fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8')));
+  check('The store remembers the prescription behind the current rest', /restRx: RestPrescription \| null;/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
+}
+
+console.log('\nNeck — three sub-muscles, exercises for each:');
+{
+  const neck = EXLIB.filter((e) => e.primaryMuscle === 'neck');
+  check('The neck is a muscle group', (MUSCLE_GROUPS as readonly string[]).includes('neck') && MUSCLE_LABELS.neck === 'Neck');
+  check('Three neck sub-muscles are labelled', ['neck_flexors', 'neck_extensors', 'neck_lateral'].every((k) => !!SUB_MUSCLE_LABELS[k]));
+  check('A dozen or more neck exercises', neck.length >= 12, `${neck.length}`);
+  check('Every neck exercise is tagged with one of the three sub-muscles', neck.every((e) => ['neck_flexors', 'neck_extensors', 'neck_lateral'].includes(e.subMuscle ?? '')), neck.filter((e) => !e.subMuscle).map((e) => e.slug).join());
+  check('Each sub-muscle has at least three exercises', ['neck_flexors', 'neck_extensors', 'neck_lateral'].every((k) => neck.filter((e) => e.subMuscle === k).length >= 3));
+  check('Plate, harness, cable, machine, band and bodyweight variants all exist', ['plate-neck-flexion', 'neck-harness-extension', 'cable-neck-flexion', 'neck-machine-4-way', 'band-neck-flexion', 'isometric-neck-4-way'].every((sl) => neck.some((e) => e.slug === sl)));
+  check('Every neck exercise has beginner instructions and a warning tone', neck.every((e) => (e.instructions?.length ?? 0) >= 3) && /never start the neck cold/.test(WARMUPS_BY_MUSCLE.neck ?? ''));
+  check('The neck icon resolves', !!(ICONS as Record<string, Record<string, unknown>>).strength?.neck);
+  check('The wrestler\'s bridge now carries its sub-muscle', EXLIB.find((e) => e.slug === 'neck-bridge')?.subMuscle === 'neck_extensors');
+}
+
+console.log('\nPredetermined sessions — every method pre-loads real exercises; the level shapes them:');
+{
+  const slugSet = new Set(EXLIB.map((e) => e.slug));
+  const noPrefill = TRAINING_METHODS.filter((m) => !m.prefillSlugs || m.prefillSlugs.length === 0);
+  check('Every training method in every category pre-loads exercises', noPrefill.length === 0, noPrefill.map((m) => m.key).join(', '));
+  const unknown = TRAINING_METHODS.flatMap((m) => (m.prefillSlugs ?? []).filter((sl) => !slugSet.has(sl)).map((sl) => `${m.key}:${sl}`));
+  check('…and every pre-loaded slug exists', unknown.length === 0, unknown.join(', '));
+  check('Every program day and every split day has exercises, all real', PROGRAMS.every((p) => p.days.every((d) => d.exercises.length > 0 && d.exercises.every((sl) => slugSet.has(sl)))) && SPLITS.every((sp) => sp.days.every((d) => d.exercises.length > 0 && d.exercises.every((sl) => slugSet.has(sl)))));
+  check('Strength methods lead with compounds (the level trim keeps them)', ['str-5x5', 'str-531', 'str-pyramid', 'str-cluster'].every((k) => { const first = TRAINING_METHODS.find((m) => m.key === k)!.prefillSlugs![0]; const e = EXLIB.find((x) => x.slug === first)!; return ['squat', 'hinge', 'horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull'].includes(e.pattern ?? ''); }));
+  // Level
+  check('Three levels: Beginner / Intermediate / Pro', EXPERIENCE_LEVELS.length === 3 && LEVEL_LABELS.advanced === 'Pro');
+  check('A beginner pre-loads the first four (compounds), others everything', slugsForLevel(['a', 'b', 'c', 'd', 'e', 'f'], 'beginner').length === 4 && slugsForLevel(['a', 'b', 'c', 'd', 'e', 'f'], 'intermediate').length === 6 && slugsForLevel(['a', 'b', 'c', 'd', 'e', 'f'], 'advanced').length === 6);
+  check('Prescriptions differ by level', prescriptionLine('beginner') !== prescriptionLine('advanced') && /3 sets × 8–12/.test(prescriptionLine('beginner')) && /4–5 sets/.test(prescriptionLine('advanced')));
+  check('An unset level reads as intermediate', levelOrDefault(null) === 'intermediate' && levelOrDefault('advanced') === 'advanced' && levelOrDefault('nonsense') === 'intermediate');
+  const bootLv = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('users.experience_level is in the DDL and ADDED_COLUMNS, schema ≥ 28', /experience_level TEXT,/.test(bootLv) && /table: 'users', column: 'experience_level'/.test(bootLv) && Number(/const SCHEMA_VERSION = (\d+);/.exec(bootLv)?.[1]) >= 28);
+  check('Split, method and program pickers all carry the level picker', ['src/screens/train/SplitPickerScreen.tsx', 'src/screens/train/MethodPickerScreen.tsx', 'src/screens/train/ProgramPickerScreen.tsx'].every((f) => /<LevelPicker/.test(fs.readFileSync(f, 'utf8'))));
+  check('The split pre-loads by level and shows the prescription', /prefillSlugs: slugsForLevel\(day\.exercises, level\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /rx\.sets\} sets × \{rx\.reps\}/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')));
+  check('Lifting methods pre-load by level; others in full', /trims && m\.prefillSlugs \? slugsForLevel\(m\.prefillSlugs, level\) : m\.prefillSlugs/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
+  check('Programs at your level come first and are badged', /a\.level === level \? 0 : 1/.test(fs.readFileSync('src/screens/train/ProgramPickerScreen.tsx', 'utf8')) && /· for you/.test(fs.readFileSync('src/screens/train/ProgramPickerScreen.tsx', 'utf8')));
+  check('The level is editable on the profile and saved by the picker', /experienceLevel: experience,/.test(fs.readFileSync('src/screens/profile/EditProfileScreen.tsx', 'utf8')) && /updateProfile\(\{ experienceLevel: v as ExperienceLevel \}\)/.test(fs.readFileSync('src/components/LevelPicker.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

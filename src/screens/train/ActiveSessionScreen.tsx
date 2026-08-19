@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Row, Divider, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -28,9 +29,24 @@ import {
 import { RouteMap } from '@/components/RouteMap';
 import { RpeGuide } from '@/components/RpeGuide';
 import type { LatLng } from '@/lib/geo';
+import { useUserStore } from '@/stores/userStore';
+import { levelOrDefault } from '@/lib/level';
+import { exerciseProgression } from '@/repositories/statsRepo';
+import { estimate1RMFromSet } from '@/lib/oneRepMax';
+import {
+  prescribeRest,
+  pcrRecovered,
+  formatRest,
+  COMPOUND_PATTERNS,
+  SYSTEM_LABEL,
+  CNS_LABEL,
+  type RestPrescription,
+} from '@/lib/restPrescription';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-const REST_PRESETS = [60, 90, 120, 180];
+const REST_PRESETS = [60, 90, 120, 180, 300];
+/** Names that mean the set was explosive — power drops fast with fatigue. */
+const EXPLOSIVE_RE = /jump|throw|clean|snatch|power|explosive|sprint|plyo|box jump|broad/i;
 
 export function ActiveSessionScreen() {
   const theme = useTheme();
@@ -285,6 +301,8 @@ export function ActiveSessionScreen() {
 function RestTimerBanner() {
   const theme = useTheme();
   const restEndsAt = useSessionStore((s) => s.restEndsAt);
+  const restDurationS = useSessionStore((s) => s.restDurationS);
+  const rx = useSessionStore((s) => s.restRx);
   const clearRest = useSessionStore((s) => s.clearRest);
   const [remaining, setRemaining] = useState(0);
 
@@ -299,12 +317,21 @@ function RestTimerBanner() {
   }, [restEndsAt, clearRest]);
 
   if (!restEndsAt || remaining <= 0) return null;
+  const elapsed = Math.max(0, restDurationS - remaining);
+  const pcr = Math.round(pcrRecovered(elapsed) * 100);
   return (
-    <Card accent={theme.colors.warning}>
+    <Card accent={theme.colors.warning} style={{ gap: 6 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Row gap={10} style={{ alignItems: 'center' }}>
           <Icon icon="core.timer" color={theme.colors.warning} />
-          <Text variant="bodyStrong">Rest</Text>
+          <View>
+            <Text variant="bodyStrong">Rest</Text>
+            {rx && (
+              <Text variant="caption" color="textMuted">
+                {SYSTEM_LABEL[rx.system]} · {CNS_LABEL[rx.cns]}
+              </Text>
+            )}
+          </View>
         </Row>
         <Text variant="h2" style={{ fontVariant: ['tabular-nums'], color: theme.colors.warning }}>
           {formatDuration(remaining)}
@@ -315,6 +342,11 @@ function RestTimerBanner() {
           </Text>
         </Pressable>
       </Row>
+      {/* The phosphagen tank refilling — the thing the rest is actually for. */}
+      <ProgressBar progress={pcr / 100} color={pcr >= 90 ? theme.colors.success : theme.colors.warning} height={5} />
+      <Text variant="caption" color="textFaint">
+        Creatine phosphate ~{pcr}% refilled{rx && rx.system === 'phosphagen' ? ' — a heavy set wants 90%+' : ''}.
+      </Text>
     </Card>
   );
 }
@@ -419,16 +451,55 @@ function ExerciseLogCard({
   const [toFailure, setToFailure] = useState(false);
   const [minutes, setMinutes] = useState('');
   const [distanceKm, setDistanceKm] = useState('');
+  const [lastRx, setLastRx] = useState<RestPrescription | null>(null);
+  const [showWhy, setShowWhy] = useState(false);
+  const level = levelOrDefault(useUserStore((s) => s.user?.experienceLevel));
+  const sessionStart = store.detail?.session.startTime ?? Date.now();
+
+  // History for this exercise: best 1RM and top weight ever, so the set can
+  // be placed as a share of 1RM and recognised as a step up.
+  const history = useMemo(() => {
+    const pts = exerciseProgression(lv.log.exerciseId);
+    return {
+      best1RM: pts.reduce((m, p) => Math.max(m, p.best1RM), 0),
+      topWeight: pts.reduce((m, p) => Math.max(m, p.topWeight), 0),
+    };
+  }, [lv.log.exerciseId]);
+
+  /** The rest this set earns — from what it was, where it sits, and who is lifting. */
+  const rxFor = (d: { reps: number | null; weightKg: number | null; rpe: number | null; toFailure: boolean; durationS: number | null }): RestPrescription => {
+    const completed = lv.sets.filter((s) => s.completed);
+    const best1RMThisSession = completed.reduce((m, s) => Math.max(m, estimate1RMFromSet(s)), 0);
+    const topWeightBefore = Math.max(history.topWeight, ...completed.map((s) => s.weightKg ?? 0));
+    return prescribeRest({
+      reps: d.reps,
+      weightKg: d.weightKg,
+      rpe: d.rpe,
+      toFailure: d.toFailure,
+      durationS: d.durationS,
+      bodyweight: lv.equipmentType === 'bodyweight',
+      compound: COMPOUND_PATTERNS.has(lv.pattern ?? ''),
+      explosive: EXPLOSIVE_RE.test(lv.exerciseName),
+      best1RMKg: Math.max(history.best1RM, best1RMThisSession) || null,
+      setIndex: completed.length,
+      sessionElapsedMin: (Date.now() - sessionStart) / 60_000,
+      level,
+      isProgress: d.weightKg != null && topWeightBefore > 0 && d.weightKg > topWeightBefore,
+    });
+  };
 
   const addSet = () => {
-    store.logSet(lv.log.id, {
+    const draft = {
       reps: f.reps && reps && !(isLifting && toFailure) ? parseInt(reps, 10) : null,
       weightKg: f.weight && weight ? parseFloat(weight) : null,
       rpe: isLifting && rpe ? parseFloat(rpe) : null,
       toFailure: isLifting && toFailure,
       durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
       distanceM: f.distance && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
-    });
+    };
+    // Prescribe from the set BEFORE it is logged, so setIndex counts the sets before it.
+    const rx = isLifting ? rxFor(draft) : null;
+    store.logSet(lv.log.id, draft);
     setReps('');
     setWeight('');
     setRpe('');
@@ -436,7 +507,10 @@ function ExerciseLogCard({
     // it every set is how it stops getting logged at all.
     setMinutes('');
     setDistanceKm('');
-    if (isLifting) store.startRest(store.restDurationS);
+    if (isLifting && rx) {
+      setLastRx(rx);
+      store.startRest(rx.restSec, rx);
+    }
   };
 
   const describeSet = (s: (typeof lv.sets)[number]): string => {
@@ -589,14 +663,40 @@ function ExerciseLogCard({
             size="sm"
             variant="secondary"
             onPress={() => {
+              const last = [...lv.sets].reverse().find((s) => s.completed);
+              const rx = last
+                ? rxFor({ reps: last.reps, weightKg: last.weightKg, rpe: last.rpe, toFailure: !!last.toFailure, durationS: last.durationS })
+                : null;
               store.repeatLastSet(lv.log.id, lv.log.exerciseId);
-              store.startRest(store.restDurationS);
+              if (rx) { setLastRx(rx); store.startRest(rx.restSec, rx); }
+              else store.startRest(store.restDurationS);
             }}
             style={{ flex: 1 }}
             fullWidth={false}
           />
         )}
       </Row>
+      {isLifting && lastRx && (
+        <Pressable onPress={() => setShowWhy((v) => !v)}>
+          <View style={{ gap: 4 }}>
+            <Row gap={6} style={{ alignItems: 'center' }}>
+              <Icon icon="core.timer" size={14} color={theme.colors.warning} />
+              <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+                Rest set to <Text variant="caption" style={{ fontWeight: '700' }}>{formatRest(lastRx.restSec)}</Text> · {SYSTEM_LABEL[lastRx.system]}
+                {lastRx.pctOneRM != null ? ` · ~${Math.round(lastRx.pctOneRM * 100)}% 1RM` : ''} · {CNS_LABEL[lastRx.cns]} — {showWhy ? 'hide' : 'why?'}
+              </Text>
+            </Row>
+            {showWhy && lastRx.reasons.map((r, i) => (
+              <Text key={i} variant="caption" color="textFaint">• {r}</Text>
+            ))}
+            {showWhy && (
+              <Text variant="caption" color="textFaint">
+                Evidence range for this kind of set: {formatRest(lastRx.rangeSec[0])}–{formatRest(lastRx.rangeSec[1])}. Override with a preset below.
+              </Text>
+            )}
+          </View>
+        </Pressable>
+      )}
       {isLifting && (
         <Row gap={6}>
           {REST_PRESETS.map((sec) => (

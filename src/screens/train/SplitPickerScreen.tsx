@@ -15,6 +15,8 @@ import type { RootStackParamList } from '@/navigation/types';
 import { SPLITS, type SplitDay, type SplitTemplate } from '@/data/splits';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { MUSCLE_LABELS } from '@/data/exercises';
+import { LevelPicker, useExperienceLevel } from '@/components/LevelPicker';
+import { slugsForLevel, LEVEL_PRESCRIPTION, LEVEL_LABELS } from '@/lib/level';
 import { useSessionStore } from '@/stores/sessionStore';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -25,6 +27,9 @@ export function SplitPickerScreen() {
   const begin = useSessionStore((s) => s.begin);
   const [split, setSplit] = useState<SplitTemplate | null>(null);
   const [day, setDay] = useState<SplitDay | null>(null);
+  // The level shapes how much of the day is pre-loaded and the prescription shown.
+  const level = useExperienceLevel();
+  const rx = LEVEL_PRESCRIPTION[level];
 
   const start = () => {
     if (!split || !day) return;
@@ -32,18 +37,20 @@ export function SplitPickerScreen() {
       label: `${split.name} · ${day.label}`,
       splitKey: split.key,
       splitDay: day.key,
-      prefillSlugs: day.exercises,
+      prefillSlugs: slugsForLevel(day.exercises, level),
     });
     const id = useSessionStore.getState().activeId!;
     navigation.replace('ActiveSession', { sessionId: id });
   };
 
-  // Preview the exercises that will be pre-loaded.
-  const preview = day ? exercisesBySlugs(day.exercises) : [];
+  // Preview the exercises that will be pre-loaded — trimmed for a beginner, compounds first.
+  const preview = day ? exercisesBySlugs(slugsForLevel(day.exercises, level)) : [];
 
   return (
     <Screen>
       <PageHero icon="strength.barbell" color={theme.colors.strength} title="Training split" subtitle="Pick a split and a day — FitCoach pre-loads that day's exercises so you can just start lifting. You can add or remove anything once you're in." />
+
+      <LevelPicker color={theme.colors.strength} />
 
       <SectionHeader title="Choose a split" />
       {SPLITS.map((s) => {
@@ -108,7 +115,10 @@ export function SplitPickerScreen() {
           </Row>
           <Divider />
           <Text variant="label" color="textMuted">
-            {preview.length} exercises will be pre-loaded
+            {preview.length} exercises will be pre-loaded{preview.length < day.exercises.length ? ` (${LEVEL_LABELS[level]}: the first ${preview.length} of ${day.exercises.length} — the compounds)` : ''}
+          </Text>
+          <Text variant="caption" color="textFaint">
+            {rx.sets} sets × {rx.reps} (compounds {rx.compoundReps}) · {rx.progression}
           </Text>
           {preview.map((ex, i) => (
             <Row key={ex.id} gap={8} style={{ alignItems: 'center' }}>

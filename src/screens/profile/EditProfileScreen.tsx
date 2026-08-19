@@ -13,6 +13,7 @@ import { Row, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { ACTIVITY_LABELS, GOAL_LABELS, GOAL_NOTES, GOAL_ORDER, type ActivityLevel, type Goal } from '@/lib/calories';
+import { EXPERIENCE_LEVELS, LEVEL_BLURBS, LEVEL_LABELS, levelOrDefault, type ExperienceLevel } from '@/lib/level';
 import { BODY_TYPE_BLURB, BODY_TYPE_LABELS, type BodyType } from '@/lib/bodyType';
 import type { Gender } from '@/db/schema';
 
@@ -36,6 +37,7 @@ export function EditProfileScreen() {
   const [birthdate, setBirthdate] = useState(user?.birthdate ?? '1995-01-01');
   const [height, setHeight] = useState(user?.heightCm ? String(user.heightCm) : '');
   const [activity, setActivity] = useState<ActivityLevel>(user?.activityLevel ?? 'moderate');
+  const [experience, setExperience] = useState<ExperienceLevel>(levelOrDefault(user?.experienceLevel));
   const [goal, setGoal] = useState<Goal>(user?.goal ?? 'maintain');
   const [rate, setRate] = useState<'slow' | 'moderate' | 'aggressive'>(user?.rateOfChange ?? 'moderate');
   const [bodyType, setBodyType] = useState<BodyType | null>(user?.bodyType ?? null);
@@ -70,6 +72,7 @@ export function EditProfileScreen() {
         birthdate: birthdate.trim(),
         heightCm: heightNum > 0 ? heightNum : user.heightCm,
         activityLevel: activity,
+        experienceLevel: experience,
         goal,
         rateOfChange: rate,
         bodyType,
@@ -152,6 +155,17 @@ export function EditProfileScreen() {
           value={activity}
           onChange={setActivity}
         />
+      </View>
+
+      {/* Training experience — shapes splits, methods and the rest between sets */}
+      <View>
+        <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>Training experience</Text>
+        <SegmentedControl
+          options={EXPERIENCE_LEVELS.map((k) => ({ value: k, label: LEVEL_LABELS[k] }))}
+          value={experience}
+          onChange={setExperience}
+        />
+        <Text variant="caption" color="textFaint" style={{ marginTop: 6 }}>{LEVEL_BLURBS[experience]}</Text>
       </View>
 
       {/* Body type — user-changeable; biases macro defaults & fat-distribution info */}

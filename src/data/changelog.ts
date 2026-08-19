@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.45',
+    date: '2026-08-19',
+    title: 'Sessions, next level: rest by energy system and nervous system, the neck, your level',
+    highlights: [
+      'Rest between sets is now prescribed from the set you just logged. Every rep is paid for by ATP, and the body remakes it three ways: the phosphagen system (ATP-PCr — creatine phosphate handing its phosphate straight to ADP; maximal power for ~10–15 s, then the tank is empty until rested back: half in ~30 s, ~90% by 2 min, ~95%+ by 3–5), the glycolytic system (the 15 s – 2 min burn), and the oxidative system (long work). The app reads the set — reps, weight as a share of your best 1RM on that lift, RPE or to-failure, duration — works out which system paid for it, and sets the rest that system needs.',
+      'Then the nervous system. Near-maximal loads (≥85–90% 1RM), sets to failure and explosive work tax the motor drive itself, which recovers more slowly than the phosphagen tank — strength trials consistently favour 3–5 min there. The prescription adds for it, adds for fatigue (which set this is, how far into the session), adds when the set is a step up on anything you have done on that lift, scales by your level, and stays within 30 s – 5 min. Calibrated against the evidence: a heavy triple at 90% ≈ 4–5 min; 8 reps at 75% ≈ 2 min (3 min beat 1 min for both strength and muscle at 8–12 reps); the same set to failure ≈ 3 min; curls ≈ 1:15; a plank ≈ 1 min. The timer starts itself with that number, the card says why ("ATP-PCr · ~90% 1RM · CNS high — tap for the reasons"), the presets now include 5 min to override, and the rest banner shows the creatine-phosphate tank refilling in real time.',
+      'The neck, properly: a muscle group with its three sub-muscles — flexors at the front (SCM and deep flexors), extensors at the back (splenius, suboccipitals), side flexors and rotators (scalenes) — and 13 exercises across them: plate flexion, extension and lateral flexion, the neck harness, cable and 4-way machine, bodyweight curls and extensions, 4-way isometric holds, rotation isometrics, and three band variants. Every one with beginner cues and a warm-up that says never start the neck cold.',
+      'Every predetermined session in every category now pre-loads real exercises: 47 training methods that opened empty — 5×5, 5/3/1, hypertrophy, GVT, pyramid, cluster; EMOM, AMRAP, ladders, tempo, skills; zone 2, HIIT, intervals, fartlek, 30-20-10; shadow, bag, pads, drilling, sparring, rolling, forms, fight conditioning; long runs, hills, hikes; match play, drills, scrimmage, in-season, off-season, return to play; vinyasa, yin, mobility; breathwork, body scan, the unguided sit — all filled, compounds first.',
+      'Your level — Beginner, Intermediate, Pro — on the profile and right there in the split, method and program pickers (changing it there saves it). A beginner pre-loads the first four exercises of a split day (the compounds) with 3 sets × 8–12; intermediate the full day at 3–4 × 6–12; Pro the full day at 4–5 sets, heavier compounds, intensifiers and longer rests. Programs at your level come first and are badged "for you". Nothing you logged changes.',
+      '1045 checks in all, up from 992. Migration checked against a pre-update database.',
+    ],
+  },
+  {
     version: '2.44',
     date: '2026-08-18',
     title: 'A drink is not a plate: liquids run the training clock faster',

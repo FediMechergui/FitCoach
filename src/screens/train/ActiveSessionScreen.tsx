@@ -16,7 +16,7 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
 import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
 import { formatDuration } from '@/lib/format';
-import type { ExerciseLogView } from '@/repositories/sessionRepo';
+import { warmupsDoneOf, type ExerciseLogView } from '@/repositories/sessionRepo';
 import { getExercise, listExercises } from '@/repositories/exerciseRepo';
 import { findEasierAlternatives } from '@/lib/exerciseAlternatives';
 import {
@@ -798,7 +798,14 @@ function AlternativePicker({
  */
 function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
   const theme = useTheme();
-  const [done, setDone] = useState<Record<string, boolean>>({});
+  // Persisted on the session row: leaving the screen and resuming — or an app
+  // restart — keeps what was ticked. (It used to be local state, and reset.)
+  const session = useSessionStore((s) => s.detail?.session);
+  const toggleWarmup = useSessionStore((s) => s.toggleWarmup);
+  const done = useMemo(() => {
+    const set = new Set(session ? warmupsDoneOf(session) : []);
+    return (m: string) => set.has(m);
+  }, [session?.warmupsDone]);
 
   const muscles = useMemo(() => {
     const seen = new Set<string>();
@@ -809,7 +816,7 @@ function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
   }, [detail]);
 
   if (muscles.length === 0) return null;
-  const allDone = muscles.every((m) => done[m]);
+  const allDone = muscles.every((m) => done(m));
 
   if (allDone) {
     return (
@@ -827,15 +834,15 @@ function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
         <Text variant="h3" style={{ flex: 1 }}>Warm up first (mandatory)</Text>
       </Row>
       {muscles.map((m) => (
-        <Pressable key={m} onPress={() => setDone((d) => ({ ...d, [m]: !d[m] }))}>
+        <Pressable key={m} onPress={() => toggleWarmup(m)}>
           <Row gap={10} style={{ alignItems: 'flex-start' }}>
             <Icon
-              icon={done[m] ? 'core.check' : 'core.add'}
+              icon={done(m) ? 'core.check' : 'core.add'}
               size={18}
-              color={done[m] ? theme.colors.success : theme.colors.textFaint}
+              color={done(m) ? theme.colors.success : theme.colors.textFaint}
             />
             <View style={{ flex: 1 }}>
-              <Text variant="bodyStrong" style={done[m] ? { textDecorationLine: 'line-through' } : undefined}>
+              <Text variant="bodyStrong" style={done(m) ? { textDecorationLine: 'line-through' } : undefined}>
                 {MUSCLE_LABELS[m] ?? m}
               </Text>
               <Text variant="caption" color="textMuted">{WARMUPS_BY_MUSCLE[m]}</Text>

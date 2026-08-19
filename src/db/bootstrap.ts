@@ -39,8 +39,10 @@ import { seedExerciseLibrary } from './seed';
  *                  digestion clock runs liquids faster; NULL reads as solid)
  *   27 → 28 v2.45: users.experience_level (beginner / intermediate / advanced —
  *                  shapes splits, methods and rest; NULL reads as intermediate)
+ *   28 → 29 v2.46: sessions.warmups_done (which warm-ups were ticked — survives
+ *                  leaving and resuming the session; NULL reads as none)
  */
-const SCHEMA_VERSION = 28;
+const SCHEMA_VERSION = 29;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -110,6 +112,7 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'food_entries', column: 'form', ddl: 'TEXT' },
   { table: 'custom_foods', column: 'form', ddl: 'TEXT' },
   { table: 'users', column: 'experience_level', ddl: 'TEXT' },
+  { table: 'sessions', column: 'warmups_done', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -220,6 +223,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   mood_before INTEGER,
   mood_after INTEGER,
   notes TEXT,
+  warmups_done TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user_time ON sessions(user_id, start_time);

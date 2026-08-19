@@ -173,6 +173,12 @@ export const sessions = sqliteTable('sessions', {
   moodBefore: integer('mood_before'), // 1..5 emoji scale
   moodAfter: integer('mood_after'),
   notes: text('notes'),
+  /**
+   * The warm-up muscles ticked off in this session (JSON string[]). Kept on
+   * the row so leaving the screen and resuming — or restarting the app — does
+   * not un-tick them. NULL reads as none.
+   */
+  warmupsDone: text('warmups_done'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

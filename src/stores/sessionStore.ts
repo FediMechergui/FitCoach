@@ -17,6 +17,7 @@ import {
   type FinalizeResult,
   type SessionDetail,
   type SetDraft,
+  toggleWarmupDone,
 } from '@/repositories/sessionRepo';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { metaFor } from '@/constants/sessionTypes';
@@ -65,6 +66,8 @@ interface SessionState {
   /** Replace an exercise with an easier alternative (removes old log, adds new). */
   swapExercise: (logId: number, newExerciseId: number) => number | null;
   startRest: (seconds: number, rx?: RestPrescription | null) => void;
+  /** tick / untick a warm-up muscle — persisted on the session row */
+  toggleWarmup: (muscle: string) => void;
   clearRest: () => void;
   finish: (opts?: { moodAfter?: number | null; activity?: ActivityDetail; notes?: string | null; onFoot?: boolean }) => FinalizeResult | null;
   cancel: () => void;
@@ -185,6 +188,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   startRest: (seconds, rx) => set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds, restRx: rx ?? null }),
+  toggleWarmup: (muscle) => {
+    const id = get().activeId;
+    if (!id) return;
+    toggleWarmupDone(id, muscle);
+    get().refresh();
+  },
   clearRest: () => set({ restEndsAt: null }),
 
   finish: (opts) => {

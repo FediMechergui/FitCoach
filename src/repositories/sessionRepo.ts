@@ -502,6 +502,28 @@ export function sessionCalorieBreakdown(
 }
 
 // ── Queries ──────────────────────────────────────────────────────────────────
+/** Which warm-up muscles have been ticked in a session. */
+export function warmupsDoneOf(session: Pick<Session, 'warmupsDone'>): string[] {
+  if (!session.warmupsDone) return [];
+  try {
+    const v = JSON.parse(session.warmupsDone);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Tick or untick a warm-up muscle for a session — persisted, so resuming keeps it. */
+export function toggleWarmupDone(sessionId: number, muscle: string): string[] {
+  const s = getSession(sessionId);
+  if (!s) return [];
+  const cur = new Set(warmupsDoneOf(s));
+  if (cur.has(muscle)) cur.delete(muscle); else cur.add(muscle);
+  const next = [...cur];
+  db.update(sessions).set({ warmupsDone: JSON.stringify(next) }).where(eq(sessions.id, sessionId)).run();
+  return next;
+}
+
 export function getSession(sessionId: number): Session | undefined {
   return db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
 }

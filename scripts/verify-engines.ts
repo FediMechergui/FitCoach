@@ -2644,5 +2644,18 @@ console.log('\nPredetermined sessions — every method pre-loads real exercises;
   check('The level is editable on the profile and saved by the picker', /experienceLevel: experience,/.test(fs.readFileSync('src/screens/profile/EditProfileScreen.tsx', 'utf8')) && /updateProfile\(\{ experienceLevel: v as ExperienceLevel \}\)/.test(fs.readFileSync('src/components/LevelPicker.tsx', 'utf8')));
 }
 
+console.log('\nWarm-ups survive leaving and resuming a session:');
+{
+  const actW = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The checklist reads its ticks from the session row, not local state', /warmupsDoneOf\(session\)/.test(actW) && !/useState<Record<string, boolean>>\(\{\}\)/.test(actW));
+  check('…and writes them through the store', /onPress=\{\(\) => toggleWarmup\(m\)\}/.test(actW));
+  const repoW = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('toggleWarmupDone persists a JSON list on the session', /export function toggleWarmupDone/.test(repoW) && /set\(\{ warmupsDone: JSON\.stringify\(next\) \}\)/.test(repoW));
+  check('warmupsDoneOf tolerates NULL and bad JSON', /if \(!session\.warmupsDone\) return \[\];/.test(repoW) && /catch \{\s*return \[\];/.test(repoW));
+  const bootW = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('sessions.warmups_done is in the DDL and ADDED_COLUMNS, schema ≥ 29', /warmups_done TEXT,/.test(bootW) && /table: 'sessions', column: 'warmups_done'/.test(bootW) && Number(/const SCHEMA_VERSION = (\d+);/.exec(bootW)?.[1]) >= 29);
+  check('The store exposes toggleWarmup and refreshes after it', /toggleWarmup: \(muscle\) => \{[\s\S]*?toggleWarmupDone\(id, muscle\);\s*get\(\)\.refresh\(\);/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

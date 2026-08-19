@@ -19,6 +19,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.46',
+    date: '2026-08-19',
+    title: 'Warm-ups stay ticked when you leave and resume a session',
+    highlights: [
+      'Fixed: leaving the session screen and pressing Resume un-ticked the warm-ups as if they had never been done. The ticks now live on the session itself, so they survive leaving the screen — and restarting the app. Nothing else about the checklist changes.',
+      '1051 checks in all. Migration checked against a pre-update database.',
+    ],
+  },
+  {
     version: '2.45',
     date: '2026-08-19',
     title: 'Sessions, next level: rest by energy system and nervous system, the neck, your level',

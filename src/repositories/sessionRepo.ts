@@ -42,6 +42,8 @@ export interface ExerciseLogView {
   metValue: number | null;
   /** movement pattern — compound vs isolation drives the rest prescription */
   pattern: string | null;
+  /** stable natural key — load profiles and library lookups hang off it */
+  slug: string | null;
   sets: SetEntry[];
 }
 
@@ -459,11 +461,17 @@ function logsToBurn(logs: ExerciseLogView[]): BurnExercise[] {
   return logs.map((lv) => ({
     met: lv.metValue,
     trackingType: lv.trackingType,
+    slug: lv.slug,
+    equipmentType: lv.equipmentType,
+    pattern: lv.pattern,
     sets: lv.sets.map((s) => ({
       reps: s.reps,
       durationS: s.durationS,
       distanceM: s.distanceM,
       completed: s.completed,
+      weightKg: s.weightKg,
+      rpe: s.rpe,
+      toFailure: s.toFailure,
     })),
   }));
 }
@@ -541,6 +549,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
       equipmentType: exercises.equipmentType,
       metValue: exercises.metValue,
       pattern: exercises.pattern,
+      slug: exercises.slug,
     })
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
@@ -557,6 +566,7 @@ export function getSessionDetail(sessionId: number): SessionDetail {
     equipmentType: r.equipmentType,
     metValue: r.metValue,
     pattern: r.pattern ?? null,
+    slug: r.slug ?? null,
     sets: db
       .select()
       .from(setEntries)

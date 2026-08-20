@@ -24,6 +24,7 @@
  * a standalone Compendium figure rather than something added to a daily budget.
  */
 import { caloriesFromMet, netCaloriesFromMet } from './met';
+import { intensityCalorieFactor, loadCalorieFactor, profileFor, type LoadProfile } from './loadProfile';
 import type { TrackingType } from '@/db/schema';
 
 /** Seconds of work a single rep represents, for reps-tracked movements. */
@@ -34,6 +35,11 @@ export interface BurnSet {
   durationS?: number | null;
   distanceM?: number | null;
   completed?: boolean | null;
+  /** the logged kilograms — external load, added belt/vest weight, or carried pack */
+  weightKg?: number | null;
+  /** 1..10, when logged */
+  rpe?: number | null;
+  toFailure?: boolean | null;
 }
 
 export interface BurnExercise {
@@ -41,6 +47,23 @@ export interface BurnExercise {
   met?: number | null;
   trackingType: TrackingType;
   sets: BurnSet[];
+  /** identity for the load profile — a ruck burns by its pack, a vest by its vest */
+  slug?: string | null;
+  equipmentType?: string | null;
+  pattern?: string | null;
+}
+
+/**
+ * Per-set energy factor: what the load does (a 20 kg ruck at 80 kg is ×1.25;
+ * a 20 kg belt on dips ×1.12) times what the effort does (RPE 9 ≈ ×1.06).
+ * A set with neither logged is exactly ×1, so history and unloaded sessions
+ * are byte-identical to before.
+ */
+export function setEnergyFactor(profile: LoadProfile, bodyweightKg: number, set: BurnSet): number {
+  return (
+    loadCalorieFactor(profile, bodyweightKg, set.weightKg ?? null) *
+    intensityCalorieFactor(set.rpe ?? null, !!set.toFailure)
+  );
 }
 
 /**
@@ -54,15 +77,30 @@ export function activeSecondsFor(ex: BurnExercise): number {
   let seconds = 0;
   for (const s of ex.sets) {
     if (s.completed === false) continue;
-    if (typeof s.durationS === 'number' && s.durationS > 0) {
-      seconds += s.durationS;
-    } else if (typeof s.reps === 'number' && s.reps > 0) {
-      seconds += s.reps * SECONDS_PER_REP;
-    } else {
-      seconds += 60;
-    }
+    seconds += setSeconds(s);
   }
   return seconds;
+}
+
+function setSeconds(s: BurnSet): number {
+  if (typeof s.durationS === 'number' && s.durationS > 0) return s.durationS;
+  if (typeof s.reps === 'number' && s.reps > 0) return s.reps * SECONDS_PER_REP;
+  return 60;
+}
+
+/**
+ * Active seconds weighted by each set's energy factor — the "effective MET
+ * seconds" of the exercise. Equal to plain active seconds whenever no set
+ * carries a load or an RPE.
+ */
+export function weightedActiveSecondsFor(ex: BurnExercise, bodyweightKg: number): number {
+  const profile = profileFor(ex);
+  let weighted = 0;
+  for (const s of ex.sets) {
+    if (s.completed === false) continue;
+    weighted += setSeconds(s) * setEnergyFactor(profile, bodyweightKg, s);
+  }
+  return weighted;
 }
 
 export interface CalorieBreakdown {
@@ -88,6 +126,9 @@ export function distributeSessionCalories(params: {
 }): CalorieBreakdown {
   const { durationS, weightKg, exercises, fallbackMet } = params;
   const actives = exercises.map(activeSecondsFor);
+  // Energy-weighted seconds: the load on the back and the effort in the set
+  // scale the burn; the plain seconds still decide how the wall clock is split.
+  const weighted = exercises.map((ex) => weightedActiveSecondsFor(ex, weightKg));
   const totalActive = actives.reduce((a, b) => a + b, 0);
 
   if (durationS <= 0) {
@@ -118,11 +159,16 @@ export function distributeSessionCalories(params: {
 
   // Spread the whole wall-clock duration over the exercises in proportion to
   // their active time — rest and transitions ride along with the work that
-  // earned them rather than vanishing.
+  // earned them rather than vanishing. The energy factor (load carried, added
+  // weight, effort) then scales each exercise's share: same minutes, more work.
   const scale = durationS / totalActive;
   const perExercise = exercises.map((ex, i) => {
     const met = ex.met && ex.met > 0 ? ex.met : fallbackMet;
-    return netCaloriesFromMet(met, weightKg, actives[i] * scale);
+    const factor = actives[i] > 0 ? weighted[i] / actives[i] : 1;
+    // The factor scales the WORK above resting (net MET), not the resting
+    // share — a 20 kg pack multiplies what you do, not your idle metabolism.
+    // 1 + (met − 1) × factor keeps a single rounding step in netCaloriesFromMet.
+    return netCaloriesFromMet(1 + (met - 1) * factor, weightKg, actives[i] * scale);
   });
   const total = perExercise.reduce((a, b) => a + b, 0);
   return { perExercise, total, basis: 'per-exercise' };

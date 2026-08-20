@@ -80,6 +80,7 @@ import type { ReportData } from '../src/repositories/reportRepo';
 import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib/eatenAt';
 import { sessionStrain, postSessionMargins, marginStatuses, marginsStillRunning } from '../src/lib/postSession';
 import { prescribeRest, pcrRecovered } from '../src/lib/restPrescription';
+import { profileFor, effectiveLoadKg, loadCalorieFactor, intensityCalorieFactor } from '../src/lib/loadProfile';
 import { EXPERIENCE_LEVELS, LEVEL_LABELS, slugsForLevel, prescriptionLine, levelOrDefault } from '../src/lib/level';
 import { MUSCLE_GROUPS, MUSCLE_LABELS, SUB_MUSCLE_LABELS } from '../src/data/exercises';
 import { CHALLENGES, DIFFICULTY_POINTS } from '../src/data/challenges';
@@ -1776,7 +1777,7 @@ console.log('\nShoulder coverage:');
   // Dumbbell loads are logged per hand; the UI has to say so, because guessing
   // wrong halves or doubles every volume and 1RM figure for that lift.
   const uiSrc2 = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
-  check('The weight field names the dumbbell convention', /label=\{isDumbbell \? 'Weight \/ dumbbell' : 'Weight'\}/.test(uiSrc2));
+  check('The weight field names the dumbbell convention', /'Weight \/ dumbbell' : loadLabel/.test(fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8')));
   check('…and spells it out underneath', /One dumbbell, not the pair/.test(uiSrc2));
   const repoSrc2 = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
   check('Equipment type reaches the logging screen', /equipmentType: exercises\.equipmentType/.test(repoSrc2));
@@ -2600,7 +2601,7 @@ console.log('\nRest prescription — ATP-PCr, glycolytic, oxidative; the nervous
   const actSrc = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
   check('The rest presets include 5 minutes', /const REST_PRESETS = \[60, 90, 120, 180, 300\];/.test(actSrc));
   check('Logging a set starts the rest the set earned, from the set BEFORE it is written', /const rx = isLifting \? rxFor\(draft\) : null;\s*store\.logSet\(lv\.log\.id, draft\);/.test(actSrc) && /store\.startRest\(rx\.restSec, rx\)/.test(actSrc));
-  check('…using the movement pattern, bodyweight flag, history 1RM, set index, session clock, level and progress', /compound: COMPOUND_PATTERNS\.has\(lv\.pattern \?\? ''\)/.test(actSrc) && /bodyweight: lv\.equipmentType === 'bodyweight'/.test(actSrc) && /best1RMKg: Math\.max\(history\.best1RM, best1RMThisSession\)/.test(actSrc) && /setIndex: completed\.length/.test(actSrc) && /sessionElapsedMin: \(Date\.now\(\) - sessionStart\)/.test(actSrc) && /isProgress: d\.weightKg != null && topWeightBefore > 0 && d\.weightKg > topWeightBefore/.test(actSrc));
+  check('…using the movement pattern, bodyweight flag, history 1RM, set index, session clock, level and progress', /compound: COMPOUND_PATTERNS\.has\(lv\.pattern \?\? ''\)/.test(actSrc) && /bodyweight: lv\.equipmentType === 'bodyweight'/.test(actSrc) && /best1RMKg: effBest,/.test(actSrc) && /setIndex: completed\.length/.test(actSrc) && /sessionElapsedMin: \(Date\.now\(\) - sessionStart\)/.test(actSrc) && /isProgress: d\.weightKg != null && topWeightBefore > 0 && d\.weightKg > topWeightBefore/.test(actSrc));
   check('The card says how long and why (energy system, %1RM, CNS, tap for reasons)', /Rest set to/.test(actSrc) && /SYSTEM_LABEL\[lastRx\.system\]/.test(actSrc) && /lastRx\.reasons\.map/.test(actSrc));
   check('The rest banner shows the creatine-phosphate tank refilling', /Creatine phosphate ~\{pcr\}% refilled/.test(actSrc) && /pcrRecovered\(elapsed\)/.test(actSrc));
   check('The session detail carries the movement pattern', /pattern: exercises\.pattern,/.test(fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8')));
@@ -2655,6 +2656,55 @@ console.log('\nWarm-ups survive leaving and resuming a session:');
   const bootW = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
   check('sessions.warmups_done is in the DDL and ADDED_COLUMNS, schema ≥ 29', /warmups_done TEXT,/.test(bootW) && /table: 'sessions', column: 'warmups_done'/.test(bootW) && Number(/const SCHEMA_VERSION = (\d+);/.exec(bootW)?.[1]) >= 29);
   check('The store exposes toggleWarmup and refreshes after it', /toggleWarmup: \(muscle\) => \{[\s\S]*?toggleWarmupDone\(id, muscle\);\s*get\(\)\.refresh\(\);/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
+}
+
+console.log('\nLoad profiles — what the weight field means, for every exercise:');
+{
+  const pf = (slug: string) => { const e = EXLIB.find((x) => x.slug === slug)!; return profileFor({ slug: e.slug, equipmentType: e.equipmentType, pattern: e.pattern, trackingType: e.trackingType }); };
+  // ── The modes ──
+  check('A pull-up takes ADDED weight and assistance, at ~96% bodyweight', pf('pull-up').loadMode === 'added' && pf('pull-up').assistable && pf('pull-up').bwFraction === 0.96);
+  check('A dip: added at ~96%; a push-up: added at ~64% (Ebben force-plate data)', pf('dip').bwFraction === 0.96 && pf('push-up').bwFraction === 0.64 && pf('push-up').loadMode === 'added');
+  check('Incline push-up lighter (~50%), decline heavier (~74%)', pf('push-up-incline').bwFraction === 0.5 && pf('push-up-decline').bwFraction === 0.74);
+  check('Rucking, hiking and trekking log a CARRIED pack', ['rucking', 'hiking', 'trekking'].every((sl) => pf(sl).loadMode === 'carried'));
+  check('Farmers carries and sled work are carried too', ['farmers-carry', 'sandbag-carry', 'overhead-carry', 'sled-push', 'loaded-carry-cardio'].every((sl) => pf(sl).loadMode === 'carried'));
+  check('A barbell bench stays external — nothing changed there', pf('bench-press-barbell').loadMode === 'external' && pf('bench-press-barbell').bwFraction === null);
+  check('Sprints, rounds and flows have no load field', ['jump-squat', 'ma-bag-round', 'sun-salutations'].every((sl) => pf(sl).loadMode === 'none'));
+  check('The assisted pull-up machine is assistance (negative weight)', pf('assisted-pull-up').assistable);
+  check('Unlisted bodyweight rep movements default by pattern, never blank', (() => { const p = profileFor({ slug: 'some-new-thing', equipmentType: 'bodyweight', pattern: 'vertical_pull', trackingType: 'reps_only' }); return p.loadMode === 'added' && p.bwFraction === 0.96; })());
+  // ── Effective load ──
+  check('+20 kg on pull-ups at 80 kg is a ~97 kg set', Math.abs((effectiveLoadKg(pf('pull-up'), 80, 20) ?? 0) - 96.8) < 0.01);
+  check('−15 kg assistance takes it to ~62 kg', Math.abs((effectiveLoadKg(pf('pull-up'), 80, -15) ?? 0) - 61.8) < 0.01);
+  check('Assistance can never drive the load negative', (effectiveLoadKg(pf('pull-up'), 80, -200) ?? -1) === 0);
+  check('Every exercise in the library resolves a profile with a sane bwFraction', EXLIB.every((e) => { const p = profileFor({ slug: e.slug, equipmentType: e.equipmentType, pattern: e.pattern, trackingType: e.trackingType }); return p.bwFraction == null || (p.bwFraction > 0 && p.bwFraction <= 1.05); }));
+  // ── Calorie factors ──
+  check('A 20 kg ruck at 80 kg burns ×1.25 — you are moving 25% more mass', Math.abs(loadCalorieFactor(pf('rucking'), 80, 20) - 1.25) < 1e-9);
+  check('Carried load is capped at ×2', loadCalorieFactor(pf('rucking'), 60, 200) === 2);
+  check('A 20 kg belt on dips is ×1.125 (rides only through the lifted share)', Math.abs(loadCalorieFactor(pf('dip'), 80, 20) - 1.125) < 1e-9);
+  check('No load, no change — and external barbell load does not double-count', loadCalorieFactor(pf('rucking'), 80, null) === 1 && loadCalorieFactor(pf('bench-press-barbell'), 80, 100) === 1);
+  check('RPE 9 costs ~6% more, RPE 5 ~6% less, failure ~9% more; unknown is ×1', Math.abs(intensityCalorieFactor(9, false) - 1.06) < 1e-9 && Math.abs(intensityCalorieFactor(5, false) - 0.94) < 1e-9 && Math.abs(intensityCalorieFactor(null, true) - 1.09) < 1e-9 && intensityCalorieFactor(null, false) === 1);
+  // ── The attribution engine uses them ──
+  const ruck = { met: 8, trackingType: 'duration' as const, slug: 'rucking', equipmentType: undefined, pattern: 'cardio', sets: [{ durationS: 3600, weightKg: 20, completed: true }] };
+  const walk = { ...ruck, sets: [{ durationS: 3600, completed: true }] };
+  const loaded = distributeSessionCalories({ durationS: 3600, weightKg: 80, fallbackMet: 8, exercises: [ruck] });
+  const empty = distributeSessionCalories({ durationS: 3600, weightKg: 80, fallbackMet: 8, exercises: [walk] });
+  check('An hour rucking 20 kg burns ~25% more than the same hour unloaded', Math.abs(loaded.total / empty.total - 1.25) < 0.02, `${empty.total} → ${loaded.total}`);
+  const noLoads = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 5, exercises: [{ met: 5, trackingType: 'reps_weight' as const, sets: [{ reps: 10, completed: true }, { reps: 10, completed: true }] }] });
+  const noLoadsPlain = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 5, exercises: [{ met: 5, trackingType: 'reps_weight' as const, sets: [{ reps: 10, completed: true }, { reps: 10, completed: true }] }] });
+  check('Sessions without loads or RPE are byte-identical to before', noLoads.total === noLoadsPlain.total && noLoads.basis === 'per-exercise');
+  const mixed = distributeSessionCalories({ durationS: 3600, weightKg: 80, fallbackMet: 5, exercises: [ruck, walk] });
+  check('In a mixed session the loaded exercise takes the larger share of the same clock', mixed.perExercise[0] > mixed.perExercise[1]);
+  // ── Wiring ──
+  const repoSrcL = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('The burn carries slug, equipment, pattern and each set\'s load / RPE / failure', /slug: lv\.slug,/.test(repoSrcL) && /weightKg: s\.weightKg,/.test(repoSrcL) && /rpe: s\.rpe,/.test(repoSrcL) && /toFailure: s\.toFailure,/.test(repoSrcL));
+  const actSrcL = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The set form shows the load field for added and carried exercises', /const showLoad = f\.weight \|\| profile\.loadMode === 'added' \|\| profile\.loadMode === 'carried';/.test(actSrcL) && /weightKg: showLoad && weight \? parseFloat\(weight\) : null,/.test(actSrcL));
+  check('…labelled by what it means (+ kg / Load kg), with the caption explaining', /LOAD_FIELD_LABEL\[profile\.loadMode\]/.test(actSrcL) && /Weight added on a belt or vest/.test(actSrcL) && /The load you carry/.test(actSrcL));
+  check('Logged sets read back honestly (+10 kg / assisted / 20 kg load)', /\+\$\{s\.weightKg\} kg/.test(actSrcL) && /kg \(assisted\)/.test(actSrcL) && /kg load/.test(actSrcL));
+  check('The rest prescription reasons in effective kilograms for weighted calisthenics', /effectiveLoadKg\(profile, bodyKg, d\.weightKg\)/.test(actSrcL) && /profile\.bwFraction! \* bodyKg \+ histBest/.test(actSrcL));
+  // ── Every exercise's MET is present and plausible for its kind ──
+  const MET_BOUNDS: Record<string, [number, number]> = { strength: [2, 10], calisthenics: [2, 10], cardio: [3, 15], outdoor: [3, 14], sport: [3, 13], martial_arts: [4, 13], mindbody: [1.5, 5], meditation: [1, 2.5] };
+  const badMet = EXLIB.filter((e) => { const [lo, hi] = MET_BOUNDS[e.sessionType] ?? [1, 16]; return !(e.met && e.met >= lo && e.met <= hi); });
+  check('Every one of the ' + EXLIB.length + ' exercises has a MET within its category\'s plausible range', badMet.length === 0, badMet.slice(0, 5).map((e) => `${e.slug}:${e.met}`).join(', '));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

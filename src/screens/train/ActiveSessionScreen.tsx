@@ -42,6 +42,7 @@ import {
   CNS_LABEL,
   type RestPrescription,
 } from '@/lib/restPrescription';
+import { profileFor, effectiveLoadKg, LOAD_FIELD_LABEL } from '@/lib/loadProfile';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const REST_PRESETS = [60, 90, 120, 180, 300];
@@ -454,7 +455,13 @@ function ExerciseLogCard({
   const [lastRx, setLastRx] = useState<RestPrescription | null>(null);
   const [showWhy, setShowWhy] = useState(false);
   const level = levelOrDefault(useUserStore((s) => s.user?.experienceLevel));
+  const bodyKg = useUserStore((s) => s.currentWeightKg) ?? 75;
   const sessionStart = store.detail?.session.startTime ?? Date.now();
+  // What the weight field MEANS for this exercise: the load itself, added
+  // belt/vest kilograms on a bodyweight movement, or a carried pack.
+  const profile = profileFor({ slug: lv.slug, equipmentType: lv.equipmentType, pattern: lv.pattern, trackingType: lv.trackingType });
+  const showLoad = f.weight || profile.loadMode === 'added' || profile.loadMode === 'carried';
+  const loadLabel = f.weight ? 'Weight' : (LOAD_FIELD_LABEL[profile.loadMode] ?? 'Weight');
 
   // History for this exercise: best 1RM and top weight ever, so the set can
   // be placed as a share of 1RM and recognised as a step up.
@@ -471,16 +478,22 @@ function ExerciseLogCard({
     const completed = lv.sets.filter((s) => s.completed);
     const best1RMThisSession = completed.reduce((m, s) => Math.max(m, estimate1RMFromSet(s)), 0);
     const topWeightBefore = Math.max(history.topWeight, ...completed.map((s) => s.weightKg ?? 0));
+    // Weighted calisthenics: reason in EFFECTIVE kilograms (bodyweight share
+    // + added), so +20 kg on pull-ups reads as the ~97 kg set it really is.
+    const addedMode = profile.loadMode === 'added' && profile.bwFraction != null;
+    const effWeight = addedMode ? effectiveLoadKg(profile, bodyKg, d.weightKg) : d.weightKg;
+    const histBest = Math.max(history.best1RM, best1RMThisSession);
+    const effBest = addedMode ? (histBest > 0 || d.weightKg != null ? profile.bwFraction! * bodyKg + histBest : null) : histBest || null;
     return prescribeRest({
       reps: d.reps,
-      weightKg: d.weightKg,
+      weightKg: effWeight,
       rpe: d.rpe,
       toFailure: d.toFailure,
       durationS: d.durationS,
       bodyweight: lv.equipmentType === 'bodyweight',
       compound: COMPOUND_PATTERNS.has(lv.pattern ?? ''),
       explosive: EXPLOSIVE_RE.test(lv.exerciseName),
-      best1RMKg: Math.max(history.best1RM, best1RMThisSession) || null,
+      best1RMKg: effBest,
       setIndex: completed.length,
       sessionElapsedMin: (Date.now() - sessionStart) / 60_000,
       level,
@@ -491,7 +504,7 @@ function ExerciseLogCard({
   const addSet = () => {
     const draft = {
       reps: f.reps && reps && !(isLifting && toFailure) ? parseInt(reps, 10) : null,
-      weightKg: f.weight && weight ? parseFloat(weight) : null,
+      weightKg: showLoad && weight ? parseFloat(weight) : null,
       rpe: isLifting && rpe ? parseFloat(rpe) : null,
       toFailure: isLifting && toFailure,
       durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
@@ -515,7 +528,9 @@ function ExerciseLogCard({
 
   const describeSet = (s: (typeof lv.sets)[number]): string => {
     const parts: string[] = [];
-    if (s.weightKg != null) parts.push(`${s.weightKg} kg`);
+    if (s.weightKg != null && profile.loadMode === 'added') parts.push(s.weightKg >= 0 ? `+${s.weightKg} kg` : `${s.weightKg} kg (assisted)`);
+    else if (s.weightKg != null && profile.loadMode === 'carried') parts.push(`${s.weightKg} kg load`);
+    else if (s.weightKg != null) parts.push(`${s.weightKg} kg`);
     if (s.reps != null) parts.push(`${s.reps} reps`);
     if (s.durationS != null) parts.push(formatDuration(s.durationS));
     if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
@@ -596,7 +611,7 @@ function ExerciseLogCard({
       <Divider />
 
       <Row style={{ alignItems: 'flex-end' }}>
-        {f.weight && (
+        {showLoad && (
           <View style={{ flex: 1 }}>
             {/*
               "Weight" is ambiguous the moment there are two dumbbells, and
@@ -604,7 +619,7 @@ function ExerciseLogCard({
               that lift. State the convention on the field itself.
             */}
             <Input
-              label={isDumbbell ? 'Weight / dumbbell' : 'Weight'}
+              label={isDumbbell ? 'Weight / dumbbell' : loadLabel}
               value={weight}
               onChangeText={setWeight}
               placeholder="kg"
@@ -637,6 +652,20 @@ function ExerciseLogCard({
         <Text variant="caption" color="textFaint">
           One dumbbell, not the pair — 20 kg means 20 in each hand. Keep it the same every time and
           your progress stays comparable.
+        </Text>
+      )}
+      {!f.weight && profile.loadMode === 'added' && (
+        <Text variant="caption" color="textFaint">
+          {profile.assistable
+            ? 'Weight added on a belt or vest — leave empty for bodyweight, negative for band or machine assistance (−15 = the band takes ~15 kg).'
+            : 'Weight added on a belt, vest or between the ankles — leave empty for pure bodyweight.'}
+          {profile.bwFraction != null ? ` The set really moves ~${Math.round(profile.bwFraction * bodyKg)} kg of you before the plates.` : ''}
+        </Text>
+      )}
+      {!f.weight && profile.loadMode === 'carried' && (
+        <Text variant="caption" color="textFaint">
+          The load you carry — pack, bag, vest or implement. Calories scale with it: ~
+          {Math.round((Math.min(2, 1 + 20 / Math.max(1, bodyKg)) - 1) * 100)}% more per 20 kg at your weight.
         </Text>
       )}
       {isLifting && (

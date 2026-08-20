@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.47',
+    date: '2026-08-19',
+    title: 'Every exercise knows its load: weighted calisthenics, packs and carries, honest calories',
+    highlights: [
+      'Weighted calisthenics finally have somewhere to put the weight. Pull-ups, chin-ups, dips, push-ups, pistols, muscle-ups and the rest now show a "+ kg" field for the belt, vest or ankle weight — leave it empty for pure bodyweight, or type a negative number for band or machine assistance (−15 means the band takes about 15 kg). The set list reads back honestly: "+20 kg · 8 reps", "−15 kg (assisted)".',
+      'And the app knows what those kilograms mean, because every exercise now carries its bodyweight fraction from force-plate research: a push-up moves ~64% of you (incline ~50%, decline ~74%), a pull-up ~96%, a dip ~96%, a squat ~85%. So +20 kg on pull-ups at 80 kg bodyweight is treated as the ~97 kg set it really is — the rest timer prescribes for that load, and the form tells you what your set actually moves.',
+      'Loaded outdoor and carry work log the pack: rucking, hiking, trekking, mountaineering, farmers carries, sandbag and overhead carries, sled pushes and loaded conditioning all take a "Load kg" field — and calories scale with it, because you are simply moving that much more mass: a 20 kg ruck at 80 kg burns ~25% more than the same hour unloaded, applied to the work above resting metabolism, never to the resting share.',
+      'The calorie engine was revisited for every one of the 596 exercises: each keeps its own MET (all audited against plausible ranges for its kind), and each set now scales by its load and its effort — a set at RPE 9 costs ~6% more than the reference, a set to failure ~9%. Sessions without loads or RPE logged are byte-identical to before; nothing in your history moves.',
+      '1078 checks in all, up from 1051.',
+    ],
+  },
+  {
     version: '2.46',
     date: '2026-08-19',
     title: 'Warm-ups stay ticked when you leave and resume a session',

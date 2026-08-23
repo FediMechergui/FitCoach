@@ -16,6 +16,7 @@ import { methodsFor, EFFORT_LABEL, type TrainingMethod } from '@/data/trainingMe
 import { SPLITS } from '@/data/splits';
 import { programsFor } from '@/data/programs';
 import { listRoutines, type RoutineView } from '@/repositories/routinesRepo';
+import { ExercisePeek } from '@/components/ExercisePeek';
 import { useSessionStore } from '@/stores/sessionStore';
 import { LevelPicker, useExperienceLevel } from '@/components/LevelPicker';
 import { slugsForLevel } from '@/lib/level';
@@ -43,6 +44,8 @@ export function MethodPickerScreen() {
   const methods = methodsFor(sessionType);
   const programs = programsFor(sessionType);
   const level = useExperienceLevel();
+  // Look at what a routine holds without starting it.
+  const [openRoutine, setOpenRoutine] = useState<number | null>(null);
   // Lifting methods pre-load fewer exercises for a beginner (compounds first);
   // cardio / mind-body / skill methods pre-load their full short list.
   const trims = sessionType === 'strength' || sessionType === 'calisthenics';
@@ -129,24 +132,38 @@ export function MethodPickerScreen() {
       {routines.length > 0 && (
         <>
           <SectionHeader title="My routines" />
-          {routines.map((r) => (
-            <Pressable key={r.id} onPress={() => startRoutine(r)}>
-              <Card accent={theme.colors.primary}>
+          {routines.map((r) => {
+            const open = openRoutine === r.id;
+            return (
+              <Card key={r.id} accent={theme.colors.primary} style={{ gap: open ? 10 : 0 }}>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-                    <Icon icon="core.custom" size={18} color={theme.colors.primary} />
-                    <View style={{ flex: 1 }}>
-                      <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
-                      <Text variant="caption" color="textMuted" numberOfLines={1}>
-                        {r.exercises.length} exercises
-                      </Text>
-                    </View>
-                  </Row>
-                  <Icon icon="core.start" size={20} color={theme.colors.primary} />
+                  <Pressable style={{ flex: 1 }} onPress={() => setOpenRoutine(open ? null : r.id)}>
+                    <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
+                      <Icon icon="core.custom" size={18} color={theme.colors.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
+                        <Text variant="caption" color="textMuted" numberOfLines={1}>
+                          {r.exercises.length} exercises · {open ? 'tap to collapse' : 'tap to see them'}
+                        </Text>
+                      </View>
+                    </Row>
+                  </Pressable>
+                  <Pressable onPress={() => setOpenRoutine(open ? null : r.id)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                    <Icon icon={open ? 'core.chevronUp' : 'core.list'} size={18} color={theme.colors.primary} />
+                  </Pressable>
+                  <Pressable onPress={() => startRoutine(r)} hitSlop={8}>
+                    <Icon icon="core.start" size={20} color={theme.colors.primary} />
+                  </Pressable>
                 </Row>
+                {open && (
+                  <>
+                    <ExercisePeek exercises={r.exercises} accent={theme.colors.primary} />
+                    <Button title={`Start ${r.name}`} icon="core.start" size="sm" onPress={() => startRoutine(r)} />
+                  </>
+                )}
               </Card>
-            </Pressable>
-          ))}
+            );
+          })}
         </>
       )}
 

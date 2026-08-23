@@ -80,6 +80,7 @@ import type { ReportData } from '../src/repositories/reportRepo';
 import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib/eatenAt';
 import { sessionStrain, postSessionMargins, marginStatuses, marginsStillRunning } from '../src/lib/postSession';
 import { prescribeRest, pcrRecovered } from '../src/lib/restPrescription';
+import { napBand, napValue, dayRest, timingFactor, nightSleepCostMin, napAdvice, BAND_EFFICIENCY, BAND_INERTIA_MIN, BAND_ALERTNESS_MIN, MAX_NAP_CREDIT_MIN } from '../src/lib/naps';
 import { profileFor, effectiveLoadKg, loadCalorieFactor, intensityCalorieFactor } from '../src/lib/loadProfile';
 import { EXPERIENCE_LEVELS, LEVEL_LABELS, slugsForLevel, prescriptionLine, levelOrDefault } from '../src/lib/level';
 import { MUSCLE_GROUPS, MUSCLE_LABELS, SUB_MUSCLE_LABELS } from '../src/data/exercises';
@@ -2705,6 +2706,65 @@ console.log('\nLoad profiles — what the weight field means, for every exercise
   const MET_BOUNDS: Record<string, [number, number]> = { strength: [2, 10], calisthenics: [2, 10], cardio: [3, 15], outdoor: [3, 14], sport: [3, 13], martial_arts: [4, 13], mindbody: [1.5, 5], meditation: [1, 2.5] };
   const badMet = EXLIB.filter((e) => { const [lo, hi] = MET_BOUNDS[e.sessionType] ?? [1, 16]; return !(e.met && e.met >= lo && e.met <= hi); });
   check('Every one of the ' + EXLIB.length + ' exercises has a MET within its category\'s plausible range', badMet.length === 0, badMet.slice(0, 5).map((e) => `${e.slug}:${e.met}`).join(', '));
+}
+
+console.log('\nNaps — what they are actually worth for recovery:');
+{
+  const nap = (minutes: number, startTime?: string) => ({ minutes, startTime });
+  // ── Bands ──
+  check('Bands follow the sleep architecture', napBand(5) === 'micro' && napBand(20) === 'power' && napBand(35) === 'truncated' && napBand(60) === 'recovery' && napBand(90) === 'cycle' && napBand(150) === 'long');
+  check('The power nap is the most efficient minute-for-minute short nap', BAND_EFFICIENCY.power > BAND_EFFICIENCY.micro && BAND_EFFICIENCY.power > BAND_EFFICIENCY.truncated);
+  check('A completed cycle is the most efficient of all', BAND_EFFICIENCY.cycle === Math.max(...Object.values(BAND_EFFICIENCY)));
+  check('Sleep inertia is worst waking out of deep sleep, near-zero for short naps and a full cycle', BAND_INERTIA_MIN.power === 0 && BAND_INERTIA_MIN.truncated === 20 && BAND_INERTIA_MIN.cycle < BAND_INERTIA_MIN.truncated);
+  check('A 10-minute nap buys ~2.5 h of alertness (Brooks & Lack)', BAND_ALERTNESS_MIN.power === 155);
+  // ── Timing ──
+  check('The early-afternoon dip is the best time to nap', timingFactor('14:00') === 1 && timingFactor('13:00') === 1);
+  check('Evening naps are worth less and cost the night', timingFactor('19:00') < timingFactor('14:00') && nightSleepCostMin(nap(30, '19:00')) > 0 && nightSleepCostMin(nap(30, '13:00')) === 0);
+  check('An unrecorded time is treated as a typical afternoon nap, not penalised', timingFactor(null) >= 0.9 && timingFactor(undefined) >= 0.9);
+  check('The later and longer the nap, the more it borrows from tonight', nightSleepCostMin(nap(60, '20:00')) > nightSleepCostMin(nap(60, '16:00')) && nightSleepCostMin(nap(90, '18:00')) > nightSleepCostMin(nap(30, '18:00')));
+  // ── Value ──
+  const shortNight = { nightHours: 5 };
+  const goodNight = { nightHours: 8 };
+  check('A 20-min nap after a 5 h night is worth ~14 min of night sleep', napValue(nap(20, '14:00'), shortNight).netMin === 14, `${napValue(nap(20, '14:00'), shortNight).netMin}`);
+  check('The same nap after a full night is worth far less — it bought alertness, not recovery', napValue(nap(20, '14:00'), goodNight).netMin < napValue(nap(20, '14:00'), shortNight).netMin / 2 && !napValue(nap(20, '14:00'), goodNight).repaidDebt);
+  check('A 90-min cycle after a 5 h night repays over an hour', napValue(nap(90, '13:30'), shortNight).netMin >= 60 && napValue(nap(90, '13:30'), shortNight).repaidDebt);
+  check('A nap can never repay more than the night actually owed', napValue(nap(180, '13:00'), { nightHours: 7.5 }).netMin < 180 * 0.7);
+  check('An evening nap can net out at zero — it costs what it gives', napValue(nap(30, '19:00'), { nightHours: 6 }).netMin === 0);
+  check('Every nap explains itself', napValue(nap(35, '14:00'), shortNight).notes.some((n) => /grogginess/.test(n)) && napValue(nap(90, '13:00'), shortNight).notes.length > 0);
+  check('The cut-short nap warns you to go shorter or longer', napValue(nap(35, '14:00'), shortNight).notes.some((n) => /under 25 min or take it to ~90/.test(n)));
+  // ── The day ──
+  const d1 = dayRest(5, [nap(90, '13:30')]);
+  check('5 h night + a 90-min cycle reads as ~6 h of rest, not 5', d1.restHours > 6 && d1.restHours < 6.5, `${d1.restHours}`);
+  check('A good night plus a short nap barely moves — nothing to repay', dayRest(8, [nap(20, '14:00')]).restHours <= 8.2);
+  const capped = dayRest(4, [nap(60, '13:00'), nap(60, '13:00'), nap(60, '13:00'), nap(60, '13:00')]);
+  check('Naps can never stand in for a night: credit is capped at 2.5 h', capped.capped && capped.napCreditMin === MAX_NAP_CREDIT_MIN && capped.restHours < 7, `${capped.restHours}`);
+  check('No naps means the day reads exactly as the night did', dayRest(7.5, []).restHours === 7.5 && dayRest(7.5, []).napCreditMin === 0);
+  check('Advice matches the night you had', /90-minute/.test(napAdvice(5, 13)) && /alertness/.test(napAdvice(8, 13)) && /Late for a nap/.test(napAdvice(6, 17)));
+  // ── Wiring: naps reach the recovery figures ──
+  const sleepRepoSrc = fs.readFileSync('src/repositories/sleepRepo.ts', 'utf8');
+  check('The sleep summary carries nap credit and total rest', /napCreditToday: restTodayCalc\.napCreditMin/.test(sleepRepoSrc) && /avgRest7d: avgRest/.test(sleepRepoSrc));
+  check('Debt and the performance factor read total rest, not night sleep alone', /sleepDebt\(restLogged\.length \? restLogged : \[\]\)/.test(sleepRepoSrc) && /sleepPerformanceFactor\(avgRest \?\? avg\)/.test(sleepRepoSrc));
+  check('…and an unlogged night is still not read as zero', /filter\(\(r\) => byDate\.has\(r\.date\)\)/.test(sleepRepoSrc));
+  check('avgRestHours exists alongside the night-only avgSleepHours', /export function avgRestHours/.test(sleepRepoSrc) && /export function avgSleepHours/.test(sleepRepoSrc));
+  check('The growth engine and the athlete card both read total rest', /avgRestHours\(7, userId\)/.test(fs.readFileSync('src/repositories/growthRepo.ts', 'utf8')) && /avgRestHours\(7, userId\)/.test(fs.readFileSync('src/repositories/cardRepo.ts', 'utf8')));
+  const sleepScr = fs.readFileSync('src/screens/health/SleepScreen.tsx', 'utf8');
+  check('The Sleep screen shows what each nap was worth', /worth ~\$\{v\.netMin\} min of night sleep/.test(sleepScr) && /NAP_BAND_META\[v\.band\]\.label/.test(sleepScr));
+  check('…a Rest tile beside the Nights tile, and advice for right now', /label="Rest \(7d\)"/.test(sleepScr) && /napAdvice\(summary\?\.lastNight \?\? null, new Date\(\)\.getHours\(\)\)/.test(sleepScr));
+}
+
+console.log('\nSeeing what is in a routine or a past session, without starting one:');
+{
+  const peekSrc = fs.readFileSync('src/components/ExercisePeek.tsx', 'utf8');
+  check('ExercisePeek lists the running order with what each one hits', /\{i \+ 1\}\./.test(peekSrc) && /SUB_MUSCLE_LABELS\[ex\.subMuscle\]/.test(peekSrc));
+  check('…and says so when the list is empty rather than rendering nothing', /emptyLabel/.test(peekSrc));
+  const trainSrc = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
+  check('A routine expands in place instead of starting a session', /setOpenRoutine\(open \? null : r\.id\)/.test(trainSrc) && /<ExercisePeek exercises=\{r\.exercises\}/.test(trainSrc));
+  check('…with Start still one tap away, inside and outside the expansion', /onPress=\{\(\) => startRoutine\(r\)\}/.test(trainSrc) && /title=\{`Start \$\{r\.name\}`\}/.test(trainSrc));
+  check('A past session can be peeked at from the list too', /setSessionPeek\(sessionExercisePeek\(s\.id\)\)/.test(trainSrc) && /No exercises were logged in this session\./.test(trainSrc));
+  check('The methods page offers the same peek on saved routines', /<ExercisePeek exercises=\{r\.exercises\}/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
+  const repoPeek = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('sessionExercisePeek returns the order plus what was logged', /export function sessionExercisePeek/.test(repoPeek) && /orderBy\(exerciseLogs\.orderIndex\)/.test(repoPeek) && /\$\{done\.length\} set/.test(repoPeek));
+  check('The list icon resolves', !!(ICONS as Record<string, Record<string, unknown>>).core?.list);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

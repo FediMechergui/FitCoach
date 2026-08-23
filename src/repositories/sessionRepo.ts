@@ -510,6 +510,56 @@ export function sessionCalorieBreakdown(
 }
 
 // ── Queries ──────────────────────────────────────────────────────────────────
+export interface SessionExercisePeek {
+  id: number;
+  name: string;
+  iconKey: string;
+  primaryMuscle: string | null;
+  equipmentType: string | null;
+  /** what was actually logged: "4 sets · 320 kg" / "3 sets" / "12 min" */
+  detail: string | null;
+}
+
+/**
+ * Just the exercise list of a finished session — for looking at it in place,
+ * without pushing the whole detail screen.
+ */
+export function sessionExercisePeek(sessionId: number): SessionExercisePeek[] {
+  const rows = db
+    .select({
+      id: exercises.id,
+      name: exercises.name,
+      iconKey: exercises.iconKey,
+      primaryMuscle: exercises.primaryMuscle,
+      equipmentType: exercises.equipmentType,
+      logId: exerciseLogs.id,
+    })
+    .from(exerciseLogs)
+    .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
+    .where(eq(exerciseLogs.sessionId, sessionId))
+    .orderBy(exerciseLogs.orderIndex)
+    .all();
+
+  return rows.map((r) => {
+    const sets = db.select().from(setEntries).where(eq(setEntries.exerciseLogId, r.logId)).all();
+    const done = sets.filter((s) => s.completed);
+    const volume = done.reduce((v, s) => v + (s.weightKg ?? 0) * (s.reps ?? 0), 0);
+    const seconds = done.reduce((v, s) => v + (s.durationS ?? 0), 0);
+    const parts: string[] = [];
+    if (done.length) parts.push(`${done.length} set${done.length === 1 ? '' : 's'}`);
+    if (volume > 0) parts.push(`${Math.round(volume).toLocaleString()} kg`);
+    if (seconds > 0) parts.push(`${Math.round(seconds / 60)} min`);
+    return {
+      id: r.id,
+      name: r.name,
+      iconKey: r.iconKey,
+      primaryMuscle: r.primaryMuscle,
+      equipmentType: r.equipmentType,
+      detail: parts.length ? parts.join(' · ') : null,
+    };
+  });
+}
+
 /** Which warm-up muscles have been ticked in a session. */
 export function warmupsDoneOf(session: Pick<Session, 'warmupsDone'>): string[] {
   if (!session.warmupsDone) return [];

@@ -44,6 +44,7 @@ export const ICONS = {
     chevronDown: def('Ionicons', 'chevron-down'),
     check: def('Ionicons', 'checkmark-circle'),
     target: def('MaterialCommunityIcons', 'bullseye-arrow'),
+    list: def('Ionicons', 'list-outline'),
     checkFilled: def('Ionicons', 'checkbox'),
     checkEmpty: def('Ionicons', 'square-outline'),
     close: def('Ionicons', 'close'),

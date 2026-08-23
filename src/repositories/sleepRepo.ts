@@ -2,6 +2,7 @@ import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { napLogs, sessions, sleepLogs, type NapLog, type SleepLog } from '@/db/schema';
 import { averageSleep, sleepDebt, sleepPerformanceFactor } from '@/lib/sleep';
+import { dayRest, napValue, type NapInput } from '@/lib/naps';
 import { daysAgoISO, lastNDates, toISODate, todayISO } from '@/lib/date';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -48,20 +49,62 @@ export interface SleepSummary {
   debt7d: number;
   performanceFactor: number;
   series: Array<{ date: string; hours: number }>;
+  /** raw minutes napped today */
+  napMinutesToday: number;
+  /** night-sleep-equivalent minutes those naps were actually worth (see lib/naps) */
+  napCreditToday: number;
+  /** last night + today's nap credit, hours — "how rested are you" */
+  restToday: number | null;
+  /** 7-day average of night + nap credit */
+  avgRest7d: number | null;
+  /** rest per night over the window, naps included — what the chart should show */
+  restSeries: Array<{ date: string; hours: number; napMin: number }>;
 }
 
+/**
+ * Sleep over the last week, with naps counted for what they are worth.
+ *
+ * `avg7d` stays night-only — it answers "how are your nights". Everything that
+ * asks "how rested are you" (debt, the performance factor, the growth engine,
+ * the athlete card) reads `avgRest7d`, which adds each day's nap credit from
+ * lib/naps: efficiency by duration band, timing, the debt actually owed, minus
+ * what a late nap costs tonight, capped so naps can never stand in for nights.
+ */
 export function sleepSummary(userId: number = PRIMARY_USER_ID): SleepSummary {
   const rows = sleepSince(daysAgoISO(6), userId);
   const byDate = new Map(rows.map((r) => [r.date, r.hours]));
-  const series = lastNDates(7).map((d) => ({ date: d, hours: byDate.get(d) ?? 0 }));
+  const dates = lastNDates(7);
+  const series = dates.map((d) => ({ date: d, hours: byDate.get(d) ?? 0 }));
   const logged = rows.map((r) => r.hours);
   const avg = averageSleep(logged);
+
+  const restSeries = dates.map((d) => {
+    const night = byDate.get(d) ?? null;
+    const naps = napsForDate(d, userId).map((n) => ({ minutes: n.minutes, startTime: n.startTime }));
+    const rest = dayRest(night, naps);
+    return { date: d, hours: night != null ? rest.restHours : rest.napCreditMin / 60, napMin: rest.napMinutes };
+  });
+  // Average over the days that had a night logged, so an unlogged night is not
+  // read as zero — the same rule `averageSleep` already follows.
+  const restLogged = restSeries.filter((r) => byDate.has(r.date)).map((r) => r.hours);
+  const avgRest = restLogged.length ? Math.round((restLogged.reduce((s, h) => s + h, 0) / restLogged.length) * 10) / 10 : null;
+
+  const today = todayISO();
+  const napsToday = napsForDate(today, userId).map((n) => ({ minutes: n.minutes, startTime: n.startTime }));
+  const lastNight = sleepForDate(today, userId)?.hours ?? rows[rows.length - 1]?.hours ?? null;
+  const restTodayCalc = dayRest(lastNight, napsToday);
+
   return {
-    lastNight: sleepForDate(todayISO(), userId)?.hours ?? rows[rows.length - 1]?.hours ?? null,
+    lastNight,
     avg7d: avg,
-    debt7d: sleepDebt(logged.length ? logged : []),
-    performanceFactor: sleepPerformanceFactor(avg),
+    debt7d: sleepDebt(restLogged.length ? restLogged : []),
+    performanceFactor: sleepPerformanceFactor(avgRest ?? avg),
     series,
+    napMinutesToday: restTodayCalc.napMinutes,
+    napCreditToday: restTodayCalc.napCreditMin,
+    restToday: lastNight != null ? restTodayCalc.restHours : null,
+    avgRest7d: avgRest,
+    restSeries,
   };
 }
 
@@ -102,6 +145,26 @@ export function napMinutesForDate(date: string = todayISO(), userId: number = PR
 export function avgSleepHours(days = 7, userId: number = PRIMARY_USER_ID): number | null {
   const rows = sleepSince(daysAgoISO(days - 1), userId);
   return averageSleep(rows.map((r) => r.hours));
+}
+
+/**
+ * Average TOTAL rest per day — night sleep plus what the naps were worth.
+ * This is the figure anything asking "how recovered is this person" should
+ * read; `avgSleepHours` stays the night-only number for night-specific copy.
+ */
+export function avgRestHours(days = 7, userId: number = PRIMARY_USER_ID): number | null {
+  const rows = sleepSince(daysAgoISO(days - 1), userId);
+  if (rows.length === 0) return null;
+  const total = rows.reduce((sum, r) => {
+    const naps = napsForDate(r.date, userId).map((n) => ({ minutes: n.minutes, startTime: n.startTime }));
+    return sum + dayRest(r.hours, naps).restHours;
+  }, 0);
+  return Math.round((total / rows.length) * 10) / 10;
+}
+
+/** What one logged nap was worth, in context of that night's sleep. */
+export function valueOfNap(nap: NapInput, date: string = todayISO(), userId: number = PRIMARY_USER_ID) {
+  return napValue(nap, { nightHours: sleepForDate(date, userId)?.hours ?? null });
 }
 
 /**

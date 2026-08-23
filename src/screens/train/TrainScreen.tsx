@@ -13,7 +13,8 @@ import type { RootStackParamList } from '@/navigation/types';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { sessionTypeIcon } from '@/constants/icon-map';
 import { useSessionStore } from '@/stores/sessionStore';
-import { listSessions } from '@/repositories/sessionRepo';
+import { listSessions, sessionExercisePeek, type SessionExercisePeek } from '@/repositories/sessionRepo';
+import { ExercisePeek } from '@/components/ExercisePeek';
 import { deleteRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
@@ -35,6 +36,11 @@ export function TrainScreen() {
   const begin = useSessionStore((s) => s.begin);
   const [recent, setRecent] = useState<Session[]>([]);
   const [routines, setRoutines] = useState<RoutineView[]>([]);
+  // Looking at what is in a routine or a past session should not require
+  // starting anything — these hold whichever one is expanded in place.
+  const [openRoutine, setOpenRoutine] = useState<number | null>(null);
+  const [openSession, setOpenSession] = useState<number | null>(null);
+  const [sessionPeek, setSessionPeek] = useState<SessionExercisePeek[]>([]);
   const [digestMeals, setDigestMeals] = useState<MealForDigestion[]>([]);
   const [smokes, setSmokes] = useState<SmokeEvent[]>([]);
   const [smokingOn, setSmokingOn] = useState(false);
@@ -185,28 +191,41 @@ export function TrainScreen() {
       {routines.length > 0 && (
         <>
           <SectionHeader title="My Routines" />
-          {routines.map((r) => (
-            <Pressable key={r.id} onPress={() => startRoutine(r)}>
-              <Card accent={theme.colors.primary}>
+          {routines.map((r) => {
+            const open = openRoutine === r.id;
+            return (
+              <Card key={r.id} accent={theme.colors.primary} style={{ gap: open ? 10 : 0 }}>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                    <Icon icon="core.custom" size={20} color={theme.colors.primary} />
-                    <View style={{ flex: 1 }}>
-                      <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
-                      <Text variant="caption" color="textMuted" numberOfLines={1}>
-                        {r.exercises.length} exercises · {r.exercises.slice(0, 3).map((e) => e.name).join(', ')}
-                        {r.exercises.length > 3 ? '…' : ''}
-                      </Text>
-                    </View>
-                  </Row>
+                  <Pressable style={{ flex: 1 }} onPress={() => setOpenRoutine(open ? null : r.id)}>
+                    <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+                      <Icon icon="core.custom" size={20} color={theme.colors.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
+                        <Text variant="caption" color="textMuted" numberOfLines={1}>
+                          {r.exercises.length} exercises · {open ? 'tap to collapse' : 'tap to see them'}
+                        </Text>
+                      </View>
+                    </Row>
+                  </Pressable>
+                  <Pressable onPress={() => setOpenRoutine(open ? null : r.id)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                    <Icon icon={open ? 'core.chevronUp' : 'core.list'} size={18} color={theme.colors.primary} />
+                  </Pressable>
                   <Pressable onPress={() => confirmDeleteRoutine(r)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
                     <Icon icon="core.delete" size={18} color={theme.colors.textFaint} />
                   </Pressable>
-                  <Icon icon="core.start" size={22} color={theme.colors.primary} />
+                  <Pressable onPress={() => startRoutine(r)} hitSlop={8} style={{ paddingLeft: 2 }}>
+                    <Icon icon="core.start" size={22} color={theme.colors.primary} />
+                  </Pressable>
                 </Row>
+                {open && (
+                  <>
+                    <ExercisePeek exercises={r.exercises} accent={theme.colors.primary} />
+                    <Button title={`Start ${r.name}`} icon="core.start" size="sm" onPress={() => startRoutine(r)} />
+                  </>
+                )}
               </Card>
-            </Pressable>
-          ))}
+            );
+          })}
         </>
       )}
 
@@ -241,28 +260,49 @@ export function TrainScreen() {
           message="Start your first session to build your history and stats."
         />
       ) : (
-        recent.map((s) => (
-          <Pressable key={s.id} onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}>
-            <Card>
+        recent.map((s) => {
+          const open = openSession === s.id;
+          return (
+            <Card key={s.id} style={{ gap: open ? 10 : 0 }}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                  <Icon icon={sessionTypeIcon(s.sessionType)} size={22} color={theme.colors.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="bodyStrong" numberOfLines={1}>
-                      {s.label ?? labelFor(s.sessionType)}
-                    </Text>
-                    <Text variant="caption" color="textMuted">
-                      {friendlyDate(s.startTime)} · {formatDurationLong(s.durationS ?? 0)}
-                      {s.totalVolume ? ` · ${Math.round(s.totalVolume).toLocaleString()} kg` : ''}
-                      {s.distanceM ? ` · ${(s.distanceM / 1000).toFixed(2)} km` : ''}
-                    </Text>
-                  </View>
-                </Row>
+                <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}>
+                  <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+                    <Icon icon={sessionTypeIcon(s.sessionType)} size={22} color={theme.colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyStrong" numberOfLines={1}>
+                        {s.label ?? labelFor(s.sessionType)}
+                      </Text>
+                      <Text variant="caption" color="textMuted">
+                        {friendlyDate(s.startTime)} · {formatDurationLong(s.durationS ?? 0)}
+                        {s.totalVolume ? ` · ${Math.round(s.totalVolume).toLocaleString()} kg` : ''}
+                        {s.distanceM ? ` · ${(s.distanceM / 1000).toFixed(2)} km` : ''}
+                      </Text>
+                    </View>
+                  </Row>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (open) { setOpenSession(null); return; }
+                    setSessionPeek(sessionExercisePeek(s.id));
+                    setOpenSession(s.id);
+                  }}
+                  hitSlop={8}
+                  style={{ paddingHorizontal: 6 }}
+                >
+                  <Icon icon={open ? 'core.chevronUp' : 'core.list'} size={18} color={theme.colors.primary} />
+                </Pressable>
                 <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
               </Row>
+              {open && (
+                <ExercisePeek
+                  exercises={sessionPeek}
+                  accent={theme.colors.primary}
+                  emptyLabel="No exercises were logged in this session."
+                />
+              )}
             </Card>
-          </Pressable>
-        ))
+          );
+        })
       )}
     </Screen>
   );

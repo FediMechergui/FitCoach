@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.48',
+    date: '2026-08-20',
+    title: 'Naps count for recovery now — and you can read a routine without starting it',
+    highlights: [
+      'Naps were logged and then counted for nothing: the sleep debt, the readiness figure, the muscle-growth conditions and the athlete card all read night sleep only. A 90-minute afternoon sleep after a five-hour night is not nothing, and treating it as nothing made every recovery number pessimistic. Now a nap is worth what the sleep science says it is worth.',
+      'What a nap is worth depends on three things. LENGTH: under 10 minutes is the doze — alertness, almost no recovery; 10–25 minutes is light sleep, the best value per minute and you wake clear-headed; 25–45 lands you in deep sleep and then wakes you out of it (real recovery, but 15–30 minutes of grogginess, so not right before training); ~90 minutes completes a cycle and you wake at the light end with REM banked. TIMING: the early-afternoon dip is free, but nap after 15:00 and you spend the sleep pressure you need tonight — that cost is subtracted, not ignored. And WHAT YOU OWED: a nap after a short night buys back real recovery; the same nap after a full night mostly buys alertness, and the app says which one you got instead of inflating the number.',
+      'In practice: a 20-minute nap after a 5-hour night is worth about 14 minutes of night sleep; the same nap after 8 hours is worth about 6; a 90-minute cycle after a short night repays over an hour, taking a 5-hour night to 6.1 hours of rest. A 30-minute nap at 19:00 nets zero — it costs about what it gives. And naps are capped so they can never stand in for nights: four hours of napping on a four-hour night reads as 6.5 hours of rest, not 8.',
+      'The Sleep screen now shows a Rest (7d) tile beside Nights (7d), each nap labelled with its band and what it was worth ("Full cycle · worth ~68 min of night sleep · ~8 min groggy on waking"), the seven-day chart showing total rest, and advice for the nap to take right now given last night.',
+      'And: saved routines and past sessions now open in place. Tap a routine — or the list icon — and the exercises appear right there, numbered in running order with what each one hits, without starting a session you then have to discard. Past sessions expand the same way, showing what was actually logged for each exercise. Start is still one tap, inside the expansion or out.',
+      '1114 checks in all, up from 1078.',
+    ],
+  },
+  {
     version: '2.47',
     date: '2026-08-19',
     title: 'Every exercise knows its load: weighted calisthenics, packs and carries, honest calories',

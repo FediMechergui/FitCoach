@@ -17,6 +17,7 @@ import { useSleepStore } from '@/stores/sleepStore';
 import { sleepTrainingCorrelation } from '@/repositories/sleepRepo';
 import { assessNight, SLEEP_QUALITY_LABELS } from '@/lib/sleep';
 import { rangeMinutes, minutesToHM, minutesToHours } from '@/lib/time';
+import { NAP_BAND_META, napAdvice, napValue } from '@/lib/naps';
 
 const HOUR_OPTIONS = [4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 10];
 
@@ -146,9 +147,14 @@ export function SleepScreen() {
           )}
         </Row>
         <Text variant="caption" color="textMuted">
-          Log daytime naps separately from your night sleep. Naps count toward daily recovery
-          without changing last night's number.
+          {napAdvice(summary?.lastNight ?? null, new Date().getHours())}
         </Text>
+        {summary && summary.napCreditToday > 0 && (
+          <Text variant="caption" color={theme.colors.info}>
+            Today's naps are worth about {minutesToHM(summary.napCreditToday)} of night sleep — total rest{' '}
+            {summary.restToday != null ? `${summary.restToday}h` : '—'}.
+          </Text>
+        )}
         <Row gap={6} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
           {NAP_OPTIONS.map((m) => (
             <Pressable key={m} onPress={() => setNapMinutes(m)}>
@@ -177,12 +183,24 @@ export function SleepScreen() {
           <View style={{ gap: 6 }}>
             {naps.map((n) => (
               <Row key={n.id} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Row gap={8} style={{ alignItems: 'center' }}>
+                <Row gap={8} style={{ alignItems: 'center', flex: 1 }}>
                   <Icon icon="sleep.moon" size={14} color={theme.colors.textFaint} />
-                  <Text variant="body">
-                    {minutesToHM(n.minutes)}
-                    {n.startTime ? ` · ${n.startTime}` : ''}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body">
+                      {minutesToHM(n.minutes)}
+                      {n.startTime ? ` · ${n.startTime}` : ''}
+                    </Text>
+                    {(() => {
+                      const v = napValue({ minutes: n.minutes, startTime: n.startTime }, { nightHours: summary?.lastNight ?? null });
+                      return (
+                        <Text variant="caption" color="textFaint">
+                          {NAP_BAND_META[v.band].label} · {v.netMin > 0 ? `worth ~${v.netMin} min of night sleep` : 'no recovery credit at that hour'}
+                          {v.inertiaMin > 0 ? ` · ~${v.inertiaMin} min groggy on waking` : ''}
+                          {v.nightCostMin > 0 ? ` · costs ~${v.nightCostMin} min tonight` : ''}
+                        </Text>
+                      );
+                    })()}
+                  </View>
                 </Row>
                 <Pressable onPress={() => removeNap(n.id)} hitSlop={8}>
                   <Icon icon="core.close" size={16} color={theme.colors.textFaint} />
@@ -197,18 +215,22 @@ export function SleepScreen() {
       {summary && (
         <>
           <Row>
-            <StatTile icon="sleep.bed" label="Avg (7d)" value={summary.avg7d != null ? `${summary.avg7d}h` : '—'} accent={theme.colors.mindbody} />
+            <StatTile icon="sleep.bed" label="Nights (7d)" value={summary.avg7d != null ? `${summary.avg7d}h` : '—'} sub="night sleep only" accent={theme.colors.mindbody} />
+            <StatTile icon="sleep.moon" label="Rest (7d)" value={summary.avgRest7d != null ? `${summary.avgRest7d}h` : '—'} sub="naps counted" accent={theme.colors.info} />
             <StatTile icon="sleep.debt" label="Sleep debt" value={`${summary.debt7d}h`} sub="vs 8h target" accent={theme.colors.warning} />
             <StatTile icon="stats.progression" label="Readiness" value={`${perfPct}%`} sub="performance" accent={perfPct >= 95 ? theme.colors.success : theme.colors.warning} />
           </Row>
 
           <SectionHeader title="Last 7 Nights" />
-          <Card>
+          <Card style={{ gap: 8 }}>
             <BarChart
-              data={summary.series.map((d) => ({ label: d.date.slice(8), value: d.hours }))}
+              data={summary.restSeries.map((d) => ({ label: d.date.slice(8), value: d.hours }))}
               color={theme.colors.mindbody}
               valueFormat={(v) => (v > 0 ? `${v}` : '')}
             />
+            <Text variant="caption" color="textFaint">
+              Total rest per day — night sleep with each day's nap credit added on top.
+            </Text>
           </Card>
         </>
       )}

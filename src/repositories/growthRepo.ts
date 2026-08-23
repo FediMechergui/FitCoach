@@ -11,7 +11,7 @@ import { summariseEffort, type SetEffort } from '@/lib/effort';
 import { MUSCLE_GROUPS } from '@/data/exercises';
 import { daysAgoISO, toISODate } from '@/lib/date';
 import { dailyIntakeSince } from './nutritionRepo';
-import { avgSleepHours } from './sleepRepo';
+import { avgRestHours } from './sleepRepo';
 import { getNutritionGoal, getUser, latestWeight, PRIMARY_USER_ID } from './userRepo';
 
 /**
@@ -83,7 +83,9 @@ export function growthReport(userId: number = PRIMARY_USER_ID): GrowthReport {
   const intake = dailyIntakeSince(daysAgoISO(6), userId);
   const avgProtein = intake.length ? intake.reduce((s, r) => s + r.protein, 0) / intake.length : null;
   const proteinGPerKg = avgProtein != null ? Math.round((avgProtein / weightKg) * 100) / 100 : null;
-  const avgSleep = avgSleepHours(7, userId);
+  // Total rest, not night sleep alone — a 90-minute nap after a short night is
+  // real recovery and the growth conditions should see it.
+  const avgSleep = avgRestHours(7, userId);
   const goal = getNutritionGoal(userId);
   const avgCal = intake.length ? intake.reduce((s, r) => s + r.calories, 0) / intake.length : null;
   const calorieOk =

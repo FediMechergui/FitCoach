@@ -8,7 +8,7 @@ import { currentStreak } from './statsRepo';
 import { dailyIntakeSince } from './nutritionRepo';
 import { getNutritionGoal, latestWeight, PRIMARY_USER_ID } from './userRepo';
 import { weeklyStepAverage } from './coachRepo';
-import { avgSleepHours } from './sleepRepo';
+import { avgRestHours } from './sleepRepo';
 import { avgCigarettesPerDay, getSmokingProfile } from './smokingRepo';
 import { avgAlcoholGramsPerWeek } from './alcoholRepo';
 
@@ -69,7 +69,8 @@ export function buildRatingInputs(userId: number = PRIMARY_USER_ID): RatingInput
     avgStepsPerDay: weeklyStepAverage(userId),
     calorieAdherence: calAdh,
     proteinAdherence: protAdh,
-    avgSleepHours: avgSleepHours(7, userId),
+    // Recovery is total rest: night sleep plus what the naps were worth.
+    avgSleepHours: avgRestHours(7, userId),
     restDaysPerWeek: Math.max(0, 7 - trainingDays7),
     loggingDaysPerWeek: intake.length,
     cigarettesPerDay: getSmokingProfile(userId)?.enabled ? avgCigarettesPerDay(7, userId) : 0,

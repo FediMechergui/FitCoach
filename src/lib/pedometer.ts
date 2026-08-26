@@ -182,21 +182,61 @@ export class StepDetector {
 /** Daily step goal used by the Home rings and the live walk notification. */
 export const DAILY_STEP_GOAL = 8000;
 
-/** Default adult stride length (m) as a fraction of height, by gait. */
-export function estimateStrideLengthM(heightCm: number, mode: 'walk' | 'run' = 'walk'): number {
+/**
+ * Step length as a fraction of height.
+ *
+ * The textbook constants — 0.415 of your height walking, 0.5 running — are for
+ * ONE speed each: a comfortable ~100 steps/min walk and a steady ~155 spm jog.
+ * Step length is not fixed, though; it grows with cadence and speed. Stride out
+ * at 125 spm and you cover noticeably more ground per step than the constant
+ * assumes, so a brisk walk measured by steps alone always came back short —
+ * and therefore slow.
+ *
+ * When cadence is known the factor is interpolated around the reference; when
+ * it is not, the constants stand exactly as before.
+ */
+export const STRIDE_REFERENCE = {
+  walk: { factor: 0.415, cadence: 100, min: 0.36, max: 0.5 },
+  run: { factor: 0.5, cadence: 155, min: 0.44, max: 0.65 },
+} as const;
+
+export function strideFactorFor(mode: 'walk' | 'run', cadenceSpm?: number | null): number {
+  const ref = STRIDE_REFERENCE[mode];
+  if (cadenceSpm == null || !Number.isFinite(cadenceSpm) || cadenceSpm <= 0) return ref.factor;
+  // ~0.3 % more step length per 1 % more cadence, clamped to human bounds.
+  const ratio = cadenceSpm / ref.cadence;
+  const scaled = ref.factor * (1 + (ratio - 1) * 0.35);
+  return Math.min(ref.max, Math.max(ref.min, scaled));
+}
+
+/** Default adult stride length (m) as a fraction of height, by gait and cadence. */
+export function estimateStrideLengthM(
+  heightCm: number,
+  mode: 'walk' | 'run' = 'walk',
+  cadenceSpm?: number | null
+): number {
   const h = heightCm > 0 ? heightCm : 170;
-  const factor = mode === 'run' ? 0.5 : 0.415;
-  return (h / 100) * factor;
+  return (h / 100) * strideFactorFor(mode, cadenceSpm);
 }
 
 /** Distance (m) from a step count using estimated stride length. */
-export function distanceFromSteps(steps: number, heightCm: number, mode: 'walk' | 'run' = 'walk'): number {
-  return Math.round(steps * estimateStrideLengthM(heightCm, mode));
+export function distanceFromSteps(
+  steps: number,
+  heightCm: number,
+  mode: 'walk' | 'run' = 'walk',
+  cadenceSpm?: number | null
+): number {
+  return Math.round(steps * estimateStrideLengthM(heightCm, mode, cadenceSpm));
 }
 
 /** Steps from a covered distance (the inverse of distanceFromSteps). */
-export function stepsFromDistance(distanceM: number, heightCm: number, mode: 'walk' | 'run' = 'walk'): number {
-  const stride = estimateStrideLengthM(heightCm, mode);
+export function stepsFromDistance(
+  distanceM: number,
+  heightCm: number,
+  mode: 'walk' | 'run' = 'walk',
+  cadenceSpm?: number | null
+): number {
+  const stride = estimateStrideLengthM(heightCm, mode, cadenceSpm);
   return stride > 0 ? Math.round(distanceM / stride) : 0;
 }
 

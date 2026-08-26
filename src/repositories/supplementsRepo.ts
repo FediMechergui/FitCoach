@@ -112,6 +112,16 @@ export function logSupplement(
    * Fish oil is a gram of fat per softgel; small, but fat is not free. The row
    * id is stored on the log so deleting the log deletes its calories too.
    */
+  /*
+   * Logging for a past day must stamp the linked diary row that day too, not
+   * "now" — otherwise a shake logged for yesterday would land in yesterday's
+   * totals with today's clock time, and the digestion clock would read it as
+   * something you just drank. Midday is the honest anchor when the real time
+   * is unknown.
+   */
+  const backdated = date !== todayISO();
+  const eatenAt = backdated ? new Date(`${date}T12:00:00`).getTime() : undefined;
+
   let foodEntryId: number | null = null;
   if (def.macros) {
     foodEntryId = addPreciseFood(
@@ -130,6 +140,7 @@ export function logSupplement(
         // Micros stay on the supplement log — carrying them here too would
         // count them twice on the Micros screen.
         date,
+        eatenAt,
       },
       userId
     );

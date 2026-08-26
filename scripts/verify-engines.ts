@@ -101,6 +101,7 @@ import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
 import { distributeSessionCalories, activeSecondsFor, caloriesForReference, restMetFor, REST_MET_FLOOR, REST_MET_PEAK, type BurnExercise } from '../src/lib/exerciseCalories';
 import { OUTDOOR_ACTIVITIES, activityFor, activityMet, requiresGps } from '../src/lib/outdoorActivities';
+import { strideFactorFor } from '../src/lib/pedometer';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
@@ -2833,6 +2834,51 @@ console.log('\nOutdoor ground activities launch like a walk:');
   check('…asks for the pack only where it makes sense, and warns when GPS is the only source', /activity\.carries && \(/.test(walkSrcO) && /gpsOnly && \(/.test(walkSrcO));
   check('…and labels everything by the activity, not "walk"', /title=\{activity\.label\}/.test(walkSrcO) && /: activity\.verb\}/.test(walkSrcO) && /sessionType: activity\.sessionType/.test(walkSrcO));
   check('Train offers every ground activity one tap away', /OUTDOOR_ACTIVITIES\.filter\(\(a\) => a\.key !== 'walk' && a\.key !== 'run'\)/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
+}
+
+console.log('\nWhy walks read slow — the speed sentinel and the stride:');
+{
+  // A straight 500 m walk: fixes every 3 s (~4 m apart), 8 m accuracy.
+  const straightWalk = (speed: number) => {
+    const out: Array<{ lat: number; lng: number; accuracy: number; speed: number }> = [];
+    let lat = 36.8;
+    for (let i = 0; i < 125; i++) { lat += 4.05 / 111320; out.push({ lat, lng: 10.18, accuracy: 8, speed }); }
+    return out;
+  };
+  // ── The bug ──
+  const noDoppler = filterFixes([], straightWalk(0));
+  check('A receiver reporting speed 0 (no Doppler) still records the walk', noDoppler.distanceM > 450, `${Math.round(noDoppler.distanceM)} m of 506`);
+  check('…and none of it is thrown away as "standing still"', noDoppler.rejected.stationary === 0);
+  check('Unknown speed as -1 (iOS) is treated the same way', filterFixes([], straightWalk(-1)).distanceM > 450);
+  check('A working Doppler reading is unaffected', Math.abs(filterFixes([], straightWalk(1.35)).distanceM - noDoppler.distanceM) < 1);
+  // A POSITIVE but tiny speed is still real evidence of standing still.
+  const dithering = Array.from({ length: 40 }, (_, i) => ({ lat: 36.8 + (i % 2) * 0.00012, lng: 10.18, accuracy: 8, speed: 0.05 }));
+  check('A positive but near-zero speed still rejects the fix — that is real evidence', filterFixes([], dithering).rejected.stationary > 0);
+  // ── Stride ──
+  check('Unknown cadence keeps the textbook constants exactly', strideFactorFor('walk') === 0.415 && strideFactorFor('run') === 0.5);
+  check('A brisk cadence lengthens the step, a slow one shortens it', strideFactorFor('walk', 125) > 0.44 && strideFactorFor('walk', 80) < 0.4);
+  check('Step length stays within human bounds at any cadence', strideFactorFor('walk', 300) <= 0.5 && strideFactorFor('walk', 5) >= 0.36 && strideFactorFor('run', 400) <= 0.65);
+  check('6000 brisk steps at 178 cm read ~400 m further than at the flat constant', distanceFromSteps(6000, 178, 'walk', 125) - distanceFromSteps(6000, 178, 'walk') > 300);
+  check('The reference cadence reproduces the old number exactly', distanceFromSteps(6000, 178, 'walk', 100) === distanceFromSteps(6000, 178, 'walk'));
+  check('The live walk feeds its measured cadence into the step fallback', /liveCadence\(steps, snap\?\.activeSec \?\? s\.activeS\)/.test(fs.readFileSync('src/stores/walkStore.ts', 'utf8')));
+  check('…and only once there is enough of a sample to mean anything', /activeSec > 60 && steps > 30/.test(fs.readFileSync('src/stores/walkStore.ts', 'utf8')));
+  check('The reason the zero is not trusted is written down where it bit', /hasSpeed\(\)` is the flag/.test(fs.readFileSync('src/lib/gpsFilter.ts', 'utf8')));
+}
+
+console.log('\nMicros and supplements follow the diary date, like food:');
+{
+  const suppStore = fs.readFileSync('src/stores/supplementsStore.ts', 'utf8');
+  check('The supplement store reads the shared nutrition date', /const diaryDate = \(\): string => useNutritionStore\.getState\(\)\.date;/.test(suppStore));
+  check('…loads that day\'s logs, not today\'s', /today: supplementsForDay\(date\)/.test(suppStore));
+  check('…logs to that day', /logSupplement\(key, \{ dose, unitsTaken: units \?\? null, date: diaryDate\(\) \}\)/.test(suppStore));
+  check('…and "already taken" is asked of that day', /loggedToday\(key, get\(\)\.date\)/.test(suppStore));
+  check('Changing the date there moves the whole nutrition section', /useNutritionStore\.getState\(\)\.setDate\(date\)/.test(suppStore));
+  const suppRepo2 = fs.readFileSync('src/repositories/supplementsRepo.ts', 'utf8');
+  check('A supplement logged for a past day stamps its diary row that day too', /const backdated = date !== todayISO\(\);/.test(suppRepo2) && /eatenAt = backdated \?/.test(suppRepo2) && /eatenAt,/.test(suppRepo2));
+  const suppScr = fs.readFileSync('src/screens/nutrition/SupplementsScreen.tsx', 'utf8');
+  check('The screen has a date navigator and says when it is not today', /setDate\(addDays\(date, -1\)\)/.test(suppScr) && /Logging for \{dayLabel\}/.test(suppScr));
+  check('…and the pill counts read the day being shown', /unitsTakenToday\(s\.key, date\)/.test(suppScr) && /dayLabel=\{isToday \? 'today' : dayLabel\}/.test(suppScr));
+  check('Micronutrients already followed the shared date', /useNutritionStore\(\(s\) => s\.date\)/.test(fs.readFileSync('src/screens/nutrition/MicronutrientsScreen.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

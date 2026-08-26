@@ -47,6 +47,15 @@ function heightCm(): number {
   return useUserStore.getState().user?.heightCm ?? 175;
 }
 
+/**
+ * Steps per minute over the moving time so far — null until there is enough of
+ * a sample to mean anything. Feeds the step-length estimate so a brisk walk is
+ * not measured with a strolling stride.
+ */
+function liveCadence(steps: number, activeSec: number): number | null {
+  return activeSec > 60 && steps > 30 ? steps / (activeSec / 60) : null;
+}
+
 export const useWalkStore = create<WalkState>((set, get) => ({
   active: false,
   mode: 'walk',
@@ -112,7 +121,11 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     const usingGps = !!snap && (snap.gpsDistanceM > 0 || snap.route.length > 0);
     set({
       steps,
-      distanceM: usingGps ? snap!.gpsDistanceM : distanceFromSteps(steps, heightCm(), s.mode),
+      // Cadence from what has actually been counted so far, so a brisk walk
+      // is not measured with a strolling step length.
+      distanceM: usingGps
+        ? snap!.gpsDistanceM
+        : distanceFromSteps(steps, heightCm(), s.mode, liveCadence(steps, snap?.activeSec ?? s.activeS)),
       route: snap?.route ?? s.route,
       usingGps: usingGps || s.usingGps,
       source: snap?.source ?? s.source,

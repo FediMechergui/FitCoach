@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.50',
+    date: '2026-08-21',
+    title: 'Why your walks read slow — a 506 m walk was recording zero',
+    highlights: [
+      'A real bug, found and measured. On Android a 506-metre walk was recording ZERO metres of GPS distance. Android reports a speed of 0 when the receiver has no Doppler solution — there is a separate flag saying whether that number means anything, and it does not survive into JavaScript. The app read that 0 as "you are standing still" and threw away every single fix. With no GPS distance it fell back to counting steps, which is why walks came out short, every pace read slow and the calories were low. Now only a POSITIVE speed counts as evidence; 0 and −1 mean "unknown", and the accuracy, minimum-segment and confinement gates catch genuine standing-still — which is what they were always for. A positive but near-zero speed still rejects the fix, because that really is evidence.',
+      'The step fallback read short too. The textbook constants — step length 0.415 of your height walking, 0.5 running — describe one speed each, a comfortable ~100 steps a minute. Step length grows as you stride out, so a brisk 125 spm walk was being measured with a strolling step. Cadence now shapes the estimate: 6000 brisk steps at 178 cm read 4.82 km instead of 4.43. When cadence is unknown — a short walk, no moving time yet — the old constants stand exactly as they were.',
+      'Micronutrients and supplements now follow the diary date, like food. Step back a day on the Nutrition tab and the pills step back with it, so you can log what you actually took on Tuesday, on Tuesday. The screen says plainly when you are logging to another day, the pill counts and streaks read that day, and a supplement with real calories stamps its diary row that day too rather than landing in the past with today\'s clock time.',
+      '1173 checks in all, up from 1151 — including the walk that used to record zero.',
+    ],
+  },
+  {
     version: '2.49',
     date: '2026-08-20',
     title: 'Honest lifting calories, a running order that holds, and every ground activity tracked like a walk',

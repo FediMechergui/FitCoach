@@ -175,8 +175,22 @@ export function filterFixes(tail: LatLng[], fixes: GpsFix[]): GpsFilterResult {
       continue;
     }
 
-    // ── Gate 2: what does the receiver's own speedometer say? ──
-    const speed = typeof fix.speed === 'number' && Number.isFinite(fix.speed) && fix.speed >= 0
+    /*
+     * ── Gate 2: what does the receiver's own speedometer say? ──
+     *
+     * CAREFUL with zero. Android's Location.getSpeed() returns 0.0 when the
+     * receiver has no Doppler solution at all — `hasSpeed()` is the flag that
+     * says whether the number means anything, and it does not survive the
+     * bridge. iOS uses -1 for the same "unknown". So a reported 0 is very
+     * often "I don't know", not "you are standing still", and treating it as
+     * standing still rejected almost every real fix on those devices: the
+     * route stayed empty, distance came out short, and every pace read slow.
+     *
+     * Only a strictly POSITIVE speed is evidence. Zero and negative mean
+     * unknown, and the accuracy, minimum-segment and confinement gates below
+     * are what catch genuine standing-still — which is what they are for.
+     */
+    const speed = typeof fix.speed === 'number' && Number.isFinite(fix.speed) && fix.speed > 0
       ? fix.speed
       : null;
     if (speed != null && speed >= IMPOSSIBLE_SPEED_MS) {

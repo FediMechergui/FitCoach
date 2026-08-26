@@ -14,6 +14,7 @@ import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
 import { PageHero } from '@/components/ui/PageHero';
 import { useSupplementsStore } from '@/stores/supplementsStore';
 import { supplementStreak, unitsTakenToday } from '@/repositories/supplementsRepo';
+import { addDays, todayISO } from '@/lib/date';
 import type { SupplementStack } from '@/db/schema';
 import {
   EVIDENCE_COLOR,
@@ -26,8 +27,12 @@ import {
 export function SupplementsScreen() {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { stack, today, load, log, removeLog, addToStack, removeFromStack, setUnitsPerServing } =
+  const { stack, today, date, setDate, load, log, removeLog, addToStack, removeFromStack, setUnitsPerServing } =
     useSupplementsStore();
+  const isToday = date === todayISO();
+  const dayLabel = isToday
+    ? 'today'
+    : new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useFocusEffect(
@@ -44,6 +49,28 @@ export function SupplementsScreen() {
   return (
     <Screen>
       <PageHero icon="supp.pill" color={theme.colors.accent} title="Supplements" subtitle="Track pills and powders. Vitamin and mineral supplements count toward your micronutrient totals; the few with real energy — whey, fish oil, collagen — log their calories to your diary automatically; performance supplements are tracked for dose and consistency, with honest evidence." />
+
+      {/*
+        The same diary date as the Nutrition tab and the micronutrient screen —
+        step back a day here and you are logging the pills you forgot then, not
+        adding them to today.
+      */}
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Pressable onPress={() => setDate(addDays(date, -1))} hitSlop={8}>
+          <Icon icon="core.back" size={24} color={theme.colors.textMuted} />
+        </Pressable>
+        <View style={{ alignItems: 'center' }}>
+          <Text variant="h2">{isToday ? 'Today' : dayLabel}</Text>
+          {!isToday && (
+            <Text variant="caption" color={theme.colors.warning}>
+              Logging for {dayLabel}
+            </Text>
+          )}
+        </View>
+        <Pressable onPress={() => setDate(addDays(date, 1))} hitSlop={8} disabled={isToday}>
+          <Icon icon="core.forward" size={24} color={isToday ? theme.colors.surfaceAlt : theme.colors.textMuted} />
+        </Pressable>
+      </Row>
 
       {/* Goal-based plan builder */}
       <Pressable onPress={() => navigation.navigate('SupplementPlan')}>
@@ -79,7 +106,8 @@ export function SupplementsScreen() {
                 def={def}
                 done={done}
                 streak={streak}
-                takenUnits={unitsTakenToday(s.key)}
+                takenUnits={unitsTakenToday(s.key, date)}
+                dayLabel={isToday ? 'today' : dayLabel}
                 onTake={(units) => log(s.key, s.dose ?? undefined, units)}
                 onSetUnits={(n) => setUnitsPerServing(s.key, n)}
               />
@@ -91,7 +119,7 @@ export function SupplementsScreen() {
       {/* Today's log */}
       {today.length > 0 && (
         <Card style={{ gap: 6 }}>
-          <Text variant="label" color="textMuted">Taken today</Text>
+          <Text variant="label" color="textMuted">Taken {isToday ? 'today' : dayLabel}</Text>
           {today.map((t, i) => (
             <View key={t.id}>
               {i > 0 ? <Divider /> : null}
@@ -213,6 +241,7 @@ function StackCard({
   done,
   streak,
   takenUnits,
+  dayLabel,
   onTake,
   onSetUnits,
 }: {
@@ -221,6 +250,8 @@ function StackCard({
   done: boolean;
   streak: number;
   takenUnits: number;
+  /** "today", or the date being logged to */
+  dayLabel: string;
   onTake: (units?: number) => void;
   onSetUnits: (n: number | null) => void;
 }) {
@@ -299,7 +330,7 @@ function StackCard({
       {takenUnits > 0 && (
         <Text variant="caption" color="textFaint">
           {takenUnits} {unit}
-          {takenUnits === 1 ? '' : 's'} today
+          {takenUnits === 1 ? '' : 's'} {dayLabel}
           {perServing ? ` · ${(takenUnits / perServing).toFixed(takenUnits % perServing === 0 ? 0 : 1)} of a portion` : ''}
         </Text>
       )}

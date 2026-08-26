@@ -35,7 +35,8 @@ export type RootStackParamList = {
     | { pick?: boolean; sessionId?: number; draft?: boolean; sessionType?: SessionType }
     | undefined;
   SessionRecap: { sessionId: number; prCount?: number; stepsAdded?: number };
-  Walk: { mode: 'walk' | 'run' } | undefined;
+  /** the ground-activity tracker: walk, run, hike, trail run, ruck, stairs, ride */
+  Walk: { mode?: 'walk' | 'run'; activity?: string } | undefined;
   SessionHistory: undefined;
   SessionDetail: { sessionId: number };
   WalkDetail: { walkId: number };

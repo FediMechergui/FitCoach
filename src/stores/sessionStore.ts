@@ -18,6 +18,7 @@ import {
   type SessionDetail,
   type SetDraft,
   toggleWarmupDone,
+  replaceExerciseLog,
 } from '@/repositories/sessionRepo';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { metaFor } from '@/constants/sessionTypes';
@@ -181,8 +182,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   swapExercise: (logId, newExerciseId) => {
     const id = get().activeId;
     if (!id) return null;
-    removeExerciseLog(logId);
-    const newLogId = addExerciseToSession(id, newExerciseId);
+    // In place: the easier alternative takes the same slot in the running
+    // order rather than being appended at the bottom.
+    const newLogId = replaceExerciseLog(logId, newExerciseId);
     get().refresh();
     return newLogId;
   },

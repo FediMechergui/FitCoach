@@ -10,7 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Row, Divider, EmptyState } from '@/components/ui/misc';
+import { Row, Divider, EmptyState, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSessionStore } from '@/stores/sessionStore';
 import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
@@ -397,16 +397,26 @@ function ExerciseSection({ detail, accent, isLifting }: { detail: ExerciseLogVie
           }
         />
       ) : (
-        detail.map((lv, i) => (
-          <ExerciseLogCard
-            key={lv.log.id}
-            lv={lv}
-            accent={accent}
-            isLifting={isLifting}
-            canMoveUp={i > 0}
-            canMoveDown={i < detail.length - 1}
-          />
-        ))
+        detail.map((lv, i) => {
+          // The session runs top to bottom: "up next" is the first exercise
+          // with nothing logged on it yet. Nothing reorders on its own.
+          const started = lv.sets.some((s) => s.completed);
+          const upNextIndex = detail.findIndex((x) => !x.sets.some((s) => s.completed));
+          return (
+            <ExerciseLogCard
+              key={lv.log.id}
+              lv={lv}
+              accent={accent}
+              isLifting={isLifting}
+              position={i + 1}
+              total={detail.length}
+              started={started}
+              upNext={i === upNextIndex}
+              canMoveUp={i > 0 && !started}
+              canMoveDown={i < detail.length - 1 && !started}
+            />
+          );
+        })
       )}
 
       <Button
@@ -433,12 +443,23 @@ function ExerciseLogCard({
   lv,
   accent,
   isLifting,
+  position,
+  total,
+  started,
+  upNext,
   canMoveUp,
   canMoveDown,
 }: {
   lv: ExerciseLogView;
   accent: string;
   isLifting: boolean;
+  /** 1-based place in the running order */
+  position: number;
+  total: number;
+  /** at least one set logged — its place in the order is history now */
+  started: boolean;
+  /** the first exercise with nothing logged yet */
+  upNext: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
@@ -545,10 +566,14 @@ function ExerciseLogCard({
     <Card accent={accent} style={{ gap: 10 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Row gap={8} style={{ alignItems: 'center', flex: 1 }}>
+          <Text variant="caption" color={upNext ? accent : 'textFaint'} style={{ fontVariant: ['tabular-nums'], fontWeight: '700' }}>
+            {position}/{total}
+          </Text>
           <Icon icon={lv.iconKey} size={20} color={accent} />
           <Text variant="h3" numberOfLines={1} style={{ flex: 1 }}>
             {lv.exerciseName}
           </Text>
+          {upNext && <Badge label="Up next" color={accent} />}
         </Row>
         {/* Running order — the sequence you actually do them in. */}
         <Pressable
@@ -574,6 +599,11 @@ function ExerciseLogCard({
           <Icon icon="core.delete" size={18} color={theme.colors.textFaint} />
         </Pressable>
       </Row>
+      {started && (
+        <Text variant="caption" color="textFaint">
+          Started — its place in the running order is fixed now. Anything you have not begun can still be moved.
+        </Text>
+      )}
 
       {showAlts && (
         <AlternativePicker

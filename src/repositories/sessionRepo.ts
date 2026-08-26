@@ -78,7 +78,7 @@ export function startSession(
   return Number(res.lastInsertRowId);
 }
 
-export function addExerciseToSession(sessionId: number, exerciseId: number): number {
+export function addExerciseToSession(sessionId: number, exerciseId: number, orderIndex?: number): number {
   const count = db
     .select()
     .from(exerciseLogs)
@@ -86,9 +86,32 @@ export function addExerciseToSession(sessionId: number, exerciseId: number): num
     .all().length;
   const res = db
     .insert(exerciseLogs)
-    .values({ sessionId, exerciseId, orderIndex: count })
+    .values({ sessionId, exerciseId, orderIndex: orderIndex ?? count })
     .run();
   return Number(res.lastInsertRowId);
+}
+
+/**
+ * Swap one exercise for another IN PLACE — the replacement keeps the slot in
+ * the running order. Removing and re-adding sent it to the bottom of the list,
+ * which quietly rewrote the order you had planned to work through.
+ */
+export function replaceExerciseLog(logId: number, newExerciseId: number): number | null {
+  const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
+  if (!row) return null;
+  const slot = row.orderIndex;
+  const sessionId = row.sessionId;
+  removeExerciseLog(logId);
+  return addExerciseToSession(sessionId, newExerciseId, slot);
+}
+
+/** How many completed sets an exercise log holds — "have I started this one". */
+export function completedSetsOf(logId: number): number {
+  return db
+    .select()
+    .from(setEntries)
+    .where(and(eq(setEntries.exerciseLogId, logId), eq(setEntries.completed, true)))
+    .all().length;
 }
 
 export function addSet(exerciseLogId: number, draft: SetDraft): number {
@@ -152,9 +175,17 @@ export function removeExerciseLog(logId: number): void {
  * Returns false when the move isn't possible (already at the end), so the UI
  * can leave the control disabled rather than pretending something happened.
  */
+/**
+ * Move an exercise up or down the running order.
+ *
+ * An exercise you have already logged sets on cannot be moved: its place in
+ * the order is history, not a plan. Everything you have not started yet is
+ * free to rearrange.
+ */
 export function moveExerciseLog(logId: number, direction: 'up' | 'down'): boolean {
   const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
   if (!row) return false;
+  if (completedSetsOf(logId) > 0) return false;
 
   const siblings = db
     .select()
@@ -477,6 +508,11 @@ function logsToBurn(logs: ExerciseLogView[]): BurnExercise[] {
 }
 
 export interface SessionCalorieBreakdown {
+  /** kcal earned resting between sets, and how long that was */
+  restCalories: number;
+  restSeconds: number;
+  workSeconds: number;
+  restMet: number;
   /** kcal per exercise-log id */
   byLogId: Record<number, number>;
   total: number;
@@ -506,7 +542,15 @@ export function sessionCalorieBreakdown(
   logs.forEach((lv, i) => {
     byLogId[lv.log.id] = dist.perExercise[i] ?? 0;
   });
-  return { byLogId, total: dist.total, basis: dist.basis };
+  return {
+    byLogId,
+    total: dist.total,
+    basis: dist.basis,
+    restCalories: dist.restCalories,
+    restSeconds: dist.restSeconds,
+    workSeconds: dist.workSeconds,
+    restMet: dist.restMet,
+  };
 }
 
 // ── Queries ──────────────────────────────────────────────────────────────────

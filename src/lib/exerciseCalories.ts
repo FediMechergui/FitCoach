@@ -1,5 +1,5 @@
 /**
- * Per-exercise calorie attribution.
+ * Per-exercise calorie attribution — and what the rest between sets is worth.
  *
  * The old model burned one flat session-type MET across the whole session, so a
  * round of MET-11 jump rope and a round of MET-3 stretching in the same session
@@ -104,11 +104,55 @@ export function weightedActiveSecondsFor(ex: BurnExercise, bodyweightKg: number)
 }
 
 export interface CalorieBreakdown {
-  /** kcal per exercise, index-aligned with the input array */
+  /** kcal per exercise for the WORK itself, index-aligned with the input array */
   perExercise: number[];
+  /** kcal earned during the rest and transitions between sets */
+  restCalories: number;
+  /** seconds of the session that were rest / transition rather than work */
+  restSeconds: number;
+  /** seconds actually under load */
+  workSeconds: number;
+  /** the MET the rest was valued at (elevated over standing by post-set recovery) */
+  restMet: number;
   total: number;
   /** how the number was produced, for honest UI labelling */
   basis: 'per-exercise' | 'session-met';
+}
+
+/**
+ * What a minute of between-set rest is worth.
+ *
+ * Rest is not the exercise, and valuing it at the exercise's MET — which is
+ * what this used to do by spreading the whole wall clock over the work — makes
+ * a lifting session look roughly twice as expensive as it is. An hour of
+ * lifting with 15 minutes actually under load is not an hour at MET 6.
+ *
+ * But rest is not sitting still either. Oxygen uptake stays elevated after a
+ * hard set (the recovery-oxygen / EPOC tail), and you are standing, racking
+ * plates and walking about. So rest is valued as a decaying curve above
+ * standing: ~4 METs in the first moments after a set, settling toward 2 with a
+ * ~90 s time constant. Averaged over a rest period of R seconds that gives
+ *
+ *   MET(R) = 2 + 2 × (τ/R) × (1 − e^(−R/τ)),  τ = 90 s
+ *
+ * so 60 s rests average ~3.4 METs, 3-minute rests ~2.9, 5-minute rests ~2.6 —
+ * shorter rests keep you more elevated per minute, which is exactly what the
+ * physiology says and what a circuit feels like.
+ */
+export const REST_MET_FLOOR = 2;
+export const REST_MET_PEAK = 4;
+export const REST_EPOC_TAU_S = 90;
+
+export function restMetFor(avgRestSeconds: number): number {
+  const r = Math.max(1, avgRestSeconds);
+  const tau = REST_EPOC_TAU_S;
+  const decayed = (REST_MET_PEAK - REST_MET_FLOOR) * (tau / r) * (1 - Math.exp(-r / tau));
+  return Math.round((REST_MET_FLOOR + decayed) * 100) / 100;
+}
+
+/** Completed sets across the session — how many rest periods there were. */
+export function completedSetCount(exercises: BurnExercise[]): number {
+  return exercises.reduce((n, ex) => n + ex.sets.filter((s) => s.completed !== false).length, 0);
 }
 
 /**
@@ -132,7 +176,7 @@ export function distributeSessionCalories(params: {
   const totalActive = actives.reduce((a, b) => a + b, 0);
 
   if (durationS <= 0) {
-    return { perExercise: exercises.map(() => 0), total: 0, basis: 'session-met' };
+    return { perExercise: exercises.map(() => 0), restCalories: 0, restSeconds: 0, workSeconds: 0, restMet: REST_MET_FLOOR, total: 0, basis: 'session-met' };
   }
 
   if (totalActive <= 0) {
@@ -142,26 +186,45 @@ export function distributeSessionCalories(params: {
     if (exercises.length === 0) {
       return {
         perExercise: [],
+        restCalories: 0,
+        restSeconds: 0,
+        workSeconds: durationS,
+        restMet: REST_MET_FLOOR,
         total: netCaloriesFromMet(fallbackMet, weightKg, durationS),
         basis: 'session-met',
       };
     }
+    // Nothing to time the work by, so the session-type MET stands for the whole
+    // block — there is no rest to separate out.
     const share = durationS / exercises.length;
     const perExercise = exercises.map((ex) =>
       netCaloriesFromMet(ex.met && ex.met > 0 ? ex.met : fallbackMet, weightKg, share)
     );
     return {
       perExercise,
+      restCalories: 0,
+      restSeconds: 0,
+      workSeconds: durationS,
+      restMet: REST_MET_FLOOR,
       total: perExercise.reduce((a, b) => a + b, 0),
       basis: 'per-exercise',
     };
   }
 
-  // Spread the whole wall-clock duration over the exercises in proportion to
-  // their active time — rest and transitions ride along with the work that
-  // earned them rather than vanishing. The energy factor (load carried, added
-  // weight, effort) then scales each exercise's share: same minutes, more work.
-  const scale = durationS / totalActive;
+  /*
+   * Work and rest are valued separately.
+   *
+   * Each exercise earns its own MET for the seconds actually under load; the
+   * remainder of the wall clock is rest and transition, valued on the
+   * post-set recovery curve (see restMetFor). When more work was logged than
+   * the clock allows — a past session entered loosely — the work is scaled
+   * down to fit rather than inventing time.
+   */
+  const fits = totalActive <= durationS;
+  const scale = fits ? 1 : durationS / totalActive;
+  const workSeconds = Math.round(totalActive * scale);
+  const restSeconds = Math.max(0, durationS - workSeconds);
+
   const perExercise = exercises.map((ex, i) => {
     const met = ex.met && ex.met > 0 ? ex.met : fallbackMet;
     const factor = actives[i] > 0 ? weighted[i] / actives[i] : 1;
@@ -170,8 +233,13 @@ export function distributeSessionCalories(params: {
     // 1 + (met − 1) × factor keeps a single rounding step in netCaloriesFromMet.
     return netCaloriesFromMet(1 + (met - 1) * factor, weightKg, actives[i] * scale);
   });
-  const total = perExercise.reduce((a, b) => a + b, 0);
-  return { perExercise, total, basis: 'per-exercise' };
+
+  const restPeriods = Math.max(1, completedSetCount(exercises));
+  const restMet = restSeconds > 0 ? restMetFor(restSeconds / restPeriods) : REST_MET_FLOOR;
+  const restCalories = restSeconds > 0 ? netCaloriesFromMet(restMet, weightKg, restSeconds) : 0;
+
+  const total = perExercise.reduce((a, b) => a + b, 0) + restCalories;
+  return { perExercise, restCalories, restSeconds, workSeconds, restMet, total, basis: 'per-exercise' };
 }
 
 /**

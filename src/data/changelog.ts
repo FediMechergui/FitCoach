@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.49',
+    date: '2026-08-20',
+    title: 'Honest lifting calories, a running order that holds, and every ground activity tracked like a walk',
+    highlights: [
+      'Session calories no longer pretend you lift for the whole hour. The old model spread the wall clock over the exercises at each one\'s full MET, so an hour of lifting with ten minutes actually under load was billed as an hour of lifting. Now the work is valued at the exercise\'s MET for the seconds under load, and the rest between sets is valued on its own recovery curve, elevated above standing by the post-set oxygen debt (about 3.5 METs after short rests, settling toward 2 on long ones) - racking plates and breathing hard is not nothing, but it is not squatting either. A 60-minute push day reads about 210 kcal instead of about 470. Continuous cardio barely moves - there is no rest to separate. Recomputed on read, so history shows honest numbers too.',
+      'The running order runs top to bottom and stays where you put it. Swapping an exercise for an easier one now keeps its slot instead of silently dropping the replacement to the bottom of the list. An exercise you have started can no longer be moved - its place is history, not a plan - and the card says so; everything you have not begun is still free to rearrange. Each card shows its place (3/6) and the first untouched exercise is badged \'Up next\'.',
+      'Every ground activity now launches the way a walk does: hike, trail run, ruck, stair climb and ride sit one tap away on the Train tab, opening the same live tracker - steps, distance, pace, route map, screen-off counting, weather before and during, recap with recovery margins after. Each knows what it is: a hike at walking pace costs more than a walk at walking pace (uneven ground and gradient - the MET is floored per activity), a ruck asks for the pack weight and scales the burn by it, a ride is GPS-only because a bike has no steps, and each records as the right session type.',
+      '1151 checks in all, up from 1114.',
+    ],
+  },
+  {
     version: '2.48',
     date: '2026-08-20',
     title: 'Naps count for recovery now — and you can read a routine without starting it',

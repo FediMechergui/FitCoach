@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Row, Badge } from '@/components/ui/misc';
@@ -25,6 +26,9 @@ import { weatherAdvice, HEAT_BAND_COLOR, HEAT_BAND_LABEL } from '@/lib/weather';
 import type { LatLng } from '@/lib/geo';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
 import { PostSessionCard } from '@/components/PostSessionCard';
+import { activityFor, activityMet, requiresGps } from '@/lib/outdoorActivities';
+import { loadCalorieFactor, profileFor } from '@/lib/loadProfile';
+import { walkRunMet, gradeMultiplier, netCaloriesFromMet } from '@/lib/met';
 import { postSessionMargins, sessionStrain } from '@/lib/postSession';
 import { isSmokingEnabled } from '@/repositories/smokingRepo';
 
@@ -37,7 +41,12 @@ export function WalkScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute<WalkRoute>();
-  const initialMode = route.params?.mode ?? 'walk';
+  // The activity decides the label, what it is recorded as, the MET floor and
+  // whether a carried load is asked for; the gait decides how steps become
+  // distance. A plain `mode` still works, so every old link keeps its meaning.
+  const activity = activityFor(route.params?.activity ?? route.params?.mode ?? 'walk');
+  const initialMode = activity.gait === 'run' ? 'run' : 'walk';
+  const [packKg, setPackKg] = useState('');
 
   const walk = useWalkStore();
   const user = useUserStore((s) => s.user);
@@ -60,13 +69,30 @@ export function WalkScreen() {
   useLiveWalk(walk.active);
 
   const distanceM = walk.distanceM;
-  const calories = walkCalories({
+  const packLoadKg = parseFloat(packKg.replace(',', '.'));
+  const loadKg = Number.isFinite(packLoadKg) && packLoadKg > 0 ? packLoadKg : 0;
+  const loadFactor = loadKg > 0 ? loadCalorieFactor(profileFor({ slug: 'rucking' }), weightKg, loadKg) : 1;
+  const base = walkCalories({
     weightKg,
     distanceM,
     durationSec: walk.elapsedS,
     activeSec: walk.activeS,
     steps: walk.steps,
   });
+  /*
+   * A hike at walking pace is not a walk: uneven ground and gradient cost more,
+   * so the pace-based figure is floored at the activity's own MET, and a
+   * carried pack scales it (see lib/loadProfile). A plain walk or run keeps
+   * exactly the number it had — floor 0, no load.
+   */
+  const activeSec = walk.activeS > 0 ? walk.activeS : walk.elapsedS;
+  const paceMet =
+    distanceM > 0 && activeSec > 0 ? walkRunMet(distanceM / 1000 / (activeSec / 3600)) : 0;
+  const flooredMet = activityMet(activity, paceMet);
+  const calories =
+    activity.metFloor > 0 && activeSec > 0 && flooredMet > paceMet
+      ? Math.round(netCaloriesFromMet(flooredMet, weightKg, activeSec) * loadFactor)
+      : Math.round(base * loadFactor);
   // Pace from MOVING time, so pausing at a crossing doesn't make you look slower.
   const pace = distanceM > 0 && walk.activeS > 0 ? walk.activeS / (distanceM / 1000) : null;
   const unit = user?.unitPreference ?? 'metric';
@@ -76,6 +102,7 @@ export function WalkScreen() {
     warnedNoGps.current = false;
     walk.start(initialMode);
   };
+  const gpsOnly = requiresGps(activity);
 
   // Permissions resolve a moment after start (the dialogs and GPS handshake run
   // in the background so the UI isn't blocked). Warn once, when we actually know
@@ -107,7 +134,7 @@ export function WalkScreen() {
   if (summary) {
     // A run is a session too: the margins after it, from its own duration and pace.
     const strain = sessionStrain({
-      sessionType: initialMode === 'run' ? 'cardio' : 'outdoor',
+      sessionType: activity.sessionType,
       flow: 'cardio',
       durationMin: summary.durationS / 60,
       distanceM: summary.distanceM,
@@ -117,7 +144,7 @@ export function WalkScreen() {
       <Screen>
         <View style={{ alignItems: 'center', gap: 6, paddingVertical: theme.spacing.md }}>
           <Icon icon="core.check" size={48} color={theme.colors.accent} />
-          <Text variant="h1">{initialMode === 'run' ? 'Run' : 'Walk'} saved</Text>
+          <Text variant="h1">{activity.label} saved</Text>
         </View>
         {summary.route.length > 1 && (
           <Card>
@@ -133,7 +160,7 @@ export function WalkScreen() {
           <StatTile icon="core.timer" label="Time" value={formatDuration(summary.durationS)} />
           <StatTile icon="nutrition.calories" label="Calories" value={`${summary.calories}`} sub="kcal" accent={theme.colors.calories} />
         </Row>
-        <PostSessionCard endedAt={summary.endedAt} strain={strain} margins={margins} title={`After this ${initialMode === 'run' ? 'run' : 'walk'}`} />
+        <PostSessionCard endedAt={summary.endedAt} strain={strain} margins={margins} title={`After this ${activity.label.toLowerCase()}`} />
         <Button title="Done" onPress={() => navigation.navigate('Main')} />
       </Screen>
     );
@@ -142,9 +169,9 @@ export function WalkScreen() {
   return (
     <Screen>
       <PageHero
-        icon={initialMode === 'run' ? 'cardio.running' : 'cardio.walk'}
+        icon={activity.icon}
         color={theme.colors.outdoor}
-        title={initialMode === 'run' ? 'Run' : 'Walk'}
+        title={activity.label}
         right={
           <Badge
             label={walk.active ? SOURCE_LABEL[walk.source] : hardwareAvailable === false ? 'Accelerometer' : 'Pedometer'}
@@ -269,14 +296,40 @@ export function WalkScreen() {
         minute 0.
       */}
       {!walk.active ? (
-        <WeatherCard plannedActiveMin={initialMode === 'run' ? 40 : 60} />
+        <>
+        <WeatherCard plannedActiveMin={activity.plannedMin} />
+
+        <Card style={{ gap: 8 }}>
+          <Text variant="caption" color="textMuted">{activity.blurb}</Text>
+          {gpsOnly && (
+            <Text variant="caption" color={theme.colors.warning}>
+              Location must be on for this one — a bike has no steps to count, so the route is the distance.
+            </Text>
+          )}
+          {activity.carries && (
+            <Input
+              label="Pack / carried load (kg, optional)"
+              value={packKg}
+              onChangeText={setPackKg}
+              placeholder="0"
+              keyboardType="numeric"
+            />
+          )}
+          {activity.carries && loadKg > 0 && (
+            <Text variant="caption" color="textFaint">
+              {loadKg} kg on your back at {Math.round(weightKg)} kg bodyweight — about{' '}
+              {Math.round((loadFactor - 1) * 100)}% more than carrying nothing.
+            </Text>
+          )}
+        </Card>
+        </>
       ) : (
         <WalkWeatherLine />
       )}
 
       {!walk.active ? (
         <Button
-          title={walk.starting ? 'Starting…' : `Start ${initialMode === 'run' ? 'Run' : 'Walk'}`}
+          title={walk.starting ? 'Starting…' : activity.verb}
           icon="core.start"
           size="lg"
           onPress={start}

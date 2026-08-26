@@ -99,7 +99,8 @@ import { caloriesFromMacros, resolveCalories, parseAmount, isCompleteCustomFood,
 import { SUPPLEMENTS, findSupplement, servingUnits } from '../src/data/supplements';
 import { buildIntakePlan } from '../src/lib/supplementPlan';
 import { projectComposition, compareToActual, explainGap, fatLossFraction, leanGainFraction, type DayInput } from '../src/lib/projection';
-import { distributeSessionCalories, activeSecondsFor, caloriesForReference } from '../src/lib/exerciseCalories';
+import { distributeSessionCalories, activeSecondsFor, caloriesForReference, restMetFor, REST_MET_FLOOR, REST_MET_PEAK, type BurnExercise } from '../src/lib/exerciseCalories';
+import { OUTDOOR_ACTIVITIES, activityFor, activityMet, requiresGps } from '../src/lib/outdoorActivities';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
@@ -456,11 +457,12 @@ check('Fat weight is a first-class metric', compareToActual(cut, [{ date: '2026-
 console.log('\nPer-exercise calories (real MET per movement):');
 // Uniform-MET session reduces exactly to the flat session-type estimate.
 const uniform = distributeSessionCalories({ durationS: 3600, weightKg: 80, fallbackMet: 5, exercises: [ { met: 5, trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] }, { met: 5, trackingType: 'reps_weight', sets: [{ reps: 10, completed: true }] } ] });
-check('Uniform MET reduces to the flat session estimate (net)', uniform.total === netCaloriesFromMet(5, 80, 3600), `${uniform.total} vs ${netCaloriesFromMet(5, 80, 3600)}`);
+check('Rest is no longer valued at the exercise MET — the old flat estimate is nearly 3× too high', uniform.total < netCaloriesFromMet(5, 80, 3600) / 2, `${uniform.total} vs the old ${netCaloriesFromMet(5, 80, 3600)}`);
+check('…and the work itself is still valued at its own MET', uniform.perExercise[0] === netCaloriesFromMet(5, 80, 30) && uniform.workSeconds === 60);
 // Mixed session: the higher-MET movement earns a larger share for equal work.
 const mixed = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 6, exercises: [ { met: 11, trackingType: 'duration', sets: [{ durationS: 600, completed: true }] }, { met: 3, trackingType: 'duration', sets: [{ durationS: 600, completed: true }] } ] });
 check('Higher-MET movement earns a bigger share', mixed.perExercise[0] > mixed.perExercise[1] * 3, `${mixed.perExercise[0]} vs ${mixed.perExercise[1]}`);
-check('Per-exercise shares sum to the session total', Math.abs(mixed.perExercise[0] + mixed.perExercise[1] - mixed.total) < 1);
+check('Work shares plus the rest add up to the session total', Math.abs(mixed.perExercise[0] + mixed.perExercise[1] + mixed.restCalories - mixed.total) < 1);
 check('Jump rope really does burn more than stretching', mixed.perExercise[0] > 120);
 // No set-level timing (a past session) still splits evenly by MET.
 const past = distributeSessionCalories({ durationS: 1800, weightKg: 80, fallbackMet: 6, exercises: [ { met: 10, trackingType: 'duration', sets: [] }, { met: 4, trackingType: 'duration', sets: [] } ] });
@@ -2765,6 +2767,72 @@ console.log('\nSeeing what is in a routine or a past session, without starting o
   const repoPeek = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
   check('sessionExercisePeek returns the order plus what was logged', /export function sessionExercisePeek/.test(repoPeek) && /orderBy\(exerciseLogs\.orderIndex\)/.test(repoPeek) && /\$\{done\.length\} set/.test(repoPeek));
   check('The list icon resolves', !!(ICONS as Record<string, Record<string, unknown>>).core?.list);
+}
+
+console.log('\nRest between sets — paid at its own rate, not the exercise\'s:');
+{
+  const set10 = { reps: 10, completed: true };
+  const lift = { met: 6, trackingType: 'reps_weight' as const, sets: [set10, set10, set10, set10] };
+  const run = (durationS: number, ex: BurnExercise[]) => distributeSessionCalories({ durationS, weightKg: 80, fallbackMet: 5, exercises: ex });
+  // ── The recovery curve ──
+  check('Rest sits above standing but far below the lift — the post-set oxygen tail', restMetFor(90) > 2 && restMetFor(90) < 4);
+  check('Shorter rests keep you more elevated per minute than long ones', restMetFor(45) > restMetFor(120) && restMetFor(120) > restMetFor(300));
+  check('A very long rest settles toward standing', restMetFor(600) < 2.4 && restMetFor(600) > 2);
+  check('The curve is bounded by its floor and peak', restMetFor(1) <= REST_MET_PEAK && restMetFor(100000) >= REST_MET_FLOOR);
+  // ── A real session ──
+  const push = run(3600, [lift, lift, lift, lift, lift]); // 20 sets, ~10 min under load
+  check('A 60-min push day separates 10 min of work from 50 min of rest', push.workSeconds === 600 && push.restSeconds === 3000);
+  check('…and comes out near 200 kcal, not the 400+ the old model claimed', push.total > 150 && push.total < 280, `${push.total}`);
+  check('…with the rest counted, not discarded — it is most of the session', push.restCalories > 0 && push.restCalories > push.total * 0.4);
+  check('The rest MET matches the average rest period, not a flat guess', Math.abs(push.restMet - restMetFor(3000 / 20)) < 0.01);
+  // ── Continuous work is untouched ──
+  const cardio = run(1800, [{ met: 8, trackingType: 'duration' as const, sets: [{ durationS: 1740, completed: true }] }]);
+  check('Continuous cardio barely changes — there is almost no rest to separate', cardio.restSeconds === 60 && Math.abs(cardio.total - netCaloriesFromMet(8, 80, 1740)) < 8, `${cardio.total}`);
+  const circuit = run(1200, [{ met: 8, trackingType: 'duration' as const, sets: Array(8).fill({ durationS: 120, completed: true }) }]);
+  check('A circuit keeps most of its value — short rests, high recovery MET', circuit.restMet > 3.5 && circuit.total > netCaloriesFromMet(8, 80, 960) * 0.9);
+  // ── Edges ──
+  check('More work logged than the clock allows is scaled down, never invented', run(600, [lift, lift, lift]).workSeconds <= 600);
+  check('A past session with no set timing still splits by MET, with no rest to find', run(1800, [{ met: 10, trackingType: 'duration' as const, sets: [] }]).restSeconds === 0);
+  check('Zero duration is zero, not a divide by zero', run(0, [lift]).total === 0);
+  const repoRest = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('The session breakdown carries the work / rest split for the UI', /restCalories: dist\.restCalories/.test(repoRest) && /restSeconds: dist\.restSeconds/.test(repoRest));
+}
+
+console.log('\nRunning order — top to bottom, and it stays where you put it:');
+{
+  const repoOrd = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('Swapping an exercise keeps its slot in the order', /export function replaceExerciseLog/.test(repoOrd) && /return addExerciseToSession\(sessionId, newExerciseId, slot\);/.test(repoOrd));
+  check('…and the store uses it instead of remove-then-append', /const newLogId = replaceExerciseLog\(logId, newExerciseId\);/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
+  check('An exercise you have started cannot be moved — its place is history', /if \(completedSetsOf\(logId\) > 0\) return false;/.test(repoOrd) && /export function completedSetsOf/.test(repoOrd));
+  check('addExerciseToSession can place a row at an explicit slot', /orderIndex\?: number\)/.test(repoOrd) && /orderIndex: orderIndex \?\? count/.test(repoOrd));
+  const actOrd = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The card knows its place in the order and shows it', /position=\{i \+ 1\}/.test(actOrd) && /\{position\}\/\{total\}/.test(actOrd));
+  check('"Up next" is the first exercise with nothing logged yet', /const upNextIndex = detail\.findIndex\(\(x\) => !x\.sets\.some\(\(s\) => s\.completed\)\)/.test(actOrd) && /label="Up next"/.test(actOrd));
+  check('Move controls are off once an exercise is started, and it says why', /canMoveUp=\{i > 0 && !started\}/.test(actOrd) && /its place in the running order is fixed now/.test(actOrd));
+}
+
+console.log('\nOutdoor ground activities launch like a walk:');
+{
+  const walk = activityFor('walk');
+  const hike = activityFor('hike');
+  const ruck = activityFor('ruck');
+  const ride = activityFor('cycle');
+  check('Seven ground activities, walk and run among them', OUTDOOR_ACTIVITIES.length >= 7 && !!activityFor('trail-run') && !!activityFor('stairs'));
+  check('An unknown key falls back to walk rather than breaking the screen', activityFor('nonsense').key === 'walk' && activityFor(null).key === 'walk');
+  check('Gait decides how steps become distance; a ride has none', walk.gait === 'walk' && activityFor('run').gait === 'run' && hike.gait === 'walk' && ride.gait === 'none' && requiresGps(ride) && !requiresGps(hike));
+  check('A hike at walking pace costs more than a walk at walking pace', activityMet(hike, 3.5) === 6 && activityMet(walk, 3.5) === 3.5);
+  check('…but a fast pace still wins over the floor', activityMet(hike, 9) === 9);
+  check('Rucking and stairs cost more again, and both ask for the load', ruck.metFloor > hike.metFloor - 0.5 && ruck.carries && activityFor('stairs').carries && activityFor('stairs').metFloor >= 8);
+  check('A trail run is floored above a road run', activityFor('trail-run').metFloor >= 9);
+  check('Each is recorded as the right session type', hike.sessionType === 'outdoor' && activityFor('run').sessionType === 'cardio');
+  check('Every activity has a verb, an icon and a blurb', OUTDOOR_ACTIVITIES.every((a) => a.verb.length > 3 && a.icon.includes('.') && a.blurb.length > 20));
+  check('Every activity icon resolves', OUTDOOR_ACTIVITIES.every((a) => { const [g, n] = a.icon.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; }));
+  const walkSrcO = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
+  check('The tracker screen takes an activity and keeps working from a plain mode', /activityFor\(route\.params\?\.activity \?\? route\.params\?\.mode \?\? 'walk'\)/.test(walkSrcO));
+  check('…floors the pace MET by activity and scales by the carried pack', /activityMet\(activity, paceMet\)/.test(walkSrcO) && /loadCalorieFactor\(profileFor\(\{ slug: 'rucking' \}\), weightKg, loadKg\)/.test(walkSrcO));
+  check('…asks for the pack only where it makes sense, and warns when GPS is the only source', /activity\.carries && \(/.test(walkSrcO) && /gpsOnly && \(/.test(walkSrcO));
+  check('…and labels everything by the activity, not "walk"', /title=\{activity\.label\}/.test(walkSrcO) && /: activity\.verb\}/.test(walkSrcO) && /sessionType: activity\.sessionType/.test(walkSrcO));
+  check('Train offers every ground activity one tap away', /OUTDOOR_ACTIVITIES\.filter\(\(a\) => a\.key !== 'walk' && a\.key !== 'run'\)/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

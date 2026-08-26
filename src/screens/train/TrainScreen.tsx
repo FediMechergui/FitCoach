@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Pressable, Alert } from 'react-native';
+import { View, Pressable, Alert, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -15,6 +15,7 @@ import { sessionTypeIcon } from '@/constants/icon-map';
 import { useSessionStore } from '@/stores/sessionStore';
 import { listSessions, sessionExercisePeek, type SessionExercisePeek } from '@/repositories/sessionRepo';
 import { ExercisePeek } from '@/components/ExercisePeek';
+import { OUTDOOR_ACTIVITIES } from '@/lib/outdoorActivities';
 import { deleteRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
@@ -173,7 +174,7 @@ export function TrainScreen() {
           title="Walk"
           icon="cardio.walk"
           variant="secondary"
-          onPress={() => navigation.navigate('Walk', { mode: 'walk' })}
+          onPress={() => navigation.navigate('Walk', { activity: 'walk' })}
           fullWidth={false}
           style={{ flex: 1 }}
         />
@@ -181,11 +182,30 @@ export function TrainScreen() {
           title="Run"
           icon="cardio.running"
           variant="secondary"
-          onPress={() => navigation.navigate('Walk', { mode: 'run' })}
+          onPress={() => navigation.navigate('Walk', { activity: 'run' })}
           fullWidth={false}
           style={{ flex: 1 }}
         />
       </Row>
+
+      {/*
+        Everything else done on the ground launches exactly the way a walk does
+        — one tap into the live tracker with steps, route, pace and a recap,
+        rather than the generic session screen with GPS you had to remember.
+      */}
+      <View style={{ gap: 6 }}>
+        <Text variant="label" color="textMuted">Track outdoors</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+          {OUTDOOR_ACTIVITIES.filter((a) => a.key !== 'walk' && a.key !== 'run').map((a) => (
+            <Pressable key={a.key} onPress={() => navigation.navigate('Walk', { activity: a.key })}>
+              <Card accent={theme.colors.outdoor} style={{ paddingVertical: 10, paddingHorizontal: 14, minWidth: 104 }}>
+                <Icon icon={a.icon} size={20} color={theme.colors.outdoor} />
+                <Text variant="bodyStrong" style={{ marginTop: 6 }}>{a.label}</Text>
+              </Card>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Saved custom routines */}
       {routines.length > 0 && (

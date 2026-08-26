@@ -63,7 +63,7 @@ export const MICRO_DEFS: MicroDef[] = [
   { key: 'manganese_mg', label: 'Manganese', unit: 'mg', group: 'mineral', rdi: { m: 2.3, f: 1.8 }, upper: 11 },
   { key: 'selenium_ug', label: 'Selenium', unit: 'µg', group: 'mineral', rdi: { m: 55, f: 55 }, upper: 400 },
   // Added for the GSN multivitamin; the EU NRV is 40 µg, no upper established.
-  { key: 'chromium_ug', label: 'Chromium', unit: 'µg', group: 'mineral', rdi: { m: 40, f: 40 } },
+  { key: 'chromium_ug', label: 'Chromium', unit: 'µg', group: 'mineral', rdi: { m: 35, f: 25 } },
   { key: 'iodine_ug', label: 'Iodine', unit: 'µg', group: 'mineral', rdi: { m: 150, f: 150 }, upper: 1100 },
   { key: 'omega3_mg', label: 'Omega-3 (ALA)', unit: 'mg', group: 'other', rdi: { m: 1600, f: 1100 } },
 ];

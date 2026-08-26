@@ -196,7 +196,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     structure: 'Pick 1–3 techniques · high-rep reps each side · slow, then progressive resistance.',
     progressBy: 'reps', progressNote: 'Progress = the technique working against increasing resistance.',
     typicalMinutes: 30,
-    prefillSlugs: ['ma-combination-drill', 'ma-footwork-drill', 'ma-defense-drill', 'ma-takedown-entries', 'ma-sprawl-drill'],
+    prefillSlugs: ['ma-combination-drill', 'ma-footwork-drill', 'ma-defense-drill', 'ma-takedown-entries', 'sprawl-drill'],
   },
   {
     key: 'ma-sparring', sessionType: 'martial_arts', label: 'Sparring', icon: 'martial.spar',
@@ -456,7 +456,7 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     blurb: 'The space between striking and the ground — control, off-balancing, entries.',
     structure: '6–10 rounds × 3 min: neck control, inside position, entries, sprawls.',
     progressBy: 'rounds', progressNote: 'Progress = winning inside position more often, and finishing entries against resistance.',
-    typicalMinutes: 40, prefillSlugs: ['ma-clinch-work', 'ma-takedown-entries', 'ma-sprawl-drill'],
+    typicalMinutes: 40, prefillSlugs: ['ma-clinch-work', 'ma-takedown-entries', 'sprawl-drill'],
   },
   {
     key: 'ma-positional', sessionType: 'martial_arts', label: 'Positional Sparring', icon: 'martial.spar',

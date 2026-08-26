@@ -35,6 +35,13 @@ export interface SeedExercise {
   trackingType: TrackingType;
   icon: string;
   met?: number;
+  /**
+   * This entry is the same movement as `aliasOf` under an older/newer slug.
+   * Both rows stay in the database forever (logs point at them), but the
+   * library browser lists only the primary, and prefills reference only the
+   * primary — so history stops splitting across two ids from here on.
+   */
+  aliasOf?: string;
 }
 
 /** Human labels for sub-muscles (v2 reference: every muscle individually). */
@@ -183,7 +190,7 @@ export const PATTERN_CUES: Record<MovementPattern, string[]> = {
 
 // Compact builder to keep this large table readable.
 type Opts = Partial<
-  Pick<SeedExercise, 'equipment' | 'description' | 'instructions' | 'trackingType' | 'met' | 'sessionType' | 'subMuscle'>
+  Pick<SeedExercise, 'equipment' | 'description' | 'instructions' | 'trackingType' | 'met' | 'sessionType' | 'subMuscle' | 'aliasOf'>
 >;
 function S(
   slug: string,
@@ -212,6 +219,7 @@ function S(
     trackingType: opts.trackingType ?? 'reps_weight',
     icon,
     met: opts.met ?? (isBodyweight ? 6 : 5),
+    aliasOf: opts.aliasOf,
   };
 }
 
@@ -332,16 +340,22 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   }),
   S('push-up-diamond', 'Diamond Push-Up', 'triceps', 'bodyweight', 'horizontal_push', ['triceps', 'chest'], BW, {
     trackingType: 'reps_only', met: 5, description: 'Hands together under the chest — triceps focused.',
+    subMuscle: 'triceps_long', aliasOf: 'diamond-push-up',
   }),
   S('push-up-incline', 'Incline Push-Up', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'triceps'], BW, {
     trackingType: 'reps_only', met: 3.5,
     description: 'Hands elevated on a bench — the easiest push-up. Start here if a full push-up is too hard.',
+    // Hands up = torso inclined = the force line runs through the LOWER chest.
+    // (It is the incline BENCH that hits the upper chest — the push-up flips.)
+    subMuscle: 'lower_chest', aliasOf: 'incline-pushup',
   }),
   S('push-up-decline', 'Decline Push-Up', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'shoulders'], BW, {
     trackingType: 'reps_only', met: 5, description: 'Feet elevated — harder, upper-chest bias.',
+    aliasOf: 'decline-push-up',
   }),
   S('push-up-archer', 'Archer Push-Up', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'triceps'], BW, {
     trackingType: 'reps_only', met: 6, description: 'Shifting onto one arm — a step toward the one-arm push-up.',
+    aliasOf: 'archer-push-up',
   }),
   S('ring-push-up', 'Ring Push-Up', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'core', 'shoulders'], BW, {
     trackingType: 'reps_only', met: 5, description: 'Unstable rings — huge stabilizer demand.',
@@ -1126,7 +1140,7 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
 
   // ══════════════════════════ GLUTES (v2 additions) ══════════════════════════
   S('barbell-glute-bridge', 'Barbell Glute Bridge', 'glutes', 'barbell', 'hinge', ['glutes'], BB),
-  S('cable-glute-kickback', 'Cable Kickback', 'glutes', 'cable', 'hinge', ['glutes'], CB, { met: 4 }),
+  S('cable-glute-kickback', 'Cable Glute Kickback', 'glutes', 'cable', 'hinge', ['glutes'], CB, { met: 4 }),
   S('hip-abduction-machine', 'Hip Abduction Machine', 'glutes', 'machine', 'hinge', ['glutes'], MC, {
     met: 4, description: 'Targets the side glutes (medius) — hip stability and shape.',
   }),
@@ -1405,7 +1419,7 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'ma-knee-elbow-drill', name: 'Knee & Elbow Drill', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['core', 'legs'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 8.5, description: 'Muay Thai short weapons — from range and from the clinch.' },
   { slug: 'ma-clinch-work', name: 'Clinch Work', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['traps', 'core', 'forearms'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.clinch', met: 9, description: 'Neck control, inside position, off-balancing and knees from the plum.' },
   { slug: 'ma-takedown-entries', name: 'Takedown Entries', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['legs', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 9, description: 'Level change, penetration step and finish — doubles, singles and body locks.' },
-  { slug: 'ma-sprawl-drill', name: 'Sprawl Drill', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['core', 'legs'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'reps_only', icon: 'martial.defense', met: 9, description: 'Hips down and back to defend the shot, then back to stance. Counted as reps.' },
+  { slug: 'ma-sprawl-drill', name: 'Sprawl Drill', aliasOf: 'sprawl-drill', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['core', 'legs'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'reps_only', icon: 'martial.defense', met: 9, description: 'Hips down and back to defend the shot, then back to stance. Counted as reps.' },
   { slug: 'ma-shrimping', name: 'Shrimping / Hip Escapes', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['core', 'obliques'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 6.5, description: 'The single most important movement in ground fighting — creating space from under someone.' },
   { slug: 'ma-bridging', name: 'Bridging & Rolls', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['glutes', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 6.5 },
   { slug: 'ma-guard-passing', name: 'Guard Passing Drill', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['core', 'legs'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.grapple', met: 8.5 },
@@ -1418,7 +1432,7 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'ma-forms-kata', name: 'Forms / Kata / Poomsae', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.forms', met: 5.5, description: 'Prearranged sequences run for precision, power and breath control.' },
   { slug: 'ma-mitt-work', name: 'Focus Mitt Work', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.gloves', met: 9, description: 'Coach-led mitt rounds — the closest thing to fighting that is still a drill.' },
   { slug: 'ma-double-end-bag', name: 'Double-End Bag', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['shoulders', 'core'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.bag', met: 7.5, description: 'Timing and accuracy against a moving target.' },
-  { slug: 'ma-speed-bag', name: 'Speed Bag', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['shoulders'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.bag', met: 6, description: 'Rhythm and shoulder endurance.' },
+  { slug: 'ma-speed-bag', name: 'Speed Bag', aliasOf: 'speed-bag', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['shoulders'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.bag', met: 6, description: 'Rhythm and shoulder endurance.' },
   { slug: 'ma-neck-conditioning', name: 'Neck Conditioning', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['neck', 'traps'], primaryMuscle: 'cardio', pattern: 'core', trackingType: 'duration', icon: 'martial.grapple', met: 4, description: 'Bridges and isometric holds. Build slowly — the neck is not a muscle to rush.', instructions: ['Start with isometric holds against your own hand before any bridging.', 'Never load a bridge with weight until months of bodyweight work.'] },
   { slug: 'ma-fight-conditioning', name: 'Fight Conditioning Circuit', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'cardiovascular'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.spar', met: 10, description: 'Rounds of burpees, sprawls, knees, sprints and carries at fight tempo.' },
   { slug: 'ma-weapon-forms', name: 'Weapon Forms (kobudo / kali / kendo)', category: 'martial arts', sessionType: 'martial_arts', muscleGroups: ['full body', 'forearms'], primaryMuscle: 'cardio', pattern: 'cardio', trackingType: 'duration', icon: 'martial.weapon', met: 6 },
@@ -1627,7 +1641,7 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
   { slug: 'sword-swing-drill', name: 'Sword Cuts (Suburi)', category: 'heritage', sessionType: 'martial_arts', muscleGroups: ['shoulders', 'core', 'forearms'], primaryMuscle: 'shoulders', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 5, description: 'Repeated overhead cuts with a bokken or weighted stick — the samurai’s endless suburi.' },
   { slug: 'spear-thrust-drill', name: 'Spear / Pole Drill', category: 'heritage', sessionType: 'martial_arts', muscleGroups: ['shoulders', 'core', 'legs'], primaryMuscle: 'core', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 5.5, description: 'Thrusts and recovery with a spear, pilum or staff — reach, footwork and grip.' },
   { slug: 'club-swing-drill', name: 'War-Club / Mace Swings', category: 'heritage', sessionType: 'martial_arts', muscleGroups: ['shoulders', 'back', 'core'], primaryMuscle: 'shoulders', pattern: 'cardio', trackingType: 'duration', icon: 'martial.strike', met: 6, description: 'Weighted swings and figure-eights — shoulder durability the way maces and macuahuitls built it.' },
-  { slug: 'incline-pushup', name: 'Incline Push-Up', category: 'tactical', sessionType: 'calisthenics', muscleGroups: ['chest', 'triceps'], primaryMuscle: 'chest', pattern: 'horizontal_push', trackingType: 'reps_only', icon: 'strength.push', met: 4, description: 'Hands on a desk, chair or wall — the scalable push-up for the office or a fresh start.' },
+  { slug: 'incline-pushup', name: 'Incline Push-Up', category: 'tactical', sessionType: 'calisthenics', muscleGroups: ['chest', 'triceps'], primaryMuscle: 'chest', subMuscle: 'lower_chest', pattern: 'horizontal_push', trackingType: 'reps_only', icon: 'strength.push', met: 4, description: 'Hands on a desk, chair or wall — the scalable push-up for the office or a fresh start.' },
   { slug: 'chair-dip', name: 'Chair / Bench Dip', category: 'tactical', sessionType: 'calisthenics', muscleGroups: ['triceps', 'chest'], primaryMuscle: 'triceps', pattern: 'horizontal_push', trackingType: 'reps_only', icon: 'strength.calisthenics', met: 4, description: 'Triceps from a chair edge — no equipment, works anywhere.' },
   { slug: 'desk-mobility-flow', name: 'Deskside Mobility Flow', category: 'tactical', sessionType: 'mindbody', muscleGroups: ['full body'], primaryMuscle: 'mobility', pattern: 'mobility', trackingType: 'duration', icon: 'mindbody.stretch', met: 2.3, description: 'A standing reset for hips, spine and shoulders you can run beside a desk in a few minutes.' },
   { slug: 'step-ups', name: 'Step-Ups', category: 'tactical', sessionType: 'calisthenics', muscleGroups: ['quads', 'glutes'], primaryMuscle: 'quads', pattern: 'squat', trackingType: 'reps_only', icon: 'cardio.treadmill', met: 6, description: 'Onto a chair, box or bench — single-leg strength anywhere, loaded or not.' },
@@ -1825,7 +1839,7 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
     subMuscle: 'triceps_lateral', met: 3.5,
     description: 'Underhand single- or double-hand pushdown. Often reported to bias the inner triceps; keep the load light because the grip gives out first.',
   }),
-  S('cable-kickback', 'Cable Kickback', 'triceps', 'cable', 'triceps_extension', ['triceps'], CB, {
+  S('cable-kickback', 'Cable Triceps Kickback', 'triceps', 'cable', 'triceps_extension', ['triceps'], CB, {
     subMuscle: 'triceps_lateral', met: 3,
     description: 'The dumbbell kickback with constant tension — the cable keeps loading the lockout, which is exactly where the dumbbell version goes weightless.',
   }),
@@ -1913,6 +1927,14 @@ export const MUSCLE_LABELS: Record<string, string> = {
   quads: 'Quads', hamstrings: 'Hamstrings', glutes: 'Glutes', calves: 'Calves',
   core: 'Core / Abs', forearms: 'Forearms', neck: 'Neck', cardio: 'Cardio', mobility: 'Mobility', mind: 'Mind',
 };
+
+/**
+ * Slugs that are duplicates of another entry — hidden from the library browser
+ * (the primary shows instead) but kept seeded so every old log still resolves.
+ */
+export const ALIAS_SLUGS: ReadonlySet<string> = new Set(
+  EXERCISE_LIBRARY.filter((e) => e.aliasOf).map((e) => e.slug)
+);
 
 export const EQUIPMENT_LABELS: Record<string, string> = {
   barbell: 'Barbell', dumbbell: 'Dumbbell', machine: 'Machine', cable: 'Cable',

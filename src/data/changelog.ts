@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.51',
+    date: '2026-08-26',
+    title: 'The audit — every screen swept for wrong facts, twins and cracks',
+    highlights: [
+      'A full pass over the application for inaccuracies and inconsistencies. Six exercises existed twice under different ids — Diamond, Incline, Decline and Archer Push-Up, Sprawl Drill and Speed Bag — so the library showed doubles and your history could split across two names of the same movement. Each duplicate is now an alias of its primary: old logs keep every rep, the browser lists one, and prefilled sessions all point at the primary.',
+      'Two genuinely different exercises shared the name "Cable Kickback" — one for glutes, one for triceps. They are now "Cable Glute Kickback" and "Cable Triceps Kickback", so a search result can no longer send your set to the wrong muscle.',
+      'The incline push-up was labelled upper chest. Hands elevated tilts the pressing line DOWN the chest — it\'s the incline bench that hits upper — so both incline entries now read lower chest, and the diamond twins agree on the triceps long head.',
+      'Five foods showed twice in every search — rice, almonds, avocado, olive oil, dried apricot — because a generic entry sat next to its richer twin. The pickers now offer one; the generic stays in the catalogue so nothing you ever logged changes. Honey and olive oil\'s teaspoon and tablespoon entries now say which is which in the name.',
+      'Chromium\'s daily value was 40 µg for everyone; the NIH adequate intake is 35 µg for men and 25 µg for women, and the micronutrient bars now score against that.',
+      'A malformed symptoms row could crash the cycle history list — it is now read defensively and shows 0 instead of a white screen. And the session calorie note now states the rest share explicitly, so the per-exercise numbers visibly add up to the total.',
+      'Dependency audit: the flagged npm vulnerabilities all live in build-time Expo tooling on the development machine, not in the app you install — nothing shipped changes, and the pins that keep OTA updates compatible stay put.',
+      '1193 checks in all, up from 1173 — the audit findings are now locked in.',
+    ],
+  },
+  {
     version: '2.50',
     date: '2026-08-21',
     title: 'Why your walks read slow — a 506 m walk was recording zero',

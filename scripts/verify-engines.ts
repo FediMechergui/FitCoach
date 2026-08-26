@@ -102,6 +102,8 @@ import { projectComposition, compareToActual, explainGap, fatLossFraction, leanG
 import { distributeSessionCalories, activeSecondsFor, caloriesForReference, restMetFor, REST_MET_FLOOR, REST_MET_PEAK, type BurnExercise } from '../src/lib/exerciseCalories';
 import { OUTDOOR_ACTIVITIES, activityFor, activityMet, requiresGps } from '../src/lib/outdoorActivities';
 import { strideFactorFor } from '../src/lib/pedometer';
+import { ALIAS_SLUGS } from '../src/data/exercises';
+import { SEARCH_FOOD_DB } from '../src/data/foods';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
@@ -2879,6 +2881,72 @@ console.log('\nMicros and supplements follow the diary date, like food:');
   check('The screen has a date navigator and says when it is not today', /setDate\(addDays\(date, -1\)\)/.test(suppScr) && /Logging for \{dayLabel\}/.test(suppScr));
   check('…and the pill counts read the day being shown', /unitsTakenToday\(s\.key, date\)/.test(suppScr) && /dayLabel=\{isToday \? 'today' : dayLabel\}/.test(suppScr));
   check('Micronutrients already followed the shared date', /useNutritionStore\(\(s\) => s\.date\)/.test(fs.readFileSync('src/screens/nutrition/MicronutrientsScreen.tsx', 'utf8')));
+}
+
+console.log('\nThe audit — duplicate movements, wrong labels, wrong numbers:');
+{
+  const bySlug = new Map(EXERCISE_LIBRARY.map((e) => [e.slug, e]));
+  // Every alias points at a real primary that is itself not an alias,
+  // and the pair really is the same movement.
+  const aliases = EXERCISE_LIBRARY.filter((e) => e.aliasOf);
+  check('Six duplicate exercises are marked as aliases of their primary', aliases.length === 6 && ALIAS_SLUGS.size === 6);
+  check('Every alias points at a real, non-alias primary', aliases.every((e) => {
+    const prim = bySlug.get(e.aliasOf!);
+    return !!prim && !prim.aliasOf && prim.slug !== e.slug;
+  }));
+  // (The old martial entries filed everything under 'cardio'; the primary names
+  // the real muscle. Patterns must always agree.)
+  check('An alias and its primary agree on muscle and movement pattern', aliases.every((e) => {
+    const prim = bySlug.get(e.aliasOf!)!;
+    const muscleOk = prim.primaryMuscle === e.primaryMuscle || e.primaryMuscle === 'cardio' || prim.primaryMuscle === 'cardio';
+    return muscleOk && prim.pattern === e.pattern;
+  }));
+  check('…and on how they load the body, so calories cannot diverge', aliases.every((e) => {
+    const a = profileFor({ slug: e.slug }); const b = profileFor({ slug: e.aliasOf! });
+    return a.bwFraction === b.bwFraction && a.loadMode === b.loadMode;
+  }));
+  // The library browser and the prefills only ever offer the primary.
+  check('The exercise library hides the aliases from browsing', /filter\(\(e\) => !ALIAS_SLUGS\.has\(e\.slug \?\? ''\)\)/.test(fs.readFileSync('src/screens/train/ExerciseLibraryScreen.tsx', 'utf8')));
+  const prefillSources = ['src/data/trainingMethods.ts', 'src/data/programs.ts', 'src/data/specialPrograms.ts', 'src/data/splits.ts'].map((f) => fs.readFileSync(f, 'utf8')).join('');
+  check('No prefilled session references an alias slug', [...ALIAS_SLUGS].every((slug) => !prefillSources.includes(`'${slug}'`)));
+  // With aliases hidden and the two kickbacks renamed, every visible name is unique.
+  const visible = EXERCISE_LIBRARY.filter((e) => !e.aliasOf);
+  const nameCounts = new Map<string, number>();
+  for (const e of visible) nameCounts.set(e.name, (nameCounts.get(e.name) ?? 0) + 1);
+  const dupNames = [...nameCounts.entries()].filter(([, n]) => n > 1).map(([n]) => n);
+  check('No two browsable exercises share a name', dupNames.length === 0, dupNames.slice(0, 4).join(', '));
+  check('The glute and triceps cable kickbacks say which is which', bySlug.get('cable-glute-kickback')!.name === 'Cable Glute Kickback' && bySlug.get('cable-kickback')!.name === 'Cable Triceps Kickback');
+  // The mis-tagged heads. Hands UP inclines the torso toward the LOWER chest —
+  // it is the incline bench that flips it to upper.
+  check('Incline push-ups target the lower chest, both twins', bySlug.get('incline-pushup')!.subMuscle === 'lower_chest' && bySlug.get('push-up-incline')!.subMuscle === 'lower_chest' && subMuscleOf(bySlug.get('incline-pushup')!) === 'lower_chest');
+  check('Diamond push-ups agree on the long head, both twins', bySlug.get('diamond-push-up')!.subMuscle === subMuscleOf(bySlug.get('push-up-diamond')!) && subMuscleOf(bySlug.get('push-up-diamond')!) === 'triceps_long');
+  check('The decline push-up twins are one movement', bySlug.get('decline-push-up')!.pattern === bySlug.get('push-up-decline')!.pattern);
+}
+
+console.log('\nThe audit — foods that showed twice, and one wrong daily value:');
+{
+  const hidden = ['white-rice', 'almonds', 'avocado', 'olive-oil', 'dried-apricot'];
+  const searchIds = new Set(SEARCH_FOOD_DB.map((f) => f.id));
+  check('The five generic twins stay in the catalogue for old logs', hidden.every((id) => FOOD_DB.some((f) => f.id === id)));
+  check('…but the pickers no longer offer them next to their richer twin', hidden.every((id) => !searchIds.has(id)) && SEARCH_FOOD_DB.length === FOOD_DB.length - hidden.length);
+  check('…and each hidden twin has a visible stand-in', ['tn-rice-white', 'tn-almonds', 'tn-avocado', 'tn-olive-oil-tbsp', 'df-dried-apricot'].every((id) => searchIds.has(id)));
+  check('Both food pickers search the visible list', /SEARCH_FOOD_DB/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')) && /composableFoods\(SEARCH_FOOD_DB, selfId\)/.test(fs.readFileSync('src/screens/nutrition/ComposeFoodScreen.tsx', 'utf8')));
+  // The teaspoon and the tablespoon no longer share one name.
+  const nameServing = new Map<string, number>();
+  for (const f of SEARCH_FOOD_DB) { const k = `${f.name}|${f.serving}`; nameServing.set(k, (nameServing.get(k) ?? 0) + 1); }
+  const dupFood = [...nameServing.entries()].filter(([, n]) => n > 1).map(([k]) => k);
+  check('No two searchable foods share both a name and a serving', dupFood.length === 0, dupFood.slice(0, 3).join(' / '));
+  check('Honey and olive oil say teaspoon or tablespoon in the name', FOOD_DB.find((f) => f.id === 'tn-honey-tsp')!.name === 'Honey (teaspoon)' && FOOD_DB.find((f) => f.id === 'tn-olive-oil-tbsp')!.name === 'Olive Oil (tablespoon)');
+  // Chromium: NIH adequate intake is 35 µg for men, 25 for women — not 40 flat.
+  check('Chromium daily value follows the NIH adequate intake', percentRdi(35, 'chromium_ug', 'male') === 100 && percentRdi(25, 'chromium_ug', 'female') === 100 && percentRdi(35, 'chromium_ug', 'female') > 100);
+}
+
+console.log('\nThe audit — a crash vector and a total that did not visibly add up:');
+{
+  const cycle = fs.readFileSync('src/screens/health/CycleScreen.tsx', 'utf8');
+  check('Cycle history survives a malformed symptoms row', /function safeSymptomCount\(json: string\): number/.test(cycle) && /catch \{\s*return 0;/.test(cycle) && !/\$\{\(JSON\.parse\(p\.symptoms\)/.test(cycle));
+  const detail = fs.readFileSync('src/screens/train/SessionDetailScreen.tsx', 'utf8');
+  check('The session detail shows the rest share, so the parts sum to the total', /restCalories > 0/.test(detail) && /min of rest between sets/.test(detail));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

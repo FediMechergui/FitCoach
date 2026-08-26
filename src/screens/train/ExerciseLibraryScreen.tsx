@@ -28,7 +28,7 @@ import { caloriesForReference } from '@/lib/exerciseCalories';
 import { SESSION_TYPE_MET } from '@/lib/met';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { Chip } from '@/components/ui/Chip';
-import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
+import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS, ALIAS_SLUGS } from '@/data/exercises';
 import { subMuscleOf, subMusclesFor } from '@/lib/subMuscle';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -85,7 +85,10 @@ export function ExerciseLibraryScreen() {
         muscle: muscle === 'all' ? undefined : muscle,
         equipmentType: equip === 'all' ? undefined : equip,
         search,
-      }),
+        // Duplicate slugs of the same movement stay seeded for old logs but
+        // only the primary is offered — otherwise "Diamond Push-Up" shows
+        // twice and history splits across two ids.
+      }).filter((e) => !ALIAS_SLUGS.has(e.slug ?? '')),
     [type, muscle, equip, search, refresh]
   );
 

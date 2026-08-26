@@ -16,6 +16,16 @@ import { useCycleStore } from '@/stores/cycleStore';
 import { PHASE_GUIDANCE, CYCLE_SYMPTOMS, computeCycle } from '@/lib/cycle';
 import { todayISO, toISODate } from '@/lib/date';
 
+/** Symptom count from the stored JSON — bad data must not crash the history list. */
+function safeSymptomCount(json: string): number {
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function CycleScreen() {
   const enabled = useCycleStore((s) => s.enabled);
   const load = useCycleStore((s) => s.load);
@@ -159,7 +169,7 @@ function CycleDashboard() {
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Text variant="body">{p.startDate}</Text>
                   <Text variant="caption" color="textMuted">
-                    {p.flow ?? ''}{p.symptoms ? ` · ${(JSON.parse(p.symptoms) as string[]).length} symptoms` : ''}
+                    {p.flow ?? ''}{p.symptoms ? ` · ${safeSymptomCount(p.symptoms)} symptoms` : ''}
                   </Text>
                 </Row>
               </View>

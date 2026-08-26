@@ -70,10 +70,10 @@ export const TUNISIAN_FOODS: FoodItem[] = [
   F('tn-assidat-zgougou', 'Assidat Zgougou', '150 g cup', 200, 5, 25, 9, 2, 'Tunisian sweet'),
 
   // ── Honey & olive oil ─────────────────────────────────────────────────────
-  F('tn-honey-tsp', 'Honey', '1 tsp (7 g)', 21, 0, 5.7, 0, 0, 'Condiment'),
-  F('tn-honey-tbsp', 'Honey', '1 tbsp (21 g)', 64, 0.1, 17, 0, 0, 'Condiment'),
-  F('tn-olive-oil-tsp', 'Olive Oil', '1 tsp (4.5 g)', 40, 0, 0, 4.5, 0, 'Fat'),
-  F('tn-olive-oil-tbsp', 'Olive Oil', '1 tbsp (13.5 g)', 120, 0, 0, 13.5, 0, 'Fat'),
+  F('tn-honey-tsp', 'Honey (teaspoon)', '1 tsp (7 g)', 21, 0, 5.7, 0, 0, 'Condiment'),
+  F('tn-honey-tbsp', 'Honey (tablespoon)', '1 tbsp (21 g)', 64, 0.1, 17, 0, 0, 'Condiment'),
+  F('tn-olive-oil-tsp', 'Olive Oil (teaspoon)', '1 tsp (4.5 g)', 40, 0, 0, 4.5, 0, 'Fat'),
+  F('tn-olive-oil-tbsp', 'Olive Oil (tablespoon)', '1 tbsp (13.5 g)', 120, 0, 0, 13.5, 0, 'Fat'),
 
   // ── Cheeses ───────────────────────────────────────────────────────────────
   F('tn-jben', 'Jben (fresh goat cheese)', '30 g', 48, 5, 1, 3, 0, 'Cheese'),

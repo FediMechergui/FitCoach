@@ -218,7 +218,9 @@ export function SessionDetailScreen() {
       {burn.basis === 'per-exercise' && logs.length > 0 && !editing && (
         <Text variant="caption" color="textFaint" style={{ marginTop: -4 }}>
           Calories are attributed to each movement from its own effort (MET) and time at your
-          bodyweight — so heavier, harder work shows its real share.
+          bodyweight{burn.restCalories > 0
+            ? ` — plus ${Math.round(burn.restCalories)} kcal over ${Math.round(burn.restSeconds / 60)} min of rest between sets, priced at recovery rate, not at the exercise's.`
+            : ' — so heavier, harder work shows its real share.'}
         </Text>
       )}
 

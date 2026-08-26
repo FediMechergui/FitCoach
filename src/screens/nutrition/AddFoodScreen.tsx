@@ -13,7 +13,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import type { MealType } from '@/db/schema';
-import { FOOD_DB, FOOD_CATEGORIES, estimateFromDescription, type FoodItem } from '@/data/foods';
+import { SEARCH_FOOD_DB, FOOD_CATEGORIES, estimateFromDescription, type FoodItem } from '@/data/foods';
 import { Chip } from '@/components/ui/Chip';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import { currentFastingState } from '@/repositories/faithRepo';
@@ -87,10 +87,10 @@ function PreciseMode({ meal }: { meal: MealType }) {
     const q = query.trim().toLowerCase();
     // The user's own foods come first — they were added because the catalogue
     // didn't have them, so burying them under 300 built-ins defeats the point.
-    let list = [...customFoods, ...FOOD_DB];
+    let list = [...customFoods, ...SEARCH_FOOD_DB];
     if (category) list = list.filter((f) => f.category === category);
     if (q) list = list.filter((f) => f.name.toLowerCase().includes(q));
-    else if (!category) list = [...customFoods, ...FOOD_DB.slice(0, 25)];
+    else if (!category) list = [...customFoods, ...SEARCH_FOOD_DB.slice(0, 25)];
     return list;
   }, [query, category, customFoods]);
 

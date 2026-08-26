@@ -43,7 +43,22 @@ export interface FoodItem {
    * carries one (set below); user foods choose theirs.
    */
   form?: FoodForm;
+  /**
+   * Kept in the catalogue (recipes, diet plans and old habits reference the
+   * id) but not offered in the pickers, because an identical twin with equal
+   * or richer data is. Without this, "Almonds" shows twice in every search.
+   */
+  searchHidden?: boolean;
 }
+
+/** Generic entries whose Tunisian/dried-fruit twin is the one the pickers offer. */
+const SEARCH_HIDDEN_IDS: ReadonlySet<string> = new Set([
+  'white-rice', // = tn-rice-white
+  'almonds', // = tn-almonds
+  'avocado', // = tn-avocado
+  'olive-oil', // = tn-olive-oil-tbsp
+  'dried-apricot', // = df-dried-apricot
+]);
 
 /**
  * Which catalogue foods are drinks. Whole categories first, then the odd ones
@@ -122,11 +137,15 @@ const lookupIngredient = (id: string): FoodItem | undefined => {
 
 export const FOOD_DB: FoodItem[] = BASE_FOODS.map((f) => {
   const form = formOf(f);
+  const searchHidden = SEARCH_HIDDEN_IDS.has(f.id) || undefined;
   const direct = FOOD_MICROS[f.id];
-  if (direct) return { ...f, micros: direct, form };
+  if (direct) return { ...f, micros: direct, form, searchHidden };
   const derived = deriveMicros(f.id, lookupIngredient);
-  return derived ? { ...f, micros: derived, microsDerived: true, form } : { ...f, form };
+  return derived ? { ...f, micros: derived, microsDerived: true, form, searchHidden } : { ...f, form, searchHidden };
 });
+
+/** What the pickers list: the catalogue minus hidden twins. Lookups stay on FOOD_DB. */
+export const SEARCH_FOOD_DB: FoodItem[] = FOOD_DB.filter((f) => !f.searchHidden);
 
 /** Count of foods that carry micronutrient data (for honest UI copy). */
 export const FOODS_WITH_MICROS = FOOD_DB.filter((f) => f.micros).length;

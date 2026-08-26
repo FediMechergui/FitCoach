@@ -13,7 +13,7 @@ import { Chip } from '@/components/ui/Chip';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, Divider } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
-import { FOOD_DB, FOOD_CATEGORIES } from '@/data/foods';
+import { FOOD_DB, SEARCH_FOOD_DB, FOOD_CATEGORIES } from '@/data/foods';
 import {
   composeTotals,
   describeComponents,
@@ -72,7 +72,7 @@ export function ComposeFoodScreen() {
   const [pending, setPending] = useState<ComposableFood | null>(null);
   const [pendingQty, setPendingQty] = useState('1');
 
-  const pool = useMemo(() => composableFoods(FOOD_DB, selfId), [selfId, picking]);
+  const pool = useMemo(() => composableFoods(SEARCH_FOOD_DB, selfId), [selfId, picking]);
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = pool;

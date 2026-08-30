@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.52',
+    date: '2026-08-31',
+    title: 'Walks that start themselves — and vehicles that can\'t fake them',
+    highlights: [
+      'Walks now start on their own. Leave the app open, start walking, and after a couple of minutes of sustained real cadence a session begins by itself — backdated to your first step, seeded with every step already taken. The trigger listens to the one sensor a vehicle cannot fool: the hardware step counter. Sitting in a car, stopped in traffic, riding over potholes — no gait, no trigger, ever. Auto-started sessions also end themselves after five still minutes, and a false trigger is discarded instead of saved. Toggle on the Walk screen.',
+      'The vehicle hole is closed, everywhere. A car crawling through town at 10–25 km/h used to classify as WALKING and its distance counted; auto-pause stopped the clock but never the odometer; and with the screen off no judgement ran at all while the GPS service happily banked the whole bus ride — permanently, because every recovery path only rounds up. Now: covering ground with zero cadence is a vehicle at ANY speed; the pause gates distance, steps and route, not just time; pause state lives in the database row so the background task enforces it even when the app is dead — and the task can pause and resume a killed session by itself from batch speed; confirming a pause cuts the ride\'s points back out of the route.',
+      'The giant-hop leak: a car above the speed gates had all its fixes rejected — until it slowed, and the first accepted fix credited the WHOLE ride as one segment. Fixes now carry timestamps, the filter knows each activity\'s own speed ceiling (walk 14 km/h, run 32, ride 79 — a ride\'s descents are no longer thrown away either), and after a rejected stretch the route re-anchors where you actually are, crediting nothing. Measured: 12 m credited of a 612 m drive, with the walking before and after kept.',
+      'Your daily step ring was dead on Android without a session — the passive counter used an iOS-only API, failed silently every 30 minutes, and wrote nothing. It now reads the hardware counter\'s absolute since-boot value through the native module, survives reboots by re-anchoring, only ever raises the day, and refreshes at startup, every return to the app, and in the background. Steps count all day, session or not.',
+      'Sessions keep their identity: a hike saves as a hike with its pack weight and true moving time — not as "Walk" — and history and details say so, in your own units. Live calories and saved calories are now the same formula, so the number no longer drops the moment you press Finish.',
+      'A dozen honesty fixes underneath: paused time survives an app kill instead of turning a bus ride into "moving time"; a walk over midnight credits and debits the same day; an accidental Start-then-Finish saves nothing; GPS restarts on resume after a reboot for every session type; a revoked motion permission is noticed instead of freezing the count; cadence is judged over 24 s so one pothole step can\'t defeat the vehicle test; resuming from a vehicle pause demands proof of gait; the accelerometer detector asks more of a footfall than a pothole; and blind-window estimates are capped at 15 minutes and never invented for time spent paused.',
+      '1261 checks in all, up from 1193 — including a simulated drive through the GPS filter and a simulated car ride against the auto-detector.',
+    ],
+  },
+  {
     version: '2.51',
     date: '2026-08-26',
     title: 'The audit — every screen swept for wrong facts, twins and cracks',

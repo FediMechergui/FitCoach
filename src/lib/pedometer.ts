@@ -81,9 +81,12 @@ export class StepDetector {
     this.sensitivity = opts.sensitivity ?? 1.2;
     this.refractoryMs = opts.refractoryMs ?? 250;
     this.adaptation = opts.adaptation ?? 0.05;
-    this.minAmplitude = opts.minAmplitude ?? 0.1;
-    this.warmupSteps = opts.warmupSteps ?? 3;
-    this.rhythmTolerance = opts.rhythmTolerance ?? 0.5;
+    // Tuned against vehicle noise: potholes and engine vibration produce small,
+    // uneven swings. A real footfall moves the sensor harder (≥0.13 g swing),
+    // keeps a tighter beat (±35%), and needs four even strides to prove itself.
+    this.minAmplitude = opts.minAmplitude ?? 0.13;
+    this.warmupSteps = opts.warmupSteps ?? 4;
+    this.rhythmTolerance = opts.rhythmTolerance ?? 0.35;
   }
 
   reset(): void {
@@ -144,8 +147,9 @@ export class StepDetector {
         // Too soon to be a separate stride — the same footfall ringing.
       } else if (amplitude < this.minAmplitude) {
         // Real enough to clear the adaptive threshold, far too small to be a
-        // footfall: rotation, fidgeting, a phone shifting in a bag.
-        this.breakRhythm(timestampMs);
+        // footfall: rotation, fidgeting, a phone shifting in a bag. Note the
+        // stride clock is NOT touched — a sub-amplitude blip between two real
+        // footfalls must not make the real ones look off-beat.
         this.pending = 0;
       } else if (this.lastStepTs === 0 || interval > MAX_STEP_INTERVAL_MS) {
         // First peak, or such a long gap that the previous rhythm is irrelevant.

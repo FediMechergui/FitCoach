@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { Accelerometer, Pedometer } from 'expo-sensors';
 import {
   endLiveWalk,
@@ -7,6 +8,7 @@ import {
   getLiveWalk,
   patchLiveWalk,
   startLiveWalk,
+  truncateLiveRoute,
 } from '@/repositories/activityRepo';
 import { StepDetector, distanceFromSteps, DAILY_STEP_GOAL } from '@/lib/pedometer';
 import { recoverGapSteps, MIN_GAP_SEC } from '@/lib/walkRecovery';
@@ -15,6 +17,7 @@ import {
   segmentSpeedMs,
   PAUSE_CONFIRM_MS,
   RESUME_CONFIRM_MS,
+  type MotionGait,
   type MotionKind,
 } from '@/lib/motionValidation';
 import { progressBarWithPct } from '@/lib/progressBar';
@@ -115,6 +118,10 @@ const mem = {
   pausedSince: null as number | null,
   /** first moment the motion looked pause-worthy — confirms over a window */
   pauseCandidateSince: null as number | null,
+  /** route length + credited distance when the pause candidacy began, so the
+   * confirmation window's vehicle points can be cut back OUT of the route */
+  pauseCandidateRouteLen: 0,
+  pauseCandidateDistanceM: 0,
   /** first moment motion looked plausible again */
   resumeCandidateSince: null as number | null,
   /** last classification, for status text */
@@ -123,7 +130,45 @@ const mem = {
   lastTickAt: 0,
   lastTickSteps: 0,
   lastTickDistanceM: 0,
+  /** rolling {at, steps} samples — cadence over ~24 s, not one noisy 3 s tick */
+  stepWindow: [] as Array<{ at: number; steps: number }>,
+  /** the hardware counter has produced at least one real step this session */
+  counterProven: false,
+  /** what the session is: which activity, its gait, the pack carried */
+  gait: 'walk' as MotionGait,
+  activity: 'walk',
+  loadKg: 0,
+  /** started by the auto-detector — it may end and discard itself */
+  autoStarted: false,
+  /** last time the native since-boot counter was read (throttle) */
+  lastNativeReadAt: 0,
 };
+
+/**
+ * Cadence needs the step LISTENER, and Android tears that listener down when
+ * the activity leaves the foreground — even though our JS keeps running under
+ * the location service. So with the screen off, subscription deltas flatline
+ * at zero and would read as "no cadence: vehicle!" on a perfectly real walk.
+ * Track foreground-ness; while backgrounded, cadence comes from the native
+ * since-boot counter instead (see pumpBackgroundSteps), or reads as unknown.
+ */
+let appActive = AppState.currentState === 'active';
+AppState.addEventListener('change', (st) => {
+  appActive = st === 'active';
+});
+
+/**
+ * While backgrounded, poll the native module's absolute counter so real steps
+ * keep flowing into the session (and into cadence) with the screen off. The
+ * value is applied through the same floor-only baseline arithmetic as resume
+ * recovery, so it can never double-count with the subscription's own catch-up.
+ */
+async function pumpBackgroundSteps(): Promise<void> {
+  const now = Date.now();
+  if (now - mem.lastNativeReadAt < 5_000) return;
+  mem.lastNativeReadAt = now;
+  await reconcileFromHardwareBaseline();
+}
 
 /** Moving time in ms — wall clock minus everything spent paused. */
 function activeMs(): number {
@@ -181,6 +226,11 @@ export interface WalkSnapshot {
   paused: boolean;
   pauseReason: string;
   motion: MotionKind;
+  /** which outdoor activity this session is (walk/run/hike/ruck/…) */
+  activity: string;
+  gait: MotionGait;
+  loadKg: number;
+  autoStarted: boolean;
 }
 
 /** Current live numbers — memory first (fresh), DB as fallback after restarts. */
@@ -198,10 +248,18 @@ export function getLiveSnapshot(): WalkSnapshot | null {
       paused: mem.paused,
       pauseReason: mem.pauseReason,
       motion: mem.motion,
+      activity: mem.activity,
+      gait: mem.gait,
+      loadKg: mem.loadKg,
+      autoStarted: mem.autoStarted,
     };
   }
   const row = getLiveWalk();
   if (row?.active && row.startTime) {
+    // The row carries the pause ledger now, so even before reattaching the
+    // moving time is honest — a bus ride mid-walk stays excluded.
+    const pausedMs =
+      (row.pausedTotalMs ?? 0) + (row.paused && row.pausedSince ? Math.max(0, Date.now() - row.pausedSince) : 0);
     return {
       active: true,
       mode: row.mode,
@@ -210,11 +268,14 @@ export function getLiveSnapshot(): WalkSnapshot | null {
       steps: row.steps,
       route: getLiveRoute(),
       gpsDistanceM: getLiveRouteDistanceM(),
-      // Not yet reattached, so we can't know paused time — assume all of it moving.
-      activeSec: Math.max(0, Math.round((Date.now() - row.startTime) / 1000)),
-      paused: false,
-      pauseReason: '',
+      activeSec: Math.max(0, Math.round((Date.now() - row.startTime - pausedMs) / 1000)),
+      paused: !!row.paused,
+      pauseReason: row.pauseReason ?? '',
       motion: 'walking',
+      activity: row.activity ?? row.mode,
+      gait: (row.gait ?? row.mode) as MotionGait,
+      loadKg: row.loadKg ?? 0,
+      autoStarted: !!row.autoStarted,
     };
   }
   return null;
@@ -287,13 +348,16 @@ async function reconcileFromHardwareBaseline(): Promise<void> {
   if (now == null || !mem.active) return;
   const exact = now - mem.bootBaseline;
   // A device reboot mid-session resets the sensor; a negative delta means the
-  // baseline is meaningless now, so drop it rather than trust bad arithmetic.
+  // baseline is meaningless now, so drop it — in the ROW too, or a later
+  // resume would resurrect the stale value and trust bad arithmetic.
   if (exact < 0) {
     mem.bootBaseline = null;
+    patchLiveWalk({ bootStepBaseline: null });
     return;
   }
   if (exact > total()) {
     mem.baseSteps = exact - mem.steps;
+    mem.counterProven = true;
     mem.dirty = true;
   }
 }
@@ -307,8 +371,62 @@ async function reconcileFromHardwareBaseline(): Promise<void> {
  * resuming each need to hold for a confirmation window so a red light or a single
  * bad GPS fix doesn't toggle the session.
  */
+/** How far back the rolling cadence looks. One vibration step in 24 s reads
+ * as 2.5 spm — far below MIN_ACTIVE_CADENCE — so a pothole can't fake a gait. */
+const CADENCE_WINDOW_MS = 24_000;
+
+/** Cadence over the rolling window, or null when steps can't be observed. */
+function rollingCadence(now: number, steps: number): number | null {
+  mem.stepWindow.push({ at: now, steps });
+  while (mem.stepWindow.length > 1 && mem.stepWindow[0].at < now - CADENCE_WINDOW_MS) {
+    mem.stepWindow.shift();
+  }
+  const first = mem.stepWindow[0];
+  const spanMs = now - first.at;
+  if (spanMs < 6_000) return null;
+
+  // Backgrounded with no native counter: the step listener is torn down by the
+  // OS, so a zero here means "blind", not "still". Cadence is unknown.
+  const observable = appActive || mem.bootBaseline != null;
+  if (!observable) return null;
+  // A counter that has never ticked may be broken or permission-starved —
+  // don't let its silence testify that you're in a vehicle.
+  if (!mem.counterProven && !appActive) return null;
+  if (!mem.hardware && !mem.counterProven) return null;
+
+  return ((steps - first.steps) / spanMs) * 60_000;
+}
+
 function evaluateMotion(): void {
   const now = Date.now();
+
+  // While backgrounded, keep real steps flowing from the native counter so
+  // cadence (and the session count) stays live with the screen off.
+  if (!appActive && mem.bootBaseline != null) void pumpBackgroundSteps();
+
+  // The background task shares pause state through the row: adopt its verdicts.
+  const row = getLiveWalk();
+  if (row?.active) {
+    if (row.paused && !mem.paused) {
+      // The task paused us (vehicle while we were blind) — adopt it.
+      mem.paused = true;
+      mem.pausedSince = row.pausedSince ?? now;
+      mem.pausedTotalMs = row.pausedTotalMs ?? mem.pausedTotalMs;
+      mem.pauseReason = row.pauseReason ?? 'Tracking paused.';
+      mem.motion = 'vehicle';
+      mem.pauseCandidateSince = null;
+      void pushWalkNotification(total());
+    } else if (!row.paused && mem.paused && (row.pausedTotalMs ?? 0) > mem.pausedTotalMs) {
+      // The task saw on-foot movement and lifted the pause, closing the ledger.
+      mem.paused = false;
+      mem.pausedSince = null;
+      mem.pausedTotalMs = row.pausedTotalMs ?? mem.pausedTotalMs;
+      mem.pauseReason = '';
+      mem.resumeCandidateSince = null;
+      void pushWalkNotification(total());
+    }
+  }
+
   if (!mem.lastTickAt) {
     mem.lastTickAt = now;
     mem.lastTickSteps = total();
@@ -323,45 +441,78 @@ function evaluateMotion(): void {
   const distanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
   const stepDelta = Math.max(0, steps - mem.lastTickSteps);
   const distDelta = Math.max(0, distanceM - mem.lastTickDistanceM);
+  if (stepDelta > 0 && mem.hardware) mem.counterProven = true;
 
   mem.lastTickAt = now;
   mem.lastTickSteps = steps;
   mem.lastTickDistanceM = distanceM;
 
-  // Without GPS there's no speed to reason about, so only step activity can tell
-  // us anything — and a phone in a pocket on a bus produces no steps either way.
-  const cadenceSpm = elapsedMs > 0 ? (stepDelta / elapsedMs) * 60_000 : 0;
+  const cadenceSpm = rollingCadence(now, steps);
   const speedMs = mem.usingGps ? segmentSpeedMs(distDelta, elapsedMs) : 0;
   if (!mem.usingGps && stepDelta > 0) {
     // Stepping without GPS — plainly active, nothing to judge.
-    confirmResume(now);
+    confirmResume(now, true);
     mem.motion = 'walking';
     return;
   }
 
-  const verdict = classifyMotion({ speedMs, cadenceSpm: mem.hardware || stepDelta > 0 ? cadenceSpm : null });
+  const verdict = classifyMotion({
+    speedMs,
+    cadenceSpm: mem.counterProven ? cadenceSpm : null,
+    gait: mem.gait,
+  });
   mem.motion = verdict.kind;
 
   if (verdict.shouldPause) {
     mem.resumeCandidateSince = null;
     if (!mem.paused) {
-      mem.pauseCandidateSince ??= now;
+      if (mem.pauseCandidateSince == null) {
+        mem.pauseCandidateSince = now;
+        // Remember where the route stood: if this confirms, everything
+        // appended during the window was the vehicle moving, and comes out.
+        mem.pauseCandidateRouteLen = mem.usingGps ? getLiveRoute().length : 0;
+        mem.pauseCandidateDistanceM = distanceM;
+      }
       if (now - mem.pauseCandidateSince >= PAUSE_CONFIRM_MS) {
         mem.paused = true;
         mem.pausedSince = now;
         mem.pauseReason = verdict.reason;
         mem.pauseCandidateSince = null;
+        // Cut the confirmation window's points back out of the route, so the
+        // drawn path and the credited distance never include the ride.
+        if (mem.usingGps) {
+          truncateLiveRoute(mem.pauseCandidateRouteLen, mem.pauseCandidateDistanceM);
+          mem.lastTickDistanceM = mem.pauseCandidateDistanceM;
+        }
+        // Publish to the row: the background task stops appending immediately.
+        patchLiveWalk({
+          paused: true,
+          pausedSince: mem.pausedSince,
+          pausedTotalMs: mem.pausedTotalMs,
+          pauseReason: mem.pauseReason,
+        });
         void pushWalkNotification(total());
       }
     }
   } else {
     mem.pauseCandidateSince = null;
-    confirmResume(now);
+    // Resuming from a VEHICLE pause needs proof of gait, not just the absence
+    // of bad evidence — a bus braking to walking speed must not resume you.
+    const gaitProof =
+      mem.gait === 'none' ||
+      verdict.kind === 'riding' ||
+      !mem.counterProven ||
+      (cadenceSpm != null && cadenceSpm >= 20);
+    confirmResume(now, gaitProof);
   }
 }
 
-function confirmResume(now: number): void {
+function confirmResume(now: number, gaitProof: boolean): void {
   if (!mem.paused) return;
+  if (!gaitProof) {
+    mem.resumeCandidateSince = null;
+    return;
+  }
   mem.resumeCandidateSince ??= now;
   if (now - mem.resumeCandidateSince >= RESUME_CONFIRM_MS) {
     if (mem.pausedSince) mem.pausedTotalMs += now - mem.pausedSince;
@@ -369,6 +520,12 @@ function confirmResume(now: number): void {
     mem.pausedSince = null;
     mem.pauseReason = '';
     mem.resumeCandidateSince = null;
+    patchLiveWalk({
+      paused: false,
+      pausedSince: null,
+      pausedTotalMs: mem.pausedTotalMs,
+      pauseReason: null,
+    });
     void pushWalkNotification(total());
   }
 }
@@ -380,6 +537,24 @@ function catchUpFromGap(): void {
     return;
   }
   const gapMs = now - mem.lastObservedAt;
+
+  /*
+   * Only a REAL blind window may be recovered. This used to run on every live
+   * tick, flooring steps up from GPS distance once a second — which invented a
+   * phantom cadence that then testified to the vehicle classifier that you
+   * were stepping. While we're alive and watching, measured steps are the
+   * only steps; recovery exists for the stretch we genuinely didn't see.
+   */
+  if (gapMs < MIN_GAP_SEC * 1000) {
+    mem.lastObservedAt = now;
+    return;
+  }
+  // Paused when we went dark → the missed stretch was a vehicle or a bench,
+  // not a walk. Estimating "steps you probably took" would invent the ride.
+  if (mem.paused) {
+    mem.lastObservedAt = now;
+    return;
+  }
   const gpsDistanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
 
   // A hardware counter self-catches-up; only GPS evidence may adjust it.
@@ -387,7 +562,6 @@ function catchUpFromGap(): void {
     mem.lastObservedAt = now;
     return;
   }
-  if (gapMs < MIN_GAP_SEC * 1000 && !(gpsDistanceM > 0)) return;
 
   const heightCm = useUserStore.getState().user?.heightCm ?? 175;
   const rec = recoverGapSteps({
@@ -548,25 +722,42 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   const startedFor = mem.startTime;
   const stillMine = () => mem.active && mem.startTime === startedFor;
 
-  // 0. Bank the hardware counter's absolute since-boot reading. This sensor keeps
-  //    counting while the CPU sleeps and while our process is dead, so this
-  //    baseline is what lets us recover an EXACT count after an app kill.
-  const baseline = await getStepsSinceBoot();
-  if (!stillMine()) return;
-  if (baseline != null) {
-    mem.bootBaseline = baseline;
-    patchLiveWalk({ bootStepBaseline: baseline });
-  }
-
   // 1. GPS first — it's required for both walks and runs, and its foreground
   //    service is what keeps recording once the screen goes off or we're killed.
   const gps = await startRouteTracking(mode);
-  if (!stillMine()) return;
+  if (!stillMine()) {
+    // The user finished before the handshake landed — don't leave the
+    // location service (and its permanent notification) running orphaned.
+    if (gps && !mem.active) void stopRouteTracking();
+    return;
+  }
   mem.usingGps = gps;
 
   // 2. Motion permission, then the hardware step counter.
   const perms = await requestWalkPermissions();
   if (!stillMine()) return;
+
+  // 3. Bank the hardware counter's absolute since-boot reading — AFTER the
+  //    permission, because reading it needs ACTIVITY_RECOGNITION on Android 10+
+  //    and asking first meant the first-ever session silently got no baseline.
+  //    This sensor keeps counting while the CPU sleeps and while our process is
+  //    dead, so the baseline is what makes an app-kill recoverable exactly.
+  let baseline = await getStepsSinceBoot();
+  if (!stillMine()) return;
+  if (baseline == null) {
+    // One retry — some sensor hubs only report on their next batch flush.
+    await new Promise((r) => setTimeout(r, 4000));
+    if (!stillMine()) return;
+    baseline = await getStepsSinceBoot();
+  }
+  if (!stillMine()) return;
+  if (baseline != null && mem.bootBaseline == null) {
+    // The session may have been running a while: the baseline for START is the
+    // current reading minus what's already been counted.
+    const b = Math.max(0, baseline - total());
+    mem.bootBaseline = b;
+    patchLiveWalk({ bootStepBaseline: b });
+  }
 
   // Either channel to the step-counter sensor counts as "hardware": expo-sensors'
   // pedometer for live counting, or our native module's absolute reading.
@@ -588,18 +779,54 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   void pushWalkNotification(total());
 }
 
-export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
+export interface StartWalkOptions {
+  /** which outdoor activity this is (walk/run/hike/ruck/…); default = mode */
+  activity?: string;
+  /** the activity's gait; cycling ('none') is exempt from cadence rules */
+  gait?: MotionGait;
+  /** carried pack/vest weight, kg */
+  loadKg?: number;
+  /** started by the auto-detector (may auto-stop and self-discard) */
+  autoStarted?: boolean;
+  /** backdate the start — the auto-detector knows when the streak began */
+  startedAt?: number;
+  /** steps already taken by detection time */
+  seedSteps?: number;
+}
+
+export async function startWalkTracking(
+  mode: 'walk' | 'run',
+  opts: StartWalkOptions = {}
+): Promise<WalkPermissions> {
   // ── Synchronous part: the session is live before this function returns, so the
   // UI can switch to the tracking view with zero delay. ──
   livePermissions = null;
-  startLiveWalk({ mode, source: 'accelerometer' });
+  const startedAt = opts.startedAt ?? Date.now();
+  const seedSteps = Math.max(0, opts.seedSteps ?? 0);
+  startLiveWalk({
+    mode,
+    source: 'accelerometer',
+    startTime: startedAt,
+    steps: seedSteps,
+    gait: opts.gait ?? mode,
+    activity: opts.activity ?? mode,
+    loadKg: opts.loadKg ?? null,
+    autoStarted: opts.autoStarted ?? false,
+  });
   mem.active = true;
   mem.mode = mode;
   mem.source = 'accelerometer';
   mem.hardware = false;
-  mem.startTime = Date.now();
-  mem.baseSteps = 0;
+  mem.startTime = startedAt;
+  mem.baseSteps = seedSteps;
   mem.steps = 0;
+  mem.gait = opts.gait ?? mode;
+  mem.activity = opts.activity ?? mode;
+  mem.loadKg = opts.loadKg ?? 0;
+  mem.autoStarted = opts.autoStarted ?? false;
+  mem.counterProven = seedSteps > 0;
+  mem.stepWindow = [];
+  mem.lastNativeReadAt = 0;
   mem.usingGps = false;
   mem.dirty = false;
   mem.lastObservedAt = mem.startTime;
@@ -615,6 +842,8 @@ export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermi
   mem.lastTickAt = 0;
   mem.lastTickSteps = 0;
   mem.lastTickDistanceM = 0;
+  mem.pauseCandidateRouteLen = 0;
+  mem.pauseCandidateDistanceM = 0;
   lastNotifiedSteps = -1;
   lastNotifiedDistanceM = -1;
 
@@ -648,16 +877,26 @@ export async function resumeWalkTracking(): Promise<void> {
   const row = getLiveWalk();
   if (!row?.active || !row.startTime) return;
 
-  const hardware = row.source !== 'accelerometer' && (await isPedometerAvailable());
+  // Honest capability check: sensor availability AND the permission still
+  // granted (Android auto-resets permissions on unused apps; a dead
+  // subscription would silently freeze the count forever).
+  let motionGranted = false;
+  try {
+    const p = await Pedometer.getPermissionsAsync();
+    motionGranted = p.granted || p.status === 'granted';
+  } catch {
+    motionGranted = false;
+  }
+  const hardware = motionGranted && (await isPedometerAvailable());
   const gpsLive = await isRouteTrackingActive();
   mem.active = true;
   mem.mode = row.mode;
-  mem.source = row.source;
+  mem.source = hardware ? row.source : row.source === 'gps' ? 'gps' : 'accelerometer';
   mem.hardware = hardware;
   mem.startTime = row.startTime;
   mem.baseSteps = row.steps;
   mem.steps = 0;
-  mem.usingGps = row.source === 'gps' || gpsLive;
+  mem.usingGps = gpsLive || parseRouteLength(row.routeJson) > 0;
   mem.dirty = false;
   // The persisted row's `updatedAt` is when we last observed the session, so the
   // window between then and now is what was missed while the app was gone.
@@ -665,23 +904,42 @@ export async function resumeWalkTracking(): Promise<void> {
   mem.estimated = false;
   // Restoring this is what makes a killed session recoverable exactly.
   mem.bootBaseline = row.bootStepBaseline ?? null;
-  mem.paused = false;
-  mem.pauseReason = '';
-  mem.pausedTotalMs = 0;
-  mem.pausedSince = null;
+  // The pause ledger survives with the row — a bus ride stays excluded even
+  // across an app kill, instead of snapping back to "all of it was moving".
+  mem.paused = !!row.paused;
+  mem.pauseReason = row.pauseReason ?? '';
+  mem.pausedTotalMs = row.pausedTotalMs ?? 0;
+  mem.pausedSince = row.paused ? (row.pausedSince ?? Date.now()) : null;
   mem.pauseCandidateSince = null;
   mem.resumeCandidateSince = null;
-  mem.motion = 'walking';
+  mem.motion = mem.paused ? 'vehicle' : 'walking';
+  mem.gait = (row.gait ?? row.mode) as MotionGait;
+  mem.activity = row.activity ?? row.mode;
+  mem.loadKg = row.loadKg ?? 0;
+  mem.autoStarted = !!row.autoStarted;
+  mem.counterProven = false;
+  mem.stepWindow = [];
+  mem.lastNativeReadAt = 0;
   mem.lastTickAt = 0;
   mem.lastTickSteps = 0;
   mem.lastTickDistanceM = 0;
+  mem.pauseCandidateRouteLen = 0;
+  mem.pauseCandidateDistanceM = 0;
   lastNotifiedSteps = -1;
   lastNotifiedDistanceM = -1;
 
-  // If the GPS service died (rare), restart it.
-  if (mem.usingGps && !gpsLive) {
-    await startRouteTracking(row.mode);
+  // Every walk wants GPS (it's what survives screen-off and app-kill). If the
+  // service died — reboot, OS kill — restart it regardless of step source.
+  if (!gpsLive) {
+    const gps = await startRouteTracking(row.mode);
+    mem.usingGps = mem.usingGps || gps;
   }
+  livePermissions = {
+    motion: motionGranted,
+    notifications: true,
+    gps: mem.usingGps,
+    hardware,
+  };
 
   attachSensors();
   // Recover the blind window (GPS evidence, or a cadence estimate), then let the
@@ -701,6 +959,11 @@ export interface WalkResult {
   startTime: number;
   source: Source;
   route: LatLng[];
+  /** which outdoor activity this was (walk/run/hike/ruck/…) */
+  activity: string;
+  gait: MotionGait;
+  loadKg: number;
+  autoStarted: boolean;
 }
 
 /** Stop tracking and return the final tally (does not persist a WalkSession). */
@@ -719,14 +982,29 @@ export function stopWalkTracking(): WalkResult | null {
   mem.paused = false;
   mem.pausedSince = null;
   mem.pausedTotalMs = 0;
+  mem.pauseReason = '';
+  mem.stepWindow = [];
+  mem.counterProven = false;
+  mem.autoStarted = false;
 
   if (!snapshot) return null;
 
   const heightCm = useUserStore.getState().user?.heightCm ?? 175;
   const steps = snapshot.steps;
-  // GPS distance is truth for runs; fall back to step-estimated distance otherwise.
-  const distanceM =
-    snapshot.gpsDistanceM > 0 ? snapshot.gpsDistanceM : distanceFromSteps(steps, heightCm, snapshot.mode);
+  /*
+   * GPS is the truth when it genuinely tracked: a real route with real length.
+   * A single stray fix used to latch "GPS mode" with ~0 m and the whole walk
+   * saved as nothing while thousands of steps sat right there — so a starved
+   * trace (under 2 points, or implying under 40% of what the steps measured)
+   * falls back to the step estimate instead of overruling it.
+   */
+  const stepDistanceM =
+    snapshot.gait === 'none' ? 0 : distanceFromSteps(steps, heightCm, snapshot.mode);
+  const gpsTrustworthy =
+    snapshot.gpsDistanceM > 0 &&
+    snapshot.route.length >= 2 &&
+    (stepDistanceM <= 0 || snapshot.gpsDistanceM >= 0.4 * stepDistanceM);
+  const distanceM = gpsTrustworthy ? snapshot.gpsDistanceM : stepDistanceM;
 
   return {
     mode: snapshot.mode,
@@ -737,7 +1015,22 @@ export function stopWalkTracking(): WalkResult | null {
     startTime: snapshot.startTime,
     source: snapshot.source,
     route: snapshot.route,
+    activity: snapshot.activity,
+    gait: snapshot.gait,
+    loadKg: snapshot.loadKg,
+    autoStarted: snapshot.autoStarted,
   };
+}
+
+/** Route length without the full parse dance (cheap null-safe helper). */
+function parseRouteLength(routeJson: string | null): number {
+  if (!routeJson) return 0;
+  try {
+    const v = JSON.parse(routeJson);
+    return Array.isArray(v) ? v.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /** Startup hygiene: clear a stale notification/GPS service if none survived a crash. */

@@ -11,9 +11,24 @@ import {
   classifyMotion,
   segmentSpeedMs,
   isPlausibleOnFootSegment,
+  batchLooksLikeVehicle,
+  batchLooksOnFoot,
   PAUSE_CONFIRM_MS,
   RESUME_CONFIRM_MS,
+  VEHICLE_SPEED_MS,
+  COASTING_SPEED_MS,
+  IMPOSSIBLE_RIDE_SPEED_MS,
 } from '../src/lib/motionValidation';
+import {
+  evaluateAutoStart,
+  trimSamples,
+  shouldAutoStop,
+  shouldDiscardAutoSession,
+  AUTO_START_MIN_STEPS,
+  AUTO_STOP_PAUSED_MS,
+  type StepSample,
+} from '../src/lib/walkAutoDetect';
+import { outdoorCalories } from '../src/lib/outdoorActivities';
 import { lifeMinutesLost, moneyCost, aerobicPenaltyPct, currentQuitMilestone, DEFAULT_SMOKING_SETTINGS } from '../src/lib/smoking';
 import { generateCoachTips, type CoachContext } from '../src/lib/recommendations';
 import { estimateFromDescription } from '../src/data/foods';
@@ -38,6 +53,8 @@ import {
   spreadRadiusM,
   straightness,
   CONFINEMENT_RADIUS_M,
+  GAIT_MAX_SPEED_MS,
+  REANCHOR_AFTER,
 } from '../src/lib/gpsFilter';
 import { generateDietPlan } from '../src/lib/dietPlan';
 import { EXERCISE_LIBRARY as EXLIB, PRAYER_EXERCISE_MINUTES } from '../src/data/exercises';
@@ -826,8 +843,10 @@ check('Impossible speed is a vehicle regardless of cadence', classifyMotion({ sp
 const waiting = classifyMotion({ speedMs: 0.05, cadenceSpm: 0 });
 check('Standing still auto-pauses', waiting.kind === 'stationary' && waiting.shouldPause && !waiting.countDistance);
 check('Slow with cadence is walking', classifyMotion({ speedMs: 1.2, cadenceSpm: 105 }).kind === 'walking');
-// With no step sensor we must not guess "vehicle" from speed alone at running pace.
-check('Unknown cadence does not fabricate a vehicle at running speed', classifyMotion({ speedMs: 7.5, cadenceSpm: null }).kind === 'running');
+// With no step sensor, honest running pace is still a run — but 27 km/h
+// sustained is not a pace this species holds, sensor or no sensor.
+check('Unknown cadence does not fabricate a vehicle at marathon pace', classifyMotion({ speedMs: 5.5, cadenceSpm: null }).kind === 'running');
+check('Unknown cadence still calls 27 km/h a vehicle', classifyMotion({ speedMs: 7.5, cadenceSpm: null }).kind === 'vehicle');
 check('Segment speed maths', Math.abs(segmentSpeedMs(100, 20_000) - 5) < 1e-9);
 check('Implausible on-foot segments are rejected', !isPlausibleOnFootSegment(300, 10_000) && isPlausibleOnFootSegment(30, 10_000));
 check('Pause needs sustained evidence, resume is quicker', PAUSE_CONFIRM_MS > RESUME_CONFIRM_MS);
@@ -932,14 +951,14 @@ console.log('\nSchema ↔ migration integrity:');
   check('Step checkpoint is monotonic (never lowers the count)', /steps: Math\.max\(row\.steps, impliedSteps\)/.test(repoSrc));
   // Every GPS fix must go through the filter — the raw haversine loop inflated
   // distance indoors and while turning on the spot.
-  check('Route append filters fixes before crediting distance', /filterFixes\(route, fixes\)/.test(repoSrc));
+  check('Route append filters fixes before crediting distance', /filterFixes\(route, fixes, \{/.test(repoSrc));
   check('Raw unfiltered segment accumulation is gone', !/const seg = haversine\(last, p\)/.test(repoSrc));
   // Rejecting every fix still counts as observing the session; leaving updatedAt
   // stale would make the stretch look like a blind window and let the gap
   // estimator re-credit the steps the filter just discarded.
   check(
     'A fully-rejected batch still stamps updatedAt',
-    /if \(!accepted\.length\)/.test(repoSrc) && /set\(\{ updatedAt: Date\.now\(\) \}\)/.test(repoSrc)
+    /if \(!accepted\.length\)/.test(repoSrc) && /set\(\{ updatedAt: now \}\)/.test(repoSrc)
   );
   // Accuracy and Doppler speed are the filter's two best signals; the task must
   // hand them over rather than throwing them away at the boundary.
@@ -2831,8 +2850,8 @@ console.log('\nOutdoor ground activities launch like a walk:');
   check('Every activity has a verb, an icon and a blurb', OUTDOOR_ACTIVITIES.every((a) => a.verb.length > 3 && a.icon.includes('.') && a.blurb.length > 20));
   check('Every activity icon resolves', OUTDOOR_ACTIVITIES.every((a) => { const [g, n] = a.icon.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; }));
   const walkSrcO = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
-  check('The tracker screen takes an activity and keeps working from a plain mode', /activityFor\(route\.params\?\.activity \?\? route\.params\?\.mode \?\? 'walk'\)/.test(walkSrcO));
-  check('…floors the pace MET by activity and scales by the carried pack', /activityMet\(activity, paceMet\)/.test(walkSrcO) && /loadCalorieFactor\(profileFor\(\{ slug: 'rucking' \}\), weightKg, loadKg\)/.test(walkSrcO));
+  check('The tracker screen takes an activity and keeps working from a plain mode', /activityFor\(liveActivity \?\? route\.params\?\.activity \?\? route\.params\?\.mode \?\? 'walk'\)/.test(walkSrcO));
+  check('…floors the pace MET by activity and scales by the carried pack', /outdoorCalories\(\{/.test(walkSrcO) && /activityMet\(i\.activity, paceMet\)/.test(fs.readFileSync('src/lib/outdoorActivities.ts', 'utf8')));
   check('…asks for the pack only where it makes sense, and warns when GPS is the only source', /activity\.carries && \(/.test(walkSrcO) && /gpsOnly && \(/.test(walkSrcO));
   check('…and labels everything by the activity, not "walk"', /title=\{activity\.label\}/.test(walkSrcO) && /: activity\.verb\}/.test(walkSrcO) && /sessionType: activity\.sessionType/.test(walkSrcO));
   check('Train offers every ground activity one tap away', /OUTDOOR_ACTIVITIES\.filter\(\(a\) => a\.key !== 'walk' && a\.key !== 'run'\)/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
@@ -2947,6 +2966,153 @@ console.log('\nThe audit — a crash vector and a total that did not visibly add
   check('Cycle history survives a malformed symptoms row', /function safeSymptomCount\(json: string\): number/.test(cycle) && /catch \{\s*return 0;/.test(cycle) && !/\$\{\(JSON\.parse\(p\.symptoms\)/.test(cycle));
   const detail = fs.readFileSync('src/screens/train/SessionDetailScreen.tsx', 'utf8');
   check('The session detail shows the rest share, so the parts sum to the total', /restCalories > 0/.test(detail) && /min of rest between sets/.test(detail));
+}
+
+console.log('\nA vehicle cannot be a walk — the classifier, at every speed:');
+{
+  // The gap that let a car through: city traffic below 25 km/h with zero
+  // cadence used to classify as walking/running and COUNT. Never again.
+  const car = (v: number) => classifyMotion({ speedMs: v, cadenceSpm: 0 });
+  check('A proven-silent step counter makes 11 km/h a vehicle', car(3).kind === 'vehicle' && car(3).shouldPause && !car(3).countDistance);
+  check('…and 18 km/h, and 6 km/h — the whole city-traffic band', car(5).kind === 'vehicle' && car(1.7).kind === 'vehicle');
+  check('Ground covered without steps never counts, at any speed above a drift', COASTING_SPEED_MS < 1.5 && car(COASTING_SPEED_MS).kind === 'vehicle');
+  check('Below the drift with no steps you are just standing', car(0.8).kind === 'stationary' && !car(0.8).countDistance);
+  check('Real walking and running still read as themselves', classifyMotion({ speedMs: 1.4, cadenceSpm: 105 }).kind === 'walking' && classifyMotion({ speedMs: 5.5, cadenceSpm: 170 }).kind === 'running');
+  // Cycling is exempt from cadence — wheels make no steps and that is fine.
+  const ride = (v: number) => classifyMotion({ speedMs: v, cadenceSpm: 0, gait: 'none' });
+  check('A ride at 29 km/h with zero cadence is riding, and it counts', ride(8).kind === 'riding' && ride(8).countDistance);
+  check('…but 90 km/h is a car even for a bike', ride(25).kind === 'vehicle' && IMPOSSIBLE_RIDE_SPEED_MS === 22);
+  // The background task's batch verdicts — what keeps a KILLED app honest.
+  check('A batch of real distance at vehicle speed pauses the session', batchLooksLikeVehicle(100, 12_000, 'walk') && VEHICLE_SPEED_MS === 7);
+  check('…but a single glitchy hop is not enough evidence', !batchLooksLikeVehicle(40, 3_000, 'walk'));
+  check('A batch back at strolling speed lifts the pause', batchLooksOnFoot(15, 10_000, 'walk') && !batchLooksOnFoot(50, 10_000, 'walk'));
+  check('A ride resumes at riding speed', batchLooksOnFoot(60, 10_000, 'none'));
+}
+
+console.log('\nThe GPS filter knows what gait it is filtering for:');
+{
+  check('Each gait has its own speed ceiling — walk 4, run 9, ride 22 m/s', GAIT_MAX_SPEED_MS.walk === 4 && GAIT_MAX_SPEED_MS.run === 9 && GAIT_MAX_SPEED_MS.none === 22);
+  // A car at 18 km/h (5 m/s Doppler) sails under the old 9 m/s bar. With the
+  // walk ceiling, every one of its fixes is refused.
+  const carFixes = Array.from({ length: 20 }, (_, i) => ({ lat: 36.8 + (i + 1) * (15 / 111320), lng: 10.18, accuracy: 8, speed: 5 }));
+  const walkFiltered = filterFixes([], carFixes, { maxSpeedMs: GAIT_MAX_SPEED_MS.walk });
+  check('A car at 18 km/h contributes NOTHING to a walk', walkFiltered.distanceM === 0 && walkFiltered.rejected.vehicle === 20);
+  check('The same fixes are honest movement for a run session', filterFixes([], carFixes, { maxSpeedMs: GAIT_MAX_SPEED_MS.run }).distanceM > 250);
+  // The giant-hop hole: cruise above the ceiling (fixes rejected), then slow
+  // down — the first accepted fix used to credit the whole ride as one segment.
+  const t0 = 1_700_000_000_000;
+  const hop = [
+    { lat: 36.8, lng: 10.18, accuracy: 5, speed: 1.4, timestamp: t0 },
+    { lat: 36.8 + 6 / 111320, lng: 10.18, accuracy: 5, speed: 1.4, timestamp: t0 + 4_000 },
+    // car: 200 m and 400 m hops in seconds
+    { lat: 36.8 + 206 / 111320, lng: 10.18, accuracy: 5, timestamp: t0 + 10_000 },
+    { lat: 36.8 + 606 / 111320, lng: 10.18, accuracy: 5, timestamp: t0 + 16_000 },
+    // out of the car, walking again from where it stopped
+    { lat: 36.8 + 612 / 111320, lng: 10.18, accuracy: 5, speed: 1.4, timestamp: t0 + 20_000 },
+  ];
+  const hopped = filterFixes([], hop, { maxSpeedMs: GAIT_MAX_SPEED_MS.walk });
+  check('A vehicle stretch cannot be banked as one giant hop when it slows', hopped.distanceM < 20, `${Math.round(hopped.distanceM)} m credited of a 612 m drive`);
+  check('…and honest walking resumes crediting right after the re-anchor', hopped.distanceM >= 4 && REANCHOR_AFTER === 2);
+  // Old callers keep old behaviour: no opts, no timestamps → unchanged gates.
+  const plain = Array.from({ length: 10 }, (_, i) => ({ lat: 36.8 + (i + 1) * (5 / 111320), lng: 10.18, accuracy: 8, speed: 1.4 }));
+  check('Without opts the filter behaves exactly as before', filterFixes([], plain).distanceM > 30 && filterFixes([], plain).rejected.vehicle === 0);
+}
+
+console.log('\nAuto-detection: walks start themselves — vehicles never do:');
+{
+  const t0 = 1_700_000_000_000;
+  // A real walk: ~110 steps/min, sampled every 5 s for 2.5 min.
+  const stroll: StepSample[] = Array.from({ length: 31 }, (_, i) => ({ at: t0 + i * 5_000, cumulative: Math.round(i * 5 * (110 / 60)) }));
+  const v = evaluateAutoStart(stroll, t0 + 150_000);
+  check('Two and a half minutes of real walking starts a session', v.start && v.steps >= AUTO_START_MIN_STEPS);
+  check('…backdated to the first step of the streak', v.sinceMs === t0);
+  check('…at a human cadence', v.cadenceSpm > 100 && v.cadenceSpm < 120);
+  // Sitting in a car: the hardware counter barely ticks. Nothing triggers.
+  const carRide: StepSample[] = Array.from({ length: 31 }, (_, i) => ({ at: t0 + i * 5_000, cumulative: Math.floor(i / 10) }));
+  check('A car ride cannot trigger a walk — no cadence, no session', !evaluateAutoStart(carRide, t0 + 150_000).start);
+  // Walked to the couch: plenty of steps, but none recently.
+  const thenSat: StepSample[] = [
+    ...Array.from({ length: 13 }, (_, i) => ({ at: t0 + i * 5_000, cumulative: i * 12 })),
+    ...Array.from({ length: 18 }, (_, i) => ({ at: t0 + (13 + i) * 5_000, cumulative: 156 })),
+  ];
+  check('Walked-then-sat does not trigger for the sitting', !evaluateAutoStart(thenSat, t0 + 150_000).start);
+  // A sensor glitch dumping hundreds of "steps" reads as impossible cadence.
+  const glitch: StepSample[] = [
+    { at: t0, cumulative: 0 },
+    { at: t0 + 30_000, cumulative: 0 },
+    { at: t0 + 65_000, cumulative: 500 },
+  ];
+  check('A step-dump glitch reads as impossible cadence and is ignored', !evaluateAutoStart(glitch, t0 + 65_000).start);
+  check('The sample buffer keeps one anchor beyond the window', trimSamples(stroll, t0 + 150_000 + 60_000).length < stroll.length);
+  check('An auto session ends itself after five still minutes', shouldAutoStop(t0, t0 + AUTO_STOP_PAUSED_MS) && !shouldAutoStop(t0, t0 + AUTO_STOP_PAUSED_MS - 1) && AUTO_STOP_PAUSED_MS === 300_000);
+  check('…and a false trigger is discarded, a real short walk is kept', shouldDiscardAutoSession(80, 60) && !shouldDiscardAutoSession(400, 300) && !shouldDiscardAutoSession(80, 300));
+  const svc = fs.readFileSync('src/services/walkAutoDetect.ts', 'utf8');
+  check('The watcher never triggers over a running session', /if \(sessionRunning\(\)\) return;/.test(svc) && /activeSession\(\)/.test(svc));
+  check('…seeds the session with the steps already taken', /seedSteps: verdict\.steps/.test(svc) && /startedAt: verdict\.sinceMs/.test(svc));
+  check('…and is a real toggle, remembered', /kvSet\(KV_ENABLED, on\)/.test(svc) && /autoDetectEnabled/.test(fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8')));
+}
+
+console.log('\nPause now gates the odometer, not just the clock:');
+{
+  const track = fs.readFileSync('src/services/walkTracking.ts', 'utf8');
+  const repo2 = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
+  check('Pause state lives in the row, where the background task can see it', /paused: true,\s*\n\s*pausedSince/.test(repo2) && /patchLiveWalk\(\{\s*\n\s*paused: true/.test(track));
+  check('While paused, the background task appends nothing and credits nothing', /if \(row\.paused\) \{/.test(repo2));
+  check('The task itself pauses a killed-app session at vehicle speed', /batchLooksLikeVehicle\(gained, elapsedMs, gait\)/.test(repo2));
+  check('…and lifts the pause when movement is human again', /batchLooksOnFoot\(gained, elapsedMs, gait\)/.test(repo2));
+  check('Confirming a pause cuts the ride back out of the route', /truncateLiveRoute\(mem\.pauseCandidateRouteLen, mem\.pauseCandidateDistanceM\)/.test(track));
+  check('Paused time survives an app kill — the ledger is in the row', /mem\.pausedTotalMs = row\.pausedTotalMs \?\? 0;/.test(track));
+  check('Resuming from a vehicle pause demands proof of gait, not silence', /gaitProof/.test(track) && /cadenceSpm != null && cadenceSpm >= 20/.test(track));
+  check('Cadence is judged over a rolling window, not one 3-second tick', /CADENCE_WINDOW_MS = 24_000/.test(track) && /rollingCadence\(now, steps\)/.test(track));
+  check('A counter that never ticked cannot testify you are in a vehicle', /mem\.counterProven \? cadenceSpm : null/.test(track));
+  check('Screen off, the native counter keeps cadence honest', /pumpBackgroundSteps/.test(track) && /appActive/.test(track));
+  check('Live ticks never manufacture steps from GPS distance any more', /if \(gapMs < MIN_GAP_SEC \* 1000\) \{\s*\n\s*mem\.lastObservedAt = now;\s*\n\s*return;/.test(track));
+  check('A blind window that ended paused is never estimated as walking', /if \(mem\.paused\) \{\s*\n\s*mem\.lastObservedAt = now;/.test(track));
+  check('A ride derives no steps from its distance — wheels are not strides', /gait === 'none' \? 0 : stepsFromDistance/.test(repo2));
+  check('The route task passes each gait its own speed ceiling', /maxSpeedMs: GAIT_MAX_SPEED_MS\[gait\]/.test(repo2));
+  check('Cadence-only recovery reaches fifteen minutes, not ninety', MAX_GAP_CREDIT_MIN === 15);
+}
+
+console.log('\nSessions are recoverable, honest, and keep their identity:');
+{
+  const track = fs.readFileSync('src/services/walkTracking.ts', 'utf8');
+  const store = fs.readFileSync('src/stores/walkStore.ts', 'utf8');
+  const repo2 = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
+  check('The step baseline is banked AFTER the motion permission exists', track.indexOf('requestWalkPermissions()') < track.indexOf('let baseline = await getStepsSinceBoot()'));
+  check('…retries once for slow sensor hubs', /await new Promise\(\(r\) => setTimeout\(r, 4000\)\)/.test(track));
+  check('A reboot-poisoned baseline is dropped in the row too, not just memory', /patchLiveWalk\(\{ bootStepBaseline: null \}\)/.test(track));
+  check('Resume restarts GPS whenever the service died, for every source', /if \(!gpsLive\) \{\s*\n\s*const gps = await startRouteTracking\(row\.mode\)/.test(track));
+  check('Resume re-checks the motion permission instead of assuming it', /Pedometer\.getPermissionsAsync\(\)/.test(track));
+  check('Quick Finish cannot orphan the location service', /if \(gps && !mem\.active\) void stopRouteTracking\(\)/.test(track));
+  check('One stray GPS fix cannot zero out a stepped walk at save', /gpsTrustworthy/.test(track) && /route\.length >= 2/.test(track));
+  check('A hike saves as a hike, with its pack and its moving time', /activity: result\.activity/.test(store) && /activeS: result\.activeSec/.test(store) && /loadKg: result\.loadKg > 0/.test(store));
+  check('Live and saved calories are the same function', /outdoorCalories\(\{/.test(store) && /outdoorCalories\(\{/.test(fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8')));
+  check('An accidental Start-Finish saves nothing', /result\.steps < 20 && result\.distanceM < 50/.test(store) || /steps < 20 && result\.distanceM < 50/.test(store));
+  check('Steps the sensor already counts are not added to the day twice', /sensorCovered \? 0 : result\.steps/.test(store) && /stepsAdded \?\? data\.steps/.test(repo2));
+  check('A walk over midnight credits and debits the SAME day', /addSteps\(data\.stepsAdded \?\? data\.steps, data\.distanceM, data\.caloriesBurned, toISODate\(new Date\(data\.startTime\)\)/.test(repo2) && /removeSteps\(row\.stepsAdded \?\? row\.steps/.test(repo2));
+  // The one calorie path, checked as arithmetic, not just as wiring.
+  const walkKcal = outdoorCalories({ weightKg: 80, distanceM: 5000, durationSec: 3600, activeSec: 3600, steps: 6500, activity: OUTDOOR_ACTIVITIES.find((a) => a.key === 'walk')!, loadKg: 0 });
+  const sameAsBase = Math.round(walkCalories({ weightKg: 80, distanceM: 5000, durationSec: 3600, activeSec: 3600, steps: 6500 }));
+  check('A plain walk keeps exactly the number it always had', walkKcal === sameAsBase);
+  const hikeKcal = outdoorCalories({ weightKg: 80, distanceM: 5000, durationSec: 3600, activeSec: 3600, steps: 6500, activity: OUTDOOR_ACTIVITIES.find((a) => a.key === 'hike')!, loadKg: 0 });
+  check('A hike at the same pace costs more — ground and gradient are real', hikeKcal > walkKcal);
+  const ruckKcal = outdoorCalories({ weightKg: 80, distanceM: 5000, durationSec: 3600, activeSec: 3600, steps: 6500, activity: OUTDOOR_ACTIVITIES.find((a) => a.key === 'ruck')!, loadKg: 20 });
+  check('Twenty kilos on your back cost more than none', ruckKcal > hikeKcal);
+  check('History and detail name the real activity, in the user\'s own units', /activityFor\(item\.activity \?\? item\.mode\)\.label/.test(fs.readFileSync('src/screens/train/SessionHistoryScreen.tsx', 'utf8')) && /formatDistance\(item\.distanceM, unit\)/.test(fs.readFileSync('src/screens/train/SessionHistoryScreen.tsx', 'utf8')) && /activityFor\(session\.activity \?\? session\.mode\)/.test(fs.readFileSync('src/screens/train/WalkDetailScreen.tsx', 'utf8')));
+}
+
+console.log('\nThe day counts itself now — the ring moves without a session:');
+{
+  const bg = fs.readFileSync('src/services/backgroundSteps.ts', 'utf8');
+  check('Android reads the native since-boot counter, not the iOS-only API alone', /getStepsSinceBoot/.test(bg) && /sensorDailySteps/.test(bg));
+  check('A reboot re-bases the anchor and banks what the day already had', /reading < a\.last/.test(bg) && /banked: a\.banked \+ Math\.max\(0, a\.last - a\.base\)/.test(bg));
+  check('The passive sync only ever raises the day — it cannot erase a session', /if \(steps <= existing\) return 0;/.test(bg));
+  check('The ring also refreshes on every return to the foreground', /initStepSync/.test(bg) && /initStepSync\(\)/.test(fs.readFileSync('App.tsx', 'utf8')));
+  check('The watcher is armed at startup', /startWalkWatcher\(\)/.test(fs.readFileSync('App.tsx', 'utf8')));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('Schema 30: the pause ledger, the identity, the kv store', /SCHEMA_VERSION = 30/.test(boot) && /app_kv/.test(boot) && /paused_total_ms/.test(boot) && /steps_added/.test(boot));
+  const det = fs.readFileSync('src/lib/pedometer.ts', 'utf8');
+  check('The accelerometer detector asks more of a footfall than a pothole', /minAmplitude \?\? 0\.13/.test(det) && /rhythmTolerance \?\? 0\.35/.test(det) && /warmupSteps \?\? 4/.test(det));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

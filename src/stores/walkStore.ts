@@ -11,7 +11,11 @@ import {
 } from '@/services/walkTracking';
 import { distanceFromSteps } from '@/lib/pedometer';
 import type { LatLng } from '@/lib/geo';
-import { walkCalories } from '@/lib/met';
+import { activityFor, outdoorCalories } from '@/lib/outdoorActivities';
+import { shouldDiscardAutoSession } from '@/lib/walkAutoDetect';
+import { hasHardwareStepCounter } from '../../modules/step-counter';
+import type { StartWalkOptions } from '@/services/walkTracking';
+import { syncTodaySteps } from '@/services/backgroundSteps';
 import { useUserStore } from './userStore';
 
 interface WalkState {
@@ -31,16 +35,30 @@ interface WalkState {
   pauseReason: string;
   /** moving seconds, excluding paused time */
   activeS: number;
+  /** which outdoor activity is live (walk/run/hike/ruck/…) */
+  activity: string;
+  loadKg: number;
+  /** started by the auto-detector */
+  autoStarted: boolean;
 
   /** Reattach to a walk that survived a background/app restart. */
   resume: () => void;
-  start: (mode: 'walk' | 'run') => void;
+  start: (mode: 'walk' | 'run', opts?: StartWalkOptions) => void;
   /** Pull the latest numbers from the in-memory tracker (cheap; no DB read). */
   refresh: () => void;
   /** Reconcile against the hardware step counter (catches up background steps), then refresh. */
   reconcile: () => Promise<void>;
-  stop: () => { steps: number; distanceM: number; calories: number; durationS: number } | null;
+  stop: (opts?: { autoEnded?: boolean }) => WalkStopResult | null;
   reset: () => void;
+}
+
+export interface WalkStopResult {
+  steps: number;
+  distanceM: number;
+  calories: number;
+  durationS: number;
+  /** false = too small to be a real session, so nothing was saved */
+  saved: boolean;
 }
 
 function heightCm(): number {
@@ -71,6 +89,9 @@ export const useWalkStore = create<WalkState>((set, get) => ({
   paused: false,
   pauseReason: '',
   activeS: 0,
+  activity: 'walk',
+  loadKg: 0,
+  autoStarted: false,
 
   resume: () => {
     const snap = getLiveSnapshot();
@@ -87,18 +108,34 @@ export const useWalkStore = create<WalkState>((set, get) => ({
         route: snap.route,
         usingGps,
         elapsedS: Math.round((Date.now() - snap.startTime) / 1000),
+        paused: snap.paused,
+        pauseReason: snap.pauseReason,
+        activeS: snap.activeSec,
+        activity: snap.activity,
+        loadKg: snap.loadKg,
+        autoStarted: snap.autoStarted,
       });
     }
   },
 
-  start: (mode) => {
+  start: (mode, opts) => {
     if (get().starting || get().active) return;
-    set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [] });
+    set({
+      starting: true,
+      steps: 0,
+      distanceM: 0,
+      elapsedS: 0,
+      route: [],
+      // A fresh session must never flash the previous one's pause state.
+      paused: false,
+      pauseReason: '',
+      activeS: 0,
+    });
 
     // `startWalkTracking` brings the session up synchronously and finishes the
     // slow parts (permission dialogs, hardware counter, GPS) in the background,
     // so the UI can switch to the tracking view with no delay.
-    void startWalkTracking(mode);
+    void startWalkTracking(mode, opts);
 
     const snap = getLiveSnapshot();
     set({
@@ -107,6 +144,9 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       mode,
       source: snap?.source ?? 'accelerometer',
       startedAt: snap?.startTime ?? Date.now(),
+      activity: opts?.activity ?? mode,
+      loadKg: opts?.loadKg ?? 0,
+      autoStarted: opts?.autoStarted ?? false,
       // Both fill in via refresh() once the async setup resolves.
       usingGps: false,
       permissions: null,
@@ -134,6 +174,9 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       paused: snap?.paused ?? s.paused,
       pauseReason: snap?.pauseReason ?? s.pauseReason,
       activeS: snap?.activeSec ?? s.activeS,
+      activity: snap?.activity ?? s.activity,
+      loadKg: snap?.loadKg ?? s.loadKg,
+      autoStarted: snap?.autoStarted ?? s.autoStarted,
       elapsedS: Math.round((Date.now() - s.startedAt) / 1000),
     });
   },
@@ -144,25 +187,52 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     get().refresh();
   },
 
-  stop: () => {
+  stop: (opts) => {
     const s = get();
     if (!s.active || !s.startedAt) return null;
 
     const result = stopWalkTracking();
-    set({ active: false, startedAt: null });
+    set({ active: false, startedAt: null, paused: false, pauseReason: '', autoStarted: false });
     if (!result) return null;
 
+    /*
+     * Junk guard: an accidental Start-then-Finish (or an auto-detected trigger
+     * that never became a walk) must not write a "Walk · 0 steps · 2 s" row
+     * into history and the daily totals. Real short walks still save.
+     */
+    const junk =
+      (result.steps < 20 && result.distanceM < 50) ||
+      (opts?.autoEnded === true && shouldDiscardAutoSession(result.steps, result.activeSec));
+    if (junk) {
+      return {
+        steps: result.steps,
+        distanceM: result.distanceM,
+        calories: 0,
+        durationS: result.durationS,
+        saved: false,
+      };
+    }
+
     const weightKg = useUserStore.getState().currentWeightKg ?? 75;
-    // Moving time only — standing at a crossing or riding a bus isn't exercise.
-    const calories = walkCalories({
+    // THE SAME calorie path as the live screen (MET floor for hikes/rucks, a
+    // carried pack scales it) — the number can no longer drop at Finish.
+    // Moving time only: standing at a crossing or riding a bus isn't exercise.
+    const activity = activityFor(result.activity);
+    const calories = outdoorCalories({
       weightKg,
       distanceM: result.distanceM,
       durationSec: result.durationS,
       activeSec: result.activeSec,
       steps: result.steps,
+      activity,
+      loadKg: result.loadKg,
     });
     // Moving pace — wall-clock would make a paused session look slower than it ran.
     const avgPace = result.distanceM > 0 ? result.activeSec / (result.distanceM / 1000) : null;
+
+    // Steps the hardware sensor counts are banked by the passive daily sync;
+    // adding them here too double-counted every phone-carried walk.
+    const sensorCovered = result.source === 'pedometer' && hasHardwareStepCounter();
 
     saveWalkSession({
       mode: result.mode,
@@ -175,10 +245,29 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       avgPace,
       source: result.source,
       routeJson: result.route.length > 1 ? JSON.stringify(result.route) : null,
+      activity: result.activity,
+      loadKg: result.loadKg > 0 ? result.loadKg : null,
+      activeS: result.activeSec,
+      stepsAdded: sensorCovered ? 0 : result.steps,
     });
+    // Fold the sensor's own count into the day right away.
+    if (sensorCovered) void syncTodaySteps().catch(() => {});
 
-    return { steps: result.steps, distanceM: result.distanceM, calories, durationS: result.durationS };
+    return { steps: result.steps, distanceM: result.distanceM, calories, durationS: result.durationS, saved: true };
   },
 
-  reset: () => set({ active: false, startedAt: null, steps: 0, distanceM: 0, elapsedS: 0, route: [], usingGps: false }),
+  reset: () =>
+    set({
+      active: false,
+      startedAt: null,
+      steps: 0,
+      distanceM: 0,
+      elapsedS: 0,
+      route: [],
+      usingGps: false,
+      paused: false,
+      pauseReason: '',
+      activeS: 0,
+      autoStarted: false,
+    }),
 }));

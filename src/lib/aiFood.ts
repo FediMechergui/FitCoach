@@ -294,24 +294,79 @@ export function modelRoute(primary: string): string[] {
   return route.slice(0, MAX_ROUTE_MODELS);
 }
 
-/** Models sometimes wrap JSON in prose or a code fence. Dig it out. */
-export function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenced ? fenced[1] : trimmed;
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    // Fall back to the outermost braces, for a reply with a sentence around it.
-    const start = candidate.indexOf('{');
-    const end = candidate.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(candidate.slice(start, end + 1));
-      } catch {
-        return null;
+/**
+ * The first complete JSON value in a string, scanned with brace matching.
+ *
+ * A model that has not been forced into JSON mode writes around its answer:
+ * a sentence of preamble, a fenced block, a note afterwards, sometimes a whole
+ * paragraph of reasoning first. Slicing between the outermost braces breaks on
+ * any of that, so this walks the text properly, respecting strings and escapes,
+ * and returns the first balanced object or array it finds.
+ */
+export function firstBalancedJson(text: string): string | null {
+  for (let i = 0; i < text.length; i++) {
+    const opener = text[i];
+    if (opener !== '{' && opener !== '[') continue;
+    const closer = opener === '{' ? '}' : ']';
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let j = i; j < text.length; j++) {
+      const c = text[j];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (c === '\\') escaped = true;
+        else if (c === '"') inString = false;
+        continue;
+      }
+      if (c === '"') {
+        inString = true;
+        continue;
+      }
+      if (c === opener) depth += 1;
+      else if (c === closer) {
+        depth -= 1;
+        if (depth === 0) return text.slice(i, j + 1);
       }
     }
-    return null;
   }
+  return null;
+}
+
+/**
+ * Read a model's reply as JSON, however it chose to present it.
+ *
+ * Tried in order: the whole reply, a fenced code block, then the first balanced
+ * JSON value anywhere in the text. Only free models that support enforced
+ * structured output can be relied on to answer with nothing else, and none of
+ * the ones this app routes to do.
+ */
+export function extractJson(text: string): unknown {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // keep going
+  }
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1].trim());
+    } catch {
+      // keep going
+    }
+  }
+
+  const balanced = firstBalancedJson(trimmed);
+  if (balanced) {
+    try {
+      return JSON.parse(balanced);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }

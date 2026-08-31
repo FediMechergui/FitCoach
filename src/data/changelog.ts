@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.60',
+    date: '2026-08-31',
+    title: 'The app was demanding a reply format none of its models can produce',
+    highlights: [
+      'Every photo came back as "the answer couldn\'t be read", and the reason was in the request, not the reply. The app insisted on a strictly-schema-checked answer — a feature the provider only offers for models that advertise it, and NOT ONE of the three free vision models it uses does. So the demand was refused or ignored, the model answered in ordinary prose, and the app threw the prose away.',
+      'It now asks for JSON in the form these models genuinely support, and describes the shape it wants in the question itself. If that still comes back wrong, it asks once more with no format at all and twice the room to answer.',
+      'Reading the reply is far more forgiving too. A model that has not been forced into JSON mode writes around its answer — a sentence first, a code fence, a note afterwards, sometimes a paragraph of reasoning. The reply is now scanned properly for the first complete JSON value, respecting quotes and escapes, so a chatty answer is understood instead of discarded.',
+      'And a reply cut off at the length limit — which can never close its JSON, and looks identical to prose — is now recognised and named, with more room given to both steps so it stops happening.',
+      '1353 checks in all, up from 1335, including a dozen on reading replies that arrive wrapped in conversation.',
+    ],
+  },
+  {
     version: '2.59',
     date: '2026-08-31',
     title: 'Your egg was sent to a content-safety checker, which said "safe"',

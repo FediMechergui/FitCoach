@@ -60,8 +60,8 @@ const TEXT_TIMEOUT_MS = 60_000;
  * for fewer is directly faster. Researching nutrition has 26 micronutrient
  * fields to fill and needs the room.
  */
-const IDENTIFY_MAX_TOKENS = 700;
-const NUTRITION_MAX_TOKENS = 1600;
+const IDENTIFY_MAX_TOKENS = 1500;
+const NUTRITION_MAX_TOKENS = 2400;
 
 function activeModel(): string {
   const stored = kvGet<string>(KV_OPENROUTER_MODEL);
@@ -157,7 +157,7 @@ async function post(
     }
 
     const json = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       error?: { message?: string };
     };
     // Some providers put their refusal in a 200 body instead of a status.
@@ -170,15 +170,21 @@ async function post(
       };
     }
 
-    const text = json.choices?.[0]?.message?.content;
+    const choice = json.choices?.[0];
+    const text = choice?.message?.content;
     if (typeof text !== 'string' || !text.trim()) {
-      lastDetail = 'The model returned an empty reply.';
+      lastDetail = `The model returned an empty reply (finish: ${choice?.finish_reason ?? 'unknown'}).`;
       return { data: null, error: 'unreadable' };
     }
 
     const parsed = extractJson(text);
     if (parsed == null) {
-      lastDetail = `The model replied with prose, not JSON: "${text.slice(0, 160)}"`;
+      // A reply cut off at the token ceiling is unreadable for a knowable
+      // reason, and the retry doubles the budget rather than repeating itself.
+      lastDetail =
+        choice?.finish_reason === 'length'
+          ? `The reply was cut short at the length limit, so its JSON never closed: "${text.slice(0, 300)}"`
+          : `Not JSON: "${text.slice(0, 300)}"`;
       return { data: null, error: 'unreadable' };
     }
     lastDetail = null;
@@ -207,30 +213,37 @@ async function ask(
   if (!key) return { data: null, error: 'no-key' };
 
   /*
-   * First ask with the schema ENFORCED. Not every free endpoint honours a
-   * json_schema response format — several declare only plain response_format
-   * support, and one of those may reject the request outright or ignore the
-   * format and chat. So a failed or unreadable first attempt is retried once
-   * with the schema written into the prompt instead, and extractJson digs the
-   * object out of whatever comes back. Auth, rate-limit and privacy failures
-   * are real answers, not formatting problems — those are never retried.
+   * Ask for JSON in the only way these models actually support.
+   *
+   * A `json_schema` response format requires the provider to advertise
+   * `structured_outputs`, and NONE of the free vision models this routes to
+   * do — they support plain `response_format` only. Demanding the schema
+   * therefore failed on every request: the model either refused the parameter
+   * or ignored it and replied in prose, which read back as "the answer
+   * couldn't be read".
+   *
+   * So: `json_object`, which they all support, with the schema spelled out in
+   * the prompt since that mode constrains syntax but not shape. The reply is
+   * then read by extractJson, which copes with a preamble or a code fence.
+   *
+   * The retry drops the format entirely and doubles the token budget, which
+   * covers both a provider that dislikes the parameter and a reply cut off
+   * mid-object. Auth, rate-limit, privacy and timeout answers are real, not
+   * formatting problems, and are never retried.
    */
-  const first = await post(
-    content,
-    { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema } },
-    timeoutMs,
-    key,
-    maxTokens
-  );
-  if (first.error !== 'failed' && first.error !== 'unreadable') return first;
-
   const hint: ChatMessageContent = {
     type: 'text',
     text:
-      'Respond with ONLY a single JSON object — no prose, no code fence — matching exactly this JSON schema:\n' +
+      'Reply with ONE JSON object and nothing else — no explanation, no code fence — ' +
+      'matching exactly this JSON schema:\n' +
       JSON.stringify(schema),
   };
-  return post([...content, hint], undefined, timeoutMs, key, maxTokens);
+  const asked = [...content, hint];
+
+  const first = await post(asked, { type: 'json_object' }, timeoutMs, key, maxTokens);
+  if (first.error !== 'failed' && first.error !== 'unreadable') return first;
+
+  return post(asked, undefined, timeoutMs, key, maxTokens * 2);
 }
 
 // ── 1. What is on the plate? ─────────────────────────────────────────────────

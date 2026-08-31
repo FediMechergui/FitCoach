@@ -33,7 +33,7 @@ import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
 import { segmentGateM, MIN_SEGMENT_M, ACCURACY_SLACK, VAGUE_SLACK, VAGUE_ACCURACY_M } from '../src/lib/gpsFilter';
-import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE, modelRoute, MAX_ROUTE_MODELS, isUsableVisionModel } from '../src/lib/aiFood';
+import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE, modelRoute, MAX_ROUTE_MODELS, isUsableVisionModel, firstBalancedJson } from '../src/lib/aiFood';
 import { matchFood, scoreFoodMatch, nameTokens, MATCH_MIN_SCORE } from '../src/lib/foodMatch';
 import { servingGrams, scaleCatalogueFood, rowFromCatalogue, rowFromResearch, unresolvedNames, mealTotals } from '../src/lib/photoMeal';
 
@@ -3254,8 +3254,11 @@ console.log('\nThe first live photo failed silently; now the pipe bends instead 
   const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
   // Enforced schema first, schema-in-prompt second: several free endpoints
   // declare no structured-output support and reject or ignore json_schema.
-  check('The schema is enforced on the first attempt', /json_schema: \{ name: schemaName, strict: true, schema \}/.test(svc));
-  check('...and written into the prompt on the retry', /matching exactly this JSON schema/.test(svc) && /post\(\[\.\.\.content, hint\], undefined/.test(svc));
+  // Superseded by v2.60: none of the routed models advertise structured
+  // outputs, so the schema is described in the prompt on BOTH attempts and
+  // JSON mode is requested in the form they do support.
+  check('The first attempt asks for JSON mode the models support', /post\(asked, \{ type: 'json_object' \}/.test(svc));
+  check('...with the schema described in the prompt both times', /matching exactly this JSON schema/.test(svc) && /const asked = \[\.\.\.content, hint\];/.test(svc));
   check('Real answers are never retried as format problems', /first\.error !== 'failed' && first\.error !== 'unreadable'/.test(svc));
 
   // The free-model privacy gate is named, not lumped into "failed".
@@ -3264,7 +3267,7 @@ console.log('\nThe first live photo failed silently; now the pipe bends instead 
   check('A refusal hidden in a 200 body is caught too', /json\.error\?\.message/.test(svc));
 
   // Failures say WHY, on screen.
-  check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /replied with prose, not JSON/.test(svc) && /no reply in \$\{waited\} s/.test(svc));
+  check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /Not JSON: /.test(svc) && /no reply in \$\{waited\} s/.test(svc));
   const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
   check('...and the screen shows it', /lastVisionDetail\(\)/.test(scr));
 }
@@ -3310,8 +3313,10 @@ console.log('\nWaiting for a free model, without calling it a lost connection:')
   check('The research call is given room too', /const TEXT_TIMEOUT_MS = 60_000;/.test(svc));
 
   // Identification returns a short list; asking for fewer tokens is faster.
-  check('Identification asks for only the tokens it needs', /IDENTIFY_MAX_TOKENS = 700/.test(svc));
-  check('...while researching micronutrients keeps its room', /NUTRITION_MAX_TOKENS = 1600/.test(svc));
+  // Raised in v2.60: a reply cut off at the ceiling never closes its JSON,
+  // which is indistinguishable from prose to the reader.
+  check('Identification has room to finish its JSON', /IDENTIFY_MAX_TOKENS = 1500/.test(svc));
+  check('...and researching micronutrients has more', /NUTRITION_MAX_TOKENS = 2400/.test(svc));
   check('Both calls state their own budget', /IDENTIFY_MAX_TOKENS\s*\n?\s*\);/.test(svc) && /NUTRITION_MAX_TOKENS\s*\n?\s*\);/.test(svc));
 
   // The photo is the bulk of the request, so it goes up small.
@@ -3346,6 +3351,40 @@ console.log('\nOnly models that can actually describe a meal are asked to:');
   // Choosing an unusable model by hand must not leave nothing to ask.
   const rescued = modelRoute('openrouter/free');
   check('An unusable choice falls back rather than sending nothing', rescued.length > 0 && rescued.every(isUsableVisionModel));
+}
+
+console.log('\nAsking for JSON in a way these models can actually answer:');
+{
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+
+  /*
+   * A json_schema response format requires a provider that advertises
+   * `structured_outputs`, and NONE of the free vision models this routes to
+   * do - they support plain `response_format` only. Demanding the schema meant
+   * every reply came back as prose and read as "the answer couldn't be read".
+   */
+  check('JSON mode is asked for in the supported way', /post\(asked, \{ type: 'json_object' \}/.test(svc));
+  check('The strict schema format is no longer demanded', !/type: 'json_schema'/.test(svc));
+  check('The shape is spelled out in the prompt instead', /matching exactly this JSON schema/.test(svc) && /Reply with ONE JSON object and nothing else/.test(svc));
+  check('The retry drops the format and doubles the budget', /post\(asked, undefined, timeoutMs, key, maxTokens \* 2\)/.test(svc));
+  check('Real answers are still never retried as formatting problems', /first\.error !== 'failed' && first\.error !== 'unreadable'/.test(svc));
+
+  // A reply cut off at the ceiling is a knowable failure, not a mystery.
+  check('A truncated reply is named as truncated', /finish_reason === 'length'/.test(svc) && /cut short at the length limit/.test(svc));
+  check('The token budgets leave room for the answer', /IDENTIFY_MAX_TOKENS = 1500/.test(svc) && /NUTRITION_MAX_TOKENS = 2400/.test(svc));
+  check('An unreadable reply is quoted at length enough to diagnose', /text\.slice\(0, 300\)/.test(svc));
+
+  // Extraction has to cope with however a model chooses to present itself.
+  check('Clean JSON parses', (extractJson('{"a":1}') as { a: number }).a === 1);
+  check('A fenced block parses', (extractJson('```json\n{"a":2}\n```') as { a: number }).a === 2);
+  check('JSON after a preamble parses', (extractJson('Sure! Here you go:\n{"a":3}') as { a: number }).a === 3);
+  check('JSON with chatter on both sides parses', (extractJson('Thinking...\n{"a":4}\nHope that helps') as { a: number }).a === 4);
+  check('A brace inside a string does not fool the scanner', (extractJson('{"n":"egg {large}","a":5}') as { a: number }).a === 5);
+  check('An escaped quote does not fool it either', (extractJson('{"n":"a\\"b","a":6}') as { a: number }).a === 6);
+  check('An array reply parses', Array.isArray(extractJson('[{"a":7}]')));
+  check('Truncated JSON is refused, not half-read', extractJson('{"items":[{"name":"egg","gram') === null);
+  check('Pure prose is refused', extractJson('User Safety: safe') === null && extractJson('I cannot help') === null);
+  check('The scanner finds the first balanced value', firstBalancedJson('noise {"a":1} more {"b":2}') === '{"a":1}');
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

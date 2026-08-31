@@ -3264,7 +3264,7 @@ console.log('\nThe first live photo failed silently; now the pipe bends instead 
   check('A refusal hidden in a 200 body is caught too', /json\.error\?\.message/.test(svc));
 
   // Failures say WHY, on screen.
-  check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /replied with prose, not JSON/.test(svc) && /No reply within/.test(svc));
+  check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /replied with prose, not JSON/.test(svc) && /no reply in \$\{waited\} s/.test(svc));
   const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
   check('...and the screen shows it', /lastVisionDetail\(\)/.test(scr));
 }
@@ -3289,6 +3289,39 @@ console.log('\nThe request itself has to be one OpenRouter will accept:');
   const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
   check('The service builds its route through the capped helper', /models: modelRoute\(activeModel\(\)\)/.test(svc));
   check('...and never inlines an uncapped list again', !/models: \[activeModel\(\), \.\.\.FALLBACK_MODELS/.test(svc));
+}
+
+console.log('\nWaiting for a free model, without calling it a lost connection:');
+{
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+  const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
+
+  /*
+   * A request that reached OpenRouter and simply was not answered in time is
+   * not "no connection" — saying so sent the user hunting a network fault that
+   * did not exist. It is its own outcome, with its own advice.
+   */
+  check('A timeout is its own failure, not an offline one', /\| 'timeout'/.test(svc) && /error: aborted \? 'timeout' : 'offline'/.test(svc));
+  check('...and says the connection is fine', /Your connection is/.test(svc) && /try again/.test(svc));
+
+  // Free endpoints queue; 45 s was not patient enough for a real meal.
+  const vision = svc.match(/const VISION_TIMEOUT_MS = ([\d_]+);/);
+  check('Vision waits long enough for a queued free model', !!vision && Number(vision[1].replace(/_/g, '')) >= 90_000, `${vision?.[1]} ms`);
+  check('The research call is given room too', /const TEXT_TIMEOUT_MS = 60_000;/.test(svc));
+
+  // Identification returns a short list; asking for fewer tokens is faster.
+  check('Identification asks for only the tokens it needs', /IDENTIFY_MAX_TOKENS = 700/.test(svc));
+  check('...while researching micronutrients keeps its room', /NUTRITION_MAX_TOKENS = 1600/.test(svc));
+  check('Both calls state their own budget', /IDENTIFY_MAX_TOKENS\s*\n?\s*\);/.test(svc) && /NUTRITION_MAX_TOKENS\s*\n?\s*\);/.test(svc));
+
+  // The photo is the bulk of the request, so it goes up small.
+  check('The photograph is sent small', /quality: 0\.2,/.test(scr));
+  check('...and cropped square, which cuts the pixels as well', /allowsEditing: true,/.test(scr) && /aspect: \[1, 1\],/.test(scr));
+
+  // Instrumented, so the next failure is conclusive rather than a guess.
+  check('A failure reports how much was sent and how long it waited', /Sent \$\{sentKb\} KB, no reply in \$\{waited\} s/.test(svc));
+  check('...measured from the body actually posted', /const sentKb = Math\.round\(body\.length \/ 1024\);/.test(svc));
+  check('The wait says it may take a minute', /free models queue when busy/.test(scr));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

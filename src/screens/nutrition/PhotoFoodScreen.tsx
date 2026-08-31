@@ -94,9 +94,18 @@ export function PhotoFoodScreen() {
 
       const opts: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        // Compressed hard on purpose: the model's own downscaling makes a
-        // larger upload pointless, and this is someone's mobile data.
-        quality: 0.4,
+        /*
+         * As small as it can be and still show what the food is.
+         *
+         * A phone camera produces a many-megapixel JPEG; base64 then adds a
+         * third again, and the whole thing goes up as one request body. The
+         * provider downscales it on arrival anyway, so every extra byte buys
+         * nothing and costs upload time — which is what was timing out. The
+         * square crop cuts the pixel count as well as framing the plate.
+         */
+        quality: 0.2,
+        allowsEditing: true,
+        aspect: [1, 1],
         base64: true,
       };
       const picked = fromCamera
@@ -289,7 +298,7 @@ export function PhotoFoodScreen() {
             <ActivityIndicator color={theme.colors.accent} />
             <Text variant="body" color="textMuted" style={{ flex: 1 }}>
               {stage === 'looking'
-                ? 'Identifying what is on the plate…'
+                ? 'Identifying what is on the plate… free models queue when busy, so this can take a minute.'
                 : 'Looking up nutrition for the foods we don’t have yet…'}
             </Text>
           </Row>

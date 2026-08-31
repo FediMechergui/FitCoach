@@ -42,9 +42,26 @@ import { openRouterKey, kvGet, KV_OPENROUTER_MODEL } from '@/repositories/kvRepo
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
-/** Vision is slower than a weather lookup; still bounded. */
-const VISION_TIMEOUT_MS = 45_000;
-const TEXT_TIMEOUT_MS = 30_000;
+/*
+ * How long to wait.
+ *
+ * Free endpoints are not fast endpoints: the request queues behind everyone
+ * else using the same free capacity, and a photograph is a large prompt to
+ * begin with. 45 s was optimistic and timed out on a real meal over real
+ * Wi-Fi — which then read to the user as "no connection", the one thing it
+ * definitely was not. Two minutes is patient enough to be worth the wait and
+ * short enough not to look frozen.
+ */
+const VISION_TIMEOUT_MS = 120_000;
+const TEXT_TIMEOUT_MS = 60_000;
+
+/**
+ * Identification returns a short list, so it needs few output tokens; asking
+ * for fewer is directly faster. Researching nutrition has 26 micronutrient
+ * fields to fill and needs the room.
+ */
+const IDENTIFY_MAX_TOKENS = 700;
+const NUTRITION_MAX_TOKENS = 1600;
 
 function activeModel(): string {
   const stored = kvGet<string>(KV_OPENROUTER_MODEL);
@@ -59,6 +76,7 @@ export function hasFoodVisionKey(): boolean {
 export type VisionFailure =
   | 'no-key'
   | 'offline'
+  | 'timeout'
   | 'rate-limited'
   | 'unauthorised'
   | 'data-policy'
@@ -92,10 +110,24 @@ async function post(
   content: ChatMessageContent[],
   responseFormat: Record<string, unknown> | undefined,
   timeoutMs: number,
-  key: string
+  key: string,
+  maxTokens: number
 ): Promise<VisionResult<unknown>> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  // Measured so a failure can say how big the request was and how long it
+  // waited — the difference between "the photo is too heavy" and "the free
+  // model is busy", which otherwise look identical from the outside.
+  const body = JSON.stringify({
+    model: activeModel(),
+    models: modelRoute(activeModel()),
+    messages: [{ role: 'user', content }],
+    ...(responseFormat ? { response_format: responseFormat } : {}),
+    temperature: 0,
+    max_tokens: maxTokens,
+  });
+  const sentKb = Math.round(body.length / 1024);
+  const startedAt = Date.now();
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
@@ -106,14 +138,7 @@ async function post(
         // Attribution only; carries no personal data.
         'X-Title': 'FitCoach',
       },
-      body: JSON.stringify({
-        model: activeModel(),
-        models: modelRoute(activeModel()),
-        messages: [{ role: 'user', content }],
-        ...(responseFormat ? { response_format: responseFormat } : {}),
-        temperature: 0,
-        max_tokens: 1600,
-      }),
+      body,
     });
 
     if (!res.ok) {
@@ -160,10 +185,12 @@ async function post(
     return { data: parsed, error: null };
   } catch (e) {
     const aborted = e instanceof Error && e.name === 'AbortError';
+    const waited = Math.round((Date.now() - startedAt) / 1000);
     lastDetail = aborted
-      ? `No reply within ${Math.round(timeoutMs / 1000)} s — a slow connection, or a very large photo.`
-      : 'Could not reach openrouter.ai at all.';
-    return { data: null, error: 'offline' };
+      ? `Sent ${sentKb} KB, no reply in ${waited} s. A free model that is busy usually answers on a ` +
+        `second try; if the size is large the photo is the problem.`
+      : `Could not reach openrouter.ai at all (after ${waited} s, ${sentKb} KB).`;
+    return { data: null, error: aborted ? 'timeout' : 'offline' };
   } finally {
     clearTimeout(timer);
   }
@@ -173,7 +200,8 @@ async function ask(
   content: ChatMessageContent[],
   schema: Record<string, unknown>,
   schemaName: string,
-  timeoutMs: number
+  timeoutMs: number,
+  maxTokens: number
 ): Promise<VisionResult<unknown>> {
   const key = openRouterKey();
   if (!key) return { data: null, error: 'no-key' };
@@ -191,7 +219,8 @@ async function ask(
     content,
     { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema } },
     timeoutMs,
-    key
+    key,
+    maxTokens
   );
   if (first.error !== 'failed' && first.error !== 'unreadable') return first;
 
@@ -201,7 +230,7 @@ async function ask(
       'Respond with ONLY a single JSON object — no prose, no code fence — matching exactly this JSON schema:\n' +
       JSON.stringify(schema),
   };
-  return post([...content, hint], undefined, timeoutMs, key);
+  return post([...content, hint], undefined, timeoutMs, key, maxTokens);
 }
 
 // ── 1. What is on the plate? ─────────────────────────────────────────────────
@@ -248,7 +277,8 @@ export async function identifyFoodInPhoto(
     ],
     IDENTIFY_SCHEMA,
     'food_identification',
-    VISION_TIMEOUT_MS
+    VISION_TIMEOUT_MS,
+    IDENTIFY_MAX_TOKENS
   );
   if (error) return { data: null, error };
   const parsed = parsePhotoIdentification(data);
@@ -317,7 +347,8 @@ export async function researchNutrition(
     [{ type: 'text', text: prompt }],
     NUTRITION_SCHEMA,
     'food_nutrition',
-    TEXT_TIMEOUT_MS
+    TEXT_TIMEOUT_MS,
+    NUTRITION_MAX_TOKENS
   );
   if (error) return { data: null, error };
 
@@ -342,6 +373,11 @@ export function failureMessage(e: VisionFailure): string {
       return 'Add your OpenRouter key to use photo logging.';
     case 'offline':
       return 'No connection — the photo needs the internet. Everything else still works offline.';
+    case 'timeout':
+      return (
+        'The free model did not answer in time — they queue when busy. Your connection is ' +
+        'fine; try again, and it often answers on the second attempt.'
+      );
     case 'rate-limited':
       return 'The free model is busy (20 requests a minute, 50 a day). Try again shortly.';
     case 'unauthorised':

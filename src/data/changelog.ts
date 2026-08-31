@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.58',
+    date: '2026-08-31',
+    title: 'Photo logging: a long wait is no longer reported as a lost connection',
+    highlights: [
+      'The request now reaches OpenRouter — but the reply was taking longer than the app was willing to wait, and it then blamed your internet, which was the one thing that was fine. A request that arrived and simply was not answered in time is now its own outcome, and says so: your connection is fine, free models queue when they are busy, try again.',
+      'It also waits properly. Free endpoints share their capacity with everyone else using them, and a photograph is a large thing to send; 45 seconds was optimistic. Now two minutes, and the waiting screen says it may take a minute rather than looking frozen.',
+      'And it sends far less. The photo went up at full camera resolution — several megabytes once encoded — which the model shrinks on arrival anyway, so every one of those bytes bought nothing and cost upload time. It is now compressed harder and cropped square, which also frames the plate. The identification step asks for fewer words back, which is directly faster.',
+      'If it still fails, the small print now says exactly how much was sent and how long it waited — enough to tell a busy model apart from a heavy photo without guessing.',
+      '1325 checks in all, up from 1313.',
+    ],
+  },
+  {
     version: '2.57',
     date: '2026-08-31',
     title: 'Photo logging actually works now — it had never once reached a model',

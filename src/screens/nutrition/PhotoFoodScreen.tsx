@@ -23,6 +23,7 @@ import {
   identifyFoodInPhoto,
   researchNutrition,
   failureMessage,
+  lastVisionDetail,
   DEFAULT_MODEL,
   type VisionFailure,
 } from '@/services/foodVision';
@@ -421,6 +422,13 @@ export function PhotoFoodScreen() {
           <Text variant="caption" color="textMuted">
             {failureMessage(error)}
           </Text>
+          {/* The provider's actual words, so a failure can be reported and
+              fixed instead of leaving "does it even work?" unanswerable. */}
+          {lastVisionDetail() && (
+            <Text variant="caption" color="textFaint" style={{ marginTop: 6 }}>
+              {lastVisionDetail()}
+            </Text>
+          )}
         </Card>
       )}
       <Button title="Take a photo" onPress={() => void run(true)} />

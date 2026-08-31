@@ -85,7 +85,10 @@ export const MICRO_SANITY_MULTIPLE = 40;
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
 function num(v: unknown): number | null {
-  const n = typeof v === 'string' ? Number(v) : v;
+  // parseFloat, not Number: a model answering outside an enforced schema
+  // writes "150 g" or "0.9 (approx)", and the number in front IS the answer.
+  // Number() turns all of those into NaN and the whole item was dropped.
+  const n = typeof v === 'string' ? parseFloat(v) : v;
   return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 

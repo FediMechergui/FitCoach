@@ -60,12 +60,24 @@ export type VisionFailure =
   | 'offline'
   | 'rate-limited'
   | 'unauthorised'
+  | 'data-policy'
   | 'unreadable'
   | 'failed';
 
 export interface VisionResult<T> {
   data: T | null;
   error: VisionFailure | null;
+}
+
+/**
+ * What actually came back when a call failed — status, the provider's own
+ * words, which model. Shown in small print under the error card, because a
+ * failure in the field that only says "did not work" leaves the user unable
+ * to tell whether the feature works at all, let alone why it didn't.
+ */
+let lastDetail: string | null = null;
+export function lastVisionDetail(): string | null {
+  return lastDetail;
 }
 
 
@@ -75,15 +87,12 @@ interface ChatMessageContent {
   image_url?: { url: string };
 }
 
-async function ask(
+async function post(
   content: ChatMessageContent[],
-  schema: Record<string, unknown>,
-  schemaName: string,
-  timeoutMs: number
+  responseFormat: Record<string, unknown> | undefined,
+  timeoutMs: number,
+  key: string
 ): Promise<VisionResult<unknown>> {
-  const key = openRouterKey();
-  if (!key) return { data: null, error: 'no-key' };
-
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -100,31 +109,98 @@ async function ask(
         model: activeModel(),
         models: [activeModel(), ...FALLBACK_MODELS.filter((m) => m !== activeModel())],
         messages: [{ role: 'user', content }],
-        response_format: { type: 'json_schema', json_schema: { name: schemaName, schema } },
+        ...(responseFormat ? { response_format: responseFormat } : {}),
         temperature: 0,
         max_tokens: 1600,
       }),
     });
 
-    if (res.status === 401 || res.status === 403) return { data: null, error: 'unauthorised' };
-    if (res.status === 429) return { data: null, error: 'rate-limited' };
-    if (!res.ok) return { data: null, error: 'failed' };
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      lastDetail = `HTTP ${res.status}${body ? ` — ${body.slice(0, 220)}` : ''}`;
+      if (res.status === 401 || res.status === 403) return { data: null, error: 'unauthorised' };
+      if (res.status === 429) return { data: null, error: 'rate-limited' };
+      /*
+       * The most common first-run failure with :free models: the account's
+       * privacy settings refuse providers that may train on prompts, and
+       * OpenRouter answers 404 "no allowed providers". That is a setting on
+       * the website, not a bug here — so it is named, not lumped into "failed".
+       */
+      if (/data policy|allowed providers|privacy/i.test(body)) return { data: null, error: 'data-policy' };
+      return { data: null, error: 'failed' };
+    }
 
     const json = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
+      error?: { message?: string };
     };
+    // Some providers put their refusal in a 200 body instead of a status.
+    if (json.error?.message) {
+      const msg = String(json.error.message);
+      lastDetail = msg.slice(0, 220);
+      return {
+        data: null,
+        error: /data policy|allowed providers|privacy/i.test(msg) ? 'data-policy' : 'failed',
+      };
+    }
+
     const text = json.choices?.[0]?.message?.content;
-    if (typeof text !== 'string' || !text.trim()) return { data: null, error: 'unreadable' };
+    if (typeof text !== 'string' || !text.trim()) {
+      lastDetail = 'The model returned an empty reply.';
+      return { data: null, error: 'unreadable' };
+    }
 
     const parsed = extractJson(text);
-    return parsed == null ? { data: null, error: 'unreadable' } : { data: parsed, error: null };
+    if (parsed == null) {
+      lastDetail = `The model replied with prose, not JSON: "${text.slice(0, 160)}"`;
+      return { data: null, error: 'unreadable' };
+    }
+    lastDetail = null;
+    return { data: parsed, error: null };
   } catch (e) {
-    // Abort, DNS failure, no signal — all indistinguishable and all "no result".
     const aborted = e instanceof Error && e.name === 'AbortError';
-    return { data: null, error: aborted ? 'offline' : 'offline' };
+    lastDetail = aborted
+      ? `No reply within ${Math.round(timeoutMs / 1000)} s — a slow connection, or a very large photo.`
+      : 'Could not reach openrouter.ai at all.';
+    return { data: null, error: 'offline' };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function ask(
+  content: ChatMessageContent[],
+  schema: Record<string, unknown>,
+  schemaName: string,
+  timeoutMs: number
+): Promise<VisionResult<unknown>> {
+  const key = openRouterKey();
+  if (!key) return { data: null, error: 'no-key' };
+
+  /*
+   * First ask with the schema ENFORCED. Not every free endpoint honours a
+   * json_schema response format — several declare only plain response_format
+   * support, and one of those may reject the request outright or ignore the
+   * format and chat. So a failed or unreadable first attempt is retried once
+   * with the schema written into the prompt instead, and extractJson digs the
+   * object out of whatever comes back. Auth, rate-limit and privacy failures
+   * are real answers, not formatting problems — those are never retried.
+   */
+  const first = await post(
+    content,
+    { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema } },
+    timeoutMs,
+    key
+  );
+  if (first.error !== 'failed' && first.error !== 'unreadable') return first;
+
+  const hint: ChatMessageContent = {
+    type: 'text',
+    text:
+      'Respond with ONLY a single JSON object — no prose, no code fence — matching exactly this JSON schema:\n' +
+      JSON.stringify(schema),
+  };
+  return post([...content, hint], undefined, timeoutMs, key);
 }
 
 // ── 1. What is on the plate? ─────────────────────────────────────────────────
@@ -269,8 +345,14 @@ export function failureMessage(e: VisionFailure): string {
       return 'The free model is busy (20 requests a minute, 50 a day). Try again shortly.';
     case 'unauthorised':
       return 'That key was refused. Check it at openrouter.ai/keys.';
+    case 'data-policy':
+      return (
+        'Your OpenRouter privacy settings block free models. On openrouter.ai, open Settings ' +
+        String.fromCharCode(8594) + ' Privacy and enable free model training, then try again ' + String.fromCharCode(8212) +
+        ' free endpoints require it.'
+      );
     case 'unreadable':
-      return "The model's answer couldn't be read. Try another photo, or add the food by hand.";
+      return "The model's answer couldn't be read. Try again — or another photo, or add the food by hand.";
     default:
       return 'That did not work. You can still add the food by hand.';
   }

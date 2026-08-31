@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.56',
+    date: '2026-08-31',
+    title: 'The egg that would not scan — the photo pipe now bends instead of breaking',
+    highlights: [
+      'The first real photograph — an egg — failed, and worse, failed without saying why. This release fixes every way that call could have died, and makes the screen tell you the actual reason whenever something fails, in the provider\'s own words, so a problem can be reported and fixed instead of leaving "does it even work?" unanswerable.',
+      'The likeliest culprit: the request DEMANDED a strictly formatted reply, and several free endpoints don\'t support that — they either reject the request outright or ignore the format and chat. The app now asks strictly first and, if that fails, asks again with the format written into the prompt and digs the answer out of whatever comes back. Login, rate-limit and privacy failures are real answers and are never retried.',
+      'The second suspect: OpenRouter refuses free models entirely unless your account\'s privacy settings allow them — the most common first-run failure there is. That refusal now gets its own message telling you exactly which switch to flip (openrouter.ai → Settings → Privacy, enable free model training) instead of a shrug.',
+      'And a proven bug of ours: a model answering loosely writes "150 g" instead of 150. The parser read that as garbage, dropped the item, and reported a perfectly good reply as unreadable. Numbers in front of units now count.',
+      'For the record, recognition itself was never the problem: "egg", "boiled egg" and "eggs" all resolve to the Egg already in your food database — locked in by a check named "An egg is an egg".',
+      '1304 checks in all, up from 1293.',
+    ],
+  },
+  {
     version: '2.55',
     date: '2026-08-31',
     title: 'Photo logging, corrected — a glass of water was logging a tin of tuna',

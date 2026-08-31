@@ -3238,5 +3238,36 @@ console.log('\nWhat the review pass caught, held down:');
   check('The API key can be replaced without clearing app data', /Replace API key/.test(screen));
 }
 
+console.log('\nThe first live photo failed silently; now the pipe bends instead of breaking:');
+{
+  // A model answering outside an enforced schema writes "150 g", not 150.
+  // Number() made that NaN, the item was dropped, and a perfectly good reply
+  // reported as unreadable - likely exactly what the egg test hit.
+  const loose = parsePhotoIdentification({ items: [{ name: 'boiled egg', grams: '150 g', confidence: '0.9' }] });
+  check('Loose numbers in a reply still parse', loose !== null && loose.items[0].grams === 150 && loose.items[0].confidence === 0.9);
+  check('...for researched nutrition too', parseNutritionPer100g({ calories: '155 kcal', protein: '13', carbs: '1.1', fat: '11' })!.protein === 13);
+
+  // The photographed egg itself must resolve from the catalogue.
+  const egg = (q: string) => matchFood(q, SEARCH_FOOD_DB, (f) => f.name)?.food.name;
+  check('An egg is an egg', egg('egg') === 'Egg (whole, large)' && egg('boiled egg') === 'Egg (whole, large)' && egg('eggs') === 'Egg (whole, large)');
+
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+  // Enforced schema first, schema-in-prompt second: several free endpoints
+  // declare no structured-output support and reject or ignore json_schema.
+  check('The schema is enforced on the first attempt', /json_schema: \{ name: schemaName, strict: true, schema \}/.test(svc));
+  check('...and written into the prompt on the retry', /matching exactly this JSON schema/.test(svc) && /post\(\[\.\.\.content, hint\], undefined/.test(svc));
+  check('Real answers are never retried as format problems', /first\.error !== 'failed' && first\.error !== 'unreadable'/.test(svc));
+
+  // The free-model privacy gate is named, not lumped into "failed".
+  check('The OpenRouter privacy refusal is recognised', /data policy\|allowed providers\|privacy/.test(svc));
+  check('...and explained as the setting it is', /data-policy/.test(svc) && /enable free model training/.test(svc));
+  check('A refusal hidden in a 200 body is caught too', /json\.error\?\.message/.test(svc));
+
+  // Failures say WHY, on screen.
+  check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /replied with prose, not JSON/.test(svc) && /No reply within/.test(svc));
+  const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
+  check('...and the screen shows it', /lastVisionDetail\(\)/.test(scr));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

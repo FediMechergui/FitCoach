@@ -27,6 +27,7 @@ type AddFoodRoute = RouteProp<RootStackParamList, 'AddFood'>;
 
 export function AddFoodScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<Nav>();
   const route = useRoute<AddFoodRoute>();
   const meal = route.params.meal;
   const [mode, setMode] = useState<'precise' | 'honest'>(route.params.mode ?? 'precise');
@@ -56,6 +57,14 @@ export function AddFoodScreen() {
             ]}
             value={mode}
             onChange={setMode}
+          />
+          {/* The photograph path: the model names the plate, the catalogue
+              supplies the numbers, and nothing logs before you have seen it. */}
+          <Button
+            title="Photograph the meal"
+            variant="ghost"
+            icon="card.camera"
+            onPress={() => navigation.navigate('PhotoFood', { meal })}
           />
         </View>
         {mode === 'precise' ? <PreciseMode meal={meal} /> : <HonestMode meal={meal} />}

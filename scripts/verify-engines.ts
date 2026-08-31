@@ -33,6 +33,10 @@ import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
 import { segmentGateM, MIN_SEGMENT_M, ACCURACY_SLACK, VAGUE_SLACK, VAGUE_ACCURACY_M } from '../src/lib/gpsFilter';
+import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson } from '../src/lib/aiFood';
+import { matchFood, scoreFoodMatch } from '../src/lib/foodMatch';
+import { servingGrams, scaleCatalogueFood, rowFromCatalogue, rowFromResearch, unresolvedNames, mealTotals } from '../src/lib/photoMeal';
+
 import {
   filterFixes,
   isConfined,
@@ -3002,6 +3006,156 @@ console.log('\nThe route has to actually draw:');
     speed: 0.4,
   }));
   check('Pacing on the spot at poor accuracy credits nothing', filterFixes([], yard).distanceM === 0);
+}
+
+console.log('\nReading a meal from a photograph — nothing a model says is taken on trust:');
+{
+  // ── The shape gate: a reply that isn't the shape we asked for logs nothing.
+  check('A missing reply is refused', parsePhotoIdentification(null) === null && parsePhotoIdentification({}) === null);
+  check('An empty plate is refused rather than invented', parsePhotoIdentification({ dishName: 'x', items: [] }) === null);
+  check('Items without a name or weight are dropped', parsePhotoIdentification({ items: [{ name: 'rice' }, { grams: 50 }] }) === null);
+  const ok = parsePhotoIdentification({ dishName: 'plate', items: [{ name: 'White Rice', grams: 150, confidence: 0.8 }] });
+  check('A well-formed reply parses', !!ok && ok.items.length === 1 && ok.items[0].grams === 150);
+  // Portions outside human range are the model losing the plot, not a big meal.
+  check('An absurd portion is dropped', parsePhotoIdentification({ items: [{ name: 'rice', grams: 99999 }] }) === null);
+  check('A zero portion is dropped', parsePhotoIdentification({ items: [{ name: 'rice', grams: 0 }] }) === null);
+  check('Confidence is clamped into 0..1', parsePhotoIdentification({ items: [{ name: 'r', grams: 10, confidence: 9 }] })!.items[0].confidence === 1);
+
+  // ── Physics: 100 g of food cannot hold more than 100 g of macronutrients.
+  check('Impossible macros are refused outright', parseNutritionPer100g({ protein: 60, carbs: 60, fat: 40, fiber: 0 }) === null);
+  check('Negative macros are refused', parseNutritionPer100g({ protein: -1, carbs: 10, fat: 1, fiber: 0 }) === null);
+  const rice = parseNutritionPer100g({ calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4 });
+  check('Real figures pass', !!rice && rice.calories === 130);
+  check('Fibre can never exceed the carbohydrate it is part of', parseNutritionPer100g({ calories: 100, protein: 1, carbs: 5, fat: 1, fiber: 40 })!.fiber <= 5);
+
+  // ── Energy: stated calories must agree with the model's own macros.
+  const lying = parseNutritionPer100g({ calories: 5, protein: 20, carbs: 30, fat: 10, fiber: 0 });
+  check('Calories that contradict the macros are rebuilt from the macros', !!lying && lying.calories > 250, `${lying?.calories} kcal`);
+  const honest = parseNutritionPer100g({ calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0 });
+  check('Calories that agree with the macros are kept as given', honest!.calories === 165);
+
+  // ── Plausibility: an absurd micronutrient is dropped, one key at a time.
+  const wild = parseNutritionPer100g({
+    calories: 62, protein: 3.6, carbs: 10, fat: 0.9, fiber: 2,
+    micros: { iron_mg: 1.2, vitaminB12_ug: 99999, folate_ug: 44 },
+  });
+  check('An impossible vitamin value is dropped', wild!.micros?.vitaminB12_ug === undefined);
+  check('…while the plausible ones beside it survive', wild!.micros?.iron_mg === 1.2 && wild!.micros?.folate_ug === 44);
+  check('A real outlier is still allowed through', !!sanitiseMicros({ selenium_ug: 1900 })?.selenium_ug);
+  check('Negative nutrients are dropped', sanitiseMicros({ iron_mg: -5 }) === undefined);
+
+  // ── Matching: the catalogue answers whatever it can, so curated data wins.
+  // Word order is genuinely irrelevant: the two orders must score identically,
+  // not merely both pass. (0.85 is the ceiling for a full-coverage match with no
+  // preparation word in common; only an exact name reaches 1.)
+  check('Word order does not matter at all', scoreFoodMatch('breast chicken', 'Chicken Breast (cooked)') === scoreFoodMatch('chicken breast', 'Chicken Breast (cooked)'));
+  check('…and a full-coverage match scores well clear of the threshold', scoreFoodMatch('breast chicken', 'Chicken Breast (cooked)') >= 0.85);
+  check('Plurals do not matter either', scoreFoodMatch('almonds', 'Almond') >= 0.85 && scoreFoodMatch('berries', 'Berry') >= 0.85);
+  check('Preparation words never block a match', matchFood('grilled chicken breast', SEARCH_FOOD_DB, (f) => f.name)?.food.name === 'Chicken Breast (cooked)');
+  check('…but they do break the tie', matchFood('fried chicken', SEARCH_FOOD_DB, (f) => f.name)?.food.name.startsWith('Fried Chicken') === true);
+  check('A genuinely different dish is not forced onto a near name', matchFood('lentil soup', SEARCH_FOOD_DB, (f) => f.name) === null);
+  check('Something that is not food matches nothing', matchFood('unicorn steak', SEARCH_FOOD_DB, (f) => f.name) === null);
+  check('An exact name scores perfectly', scoreFoodMatch('Banana', 'banana') === 1);
+
+  // ── Portions: a catalogue serving is scaled by its own gram weight.
+  check('Grams are read from a serving however it is written', servingGrams('1 cup (195g)') === 195 && servingGrams('225 g (1 cup)') === 225 && servingGrams('100g') === 100);
+  check('A serving with no weight says so rather than guessing', servingGrams('1 handful') === null);
+  const chicken = SEARCH_FOOD_DB.find((f) => f.name === 'Chicken Breast (cooked)')!;
+  const scaled = scaleCatalogueFood(chicken, 150);
+  check('A 150 g portion of a 100 g serving logs one and a half servings', scaled.quantity === 1.5);
+  check('…and its calories scale with it', scaled.nutrition.calories === Math.round(chicken.calories * 1.5));
+  /*
+   * What the review screen shows must be exactly what the diary stores. The
+   * diary keeps a quantity and re-multiplies the per-serving figures by it, so
+   * the reviewed nutrition has to be derived from the SAME rounded quantity.
+   * Checked across the whole catalogue at awkward portions, because this
+   * disagreed by a kilocalorie or two before (200 g couscous: shown 444,
+   * logged 445).
+   */
+  let drift = 0;
+  let driftExample = '';
+  for (const f of SEARCH_FOOD_DB) {
+    for (const grams of [133, 150, 175, 200, 47]) {
+      const sc = scaleCatalogueFood(f, grams);
+      if (sc.servingUnknown) continue;
+      if (sc.nutrition.calories !== Math.round(f.calories * sc.quantity)) {
+        drift += 1;
+        if (!driftExample) driftExample = `${f.name} @${grams}g`;
+      }
+    }
+  }
+  check('Reviewed calories equal logged calories, for every food and portion', drift === 0, driftExample || 'no drift');
+
+  // ── The whole plate: catalogue first, research only for what is left.
+  const plate = parsePhotoIdentification({
+    dishName: 'chicken couscous',
+    items: [
+      { name: 'grilled chicken breast', grams: 150, confidence: 0.9 },
+      { name: 'couscous', grams: 200, confidence: 0.8 },
+      { name: 'lentil soup', grams: 250, confidence: 0.7 },
+    ],
+  })!;
+  const unknown = unresolvedNames(plate.items, SEARCH_FOOD_DB);
+  check('Only what the catalogue lacks is sent to be researched', unknown.length === 1 && unknown[0] === 'lentil soup');
+  const soup = parseNutritionPer100g({ calories: 62, protein: 3.6, carbs: 10.1, fat: 0.9, fiber: 2.2, form: 'liquid' })!;
+  const allRows = plate.items.map((it) => rowFromCatalogue(it, SEARCH_FOOD_DB) ?? rowFromResearch(it, soup));
+  check('Every food ends up with numbers', allRows.length === 3 && allRows.every((r) => r.nutrition.calories > 0));
+  check('Catalogue foods keep their measured micronutrients', allRows.some((r) => r.source === 'catalogue' && !!r.nutrition.micros));
+  check('A researched food is stored per 100 g, so its quantity is the portion', allRows.find((r) => r.source === 'researched')!.quantity === 2.5);
+  const totals = mealTotals(allRows);
+  check('The plate totals its parts', totals.calories === allRows.reduce((n, r) => n + r.nutrition.calories, 0));
+  check('…and sums their micronutrients', !!totals.micros && Object.keys(totals.micros).length > 0);
+
+  // ── Provenance: an estimate must never be mistakable for measured data.
+  const repo = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('A researched food is written with source ai', /source: input\.source \?\? \('user' as const\)/.test(repo));
+  /*
+   * Editing a researched food must not erase what makes it one. It is not a
+   * composed food, so correcting a macro goes through the ordinary editor,
+   * whose update applies everything normalise() returns as a SET. If micros or
+   * source were named there, that edit would wipe the micronutrient profile and
+   * relabel a model estimate as hand-entered.
+   */
+  const normaliseBody = repo.slice(repo.indexOf('function normalise('), repo.indexOf('function provenance('));
+  check('Editing a food cannot erase its micronutrients', !/microsJson/.test(normaliseBody));
+  check('…nor quietly relabel an estimate as your own data', !/source/.test(normaliseBody));
+  check('Both are written on creation instead', /\.values\(\{ \.\.\.normalise\(input\), \.\.\.provenance\(input\), userId \}\)/.test(repo));
+  check('Composed foods never go through that path at all', /componentsJson: JSON\.stringify\(input\.components\)/.test(repo));
+
+  /*
+   * A food is researched ONCE. Saved into the food database, the next
+   * photograph of it matches there like any catalogue entry — no second lookup
+   * against the daily request limit, and no creeping duplicates.
+   */
+  const savedByAi = {
+    id: 'custom:1', name: 'lentil soup', serving: '100 g',
+    calories: 62, protein: 3.6, carbs: 10.1, fat: 0.9, fiber: 2.2,
+    micros: { iron_mg: 1.0 }, isCustom: true, aiSourced: true, form: 'liquid' as const,
+  };
+  const second = parsePhotoIdentification({ items: [{ name: 'lentil soup', grams: 300 }] })!.items[0];
+  check('A researched food is not researched a second time', !!rowFromCatalogue(second, [savedByAi]));
+  check('…and scales from its stored 100 g basis', rowFromCatalogue(second, [savedByAi])!.quantity === 3);
+  check('…carrying its micronutrients with it', rowFromCatalogue(second, [savedByAi])!.nutrition.micros?.iron_mg === 3);
+  check('…and surfaces that flag on the food itself', /aiSourced: f\.source === 'ai'/.test(repo));
+  const screen = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
+  check('The photo screen saves new foods marked as model-sourced', /source: 'ai'/.test(screen));
+  check('Nothing is logged before it is reviewed', /setStage\('review'\)/.test(screen) && /const logMeal/.test(screen));
+  check('Portions stay editable, because a photo judges weight worst', /const setGrams/.test(screen));
+
+  // ── The key is the user's, and stays on the device.
+  const kv = fs.readFileSync('src/repositories/kvRepo.ts', 'utf8');
+  check('The API key lives in the device database, not the bundle', /openRouterKey/.test(kv) && !/sk-or-/.test(kv));
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+  check('No key is ever hard-coded', !/sk-or-v1-[A-Za-z0-9]/.test(svc));
+  check('The request carries no personal data beyond the photo', !/email|userId|user_id/.test(svc));
+  check('Every call is bounded by a timeout', /AbortController/.test(svc) && /setTimeout\(\(\) => ctrl\.abort/.test(svc));
+  check('A free model is the default', /:free/.test(DEFAULT_MODEL));
+  check('…with free fallbacks behind it', FALLBACK_MODELS.length >= 2 && FALLBACK_MODELS.every((m) => m.includes(':free') || m === 'openrouter/free'));
+
+  // ── A reply wrapped in prose or a code fence is still readable.
+  check('JSON inside a code fence is recovered', (extractJson('```json\n{"a":1}\n```') as { a: number }).a === 1);
+  check('JSON inside a sentence is recovered', (extractJson('Here you go: {"a":2} hope that helps') as { a: number }).a === 2);
+  check('Prose with no JSON at all returns nothing', extractJson('I cannot help with that') === null);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

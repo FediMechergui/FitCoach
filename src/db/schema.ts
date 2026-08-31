@@ -800,6 +800,13 @@ export const customFoods = sqliteTable('custom_foods', {
   microsJson: text('micros_json'),
   /** 'liquid' | 'solid' for the digestion clock; NULL reads as solid */
   form: text('form', { enum: ['solid', 'liquid'] }),
+  /**
+   * Where these numbers came from. 'ai' means a model identified the food from
+   * a photograph and researched its nutrition, so the figures are an estimate
+   * however confident they look; NULL or 'user' means you entered them. Kept
+   * for the lifetime of the row so an estimate can never quietly become fact.
+   */
+  source: text('source', { enum: ['user', 'ai'] }),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -860,6 +867,17 @@ export const mealRoutines = sqliteTable('meal_routines', {
  * possible later. `source` is shown in the UI: a typed number and a fetched
  * one deserve different confidence.
  */
+/**
+ * Small key-value store for app-level state that is neither a log nor a table
+ * of its own — the OpenRouter key that powers photo food logging, and
+ * whatever else must persist without earning a schema. Values are JSON.
+ */
+export const appKv = sqliteTable('app_kv', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const weatherReadings = sqliteTable('weather_readings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),

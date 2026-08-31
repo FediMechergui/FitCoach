@@ -36,6 +36,15 @@ export interface CustomFoodInput {
   caloriesEstimated: boolean;
   /** liquid or solid — the user's choice; solid when unsure */
   form?: 'solid' | 'liquid';
+  /**
+   * Vitamins and minerals for one serving. A hand-entered food has none (see
+   * the note on customFoodsAsItems), but a food researched from a photograph
+   * arrives with a full profile, and dropping it would throw away the only
+   * micronutrient data such a meal will ever have.
+   */
+  micros?: Partial<MicroProfile>;
+  /** who produced these numbers — 'ai' when a model did. Defaults to 'user'. */
+  source?: 'user' | 'ai';
 }
 
 export function listCustomFoods(userId: number = PRIMARY_USER_ID): CustomFood[] {
@@ -58,7 +67,7 @@ export function getCustomFood(id: number, userId: number = PRIMARY_USER_ID): Cus
 export function createCustomFood(input: CustomFoodInput, userId: number = PRIMARY_USER_ID): number {
   const row = db
     .insert(customFoods)
-    .values({ ...normalise(input), userId })
+    .values({ ...normalise(input), ...provenance(input), userId })
     .returning({ id: customFoods.id })
     .get();
   return row?.id ?? 0;
@@ -107,12 +116,34 @@ function normalise(input: CustomFoodInput) {
 }
 
 /**
+ * Micros and provenance are written on CREATE only, deliberately.
+ *
+ * `updateCustomFood` applies everything `normalise` returns as a SET, so any
+ * column named there is overwritten on every edit. A food researched from a
+ * photograph is not "composed", so correcting one of its numbers goes through
+ * the ordinary editor — and if these were part of `normalise`, that edit would
+ * silently erase the whole micronutrient profile and relabel a model estimate
+ * as hand-entered data. Left out, an edit changes the macros and leaves both
+ * the micros and the 'ai' mark exactly as they were.
+ */
+function provenance(input: CustomFoodInput) {
+  return {
+    microsJson:
+      input.micros && Object.keys(input.micros).length > 0 ? JSON.stringify(input.micros) : null,
+    source: input.source ?? ('user' as const),
+  };
+}
+
+/**
  * Custom foods shaped like catalogue entries, so search, selection and logging
  * treat them identically to built-in foods.
  *
- * No micronutrients: the user gave macros, and inventing a vitamin profile from
- * a name would be exactly the fabrication the rest of the food data avoids.
- * They simply contribute nothing to the micro totals, which is honest.
+ * A hand-entered food still carries no micronutrients: the user gave macros,
+ * and inventing a vitamin profile from a name would be exactly the fabrication
+ * the rest of the food data avoids. It contributes nothing to the micro totals,
+ * which is honest. A food researched from a photograph is different — it has a
+ * profile, sanity-checked in lib/aiFood, and carries source 'ai' so it can
+ * always be told apart from measured data.
  */
 export function customFoodsAsItems(userId: number = PRIMARY_USER_ID): FoodItem[] {
   return listCustomFoods(userId).map(toFoodItem);
@@ -136,6 +167,7 @@ export function toFoodItem(f: CustomFood): FoodItem {
     // custom food has none (nothing to sum from, and none is invented).
     micros: parseMicros(f.microsJson) ?? undefined,
     isComposed: !!f.componentsJson,
+    aiSourced: f.source === 'ai',
   };
 }
 

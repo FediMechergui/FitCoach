@@ -42,6 +42,7 @@ export type RootStackParamList = {
   WalkDetail: { walkId: number };
 
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
+  PhotoFood: { meal: MealType };
   /** create a user-entered food, or edit one by id */
   CustomFood: { id?: number } | undefined;
   /** build a dish from other foods with quantities, or edit one by id */

@@ -18,6 +18,7 @@ import { WalkDetailScreen } from '@/screens/train/WalkDetailScreen';
 import { AddFoodScreen } from '@/screens/nutrition/AddFoodScreen';
 import { CustomFoodScreen } from '@/screens/nutrition/CustomFoodScreen';
 import { ComposeFoodScreen } from '@/screens/nutrition/ComposeFoodScreen';
+import { PhotoFoodScreen } from '@/screens/nutrition/PhotoFoodScreen';
 import { MicronutrientsScreen } from '@/screens/nutrition/MicronutrientsScreen';
 import { SupplementsScreen } from '@/screens/nutrition/SupplementsScreen';
 import { SupplementPlanScreen } from '@/screens/nutrition/SupplementPlanScreen';
@@ -135,6 +136,11 @@ export function RootNavigator() {
             name="ComposeFood"
             component={ComposeFoodScreen}
             options={{ title: 'Compose a Dish', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="PhotoFood"
+            component={PhotoFoodScreen}
+            options={{ title: '', presentation: 'modal' }}
           />
           <Stack.Screen name="Micronutrients" component={MicronutrientsScreen} options={{ title: '' }} />
           <Stack.Screen name="Supplements" component={SupplementsScreen} options={{ title: '' }} />

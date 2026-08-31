@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.54',
+    date: '2026-08-31',
+    title: 'Photograph a meal and it logs itself — with your own data, not invented numbers',
+    highlights: [
+      'Point the camera at a plate and FitCoach reads it. A free vision model names every food it can see and estimates each portion; you check it, and it logs. The button sits on the Add Food screen, next to Precise and Honest Log.',
+      'The important part is what the model is NOT asked to do. It is never asked for calories or vitamins. It names the food and judges the portion — the two things looking at a photograph can actually tell you — and everything it names is then matched against your own food database, so the numbers come from the catalogue you already curated. Grilled chicken breast on a plate logs the real Chicken Breast figures, micronutrients and all.',
+      'Foods you do not have yet are researched and added, and honestly labelled. When nothing in the database matches — a lentil soup, a dish from somewhere new — the model looks up its nutrition per 100 g, that becomes a new food in your database with its full vitamin and mineral profile, and it is marked as model-sourced for as long as it exists. It is there next time, and it never has to be looked up again.',
+      'Nothing a model says is taken on trust. Macronutrients that would weigh more than the food itself are refused outright. Stated calories are checked against the macros and rebuilt from them when the two disagree. A vitamin figure beyond anything real food contains is dropped on its own, without discarding the sensible values beside it — a B12 claim forty thousand times the daily value goes, the iron next to it stays.',
+      'Nothing is logged until you have seen it. Every food, every portion and every number is shown first and stays editable, because judging weight from a flat photograph is far harder than naming what is on it — and the portion is where the error lives. What the review screen shows is now exactly what the diary stores, to the kilocalorie.',
+      'Your key stays on your phone. Photo logging needs a free OpenRouter key, which you paste in once and which lives only in this app\'s own database — never in the app, never in the code. The request carries the photograph and nothing else about you. This is the first part of FitCoach that needs the internet; everything else, including logging food by hand, works offline exactly as before.',
+      '1261 checks in all, up from 1207.',
+    ],
+  },
+  {
     version: '2.53',
     date: '2026-08-31',
     title: 'The walk tracker goes back to what worked — and the route draws again',

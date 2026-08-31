@@ -41,8 +41,15 @@ import { seedExerciseLibrary } from './seed';
  *                  shapes splits, methods and rest; NULL reads as intermediate)
  *   28 → 29 v2.46: sessions.warmups_done (which warm-ups were ticked — survives
  *                  leaving and resuming the session; NULL reads as none)
+ *   (30 was used by v2.52, which was reverted in v2.53. Databases that briefly
+ *    reached it carry a few unused live_walks columns; nothing reads them, and
+ *    the number is not reused, so the two states can never be confused.)
+ *   29 → 31 v2.54: app_kv (the OpenRouter key for photo food logging, and other
+ *                  app-level odds and ends) + custom_foods.source, which marks a
+ *                  food whose numbers came from a model rather than from you or
+ *                  from the curated catalogue. NULL reads as 'user'.
  */
-const SCHEMA_VERSION = 29;
+const SCHEMA_VERSION = 31;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -113,6 +120,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'custom_foods', column: 'form', ddl: 'TEXT' },
   { table: 'users', column: 'experience_level', ddl: 'TEXT' },
   { table: 'sessions', column: 'warmups_done', ddl: 'TEXT' },
+  // v31 — where a custom food's numbers came from ('user' | 'ai'); NULL = user
+  { table: 'custom_foods', column: 'source', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -652,6 +661,7 @@ CREATE TABLE IF NOT EXISTS custom_foods (
   components_json TEXT,
   micros_json TEXT,
   form TEXT,
+  source TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_custom_foods_user ON custom_foods(user_id, name);
@@ -692,6 +702,12 @@ CREATE TABLE IF NOT EXISTS weather_readings (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_weather_readings_user_date ON weather_readings(user_id, date);
+
+CREATE TABLE IF NOT EXISTS app_kv (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
 `;
 
 let initialized = false;

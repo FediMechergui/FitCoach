@@ -38,6 +38,12 @@ export interface FoodItem {
   /** True for a user-built dish assembled from other foods with quantities. */
   isComposed?: boolean;
   /**
+   * True when a model identified this food from a photograph and researched its
+   * nutrition. The numbers are an estimate however precise they look, and the
+   * UI says so wherever the food appears.
+   */
+  aiSourced?: boolean;
+  /**
    * How the stomach treats it — the digestion clock runs liquids about twice
    * as fast and settles them in a quarter of the time. Every catalogue food
    * carries one (set below); user foods choose theirs.

@@ -38,12 +38,34 @@ export function normaliseFoodName(s: string): string {
     .trim();
 }
 
-/** Crude singular form — enough for food names, which are rarely irregular. */
+/**
+ * Crude singular form — enough for food names, which are rarely irregular.
+ *
+ * Only "-es" after a sibilant or an o is a two-letter plural ending
+ * (tomatoes, radishes, boxes); everywhere else the e belongs to the word.
+ * Stripping it blindly turned "apples" into "appl" and "oranges" into
+ * "orang", so a photographed apple matched nothing in a catalogue that has
+ * Apple — and was saved as a duplicate food instead.
+ */
 function singular(token: string): string {
-  if (token.length > 3 && token.endsWith('ies')) return `${token.slice(0, -3)}y`;
-  if (token.length > 3 && token.endsWith('es') && !token.endsWith('ses')) return token.slice(0, -2);
-  if (token.length > 3 && token.endsWith('s')) return token.slice(0, -1);
+  if (token.length > 4 && token.endsWith('ies')) return `${token.slice(0, -3)}y`;
+  if (token.length > 3 && /(?:s|x|z|ch|sh|o)es$/.test(token)) return token.slice(0, -2);
+  // "-us", "-is" and "-ss" endings are part of the word, not a plural:
+  // couscous, hummus, harissa's cousins. Stripping them invents non-words.
+  if (token.length > 3 && /[^usi]s$/.test(token)) return token.slice(0, -1);
   return token;
+}
+
+/**
+ * A catalogue name without its bracketed description.
+ *
+ * The catalogue qualifies foods in brackets — "Tuna (canned in water)",
+ * "Harissa (chili paste)" — and those words describe, they don't identify.
+ * Left in, they are matchable identity: the word "water" beside a plate found
+ * the tuna and logged a tin of fish as a glass of water.
+ */
+function withoutBrackets(s: string): string {
+  return s.replace(/\([^)]*\)/g, ' ');
 }
 
 /**
@@ -74,15 +96,24 @@ export function nameTokens(s: string): string[] {
 
 /** The tokens that say what a food IS, ignoring how it was prepared. */
 export function coreTokens(s: string): string[] {
-  const all = nameTokens(s);
+  const all = nameTokens(withoutBrackets(s));
   const core = all.filter((t) => !QUALIFIERS.has(t));
   // A name made only of qualifiers ("fillet") still has to match on something.
   return core.length > 0 ? core : all;
 }
 
-/** The preparation words of a food name. */
+/**
+ * The preparation words of a food name, in a common form.
+ *
+ * "roast" and "roasted" are the same instruction, but compared literally they
+ * miss each other — so "roast chicken" took no bonus from "Chicken, Whole
+ * Roasted" and landed on fried chicken instead, a 74 kcal per 100 g difference.
+ * Trimming a trailing "-ed" on both sides makes the pair meet.
+ */
 export function qualifierTokens(s: string): string[] {
-  return nameTokens(s).filter((t) => QUALIFIERS.has(t));
+  return nameTokens(s)
+    .filter((t) => QUALIFIERS.has(t))
+    .map((t) => (t.length > 4 && t.endsWith('ed') ? t.slice(0, -2) : t));
 }
 
 /**
@@ -115,7 +146,15 @@ export function scoreFoodMatch(query: string, candidate: string): number {
   const qualHits = qQual.filter((t) => cQual.has(t)).length;
   const qualBonus = qQual.length > 0 ? qualHits / qQual.length : 0;
 
-  return Math.min(0.99, coverage * 0.7 + focus * 0.15 + qualBonus * 0.15);
+  /*
+   * Focus has to carry real weight, or a one-word name matches anything
+   * containing it: "butter" scored 0.775 against Peanut Butter and "nuts"
+   * against a Chocolate Bar with Nuts, logging a different food's macros.
+   * Requiring the candidate to be mostly about the query too — not merely to
+   * contain it — is what separates "couscous" (the whole name) from "nuts"
+   * (a third of one).
+   */
+  return Math.min(0.99, coverage * 0.6 + focus * 0.25 + qualBonus * 0.15);
 }
 
 export interface FoodMatch<T> {
@@ -125,12 +164,19 @@ export interface FoodMatch<T> {
 
 /**
  * Good enough to use the catalogue's numbers instead of asking the model.
- * Requires the whole query to be covered, or nearly.
+ * The query must be covered AND the candidate must be mostly about it.
  */
-export const MATCH_MIN_SCORE = 0.7;
+export const MATCH_MIN_SCORE = 0.75;
 
 /**
- * Best catalogue food for a name, or null when nothing is close enough.
+ * Best catalogue food for a name, or null when nothing is close enough — or
+ * when the field is tied.
+ *
+ * A tie is genuine ambiguity, not a near miss: "milk" fits eleven catalogue
+ * entries equally well, and picking one meant picking by array position, which
+ * silently favoured whichever custom food had been created most recently. Being
+ * unsure is the honest answer; the caller researches the name instead.
+ *
  * `nameOf` reads the display name from whatever shape the caller holds.
  */
 export function matchFood<T>(
@@ -140,9 +186,28 @@ export function matchFood<T>(
   minScore: number = MATCH_MIN_SCORE
 ): FoodMatch<T> | null {
   let best: FoodMatch<T> | null = null;
+  let bestIdentity = '';
+  let ambiguous = false;
   for (const food of catalogue) {
-    const score = scoreFoodMatch(query, nameOf(food));
-    if (score >= minScore && (!best || score > best.score)) best = { food, score };
+    const name = nameOf(food);
+    const score = scoreFoodMatch(query, name);
+    if (score < minScore) continue;
+    const identity = [...coreTokens(name)].sort().join(' ');
+    if (!best || score > best.score) {
+      best = { food, score };
+      bestIdentity = identity;
+      ambiguous = false;
+    } else if (score === best.score && identity !== bestIdentity) {
+      /*
+       * Two DIFFERENT foods fit equally well. "Apple" and "Apple (medium)" are
+       * the same identity in two sizes and tie harmlessly; whole milk and
+       * skimmed milk do not, and choosing between them by array position meant
+       * silently preferring whichever custom food was created most recently.
+       */
+      ambiguous = true;
+    }
   }
+  // An exact name wins outright even if something else ties it.
+  if (best && ambiguous && best.score < 1) return null;
   return best;
 }

@@ -25,6 +25,12 @@ import type { MicroKey, MicroProfile } from './micros';
 /** Where a row's numbers come from. */
 export type PhotoItemSource = 'catalogue' | 'researched';
 
+/**
+ * Roughly 36 catalogue foods — mostly drinks, plus a sandwich — state a serving
+ * with no gram weight ("250 ml glass", "1 sandwich"). There is nothing to scale
+ * against, so such a row is counted in SERVINGS instead of grams, and the UI
+ * offers that control rather than a grams box that silently does nothing.
+ */
 export interface PhotoMealRow {
   /** what will be logged — the catalogue's name when matched, else the model's */
   name: string;
@@ -150,16 +156,19 @@ export function rowFromCatalogue(
 
 /** A row for a food the catalogue doesn't have, from researched figures. */
 export function rowFromResearch(item: AiFoodPortion, per100g: AiNutritionPer100g): PhotoMealRow {
+  // Researched foods are stored per 100 g, so the logged quantity is simply how
+  // many hundreds of grams this portion is. As on the catalogue path, the
+  // nutrition is derived from the ROUNDED quantity the diary will actually
+  // keep, so what was approved and what is stored cannot drift apart.
+  const quantity = Math.round((item.grams / 100) * 100) / 100;
   return {
     name: item.name,
     spokenName: item.name,
     grams: item.grams,
     confidence: item.confidence,
     source: 'researched',
-    // Researched foods are stored per 100 g, so the logged quantity is simply
-    // how many hundreds of grams this portion is.
-    quantity: Math.round((item.grams / 100) * 100) / 100,
-    nutrition: scalePer100g(per100g, item.grams),
+    quantity,
+    nutrition: scalePer100g(per100g, quantity * 100),
     per100g,
   };
 }

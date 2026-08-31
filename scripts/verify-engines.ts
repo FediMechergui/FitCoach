@@ -33,8 +33,8 @@ import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
 import { segmentGateM, MIN_SEGMENT_M, ACCURACY_SLACK, VAGUE_SLACK, VAGUE_ACCURACY_M } from '../src/lib/gpsFilter';
-import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson } from '../src/lib/aiFood';
-import { matchFood, scoreFoodMatch } from '../src/lib/foodMatch';
+import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE } from '../src/lib/aiFood';
+import { matchFood, scoreFoodMatch, nameTokens, MATCH_MIN_SCORE } from '../src/lib/foodMatch';
 import { servingGrams, scaleCatalogueFood, rowFromCatalogue, rowFromResearch, unresolvedNames, mealTotals } from '../src/lib/photoMeal';
 
 import {
@@ -3156,6 +3156,86 @@ console.log('\nReading a meal from a photograph — nothing a model says is take
   check('JSON inside a code fence is recovered', (extractJson('```json\n{"a":1}\n```') as { a: number }).a === 1);
   check('JSON inside a sentence is recovered', (extractJson('Here you go: {"a":2} hope that helps') as { a: number }).a === 2);
   check('Prose with no JSON at all returns nothing', extractJson('I cannot help with that') === null);
+}
+
+console.log('\nWhat the review pass caught, held down:');
+{
+  const nameOf = (f: { name: string }) => f.name;
+  const hit = (q: string) => matchFood(q, SEARCH_FOOD_DB, nameOf);
+
+  // ── A bare word must not bind to a food that merely contains it. ──
+  // "water" beside a plate found Tuna (canned in water) and logged 315 kcal
+  // and 68 g of protein for a glass of water.
+  const traps = ['water', 'butter', 'nuts', 'vegetables', 'corn', 'fruit', 'seeds',
+                 'sauce', 'cream', 'soup', 'greens', 'stew', 'rice'];
+  const stillTrapped = traps.filter((q) => hit(q) !== null);
+  check('A bare word never binds to a food that merely contains it', stillTrapped.length === 0, stillTrapped.join(', '));
+  check('…and the catalogue description is not matchable identity', scoreFoodMatch('water', 'Tuna (canned in water)') < MATCH_MIN_SCORE);
+
+  // ── Ambiguity is answered with "unsure", not with array order. ──
+  check('Two different foods fitting equally well is no match', matchFood('milk drink', [{ name: 'Whole Milk' }, { name: 'Skimmed Milk' }], nameOf) === null);
+  check('…but the same food in two sizes still matches', !!matchFood('apples', [{ name: 'Apple' }, { name: 'Apple (medium)' }], nameOf));
+  check('…and an exact name wins outright', matchFood('Banana', [{ name: 'Banana' }, { name: 'Banana Bread' }], nameOf)?.food.name === 'Banana');
+
+  // ── Plurals. "apples" stemmed to "appl" and matched nothing, so every
+  //    photographed apple was saved as a duplicate food, forever.
+  for (const [plural, singularName] of [['apples', 'Apple'], ['oranges', 'Orange'], ['sardines', 'Sardine'], ['tomatoes', 'Tomato']] as Array<[string, string]>) {
+    check(`"${plural}" still finds ${singularName}`, hit(plural)?.food.name.startsWith(singularName) === true, hit(plural)?.food.name ?? 'no match');
+  }
+  check('A double-s word is not stripped to nonsense', nameTokens('couscous')[0] === 'couscous');
+
+  // ── Preparation words agree across their forms. ──
+  check('"roast" and "roasted" are the same instruction', hit('roasted chicken')?.food.name === hit('roast chicken')?.food.name);
+
+  // ── Everything that must still match, still does. ──
+  const keep = ['couscous', 'harissa', 'banana', 'white rice', 'olive oil', 'grilled chicken breast',
+                'fried chicken', 'salmon fillet', 'chicken nuggets', 'french fries', 'greek yogurt'];
+  const lost = keep.filter((q) => hit(q) === null);
+  check('Every real food the catalogue has is still found', lost.length === 0, lost.join(', '));
+  check('Preparation still breaks the tie', hit('fried chicken')?.food.name.startsWith('Fried Chicken') === true);
+
+  // ── A portion of nothing must log nothing. The diary reads quantity 0 as
+  //    "unspecified" and substitutes a whole serving, so a row shown as 0 kcal
+  //    was writing a full portion.
+  const screen = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
+  check('A row edited to zero is never logged', /rows\.filter\(\(r\) => r\.quantity > 0\)/.test(screen));
+  check('…and the button will not offer to log nothing', /disabled=\{loggable === 0\}/.test(screen));
+
+  // ── A serving with no gram weight is counted in servings, not in a grams
+  //    box that silently does nothing.
+  const noGrams = SEARCH_FOOD_DB.filter((f) => servingGrams(f.serving) === null);
+  check('Some catalogue servings genuinely have no gram weight', noGrams.length > 0, `${noGrams.length} foods`);
+  const drink = noGrams[0];
+  const one = scaleCatalogueFood(drink, 100);
+  const two = scaleCatalogueFood(drink, 400);
+  check('…so grams cannot move them, which is why the UI offers servings', one.quantity === two.quantity && one.servingUnknown);
+  check('The screen switches that row to a servings control', /label=\{r\.servingUnknown \? 'Servings' : 'Portion'\}/.test(screen));
+
+  // ── Researched rows must not drift between review and diary either.
+  const per100 = parseNutritionPer100g({ calories: 321, protein: 10, carbs: 40, fat: 13, fiber: 2 })!;
+  const odd = rowFromResearch({ name: 'x', grams: 12.5, confidence: 1 }, per100);
+  check('A researched row logs exactly what it showed', odd.nutrition.calories === Math.round(per100.calories * odd.quantity));
+
+  // ── The micronutrient ceiling has to catch a slipped decimal point.
+  check('A ten-fold vitamin C error is refused', sanitiseMicros({ vitaminC_mg: 5300 })?.vitaminC_mg === undefined);
+  check('…while a genuine outlier still passes', sanitiseMicros({ selenium_ug: 1900 })?.selenium_ug === 1900);
+  check('The ceiling sits just above the real extremes', MICRO_SANITY_MULTIPLE >= 35 && MICRO_SANITY_MULTIPLE <= 50);
+
+  // ── An estimate has to look like one wherever it appears.
+  const addScreen = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
+  check('Searching shows which foods are estimates', /item\.aiSourced && \(/.test(addScreen) && /estimated/.test(addScreen));
+  const customScreen = fs.readFileSync('src/screens/nutrition/CustomFoodScreen.tsx', 'utf8');
+  check('…and editing one says so rather than claiming it has no micros', /existing\?\.source === 'ai'/.test(customScreen));
+  const repo2 = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('A dish built from an estimate inherits the mark', /componentsCarryEstimate\(input\.components\)/.test(repo2));
+  check('…on edit as well as on creation', (repo2.match(/componentsCarryEstimate\(input\.components\)/g) ?? []).length >= 2);
+
+  // ── One plate cannot write the same new food twice.
+  check('A repeated new food is only saved once', /written\.has\(key\)/.test(screen) && /written\.add\(key\)/.test(screen));
+  // ── And a food that could not be priced is named, not silently dropped.
+  check('Foods that could not be priced are declared', /dropped\.length > 0 && \(/.test(screen) && /logs short/.test(screen));
+  // ── A mistyped key must be replaceable.
+  check('The API key can be replaced without clearing app data', /Replace API key/.test(screen));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

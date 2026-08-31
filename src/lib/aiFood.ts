@@ -72,11 +72,15 @@ export const MAX_ITEMS = 12;
 export const ENERGY_TOLERANCE = 0.25;
 /**
  * A micronutrient beyond this multiple of its daily value *in 100 g of food* is
- * not a food, it is a hallucination. Deliberately generous — real outliers are
- * extreme (Brazil nuts carry ~34x the selenium DV per 100 g, table salt ~26x
- * the sodium) — so this only catches the absurd.
+ * not a food, it is a hallucination.
+ *
+ * Set just above the real extremes rather than far above them: Brazil nuts
+ * carry about 34x the selenium daily value per 100 g and table salt about 26x
+ * the sodium, and almost nothing edible goes further. At 100 the ceiling was
+ * so generous it admitted the very error it exists to catch — a decimal
+ * point slipping one place, turning 53 mg of vitamin C into 530 or 5300.
  */
-export const MICRO_SANITY_MULTIPLE = 100;
+export const MICRO_SANITY_MULTIPLE = 40;
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 

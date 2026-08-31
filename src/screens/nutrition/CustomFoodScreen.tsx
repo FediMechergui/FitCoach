@@ -220,9 +220,14 @@ export function CustomFoodScreen() {
 
           <Divider />
           <Text variant="caption" color="textFaint">
-            Custom foods have no vitamin or mineral data — we won't invent one from a name. They
-            count fully toward calories and macros, and simply add nothing to your micronutrient
-            totals.
+            {existing?.source === 'ai'
+              ? "This food was identified from a photograph and its nutrition researched by a " +
+                "model, so every figure here " + String.fromCharCode(8212) + " including its vitamins and minerals " + String.fromCharCode(8212) +
+                " is an estimate, not measured data. Correct anything that looks wrong; editing " +
+                "keeps the micronutrients it came with."
+              : "Custom foods have no vitamin or mineral data " + String.fromCharCode(8212) + " we won't invent one from a " +
+                "name. They count fully toward calories and macros, and simply add nothing to " +
+                "your micronutrient totals."}
           </Text>
 
           <Button

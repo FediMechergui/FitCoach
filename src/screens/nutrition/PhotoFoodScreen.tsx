@@ -67,6 +67,8 @@ export function PhotoFoodScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [rows, setRows] = useState<PhotoMealRow[]>([]);
   const [dishName, setDishName] = useState('');
+  /** foods the model saw but nothing could price — never silently dropped */
+  const [dropped, setDropped] = useState<string[]>([]);
   const [error, setError] = useState<VisionFailure | null>(null);
   const [eatenAt, setEatenAt] = useState<EatenAtChoice>({ kind: 'now' });
 
@@ -123,23 +125,24 @@ export function PhotoFoodScreen() {
       }
 
       // Only what's left gets researched — one request for all of it.
+      const missed: string[] = [];
       if (pending.length > 0) {
         setStage('researching');
         const found = await researchNutrition(pending.map((p) => p.name));
-        if (found.data) {
-          for (const item of pending) {
-            const per100g = found.data.get(item.name.trim().toLowerCase());
-            if (per100g) resolved.push(rowFromResearch(item, per100g));
-          }
+        for (const item of pending) {
+          const per100g = found.data?.get(item.name.trim().toLowerCase());
+          if (per100g) resolved.push(rowFromResearch(item, per100g));
+          // Nothing is invented for a food we couldn't price — but the plate
+          // must say so, or the meal quietly logs short of what was eaten.
+          else missed.push(item.name);
         }
-        // A food that couldn't be researched is simply left out rather than
-        // logged with invented numbers; the user can still add it by hand.
         if (!found.data && resolved.length === 0) {
           setError(found.error);
           setStage('idle');
           return;
         }
       }
+      setDropped(missed);
 
       if (resolved.length === 0) {
         setError('unreadable');
@@ -179,10 +182,22 @@ export function PhotoFoodScreen() {
 
   const logMeal = () => {
     const when = resolveEatenAt(eatenAt, diaryDate);
-    for (const r of rows) {
+    /*
+     * A row edited down to nothing must log nothing. The diary treats a
+     * quantity of 0 as "unspecified" and substitutes one whole serving, so
+     * passing it straight through recorded a full portion of something the
+     * review screen was showing as 0 kcal.
+     */
+    const loggable = rows.filter((r) => r.quantity > 0);
+    if (loggable.length === 0) return;
+    /** researched names already written this run, so one plate can't duplicate */
+    const written = new Set<string>();
+    for (const r of loggable) {
       // A researched food joins the food database first, so it is there next
       // time and never has to be researched again.
-      if (r.source === 'researched' && r.per100g) {
+      const key = r.name.trim().toLowerCase();
+      if (r.source === 'researched' && r.per100g && !written.has(key)) {
+        written.add(key);
         createCustomFood({
           name: r.name,
           serving: '100 g',
@@ -229,9 +244,11 @@ export function PhotoFoodScreen() {
         <Card>
           <View style={{ gap: theme.spacing.md }}>
             <Text variant="body" color="textMuted">
-              Create a free key at openrouter.ai/keys and paste it below. It is stored only on this
-              phone, in this app's database — never in the app itself, and it never leaves your
-              device except to talk to OpenRouter.
+              Create a free key at openrouter.ai/keys and paste it below. It is kept in this app's
+              own database on your phone, never in the app itself, and it is sent nowhere but
+              OpenRouter. Note that Android's own backup may copy app data to your Google account,
+              so treat the key as you would any other saved password — you can revoke it at
+              openrouter.ai/keys at any time.
             </Text>
             <Input
               label="OpenRouter API key"
@@ -283,6 +300,7 @@ export function PhotoFoodScreen() {
   // ── Review ──
   if (stage === 'review') {
     const researched = rows.filter((r) => r.source === 'researched').length;
+    const loggable = rows.filter((r) => r.quantity > 0).length;
     return (
       <Screen>
         <PageHero
@@ -321,17 +339,18 @@ export function PhotoFoodScreen() {
               <Row gap={12} style={{ alignItems: 'flex-end' }}>
                 <View style={{ width: 110 }}>
                   <Input
-                    label="Portion"
-                    value={String(r.grams)}
+                    label={r.servingUnknown ? 'Servings' : 'Portion'}
+                    value={String(r.servingUnknown ? r.quantity : r.grams)}
                     onChangeText={(t) => setGrams(i, t)}
                     keyboardType="numeric"
-                    suffix="g"
+                    suffix={r.servingUnknown ? '' : 'g'}
                   />
                 </View>
                 <Text variant="caption" color="textMuted" style={{ flex: 1, paddingBottom: 10 }}>
                   {r.nutrition.calories} kcal · P {r.nutrition.protein} · C {r.nutrition.carbs} · F{' '}
                   {r.nutrition.fat}
-                  {r.servingUnknown ? '\nServing size unknown — check this one.' : ''}
+                  {r.servingUnknown ? `\nCounted in servings of ${r.food?.serving ?? '1 serving'}.` : ''}
+                  {r.quantity <= 0 ? '\nSet this above zero, or remove it — it will not be logged.' : ''}
                 </Text>
               </Row>
             </View>
@@ -354,6 +373,17 @@ export function PhotoFoodScreen() {
           </View>
         </Card>
 
+        {dropped.length > 0 && (
+          <Card accent={theme.colors.danger}>
+            <Text variant="caption" color="textMuted">
+              {dropped.length === 1 ? 'One food was' : `${dropped.length} foods were`} seen but could
+              not be priced — {dropped.join(', ')}. Rather than invent numbers,{' '}
+              {dropped.length === 1 ? 'it has' : 'they have'} been left out, so this meal logs short.
+              Add {dropped.length === 1 ? 'it' : 'them'} by hand if it matters.
+            </Text>
+          </Card>
+        )}
+
         {researched > 0 && (
           <Card accent={theme.colors.warning}>
             <Text variant="caption" color="textMuted">
@@ -367,7 +397,11 @@ export function PhotoFoodScreen() {
 
         <Divider />
         <EatenAtPicker value={eatenAt} onChange={setEatenAt} dateISO={diaryDate} />
-        <Button title={`Log ${rows.length === 1 ? 'this food' : `all ${rows.length}`}`} onPress={logMeal} />
+        <Button
+          title={loggable === 0 ? 'Nothing to log' : `Log ${loggable === 1 ? 'this food' : `all ${loggable}`}`}
+          onPress={logMeal}
+          disabled={loggable === 0}
+        />
         <Button title="Discard" variant="ghost" onPress={() => { setRows([]); setStage('idle'); }} />
       </Screen>
     );
@@ -391,6 +425,17 @@ export function PhotoFoodScreen() {
       )}
       <Button title="Take a photo" onPress={() => void run(true)} />
       <Button title="Choose from gallery" variant="ghost" onPress={() => void run(false)} />
+      {/* Without this a mistyped key is permanent: every call returns 401 and
+          the setup card never shows again, so the feature is stuck for good. */}
+      <Button
+        title="Replace API key"
+        variant="ghost"
+        onPress={() => {
+          setOpenRouterKey('');
+          setHasKey(false);
+          setError(null);
+        }}
+      />
       <Card>
         <Text variant="caption" color="textFaint">
           Foods already in your database are logged with their own curated macros and

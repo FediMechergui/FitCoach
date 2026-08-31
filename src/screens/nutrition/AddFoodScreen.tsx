@@ -230,9 +230,17 @@ function PreciseMode({ meal }: { meal: MealType }) {
                       {item.name}
                     </Text>
                     {item.cuisine === 'tunisian' && <Text style={{ fontSize: 12 }}>🇹🇳</Text>}
-                    {item.isCustom && (
+                    {item.isCustom && !item.aiSourced && (
                       <Text variant="caption" color="accent">
                         yours
+                      </Text>
+                    )}
+                    {/* An estimate has to look like one everywhere it appears,
+                        or it quietly becomes indistinguishable from measured
+                        data the moment it is logged from ordinary search. */}
+                    {item.aiSourced && (
+                      <Text variant="caption" color="warning">
+                        estimated
                       </Text>
                     )}
                   </Row>

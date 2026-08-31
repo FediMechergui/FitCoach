@@ -181,6 +181,8 @@ export function customFoodIdFrom(foodId: string): number | null {
 // ── Composed foods: a dish built from other foods with quantities ────────────
 
 export interface ComposedFoodInput {
+  /** 'ai' when any component was researched from a photograph */
+  source?: 'user' | 'ai';
   name: string;
   serving: string;
   category: string | null;
@@ -220,6 +222,9 @@ export function createComposedFood(input: ComposedFoodInput, userId: number = PR
       componentsJson: JSON.stringify(input.components),
       microsJson: t.micros ? JSON.stringify(t.micros) : null,
       form: input.form ?? composedFormDefault(input.components),
+      // A dish is only as measured as its least measured part: building one
+      // around a photographed food must not launder the estimate into fact.
+      source: input.source ?? (componentsCarryEstimate(input.components) ? 'ai' : 'user'),
     })
     .returning({ id: customFoods.id })
     .get();
@@ -242,9 +247,27 @@ export function updateComposedFood(id: number, input: ComposedFoodInput, userId:
       componentsJson: JSON.stringify(input.components),
       microsJson: t.micros ? JSON.stringify(t.micros) : null,
       form: input.form ?? composedFormDefault(input.components),
+      source: input.source ?? (componentsCarryEstimate(input.components) ? 'ai' : 'user'),
     })
     .where(and(eq(customFoods.id, id), eq(customFoods.userId, userId)))
     .run();
+}
+
+/**
+ * Does any part of this dish carry model-researched numbers?
+ *
+ * Checked here rather than at the call site so it cannot be forgotten: a dish
+ * built around a photographed food inherits the estimate mark, and one trip
+ * through the composer can never quietly turn an estimate into measured data.
+ */
+function componentsCarryEstimate(components: FoodComponent[]): boolean {
+  for (const c of components) {
+    if (!c.sourceId) continue;
+    const id = customFoodIdFrom(c.sourceId);
+    if (id == null) continue;
+    if (getCustomFood(id)?.source === 'ai') return true;
+  }
+  return false;
 }
 
 export const isComposed = (f: CustomFood): boolean => !!f.componentsJson;

@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.55',
+    date: '2026-08-31',
+    title: 'Photo logging, corrected — a glass of water was logging a tin of tuna',
+    highlights: [
+      'An adversarial review of yesterday\'s photo feature found real faults, and this fixes them. The worst: a one-word name bound to any food that merely contained the word. A glass of water beside the plate matched Tuna (canned in water) and logged 315 kcal and 68 g of protein. Butter found Peanut Butter, nuts found a Chocolate Bar with Nuts, soup found Miso Soup. Matching now requires the catalogue entry to be mostly ABOUT the word, not just to contain it, and a food\'s bracketed description is no longer treated as its identity.',
+      'When two genuinely different foods fit equally well, the answer is now "unsure" rather than whichever happened to be first in the list — which silently favoured the most recently created food. Two sizes of the same food (Apple, Apple (medium)) still match normally.',
+      'Plurals were broken in a way that quietly filled your food list with duplicates. "apples" was being stemmed to "appl", which matched nothing, so every photographed apple was researched and saved as a NEW food — despite Apple already being in the catalogue. Same for oranges and sardines. Fixed, and couscous is no longer mangled into "couscou".',
+      'Clearing a portion field logged a full serving. The diary reads a quantity of zero as "unspecified" and substitutes one whole serving, so a row showing 0 kcal on screen was writing 165 kcal to your day. A row at zero is now never logged, and the button says so.',
+      'Around 36 foods — mostly drinks — state a serving with no gram weight, so the portion box over them did nothing at all: typing 100 next to a 250 ml glass changed neither the display nor what was logged. Those rows are now counted in servings, which is a control that actually works.',
+      'Estimates now look like estimates everywhere. The model-sourced flag was being written but read by no screen, so a researched food logged later from ordinary search was indistinguishable from curated data — while its editor claimed it had no vitamins at all. It now shows as "estimated" in search, says what it is when edited, and a dish built around one inherits the mark instead of laundering it.',
+      'Also: the vitamin ceiling was so generous it admitted the very error it exists to catch (a decimal point slipping, turning 53 mg of vitamin C into 5300); researched portions no longer drift between what you approve and what is stored; a food the model could not price is now named rather than silently dropped from the meal; one plate can no longer save the same new food twice; and a mistyped API key can be replaced instead of permanently disabling the feature.',
+      '1293 checks in all, up from 1264 — every fault above is now held down by one.',
+    ],
+  },
+  {
     version: '2.54',
     date: '2026-08-31',
     title: 'Photograph a meal and it logs itself — with your own data, not invented numbers',

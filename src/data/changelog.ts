@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.59',
+    date: '2026-08-31',
+    title: 'Your egg was sent to a content-safety checker, which said "safe"',
+    highlights: [
+      'A model finally answered — the wrong one. The last name on the fallback list was OpenRouter\'s free-models ROUTER, which is free to pick any free model, and the free catalogue contains a content-safety classifier that accepts pictures. It looked at a photograph of an egg and replied "User Safety: safe". Not wrong, just an answer to a question nobody asked.',
+      'The router is gone. All three models are now named, general-purpose multimodal ones (Gemma 4 31B, MiniMax M3, Gemma 4 26B), and a rule now blocks routers, safety classifiers, moderation models, audio and embedding models from ever entering the list, however it is edited later.',
+      'Each release has moved one layer further: the request was malformed, then it timed out, then it reached a model that could not see food. All three are fixed, and the answer now comes from something that can actually describe a plate.',
+      '1335 checks in all, up from 1325.',
+    ],
+  },
+  {
     version: '2.58',
     date: '2026-08-31',
     title: 'Photo logging: a long wait is no longer reported as a lost connection',

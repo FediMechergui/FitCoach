@@ -239,15 +239,38 @@ export function scalePer100g(n: AiNutritionPer100g, grams: number): ScaledPortio
  * list in order when one is rate-limited or down, so a busy free endpoint
  * degrades into a slower answer instead of a failure.
  *
- * `openrouter/free` sits last on purpose: it is a router rather than a single
- * model, so it is the widest possible net once the named ones have been tried.
+ * Every entry is a NAMED general-purpose multimodal model. A router is not
+ * allowed here, and neither is anything that merely accepts an image: the free
+ * catalogue also contains a content-safety classifier that takes pictures, and
+ * routing a photograph of an egg to it produced the reply "User Safety: safe"
+ * — a perfectly valid answer to a question nobody asked.
  */
 export const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 export const FALLBACK_MODELS = [
   'minimax/minimax-m3:free',
-  'openrouter/free',
   'google/gemma-4-26b-a4b-it:free',
+  'dots-studio/dots-3-note-preview:free',
 ];
+
+/**
+ * Models that accept an image but cannot describe a meal, and routers that may
+ * hand the request to one of them. Never routed to, however the list above is
+ * edited later.
+ */
+export const EXCLUDED_MODEL_PATTERNS = [
+  'openrouter/free', // a router: picks any free model, classifiers included
+  'content-safety', // answers "User Safety: safe", not "an egg"
+  'guard', // llama-guard and friends: moderation, not description
+  'moderation',
+  'lyria', // audio generation
+  'embed', // embeddings
+];
+
+/** Would routing to this model be a category error? */
+export function isUsableVisionModel(id: string): boolean {
+  const lower = id.toLowerCase();
+  return !EXCLUDED_MODEL_PATTERNS.some((bad) => lower.includes(bad));
+}
 
 /**
  * OpenRouter refuses a routing list longer than this, and refuses it with a
@@ -259,9 +282,16 @@ export const FALLBACK_MODELS = [
  */
 export const MAX_ROUTE_MODELS = 3;
 
-/** The models to try, primary first, within the length OpenRouter accepts. */
+/**
+ * The models to try, primary first, within the length OpenRouter accepts and
+ * excluding anything that cannot actually describe a photograph.
+ */
 export function modelRoute(primary: string): string[] {
-  return [primary, ...FALLBACK_MODELS.filter((m) => m !== primary)].slice(0, MAX_ROUTE_MODELS);
+  const usable = [primary, ...FALLBACK_MODELS.filter((m) => m !== primary)].filter(isUsableVisionModel);
+  // If a chosen model is itself unusable, fall back to the shipped default
+  // rather than sending nothing at all.
+  const route = usable.length > 0 ? usable : [DEFAULT_MODEL];
+  return route.slice(0, MAX_ROUTE_MODELS);
 }
 
 /** Models sometimes wrap JSON in prose or a code fence. Dig it out. */

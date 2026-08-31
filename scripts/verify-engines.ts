@@ -33,7 +33,7 @@ import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
 import { segmentGateM, MIN_SEGMENT_M, ACCURACY_SLACK, VAGUE_SLACK, VAGUE_ACCURACY_M } from '../src/lib/gpsFilter';
-import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE, modelRoute, MAX_ROUTE_MODELS } from '../src/lib/aiFood';
+import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE, modelRoute, MAX_ROUTE_MODELS, isUsableVisionModel } from '../src/lib/aiFood';
 import { matchFood, scoreFoodMatch, nameTokens, MATCH_MIN_SCORE } from '../src/lib/foodMatch';
 import { servingGrams, scaleCatalogueFood, rowFromCatalogue, rowFromResearch, unresolvedNames, mealTotals } from '../src/lib/photoMeal';
 
@@ -3322,6 +3322,30 @@ console.log('\nWaiting for a free model, without calling it a lost connection:')
   check('A failure reports how much was sent and how long it waited', /Sent \$\{sentKb\} KB, no reply in \$\{waited\} s/.test(svc));
   check('...measured from the body actually posted', /const sentKb = Math\.round\(body\.length \/ 1024\);/.test(svc));
   check('The wait says it may take a minute', /free models queue when busy/.test(scr));
+}
+
+console.log('\nOnly models that can actually describe a meal are asked to:');
+{
+  /*
+   * A photograph of an egg came back as "User Safety: safe". The free
+   * catalogue contains a content-safety CLASSIFIER that accepts images, and
+   * the routing list ended in openrouter/free - a router, free to pick it.
+   * The reply was not wrong, it was an answer to a different question.
+   */
+  check('A router is never routed to', !isUsableVisionModel('openrouter/free'));
+  check('Nor is a content-safety classifier', !isUsableVisionModel('nvidia/nemotron-3.5-content-safety:free'));
+  check('Nor an audio or embedding model', !isUsableVisionModel('google/lyria-3-pro-preview') && !isUsableVisionModel('some/text-embed-3:free'));
+  check('A real multimodal model is allowed', isUsableVisionModel(DEFAULT_MODEL) && isUsableVisionModel('minimax/minimax-m3:free'));
+
+  const route = modelRoute(DEFAULT_MODEL);
+  check('Every model on the route can describe a picture', route.every(isUsableVisionModel), route.join(', '));
+  check('The route is named models only, no router', !route.includes('openrouter/free'));
+  check('The whole fallback list is usable', FALLBACK_MODELS.every(isUsableVisionModel));
+  check('The route is still within the length OpenRouter accepts', route.length <= MAX_ROUTE_MODELS);
+  check('The chosen model still leads', route[0] === DEFAULT_MODEL);
+  // Choosing an unusable model by hand must not leave nothing to ask.
+  const rescued = modelRoute('openrouter/free');
+  check('An unusable choice falls back rather than sending nothing', rescued.length > 0 && rescued.every(isUsableVisionModel));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

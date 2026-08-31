@@ -3,6 +3,7 @@ import {
   parseNutritionPer100g,
   parsePhotoIdentification,
   extractJson,
+  modelRoute,
   DEFAULT_MODEL,
   FALLBACK_MODELS,
   type AiNutritionPer100g,
@@ -107,7 +108,7 @@ async function post(
       },
       body: JSON.stringify({
         model: activeModel(),
-        models: [activeModel(), ...FALLBACK_MODELS.filter((m) => m !== activeModel())],
+        models: modelRoute(activeModel()),
         messages: [{ role: 'user', content }],
         ...(responseFormat ? { response_format: responseFormat } : {}),
         temperature: 0,

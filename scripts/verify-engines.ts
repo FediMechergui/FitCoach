@@ -33,7 +33,7 @@ import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
 import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
 import { segmentGateM, MIN_SEGMENT_M, ACCURACY_SLACK, VAGUE_SLACK, VAGUE_ACCURACY_M } from '../src/lib/gpsFilter';
-import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE } from '../src/lib/aiFood';
+import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE, modelRoute, MAX_ROUTE_MODELS } from '../src/lib/aiFood';
 import { matchFood, scoreFoodMatch, nameTokens, MATCH_MIN_SCORE } from '../src/lib/foodMatch';
 import { servingGrams, scaleCatalogueFood, rowFromCatalogue, rowFromResearch, unresolvedNames, mealTotals } from '../src/lib/photoMeal';
 
@@ -3267,6 +3267,28 @@ console.log('\nThe first live photo failed silently; now the pipe bends instead 
   check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /replied with prose, not JSON/.test(svc) && /No reply within/.test(svc));
   const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
   check('...and the screen shows it', /lastVisionDetail\(\)/.test(scr));
+}
+
+console.log('\nThe request itself has to be one OpenRouter will accept:');
+{
+  /*
+   * The bug that meant photo logging never worked at all: the routing list was
+   * built as primary + THREE fallbacks, and OpenRouter rejects anything over
+   * three with a 400 before a model ever sees the photograph. Every call died
+   * there. These checks make the route length a fact the build enforces.
+   */
+  const route = modelRoute(DEFAULT_MODEL);
+  check('The routing list is within what OpenRouter accepts', route.length <= MAX_ROUTE_MODELS, `${route.length} models`);
+  check('The chosen model leads it', route[0] === DEFAULT_MODEL);
+  check('No model is listed twice', new Set(route).size === route.length);
+  check('A custom model override stays inside the cap', modelRoute('some/other-model:free').length <= MAX_ROUTE_MODELS);
+  check('...and leads its own route', modelRoute('some/other-model:free')[0] === 'some/other-model:free');
+  // The cap must hold even if someone lengthens the fallback list later.
+  check('The cap survives a longer fallback list', FALLBACK_MODELS.length + 1 > MAX_ROUTE_MODELS ? route.length === MAX_ROUTE_MODELS : true);
+  check('Every model on the route is free', route.every((m) => m.includes(':free') || m === 'openrouter/free'));
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+  check('The service builds its route through the capped helper', /models: modelRoute\(activeModel\(\)\)/.test(svc));
+  check('...and never inlines an uncapped list again', !/models: \[activeModel\(\), \.\.\.FALLBACK_MODELS/.test(svc));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

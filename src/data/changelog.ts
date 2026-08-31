@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.57',
+    date: '2026-08-31',
+    title: 'Photo logging actually works now — it had never once reached a model',
+    highlights: [
+      'One line, and it broke everything. Each request named a preferred model plus three alternates to fall back on — four in total, where OpenRouter accepts at most three. It rejected every request outright, before any model ever saw the photograph. So the egg was never misread: nothing was ever looked at. The list is now capped at three, enforced by a check so it cannot creep back.',
+      'Nothing else about the feature was wrong. Recognition, matching, the sanity checks, the review screen — none of it had ever been reached. It should now do what it always claimed: name what is on the plate, price it from your own food database, and show you everything before a single thing is logged.',
+      'The error line added yesterday is what found this in seconds — it printed OpenRouter\'s exact words back. Worth keeping in mind if anything else misbehaves: whatever appears in that small grey line is the real answer.',
+      '1313 checks in all, up from 1304.',
+    ],
+  },
+  {
     version: '2.56',
     date: '2026-08-31',
     title: 'The egg that would not scan — the photo pipe now bends instead of breaking',

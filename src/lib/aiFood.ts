@@ -238,13 +238,31 @@ export function scalePer100g(n: AiNutritionPer100g, grams: number): ScaledPortio
  * is what makes the reply parseable rather than prose. OpenRouter walks this
  * list in order when one is rate-limited or down, so a busy free endpoint
  * degrades into a slower answer instead of a failure.
+ *
+ * `openrouter/free` sits last on purpose: it is a router rather than a single
+ * model, so it is the widest possible net once the named ones have been tried.
  */
 export const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 export const FALLBACK_MODELS = [
-  'google/gemma-4-26b-a4b-it:free',
   'minimax/minimax-m3:free',
   'openrouter/free',
+  'google/gemma-4-26b-a4b-it:free',
 ];
+
+/**
+ * OpenRouter refuses a routing list longer than this, and refuses it with a
+ * 400 before any model sees the request.
+ *
+ * This shipped as four (a primary plus three fallbacks), so EVERY call failed
+ * outright — the feature never once reached a model. Hence the hard cap, and
+ * the guard that keeps the route inside it whatever the fallback list becomes.
+ */
+export const MAX_ROUTE_MODELS = 3;
+
+/** The models to try, primary first, within the length OpenRouter accepts. */
+export function modelRoute(primary: string): string[] {
+  return [primary, ...FALLBACK_MODELS.filter((m) => m !== primary)].slice(0, MAX_ROUTE_MODELS);
+}
 
 /** Models sometimes wrap JSON in prose or a code fence. Dig it out. */
 export function extractJson(text: string): unknown {

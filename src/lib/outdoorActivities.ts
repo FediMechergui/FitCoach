@@ -1,6 +1,3 @@
-import { netCaloriesFromMet, walkCalories, walkRunMet } from './met';
-import { loadCalorieFactor, profileFor } from './loadProfile';
-
 /**
  * Outdoor ground activities — everything you launch the way you launch a walk.
  *
@@ -149,44 +146,4 @@ export function requiresGps(activity: OutdoorActivity): boolean {
  */
 export function activityMet(activity: OutdoorActivity, paceMet: number): number {
   return Math.max(activity.metFloor, paceMet);
-}
-
-export interface OutdoorCaloriesInput {
-  weightKg: number;
-  distanceM: number;
-  durationSec: number;
-  /** moving seconds; falls back to durationSec when 0 */
-  activeSec: number;
-  steps: number;
-  activity: OutdoorActivity;
-  /** carried pack/vest weight, kg (0 = none) */
-  loadKg: number;
-}
-
-/**
- * The one calorie figure for an outdoor session — used by the live screen AND
- * by the save, so the number can never drop the moment you hit Finish.
- *
- * A hike at walking pace is not a walk: uneven ground and gradient cost more,
- * so the pace-based figure is floored at the activity's own MET, and a carried
- * pack scales it (see lib/loadProfile). A plain walk or run keeps exactly the
- * number walkCalories gives it — floor 0, no load.
- */
-export function outdoorCalories(i: OutdoorCaloriesInput): number {
-  const base = walkCalories({
-    weightKg: i.weightKg,
-    distanceM: i.distanceM,
-    durationSec: i.durationSec,
-    activeSec: i.activeSec,
-    steps: i.steps,
-  });
-  const loadFactor =
-    i.loadKg > 0 ? loadCalorieFactor(profileFor({ slug: 'rucking' }), i.weightKg, i.loadKg) : 1;
-  const activeSec = i.activeSec > 0 ? i.activeSec : i.durationSec;
-  const paceMet =
-    i.distanceM > 0 && activeSec > 0 ? walkRunMet(i.distanceM / 1000 / (activeSec / 3600)) : 0;
-  const flooredMet = activityMet(i.activity, paceMet);
-  return i.activity.metFloor > 0 && activeSec > 0 && flooredMet > paceMet
-    ? Math.round(netCaloriesFromMet(flooredMet, i.weightKg, activeSec) * loadFactor)
-    : Math.round(base * loadFactor);
 }

@@ -16,15 +16,12 @@ import type { Session } from '@/db/schema';
 import { sessionTypeIcon } from '@/constants/icon-map';
 import { metaFor } from '@/constants/sessionTypes';
 import { formatDurationLong, formatDistance } from '@/lib/format';
-import { activityFor } from '@/lib/outdoorActivities';
-import { useUserStore } from '@/stores/userStore';
 import { toISODate, fromISODate } from '@/lib/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function SessionHistoryScreen() {
   const theme = useTheme();
-  const unit = useUserStore((st) => st.user?.unitPreference ?? 'metric');
   const navigation = useNavigation<Nav>();
   const [view, setView] = useState<'sessions' | 'walks'>('sessions');
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -96,12 +93,12 @@ export function SessionHistoryScreen() {
                       <View style={{ flex: 1 }}>
                         <Row gap={6} style={{ alignItems: 'center' }}>
                           <Text variant="bodyStrong">
-                            {activityFor(item.activity ?? item.mode).label} · {item.steps.toLocaleString()} steps
+                            {item.mode === 'run' ? 'Run' : 'Walk'} · {item.steps.toLocaleString()} steps
                           </Text>
                           {hasRoute && <Icon icon="cardio.gps" size={13} color={theme.colors.outdoor} />}
                         </Row>
                         <Text variant="caption" color="textMuted">
-                          {friendlyDate(item.startTime)} · {formatDurationLong(item.durationS)} · {formatDistance(item.distanceM, unit)} · {Math.round(item.caloriesBurned)} kcal
+                          {friendlyDate(item.startTime)} · {formatDurationLong(item.durationS)} · {formatDistance(item.distanceM, 'metric')} · {Math.round(item.caloriesBurned)} kcal
                         </Text>
                       </View>
                     </Row>

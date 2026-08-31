@@ -22,14 +22,8 @@
  */
 import { stepsFromDistance } from './pedometer';
 
-/**
- * Longest unobserved window we'll ever credit from cadence alone, in minutes.
- * Was 90 — but a cadence estimate assumes you KEPT WALKING the whole blind
- * window, and ninety minutes of assumed walking is thousands of steps invented
- * for time that may have been spent driving or sitting. With no corroborating
- * evidence at all, fifteen minutes is as far as trust reaches.
- */
-export const MAX_GAP_CREDIT_MIN = 15;
+/** Longest unobserved window we'll ever credit, in minutes. */
+export const MAX_GAP_CREDIT_MIN = 90;
 /** Gaps shorter than this aren't worth estimating. */
 export const MIN_GAP_SEC = 45;
 /** Realistic cadence ceilings (steps/min) — caps runaway estimates. */

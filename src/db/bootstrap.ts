@@ -41,12 +41,8 @@ import { seedExerciseLibrary } from './seed';
  *                  shapes splits, methods and rest; NULL reads as intermediate)
  *   28 → 29 v2.46: sessions.warmups_done (which warm-ups were ticked — survives
  *                  leaving and resuming the session; NULL reads as none)
- *   29 → 30 v2.52: live_walks pause state (paused / paused_since / paused_total_ms /
- *                  pause_reason / gait / auto_started — shared with the background
- *                  GPS task so a killed-app session stays honest in a vehicle) +
- *                  app_kv table (step-counter day baseline, auto-detect toggle)
  */
-const SCHEMA_VERSION = 30;
+const SCHEMA_VERSION = 29;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -117,25 +113,6 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'custom_foods', column: 'form', ddl: 'TEXT' },
   { table: 'users', column: 'experience_level', ddl: 'TEXT' },
   { table: 'sessions', column: 'warmups_done', ddl: 'TEXT' },
-  // v30 — auto-pause state lives in the row so the background GPS task and the
-  // app agree on it, and so it survives the app being killed mid-session
-  { table: 'live_walks', column: 'paused', ddl: 'INTEGER NOT NULL DEFAULT 0' },
-  { table: 'live_walks', column: 'paused_since', ddl: 'INTEGER' },
-  { table: 'live_walks', column: 'paused_total_ms', ddl: 'INTEGER NOT NULL DEFAULT 0' },
-  { table: 'live_walks', column: 'pause_reason', ddl: 'TEXT' },
-  { table: 'live_walks', column: 'gait', ddl: 'TEXT' },
-  { table: 'live_walks', column: 'auto_started', ddl: 'INTEGER NOT NULL DEFAULT 0' },
-  { table: 'live_walks', column: 'activity', ddl: 'TEXT' },
-  { table: 'live_walks', column: 'load_kg', ddl: 'REAL' },
-  // v30 — a hike stays a hike: sessions remember which outdoor activity they
-  // were, the pack carried, and their true moving time
-  { table: 'walk_sessions', column: 'activity', ddl: 'TEXT' },
-  { table: 'walk_sessions', column: 'load_kg', ddl: 'REAL' },
-  { table: 'walk_sessions', column: 'active_s', ddl: 'INTEGER' },
-  // v30 — how many steps this session actually ADDED to the daily total (0
-  // when the hardware sensor already counts them), so deleting it can undo
-  // exactly that and the passive sync can't double-count a walk
-  { table: 'walk_sessions', column: 'steps_added', ddl: 'INTEGER' },
 ];
 
 function ensureColumns(): void {
@@ -321,11 +298,7 @@ CREATE TABLE IF NOT EXISTS walk_sessions (
   avg_pace REAL,
   source TEXT NOT NULL DEFAULT 'pedometer',
   route_json TEXT,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-  activity TEXT,
-  load_kg REAL,
-  active_s INTEGER,
-  steps_added INTEGER
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_walk_sessions_user ON walk_sessions(user_id, start_time);
 
@@ -342,15 +315,7 @@ CREATE TABLE IF NOT EXISTS live_walks (
   last_lng REAL,
   route_json TEXT,
   updated_at INTEGER,
-  boot_step_baseline INTEGER,
-  paused INTEGER NOT NULL DEFAULT 0,
-  paused_since INTEGER,
-  paused_total_ms INTEGER NOT NULL DEFAULT 0,
-  pause_reason TEXT,
-  gait TEXT,
-  auto_started INTEGER NOT NULL DEFAULT 0,
-  activity TEXT,
-  load_kg REAL
+  boot_step_baseline INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS daily_step_logs (
@@ -727,12 +692,6 @@ CREATE TABLE IF NOT EXISTS weather_readings (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_weather_readings_user_date ON weather_readings(user_id, date);
-
-CREATE TABLE IF NOT EXISTS app_kv (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL,
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
-);
 `;
 
 let initialized = false;

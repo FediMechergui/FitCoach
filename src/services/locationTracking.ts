@@ -41,7 +41,6 @@ TaskManager.defineTask(ROUTE_TASK, async ({ data, error }) => {
       lng: l.coords.longitude,
       accuracy: l.coords.accuracy,
       speed: l.coords.speed,
-      timestamp: l.timestamp,
     }));
   if (fixes.length) {
     try {

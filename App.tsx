@@ -15,10 +15,9 @@ import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { useUsageStore } from '@/stores/usageStore';
 import { useWalkStore } from '@/stores/walkStore';
-import { initStepSync, registerBackgroundSteps } from '@/services/backgroundSteps';
+import { registerBackgroundSteps, syncTodaySteps } from '@/services/backgroundSteps';
 // Importing the service registers its TaskManager background task at startup.
 import { cleanupOrphanWalk } from '@/services/walkTracking';
-import { startWalkWatcher } from '@/services/walkAutoDetect';
 
 /** Run a startup step but never let it brick the app; log failures instead. */
 function safe(label: string, fn: () => void) {
@@ -58,11 +57,8 @@ export default function App() {
     setReady(true);
 
     registerBackgroundSteps();
-    // Daily ring: sync now and on every return to the foreground.
-    initStepSync();
+    syncTodaySteps().catch(() => {});
     cleanupOrphanWalk().catch(() => {});
-    // Notice walks that start without a button press (toggle on WalkScreen).
-    startWalkWatcher().catch(() => {});
   }, [load, loadSmoking, recordOpen, resumeWalk]);
 
   const colors = scheme === 'light' ? lightColors : darkColors;

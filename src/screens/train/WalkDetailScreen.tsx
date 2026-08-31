@@ -13,7 +13,6 @@ import { Row, Badge } from '@/components/ui/misc';
 import { RouteMap } from '@/components/RouteMap';
 import type { RootStackParamList } from '@/navigation/types';
 import { getWalkSession, deleteWalkSession } from '@/repositories/activityRepo';
-import { activityFor } from '@/lib/outdoorActivities';
 import { parseRoute } from '@/lib/geo';
 import { useUserStore } from '@/stores/userStore';
 import { formatDurationLong, formatDistance, formatPace } from '@/lib/format';
@@ -40,7 +39,6 @@ export function WalkDetailScreen() {
   }
 
   const path = parseRoute(session.routeJson);
-  const activity = activityFor(session.activity ?? session.mode);
   const isRun = session.mode === 'run';
   const accent = isRun ? theme.colors.outdoor : theme.colors.accent;
 
@@ -65,7 +63,7 @@ export function WalkDetailScreen() {
           <Icon icon={isRun ? 'cardio.running' : 'cardio.walk'} size={26} color={accent} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="h2">{activity.label}</Text>
+          <Text variant="h2">{isRun ? 'Run' : 'Walk'}</Text>
           <Text variant="caption" color="textMuted">
             {new Date(session.startTime).toLocaleString(undefined, {
               weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -89,9 +87,9 @@ export function WalkDetailScreen() {
           <Row gap={10} style={{ alignItems: 'flex-start' }}>
             <Icon icon="core.info" size={18} color={theme.colors.textFaint} />
             <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-              No GPS route was recorded for this session. Walks and runs both draw a route when
-              Location is enabled — set it to “Allow all the time” so the route keeps recording
-              with the screen off. Without it, distance is estimated from steps.
+              No GPS route was recorded for this session. Runs draw a route only when location is
+              set to “Allow all the time” (or “While using the app”) — otherwise distance is
+              estimated from steps.
             </Text>
           </Row>
         </Card>

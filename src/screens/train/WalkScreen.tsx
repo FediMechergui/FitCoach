@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Alert, Pressable } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pedometer } from 'expo-sensors';
@@ -26,10 +26,9 @@ import { weatherAdvice, HEAT_BAND_COLOR, HEAT_BAND_LABEL } from '@/lib/weather';
 import type { LatLng } from '@/lib/geo';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
 import { PostSessionCard } from '@/components/PostSessionCard';
-import { activityFor, outdoorCalories, requiresGps } from '@/lib/outdoorActivities';
-import { autoDetectEnabled, setAutoDetectEnabled } from '@/services/walkAutoDetect';
+import { activityFor, activityMet, requiresGps } from '@/lib/outdoorActivities';
 import { loadCalorieFactor, profileFor } from '@/lib/loadProfile';
-import { gradeMultiplier } from '@/lib/met';
+import { walkRunMet, gradeMultiplier, netCaloriesFromMet } from '@/lib/met';
 import { postSessionMargins, sessionStrain } from '@/lib/postSession';
 import { isSmokingEnabled } from '@/repositories/smokingRepo';
 
@@ -45,8 +44,7 @@ export function WalkScreen() {
   // The activity decides the label, what it is recorded as, the MET floor and
   // whether a carried load is asked for; the gait decides how steps become
   // distance. A plain `mode` still works, so every old link keeps its meaning.
-  const liveActivity = useWalkStore((s) => (s.active ? s.activity : null));
-  const activity = activityFor(liveActivity ?? route.params?.activity ?? route.params?.mode ?? 'walk');
+  const activity = activityFor(route.params?.activity ?? route.params?.mode ?? 'walk');
   const initialMode = activity.gait === 'run' ? 'run' : 'walk';
   const [packKg, setPackKg] = useState('');
 
@@ -74,20 +72,27 @@ export function WalkScreen() {
   const packLoadKg = parseFloat(packKg.replace(',', '.'));
   const loadKg = Number.isFinite(packLoadKg) && packLoadKg > 0 ? packLoadKg : 0;
   const loadFactor = loadKg > 0 ? loadCalorieFactor(profileFor({ slug: 'rucking' }), weightKg, loadKg) : 1;
-  /*
-   * THE SAME function the save uses (lib/outdoorActivities.outdoorCalories):
-   * a hike's MET floor and a carried pack are in both, so the number on this
-   * screen is the number that lands in history — it can't drop at Finish.
-   */
-  const calories = outdoorCalories({
+  const base = walkCalories({
     weightKg,
     distanceM,
     durationSec: walk.elapsedS,
     activeSec: walk.activeS,
     steps: walk.steps,
-    activity,
-    loadKg,
   });
+  /*
+   * A hike at walking pace is not a walk: uneven ground and gradient cost more,
+   * so the pace-based figure is floored at the activity's own MET, and a
+   * carried pack scales it (see lib/loadProfile). A plain walk or run keeps
+   * exactly the number it had — floor 0, no load.
+   */
+  const activeSec = walk.activeS > 0 ? walk.activeS : walk.elapsedS;
+  const paceMet =
+    distanceM > 0 && activeSec > 0 ? walkRunMet(distanceM / 1000 / (activeSec / 3600)) : 0;
+  const flooredMet = activityMet(activity, paceMet);
+  const calories =
+    activity.metFloor > 0 && activeSec > 0 && flooredMet > paceMet
+      ? Math.round(netCaloriesFromMet(flooredMet, weightKg, activeSec) * loadFactor)
+      : Math.round(base * loadFactor);
   // Pace from MOVING time, so pausing at a crossing doesn't make you look slower.
   const pace = distanceM > 0 && walk.activeS > 0 ? walk.activeS / (distanceM / 1000) : null;
   const unit = user?.unitPreference ?? 'metric';
@@ -95,7 +100,7 @@ export function WalkScreen() {
   const start = () => {
     setSummary(null);
     warnedNoGps.current = false;
-    walk.start(initialMode, { activity: activity.key, gait: activity.gait, loadKg });
+    walk.start(initialMode);
   };
   const gpsOnly = requiresGps(activity);
 
@@ -117,24 +122,7 @@ export function WalkScreen() {
   const stop = () => {
     const routeAtStop = walk.route;
     const result = walk.stop();
-    if (result && !result.saved) {
-      Alert.alert(
-        'Too short to save',
-        'Fewer than 20 steps and under 50 metres — this looked like an accidental start, so nothing was recorded.'
-      );
-      return;
-    }
     if (result) setSummary({ ...result, route: routeAtStop, endedAt: Date.now() });
-  };
-
-  // Auto-detection toggle (walks only): the watcher starts a session by itself
-  // on a sustained walking cadence — a car, a bus or sitting still can't fake
-  // the step counter, so it only ever triggers on real walking.
-  const [autoDetect, setAutoDetect] = useState(autoDetectEnabled());
-  const toggleAutoDetect = () => {
-    const next = !autoDetect;
-    setAutoDetect(next);
-    setAutoDetectEnabled(next);
   };
 
   const perms = walk.permissions;
@@ -310,30 +298,6 @@ export function WalkScreen() {
       {!walk.active ? (
         <>
         <WeatherCard plannedActiveMin={activity.plannedMin} />
-
-        {activity.key === 'walk' && (
-          <Card style={{ gap: 6 }}>
-            <Pressable onPress={toggleAutoDetect}>
-              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-                  <Icon icon="cardio.walk" size={18} color={autoDetect ? theme.colors.accent : theme.colors.textFaint} />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="bodyStrong">Detect walks automatically</Text>
-                    <Text variant="caption" color="textMuted">
-                      {autoDetect
-                        ? 'While the app is open, a couple of minutes of real walking starts a session by itself — backdated to your first step. Vehicles and sitting never trigger it: it listens to your legs, not the road.'
-                        : 'Off — walks are only tracked when you press Start.'}
-                    </Text>
-                  </View>
-                  <Badge
-                    label={autoDetect ? 'On' : 'Off'}
-                    color={autoDetect ? theme.colors.accent : theme.colors.textFaint}
-                  />
-                </Row>
-              </Row>
-            </Pressable>
-          </Card>
-        )}
 
         <Card style={{ gap: 8 }}>
           <Text variant="caption" color="textMuted">{activity.blurb}</Text>

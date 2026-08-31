@@ -1,5 +1,5 @@
 import { haversine, type LatLng } from './geo';
-import { IMPOSSIBLE_SPEED_MS, IMPOSSIBLE_RIDE_SPEED_MS, STATIONARY_SPEED_MS, type MotionGait } from './motionValidation';
+import { IMPOSSIBLE_SPEED_MS, STATIONARY_SPEED_MS } from './motionValidation';
 
 /**
  * Deciding which GPS fixes are real movement — and which are the receiver lying.
@@ -39,12 +39,45 @@ import { IMPOSSIBLE_SPEED_MS, IMPOSSIBLE_RIDE_SPEED_MS, STATIONARY_SPEED_MS, typ
  * a device (scripts/verify-engines.ts).
  */
 
-/** Fixes vaguer than this say nothing useful about position. metres. */
-export const MAX_ACCURACY_M = 30;
+/**
+ * Fixes vaguer than this say nothing useful about position. metres.
+ *
+ * This is a backstop for garbage, NOT the main defence — that job belongs to
+ * the segment gate below, which scales with the fix's own accuracy (a 40 m fix
+ * must move 30 m before it counts). Because that gate already tightens as
+ * accuracy worsens, a hard cliff here is nearly redundant, and set too low it
+ * does real harm: Android routinely reports 30-50 m with the phone in a pocket
+ * or among buildings, and at 30 m EVERY fix of such a walk was dropped - no
+ * route drawn, no GPS distance at all, silently falling back to step counting.
+ * Measured on a 400 m block loop at 35 m accuracy: 0 m before, 356 m after,
+ * with phantom distance from pacing on the spot unchanged.
+ */
+export const MAX_ACCURACY_M = 50;
 /** Assumed accuracy when the receiver doesn't report one. metres. */
 export const ASSUMED_ACCURACY_M = 15;
 /** A segment must beat this fraction of the fix's own error to count. */
 export const ACCURACY_SLACK = 0.75;
+/**
+ * Past this accuracy a fix is "vague": still usable, but held to a stricter
+ * standard. metres.
+ */
+export const VAGUE_ACCURACY_M = 25;
+/**
+ * The multiple a VAGUE fix must beat instead of ACCURACY_SLACK.
+ *
+ * Above 1, so a vague fix has to prove it moved further than its own error bar
+ * before any of it counts. This is what makes a raised MAX_ACCURACY_M safe: a
+ * walk progresses steadily and clears the bar within a few fixes (the anchor is
+ * held meanwhile, so nothing is lost), while indoor drift — which wanders
+ * inside a fixed radius and never progresses — can never clear it at all.
+ */
+export const VAGUE_SLACK = 1.5;
+
+/** How far a fix of this accuracy must move before the movement is credible. */
+export function segmentGateM(accuracyM: number): number {
+  const slack = accuracyM > VAGUE_ACCURACY_M ? VAGUE_SLACK : ACCURACY_SLACK;
+  return Math.max(MIN_SEGMENT_M, accuracyM * slack);
+}
 /** Absolute floor for a credible segment, whatever the accuracy claims. metres. */
 export const MIN_SEGMENT_M = 4;
 /**
@@ -66,8 +99,6 @@ export interface GpsFix {
   accuracy?: number | null;
   /** Doppler ground speed in m/s; negative or null means "not reported" */
   speed?: number | null;
-  /** epoch ms of the fix; lets the filter judge implied segment speed */
-  timestamp?: number | null;
 }
 
 export type RejectReason =
@@ -76,9 +107,7 @@ export type RejectReason =
   | 'jitter'
   | 'stationary'
   | 'impossible'
-  | 'confined'
-  /** faster than the session's own gait allows — a vehicle, not this activity */
-  | 'vehicle';
+  | 'confined';
 
 export interface GpsFilterResult {
   /** points to append to the stored route, in order */
@@ -98,28 +127,7 @@ const emptyRejects = (): Record<RejectReason, number> => ({
   stationary: 0,
   impossible: 0,
   confined: 0,
-  vehicle: 0,
 });
-
-/**
- * The fastest ground speed each gait can honestly produce, m/s. Used for both
- * the Doppler gate and the implied-segment-speed gate. A walk session tops out
- * at a solid jog (a car in city traffic sits well above it), a run keeps the
- * physiological ceiling, and a ride allows fast descents.
- */
-export const GAIT_MAX_SPEED_MS: Record<MotionGait, number> = {
-  walk: 4,
-  run: IMPOSSIBLE_SPEED_MS,
-  none: IMPOSSIBLE_RIDE_SPEED_MS,
-};
-
-/**
- * After this many consecutive too-fast segments, the anchor jumps to the
- * current fix WITHOUT crediting the gap. This is what keeps a vehicle stretch
- * from being banked as one giant hop the moment the vehicle slows down — and
- * what lets crediting resume cleanly when you get out and walk.
- */
-export const REANCHOR_AFTER = 2;
 
 /** Radius of the smallest circle centred on the mean that holds every point. */
 export function spreadRadiusM(points: LatLng[]): number {
@@ -176,29 +184,13 @@ export function isConfined(window: LatLng[]): boolean {
  * `distanceM` is exactly the path length of `accepted` measured from the last
  * tail point, so callers can append and add without recomputing.
  */
-export interface GpsFilterOptions {
-  /**
-   * Ceiling for BOTH the Doppler gate and the implied segment speed, m/s.
-   * Defaults to the on-foot physiological limit; pass the session gait's value
-   * from GAIT_MAX_SPEED_MS so a walk rejects city-traffic speeds and a ride
-   * doesn't reject its own descents.
-   */
-  maxSpeedMs?: number;
-  /** epoch ms of the last already-stored fix, for the first segment's speed */
-  lastTimestamp?: number | null;
-}
-
-export function filterFixes(tail: LatLng[], fixes: GpsFix[], opts: GpsFilterOptions = {}): GpsFilterResult {
-  const maxSpeedMs = opts.maxSpeedMs ?? IMPOSSIBLE_SPEED_MS;
+export function filterFixes(tail: LatLng[], fixes: GpsFix[]): GpsFilterResult {
   const rejected = emptyRejects();
   const accepted: LatLng[] = [];
   let distanceM = 0;
   let window = tail.slice(-CONFINEMENT_WINDOW);
   let last: LatLng | null = tail.length ? tail[tail.length - 1] : null;
-  let lastTs: number | null = opts.lastTimestamp ?? null;
   let confined = false;
-  /** consecutive segments rejected for speed — drives the re-anchor */
-  let fastStreak = 0;
 
   for (const fix of fixes) {
     if (!Number.isFinite(fix.lat) || !Number.isFinite(fix.lng)) {
@@ -234,17 +226,8 @@ export function filterFixes(tail: LatLng[], fixes: GpsFix[], opts: GpsFilterOpti
     const speed = typeof fix.speed === 'number' && Number.isFinite(fix.speed) && fix.speed > 0
       ? fix.speed
       : null;
-    const ts = typeof fix.timestamp === 'number' && Number.isFinite(fix.timestamp) && fix.timestamp > 0
-      ? fix.timestamp
-      : null;
     if (speed != null && speed >= IMPOSSIBLE_SPEED_MS) {
       rejected.impossible += 1;
-      continue;
-    }
-    // Faster than this session's own gait can go: honest movement, wrong kind.
-    // A car through town sits at 3–7 m/s — plainly not part of a walk.
-    if (speed != null && speed >= maxSpeedMs) {
-      rejected.vehicle += 1;
       continue;
     }
     // Doppler says you're standing still, so any apparent displacement is noise.
@@ -261,48 +244,16 @@ export function filterFixes(tail: LatLng[], fixes: GpsFix[], opts: GpsFilterOpti
       accepted.push(p);
       window = [...window, p].slice(-CONFINEMENT_WINDOW);
       last = p;
-      lastTs = ts;
       continue;
     }
 
     // ── Gate 3a: did we move further than the error bar? ──
     const seg = haversine(last, p);
-    const gate = Math.max(MIN_SEGMENT_M, accuracy * ACCURACY_SLACK);
+    const gate = segmentGateM(accuracy);
     if (seg < gate) {
       rejected.jitter += 1;
-      lastTs = ts ?? lastTs;
       continue;
     }
-
-    /*
-     * ── Gate 3c: could this gait have covered the gap in the time it took? ──
-     *
-     * The Doppler gates judge each fix in isolation, and that left a hole: a
-     * car cruising above the ceiling has all its fixes rejected — correctly —
-     * but the moment it slowed below the ceiling, one accepted fix credited
-     * the WHOLE ride since the last accepted point as a single giant segment.
-     * Timestamps close it: distance ÷ elapsed across the gap is the speed the
-     * gait would have needed, and a walk cannot have covered 900 m in 90 s.
-     *
-     * After a couple of consecutive too-fast segments the anchor jumps to the
-     * current fix without crediting anything, so the route re-anchors where
-     * you actually are and honest crediting resumes as soon as you're on foot.
-     */
-    if (ts != null && lastTs != null && ts > lastTs) {
-      const impliedMs = seg / ((ts - lastTs) / 1000);
-      if (impliedMs >= maxSpeedMs) {
-        rejected.vehicle += 1;
-        fastStreak += 1;
-        if (fastStreak >= REANCHOR_AFTER) {
-          last = p;
-          lastTs = ts;
-          window = [p];
-          fastStreak = 0;
-        }
-        continue;
-      }
-    }
-    fastStreak = 0;
 
     // ── Gate 3b: does the recent path go anywhere? ──
     const candidate = [...window, p].slice(-CONFINEMENT_WINDOW);
@@ -319,7 +270,6 @@ export function filterFixes(tail: LatLng[], fixes: GpsFix[], opts: GpsFilterOpti
     distanceM += seg;
     window = candidate;
     last = p;
-    lastTs = ts ?? lastTs;
     confined = false;
   }
 

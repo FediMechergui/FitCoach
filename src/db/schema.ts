@@ -296,15 +296,6 @@ export const walkSessions = sqliteTable('walk_sessions', {
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  /** which outdoor activity this was (walk/run/hike/ruck/…) — null = mode */
-  activity: text('activity'),
-  /** carried pack/vest weight, kg */
-  loadKg: real('load_kg'),
-  /** moving seconds, excluding auto-paused (vehicle/stationary) time */
-  activeS: integer('active_s'),
-  /** steps this session added to the daily log (0 = the sensor covers them);
-   * null = legacy rows, which added their full step count */
-  stepsAdded: integer('steps_added'),
 });
 
 // ── LiveWalk (in-progress walk/run, shared with the background service) ───────
@@ -334,23 +325,6 @@ export const liveWalks = sqliteTable('live_walks', {
    * even after the app has been killed. Null when no hardware counter.
    */
   bootStepBaseline: integer('boot_step_baseline'),
-  /**
-   * Auto-pause state, shared with the background location task. Living in the
-   * row (not app memory) is what lets the task stop crediting a vehicle ride
-   * while the app is killed, and what lets pause survive a restart.
-   */
-  paused: integer('paused', { mode: 'boolean' }).notNull().default(false),
-  pausedSince: integer('paused_since'),
-  pausedTotalMs: integer('paused_total_ms').notNull().default(0),
-  pauseReason: text('pause_reason'),
-  /** the activity's gait — 'none' (cycling) is exempt from cadence rules */
-  gait: text('gait', { enum: ['walk', 'run', 'none'] }),
-  /** started by the auto-detector, so it may end and discard itself */
-  autoStarted: integer('auto_started', { mode: 'boolean' }).notNull().default(false),
-  /** which outdoor activity is live (walk/run/hike/ruck/…) — survives restarts */
-  activity: text('activity'),
-  /** carried pack/vest weight, kg */
-  loadKg: real('load_kg'),
 });
 
 // ── DailyStepLog ─────────────────────────────────────────────────────────────
@@ -886,17 +860,6 @@ export const mealRoutines = sqliteTable('meal_routines', {
  * possible later. `source` is shown in the UI: a typed number and a fetched
  * one deserve different confidence.
  */
-/**
- * Tiny key–value store for app-level state that isn't a log and isn't a user
- * setting with a table of its own — e.g. the step counter's since-boot baseline
- * for the current day, or the auto-walk-detection toggle. Values are JSON.
- */
-export const appKv = sqliteTable('app_kv', {
-  key: text('key').primaryKey(),
-  value: text('value').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-
 export const weatherReadings = sqliteTable('weather_readings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),

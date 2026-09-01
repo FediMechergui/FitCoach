@@ -10,7 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { Row, Divider } from '@/components/ui/misc';
+import { Row, Divider, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import type { MealType } from '@/db/schema';
 import { SEARCH_FOOD_DB, FOOD_CATEGORIES, estimateFromDescription, type FoodItem } from '@/data/foods';
@@ -185,6 +185,17 @@ function PreciseMode({ meal }: { meal: MealType }) {
         style={{ marginTop: theme.spacing.sm }}
         contentContainerStyle={{ gap: theme.spacing.sm, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <EmptyState
+            icon="nutrition.calories"
+            title="Nothing matches"
+            message={
+              query.trim()
+                ? `No food called “${query.trim()}” in the catalogue — add it yourself above and it becomes searchable.`
+                : 'Nothing in this category yet — add your own above.'
+            }
+          />
+        }
         ListHeaderComponent={
           <View style={{ gap: theme.spacing.sm }}>
             {/* Can't find it? Add it yourself — macros are enough. */}

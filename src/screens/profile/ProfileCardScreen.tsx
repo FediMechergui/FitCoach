@@ -8,7 +8,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Row } from '@/components/ui/misc';
+import { Row, EmptyState } from '@/components/ui/misc';
 import { PageHero } from '@/components/ui/PageHero';
 import { useUserStore } from '@/stores/userStore';
 import { computeCardRating } from '@/repositories/cardRepo';
@@ -78,7 +78,18 @@ export function ProfileCardScreen() {
     }
   };
 
-  if (!user || !rating) return <Screen><Text>Loading…</Text></Screen>;
+  // The rating is computed synchronously, so if it is absent now it stays
+  // absent — that is an empty state to explain, never a spinner to fake.
+  if (!user || !rating)
+    return (
+      <Screen>
+        <EmptyState
+          icon="card.star"
+          title="No card to draw yet"
+          message="The athlete card is built from your profile and logged training. Finish onboarding and log a session or two, and it appears here."
+        />
+      </Screen>
+    );
 
   const attrs = rating.attributes;
   const topAttr = (Object.keys(attrs) as Array<keyof AttributeSet>).sort((a, b) => attrs[b] - attrs[a])[0];

@@ -101,7 +101,24 @@ function ActiveHabitCard({
   const [correlation] = useState(() => habitCorrelation(profile.habitKey, 30));
   const [series] = useState(() => habitDailySeries(profile.habitKey, 21));
 
-  if (!impact) return null;
+  // impact can be legitimately null (habitImpact returns null before any
+  // logs). The card used to vanish entirely — taking the disable link
+  // down with it, leaving an enabled habit with no face and no exit.
+  if (!impact)
+    return (
+      <Card accent={color} style={{ gap: 8 }}>
+        <Row gap={10} style={{ alignItems: 'center' }}>
+          <Icon icon={def?.icon ?? 'habits.generic'} size={22} color={color} />
+          <Text variant="h3" style={{ flex: 1 }}>{profile.label}</Text>
+        </Row>
+        <Text variant="caption" color="textMuted">
+          No impact math for this habit yet — log a day or two and the numbers appear.
+        </Text>
+        <Pressable onPress={onDisable} hitSlop={6}>
+          <Text variant="caption" color="textFaint">Stop tracking this habit</Text>
+        </Pressable>
+      </Card>
+    );
   const equivalents = timeEquivalents(impact.yearHoursProjected);
 
   return (

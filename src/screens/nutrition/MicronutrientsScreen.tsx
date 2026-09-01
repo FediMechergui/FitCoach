@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Row, SectionHeader, Badge } from '@/components/ui/misc';
+import { Skeleton } from '@/components/ui/misc3';
 import { PageHero } from '@/components/ui/PageHero';
 import type { RootStackParamList } from '@/navigation/types';
 import { useNutritionStore } from '@/stores/nutritionStore';
@@ -45,7 +46,14 @@ export function MicronutrientsScreen() {
     }, [date])
   );
 
-  if (!micros) return <Screen><Text>Loading…</Text></Screen>;
+  if (!micros)
+    return (
+      <Screen>
+        <Skeleton height={72} />
+        <Skeleton height={220} />
+        <Skeleton height={220} />
+      </Screen>
+    );
 
   const gaps = microGaps(micros.totals, sex);
   const hasData = micros.foodEntriesWithMicros > 0 || micros.supplementCount > 0;

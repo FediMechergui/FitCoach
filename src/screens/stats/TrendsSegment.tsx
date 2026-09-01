@@ -249,8 +249,11 @@ export function TrendsSegment() {
         </Text>
       </Card>
 
-      {/* Nutrition */}
-      <SectionHeader title="Nutrition" />
+      {/* A heading only exists when something breathes under it — a signal
+          never logged does not advertise itself over blank space. */}
+      {(has(data.calories) || has(data.protein) || has(data.water) || has(data.caffeine)) && (
+        <SectionHeader title="Nutrition" />
+      )}
       {has(data.calories) && (
         <ChartCard
           title={`Calories (avg/logged day${data.calorieTarget ? ` · target ${data.calorieTarget}` : ''})`}
@@ -275,8 +278,9 @@ export function TrendsSegment() {
         </ChartCard>
       )}
 
-      {/* Training */}
-      <SectionHeader title="Training" />
+      {(has(data.volume) || has(data.activeMinutes) || has(data.steps)) && (
+        <SectionHeader title="Training" />
+      )}
       {has(data.volume) && (
         <ChartCard title={`Lifting volume (kg / ${per})`} color={theme.colors.primary}>
           <BarChart data={bars(data.volume)} color={theme.colors.primary} valueFormat={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${Math.round(v)}`)} />
@@ -293,8 +297,9 @@ export function TrendsSegment() {
         </ChartCard>
       )}
 
-      {/* Rest & recovery */}
-      <SectionHeader title="Rest & recovery" />
+      {(has(data.sleep) || has(data.mood) || has(data.workHours)) && (
+        <SectionHeader title="Rest & recovery" />
+      )}
       {has(data.sleep) && (
         <ChartCard title="Sleep (h, avg/logged night)" color={theme.colors.mindbody}>
           <LineChart data={line(data.sleep)} color={theme.colors.mindbody} yFormat={(v) => v.toFixed(1)} />
@@ -311,8 +316,9 @@ export function TrendsSegment() {
         </ChartCard>
       )}
 
-      {/* Habits impact */}
-      <SectionHeader title="Habits impact" />
+      {(has(data.alcohol) || has(data.cigarettes) || has(data.habitMinutes)) && (
+        <SectionHeader title="Habits impact" />
+      )}
       {has(data.alcohol) && (
         <ChartCard title={`Alcohol (g / ${per})`} color={theme.colors.warning}>
           <BarChart data={bars(data.alcohol)} color={theme.colors.warning} valueFormat={(v) => `${Math.round(v)}`} />

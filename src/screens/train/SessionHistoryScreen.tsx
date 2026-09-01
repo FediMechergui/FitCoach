@@ -24,8 +24,10 @@ export function SessionHistoryScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const [view, setView] = useState<'sessions' | 'walks'>('sessions');
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [walks, setWalks] = useState<ReturnType<typeof listWalkSessions>>([]);
+  // Synchronous reads, so the first paint is the truth — a user with
+  // history never sees "No sessions yet" flash as fact.
+  const [sessions, setSessions] = useState<Session[]>(() => listSessions({ limit: 200 }));
+  const [walks, setWalks] = useState<ReturnType<typeof listWalkSessions>>(() => listWalkSessions(200));
 
   useFocusEffect(
     useCallback(() => {
@@ -52,7 +54,13 @@ export function SessionHistoryScreen() {
           data={sessions}
           keyExtractor={(s) => `s${s.id}`}
           contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 40 }}
-          ListEmptyComponent={<EmptyState icon="core.calendar" title="No sessions yet" />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="core.calendar"
+              title="No sessions yet"
+              message="Your finished sessions land here — start one from the Train tab."
+            />
+          }
           renderItem={({ item }) => {
             const meta = metaFor(item.sessionType);
             return (
@@ -81,7 +89,13 @@ export function SessionHistoryScreen() {
           data={walks}
           keyExtractor={(w) => `w${w.id}`}
           contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 40 }}
-          ListEmptyComponent={<EmptyState icon="cardio.walk" title="No walks yet" />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="cardio.walk"
+              title="No walks yet"
+              message="GPS-tracked walks and runs land here, route maps included."
+            />
+          }
           renderItem={({ item }) => {
             const hasRoute = !!item.routeJson && item.routeJson.length > 4;
             return (

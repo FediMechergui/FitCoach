@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.15',
+    date: '2026-09-01',
+    title: 'Nothing lies about why it is absent',
+    highlights: [
+      'A states-doctrine sweep across the app. The word \'Loading\' is gone from Micronutrients (skeleton shapes now) and from the athlete card — which, being computed instantly, was never loading at all: with nothing to draw it now says what it needs instead of spinning forever.',
+      'Session history no longer flashes \'No sessions yet\' at people who have years of sessions — the lists are read before the first frame paints. And when they really are empty, they invite: start one from the Train tab.',
+      'Trends stopped stranding headings over blank space — Nutrition, Training, Rest & recovery and Habits impact only appear when something breathes under them. A food search with zero hits now says so and names your query, pointing at the add-your-own door. And an enabled habit whose numbers haven\'t accrued yet keeps its card, its explanation and its off switch, instead of vanishing entirely.',
+      '1629 checks in all, up from 1621.',
+    ],
+  },
+  {
     version: '3.0.14',
     date: '2026-09-01',
     title: 'One screen tells the session\'s story',

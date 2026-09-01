@@ -3958,5 +3958,32 @@ console.log('\nSession 3.0 - one screen tells the story:');
   check('The recap screen left cleanly - no file, no route, no callers', !fs.existsSync('src/screens/train/SessionRecapScreen.tsx') && !/SessionRecap/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/SessionRecap/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
 }
 
+console.log('\nStates doctrine 3.0 - nothing lies about why it is absent:');
+{
+  // The word "Loading" as UI is banned from the audited surfaces.
+  const noWord = [
+    'src/screens/nutrition/MicronutrientsScreen.tsx',
+    'src/screens/profile/ProfileCardScreen.tsx',
+    'src/screens/stats/GrowthSegment.tsx',
+    'src/screens/stats/TrendsSegment.tsx',
+  ];
+  check('No audited screen renders the word Loading', noWord.every((f) => !fs.readFileSync(f, 'utf8').includes('Loading…')));
+  check('Micronutrients loads as a shape', /<Skeleton height=\{72\}/.test(fs.readFileSync('src/screens/nutrition/MicronutrientsScreen.tsx', 'utf8')));
+  check('An absent athlete card explains itself instead of spinning forever', /No card to draw yet/.test(fs.readFileSync('src/screens/profile/ProfileCardScreen.tsx', 'utf8')));
+
+  const tr = fs.readFileSync('src/screens/stats/TrendsSegment.tsx', 'utf8');
+  check('Trends headings only exist over living sections', ['Nutrition', 'Training', 'Rest & recovery', 'Habits impact'].every((t) => new RegExp(`\\|\\| has\\(data\\.[A-Za-z]+\\)\\) && \\(\\s*\\n\\s*<SectionHeader title="${t.replace('&', '&')}"`).test(tr)));
+
+  const hist = fs.readFileSync('src/screens/train/SessionHistoryScreen.tsx', 'utf8');
+  check('History paints the truth on its first frame', /useState<Session\[\]>\(\(\) => listSessions\(\{ limit: 200 \}\)\)/.test(hist) && /\(\(\) => listWalkSessions\(200\)\)/.test(hist));
+  check('...and its empty states invite instead of shrugging', /start one from the Train tab/.test(hist) && /route maps included/.test(hist));
+
+  const add15 = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
+  check('A zero-hit food search is acknowledged, query named', /ListEmptyComponent=\{/.test(add15) && /Nothing matches/.test(add15) && /query\.trim\(\)/.test(add15));
+
+  const hab = fs.readFileSync('src/screens/health/HabitsScreen.tsx', 'utf8');
+  check('An enabled habit never vanishes with its own off switch inside', !/if \(!impact\) return null;/.test(hab) && /No impact math for this habit yet/.test(hab) && /Stop tracking this habit/.test(hab));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

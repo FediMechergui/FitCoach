@@ -3742,5 +3742,48 @@ console.log('\nHome 3.0 - a briefing in four bands, and reads that stop writing:
   check('The heat surcharge on water is explained, not silent', /for the heat/.test(fuel));
 }
 
+console.log("\nThe first hour - boot, crash and onboarding stop being hostile:");
+{
+  const ob = fs.readFileSync('src/screens/onboarding/OnboardingScreen.tsx', 'utf8');
+
+  // ── Selection is a press, never a scroll accident.
+  check('Selection cards are real presses at last', /<Card\s*\n\s*onPress=\{onPress\}/.test(ob) && !/onTouchEnd=\{/.test(ob));
+
+  // ── The birthdate is a date, not a regex.
+  check('The birthdate is three numeric boxes', /placeholder="DD"/.test(ob) && /placeholder="MM"/.test(ob) && /placeholder="YYYY"/.test(ob));
+  check('...validated against the actual calendar', /date\.getDate\(\) !== d/.test(ob) && /That date does not exist/.test(ob));
+  check('The old free-text ISO field is gone', !/YYYY-MM-DD\)"/.test(ob));
+
+  // ── The wizard asks what it silently assumed.
+  check('Experience level is asked at onboarding', /EXPERIENCE_LEVELS\.map/.test(ob) && /experienceLevel: level/.test(ob));
+  check('...and the store writes it', /experienceLevel\?: User\['experienceLevel'\]/.test(fs.readFileSync('src/stores/userStore.ts', 'utf8')) && /data\.experienceLevel \? \{ experienceLevel: data\.experienceLevel \}/.test(fs.readFileSync('src/stores/userStore.ts', 'utf8')));
+  check('The wizard is now seven beats', /TOTAL_STEPS = 7/.test(ob));
+  check('The fifth gender value is finally offered', /prefer_not_to_say/.test(ob));
+  check('The BMR-sex control says why it asks', /calibrated per/.test(ob));
+
+  // ── A disabled Continue says what it is waiting for.
+  check('Validation speaks instead of dimming', /Still needed: \$\{gaps\.join/.test(ob) && /hint=\{gaps\.length > 0/.test(ob));
+
+  // ── The targets step is a moment, marked sovereign.
+  check('The calorie target lands as the display numeral', /variant="numeralXL"/.test(ob) && /<Bezel tint=\{theme\.colors\.calories\}>/.test(ob));
+  check('The sovereignty mark is on the last step', /On this device/.test(ob) && /no account, ever/.test(ob));
+
+  // ── Boot is branded; the fatal moment is survivable.
+  const boot = fs.readFileSync('src/components/BootScreens.tsx', 'utf8');
+  check('Boot shows the Lume mark, not a blank rectangle', /export function BootView/.test(boot) && /Animated\.loop/.test(boot) && /FitCoach/.test(boot));
+  const app = fs.readFileSync('App.tsx', 'utf8');
+  check('...and the app actually boots into it', /return <BootView \/>;/.test(app));
+  check('The fatal screen can retry', /setBootAttempt\(\(n\) => n \+ 1\)/.test(app) && /onRetry/.test(boot));
+  check('...hand your data out even in failure', /Sharing\.shareAsync\(uri/.test(boot) && /SQLite\/\$\{DB_NAME\}/.test(boot));
+  check('...and share the error itself', /Share\.share\(/.test(boot));
+  check('Nothing is lost, and it says so', /nothing is lost/.test(boot));
+
+  // ── The crash fallback grew up.
+  const eb = fs.readFileSync('src/components/ErrorBoundary.tsx', 'utf8');
+  check('The crash screen wears Night Sea, not stale hex', /darkColors\.bg/.test(eb) && !/#0B1220/.test(eb));
+  check('The stack folds behind Details and is selectable', /showDetails/.test(eb) && /selectable/.test(eb));
+  check('It says the data is untouched, because it is', /not a data problem/.test(eb));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

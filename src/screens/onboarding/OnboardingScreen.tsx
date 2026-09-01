@@ -7,17 +7,37 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
+import { Bezel } from '@/components/ui/Bezel';
+import { Metric } from '@/components/ui/misc3';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row } from '@/components/ui/misc';
 import { useUserStore, type OnboardingData } from '@/stores/userStore';
 import { ACTIVITY_LABELS, GOAL_BLURBS, GOAL_LABELS, GOAL_ORDER, GOAL_NOTES, computeTargets } from '@/lib/calories';
 import { estimateBodyType, BODY_TYPE_BLURB, BODY_TYPE_LABELS } from '@/lib/bodyType';
+import { EXPERIENCE_LEVELS, LEVEL_LABELS, LEVEL_BLURBS, type ExperienceLevel } from '@/lib/level';
 import { ageFromBirthdate } from '@/lib/date';
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5;
-const TOTAL_STEPS = 6;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+const TOTAL_STEPS = 7;
 
+/**
+ * Onboarding 3.0 — the wizard's math was always excellent; its inputs were
+ * hostile. The rebuild keeps the beat structure and fixes the first hour:
+ *
+ *  · Selection cards are real Pressables now — the old onTouchEnd fired when a
+ *    scroll happened to END on a card, choosing things nobody chose.
+ *  · The birthdate is three numeric boxes validating a real calendar date —
+ *    the free-text field wanted an iOS-only keyboard on an Android-first app.
+ *  · A disabled Continue says what it is waiting for instead of dimming mutely.
+ *  · Experience level is asked here (it silently defaulted to intermediate and
+ *    shaped every pre-loaded session without anyone choosing it).
+ *  · Gender offers the schema's fifth value, and the BMR-sex control says in
+ *    one honest sentence why it exists.
+ *  · The targets step is a moment: the calorie numeral in the display face,
+ *    the macro trio as tinted Metrics, and the sovereignty mark — on this
+ *    device, no account, ever.
+ */
 export function OnboardingScreen() {
   const theme = useTheme();
   const complete = useUserStore((s) => s.completeOnboarding);
@@ -27,7 +47,9 @@ export function OnboardingScreen() {
   const [name, setName] = useState('');
   const [gender, setGender] = useState<OnboardingData['gender']>('male');
   const [sex, setSex] = useState<'male' | 'female'>('male');
-  const [birthdate, setBirthdate] = useState('1995-01-01');
+  const [birthDay, setBirthDay] = useState('1');
+  const [birthMonth, setBirthMonth] = useState('1');
+  const [birthYear, setBirthYear] = useState('1995');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [waist, setWaist] = useState('');
@@ -35,9 +57,21 @@ export function OnboardingScreen() {
   const [activity, setActivity] = useState<OnboardingData['activityLevel']>('moderate');
   const [goal, setGoal] = useState<OnboardingData['goal']>('maintain');
   const [rate, setRate] = useState<OnboardingData['rate']>('moderate');
+  const [level, setLevel] = useState<ExperienceLevel>('beginner');
 
   const heightCm = parseFloat(height) || 0;
   const weightKg = parseFloat(weight) || 0;
+
+  /** A real calendar date, or null — 31/02 does not become a birthday. */
+  const birthdate = useMemo(() => {
+    const d = parseInt(birthDay, 10);
+    const m = parseInt(birthMonth, 10);
+    const y = parseInt(birthYear, 10);
+    if (!d || !m || !y || y < 1900 || y > new Date().getFullYear()) return null;
+    const date = new Date(y, m - 1, d);
+    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }, [birthDay, birthMonth, birthYear]);
 
   const bodyType = useMemo(
     () =>
@@ -54,7 +88,7 @@ export function OnboardingScreen() {
   );
 
   const preview = useMemo(() => {
-    if (!heightCm || !weightKg) return null;
+    if (!heightCm || !weightKg || !birthdate) return null;
     return computeTargets({
       sex,
       age: ageFromBirthdate(birthdate),
@@ -66,14 +100,18 @@ export function OnboardingScreen() {
     });
   }, [sex, birthdate, heightCm, weightKg, activity, goal, rate]);
 
-  const canProceed = (): boolean => {
-    switch (step) {
-      case 1:
-        return !!name.trim() && heightCm > 100 && weightKg > 25 && /^\d{4}-\d{2}-\d{2}$/.test(birthdate);
-      default:
-        return true;
-    }
+  /** What still stands between here and Continue — said out loud. */
+  const missing = (): string[] => {
+    if (step !== 1) return [];
+    const gaps: string[] = [];
+    if (!name.trim()) gaps.push('your name');
+    if (!birthdate) gaps.push('a real birthdate');
+    if (heightCm <= 100) gaps.push('your height');
+    if (weightKg <= 25) gaps.push('your weight');
+    return gaps;
   };
+  const gaps = missing();
+  const canProceed = gaps.length === 0;
 
   const next = () => {
     if (step < TOTAL_STEPS - 1) setStep((s) => (s + 1) as Step);
@@ -87,7 +125,7 @@ export function OnboardingScreen() {
       name: name.trim() || 'Athlete',
       gender,
       sex,
-      birthdate,
+      birthdate: birthdate ?? '1995-01-01',
       heightCm,
       weightKg,
       waistCm: parseFloat(waist) || null,
@@ -95,6 +133,7 @@ export function OnboardingScreen() {
       activityLevel: activity,
       goal,
       rate,
+      experienceLevel: level,
     });
   };
 
@@ -119,7 +158,10 @@ export function OnboardingScreen() {
 
           {step === 1 && (
             <View style={{ gap: theme.spacing.md }}>
-              <Text variant="h1">About you</Text>
+              <Text variant="eyebrow" color="primary">
+                About you
+              </Text>
+              <Text variant="h1">The numbers that set your targets</Text>
               <Text variant="body" color="textMuted">
                 This personalizes your calorie, macro, water and caffeine targets.
               </Text>
@@ -135,6 +177,7 @@ export function OnboardingScreen() {
                     { value: 'female', label: 'Female' },
                     { value: 'non_binary', label: 'Non-binary' },
                     { value: 'other', label: 'Other' },
+                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
                   ]}
                   value={gender}
                   onChange={(g) => {
@@ -146,7 +189,7 @@ export function OnboardingScreen() {
               {gender !== 'male' && gender !== 'female' && (
                 <View>
                   <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>
-                    Sex for metabolic calculations (BMR)
+                    Body for the energy math
                   </Text>
                   <SegmentedControl
                     options={[
@@ -156,15 +199,36 @@ export function OnboardingScreen() {
                     value={sex}
                     onChange={setSex}
                   />
+                  <Text variant="caption" color="textFaint" style={{ marginTop: 4 }}>
+                    Asked only because the calorie equation (Mifflin-St Jeor) is calibrated per
+                    physiological sex — it never appears anywhere else.
+                  </Text>
                 </View>
               )}
-              <Input
-                label="Birthdate (YYYY-MM-DD)"
-                value={birthdate}
-                onChangeText={setBirthdate}
-                placeholder="1995-01-01"
-                keyboardType="numbers-and-punctuation"
-              />
+              <View>
+                <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>
+                  Birthdate
+                </Text>
+                <Row>
+                  <View style={{ flex: 1 }}>
+                    <Input value={birthDay} onChangeText={setBirthDay} placeholder="DD" suffix="day" keyboardType="numeric" maxLength={2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Input value={birthMonth} onChangeText={setBirthMonth} placeholder="MM" suffix="month" keyboardType="numeric" maxLength={2} />
+                  </View>
+                  <View style={{ flex: 1.4 }}>
+                    <Input
+                      value={birthYear}
+                      onChangeText={setBirthYear}
+                      placeholder="YYYY"
+                      suffix="year"
+                      keyboardType="numeric"
+                      maxLength={4}
+                      error={birthdate == null && birthYear.length === 4 ? 'That date does not exist' : undefined}
+                    />
+                  </View>
+                </Row>
+              </View>
               <Row>
                 <View style={{ flex: 1 }}>
                   <Input
@@ -192,6 +256,9 @@ export function OnboardingScreen() {
 
           {step === 2 && (
             <View style={{ gap: theme.spacing.md }}>
+              <Text variant="eyebrow" color="primary">
+                Day to day
+              </Text>
               <Text variant="h1">Activity level</Text>
               <Text variant="body" color="textMuted">
                 How active are you outside of logged workouts?
@@ -210,6 +277,9 @@ export function OnboardingScreen() {
 
           {step === 3 && (
             <View style={{ gap: theme.spacing.md }}>
+              <Text variant="eyebrow" color="primary">
+                Direction
+              </Text>
               <Text variant="h1">Your goal</Text>
               {GOAL_ORDER.map((key) => (
                 <SelectCard
@@ -242,9 +312,34 @@ export function OnboardingScreen() {
 
           {step === 4 && (
             <View style={{ gap: theme.spacing.md }}>
+              <Text variant="eyebrow" color="primary">
+                Experience
+              </Text>
+              <Text variant="h1">How long have you trained?</Text>
+              <Text variant="body" color="textMuted">
+                This shapes how many exercises a session pre-loads, the rep ranges, and how long the
+                rests run. It changes nothing you can't override.
+              </Text>
+              {EXPERIENCE_LEVELS.map((key) => (
+                <SelectCard
+                  key={key}
+                  active={level === key}
+                  title={LEVEL_LABELS[key]}
+                  subtitle={LEVEL_BLURBS[key]}
+                  onPress={() => setLevel(key)}
+                />
+              ))}
+            </View>
+          )}
+
+          {step === 5 && (
+            <View style={{ gap: theme.spacing.md }}>
+              <Text variant="eyebrow" color="primary">
+                Optional
+              </Text>
               <Text variant="h1">Body-type check</Text>
               <Text variant="body" color="textMuted">
-                Optional. Waist & hip refine your starting macros. You can skip this.
+                Waist & hip refine your starting macros. You can skip this.
               </Text>
               <Row>
                 <View style={{ flex: 1 }}>
@@ -284,30 +379,39 @@ export function OnboardingScreen() {
             </View>
           )}
 
-          {step === 5 && preview && (
+          {step === 6 && preview && (
             <View style={{ gap: theme.spacing.md }}>
-              <Text variant="h1">Your targets</Text>
-              <Text variant="body" color="textMuted">
-                Calculated with Mifflin-St Jeor · TDEE ×{' '}
-                {GOAL_LABELS[goal].toLowerCase()}. These auto-refine as you log.
+              <Text variant="eyebrow" color="primary">
+                Your targets
               </Text>
-              <Card>
-                <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text variant="h2">Daily calories</Text>
-                  <Text variant="h1" color="calories">
-                    {preview.calorieTarget}
+              <Text variant="h1">Built for you, refined as you log</Text>
+              <Text variant="body" color="textMuted">
+                Calculated with Mifflin-St Jeor · TDEE × {GOAL_LABELS[goal].toLowerCase()}.
+              </Text>
+              <Bezel tint={theme.colors.calories}>
+                <View style={{ alignItems: 'center', gap: 2 }}>
+                  <Text variant="numeralXL" style={{ color: theme.colors.calories }}>
+                    {preview.calorieTarget.toLocaleString()}
                   </Text>
-                </Row>
+                  <Text variant="eyebrow" color="textMuted">
+                    kcal a day
+                  </Text>
+                  <Text variant="caption" color="textFaint">
+                    BMR {preview.bmr} · TDEE {preview.tdee} kcal
+                  </Text>
+                </View>
+              </Bezel>
+              <Row>
+                <Metric value={`${preview.macros.protein}g`} label="Protein" accent={theme.colors.protein} />
+                <Metric value={`${preview.macros.carbs}g`} label="Carbs" accent={theme.colors.carbs} />
+                <Metric value={`${preview.macros.fat}g`} label="Fat" accent={theme.colors.fat} />
+              </Row>
+              <Row gap={8} style={{ alignItems: 'center', justifyContent: 'center' }}>
+                <Icon icon="core.settings" size={14} color={theme.colors.textFaint} />
                 <Text variant="caption" color="textFaint">
-                  BMR {preview.bmr} · TDEE {preview.tdee} kcal
+                  On this device — no account, ever.
                 </Text>
-                <View style={{ height: 12 }} />
-                <Row>
-                  <MacroPill label="Protein" value={`${preview.macros.protein}g`} color={theme.colors.protein} />
-                  <MacroPill label="Carbs" value={`${preview.macros.carbs}g`} color={theme.colors.carbs} />
-                  <MacroPill label="Fat" value={`${preview.macros.fat}g`} color={theme.colors.fat} />
-                </Row>
-              </Card>
+              </Row>
             </View>
           )}
         </ScrollView>
@@ -320,7 +424,8 @@ export function OnboardingScreen() {
             <Button
               title={step === 0 ? 'Get Started' : 'Continue'}
               onPress={next}
-              disabled={!canProceed()}
+              disabled={!canProceed}
+              hint={gaps.length > 0 ? `Still needed: ${gaps.join(', ')}` : undefined}
               style={{ flex: 2 }}
               fullWidth={false}
             />
@@ -378,6 +483,12 @@ function Feature({ icon, text }: { icon: string; text: string }) {
   );
 }
 
+/**
+ * A real Pressable at last. The old version used onTouchEnd on a plain View,
+ * which fires when a SCROLL ends on the card — people chose activity levels by
+ * lifting their thumb in the wrong place, with zero pressed feedback and no
+ * accessibility role. Card's pressable variant provides all three.
+ */
 function SelectCard({
   active,
   title,
@@ -392,7 +503,7 @@ function SelectCard({
   const theme = useTheme();
   return (
     <Card
-      onTouchEnd={onPress}
+      onPress={onPress}
       style={{
         borderColor: active ? theme.colors.primary : theme.colors.border,
         backgroundColor: active ? theme.colors.primarySoft : theme.colors.card,
@@ -414,18 +525,5 @@ function SelectCard({
         />
       </Row>
     </Card>
-  );
-}
-
-function MacroPill({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-      <Text variant="h3" color={color}>
-        {value}
-      </Text>
-      <Text variant="caption" color="textMuted">
-        {label}
-      </Text>
-    </View>
   );
 }

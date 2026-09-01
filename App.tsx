@@ -1,6 +1,5 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Text as RNText } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
@@ -8,11 +7,11 @@ import { StatusBar } from 'expo-status-bar';
 
 import { initDatabase } from '@/db/bootstrap';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
-import { darkColors } from '@/theme';
 import { loadBrandFonts } from '@/theme/fonts';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastHost } from '@/components/ui/Toast';
+import { BootView, FatalView } from '@/components/BootScreens';
 import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { useUsageStore } from '@/stores/usageStore';
@@ -73,6 +72,8 @@ export default function App() {
   const recordOpen = useUsageStore((s) => s.record);
   const resumeWalk = useWalkStore((s) => s.resume);
 
+  const [bootAttempt, setBootAttempt] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -84,6 +85,7 @@ export default function App() {
       // instead of hanging on a blank screen forever.
       try {
         initDatabase();
+        if (!cancelled) setFatal(null);
       } catch (e) {
         if (!cancelled) {
           setFatal(e instanceof Error ? e : new Error(String(e)));
@@ -107,27 +109,23 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [load, loadSmoking, recordOpen, resumeWalk]);
+  }, [load, loadSmoking, recordOpen, resumeWalk, bootAttempt]);
 
   if (!ready) {
-    // Pre-theme: the provider isn't mounted yet, so this uses the dark ground
-    // directly. (The branded boot view is on the 3.0 list; this keeps the
-    // colour honest meanwhile.)
-    return <View style={{ flex: 1, backgroundColor: darkColors.bg }} />;
+    // Pre-theme, and now branded: the Lume mark pulsing on Night Sea instead
+    // of an anonymous rectangle during the app's longest moment.
+    return <BootView />;
   }
 
   if (fatal) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#070C14', padding: 24, justifyContent: 'center' }}>
-        <ScrollView contentContainerStyle={{ gap: 12 }}>
-          <RNText style={{ color: '#FF6B6B', fontSize: 22, fontWeight: '800' }}>
-            Couldn't start the database
-          </RNText>
-          <RNText style={{ color: '#EDF3F9', fontSize: 15 }}>
-            {fatal.name}: {fatal.message}
-          </RNText>
-        </ScrollView>
-      </View>
+      <FatalView
+        error={fatal}
+        onRetry={() => {
+          setReady(false);
+          setBootAttempt((n) => n + 1);
+        }}
+      />
     );
   }
 

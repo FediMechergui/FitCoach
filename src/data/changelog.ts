@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.4',
+    date: '2026-09-01',
+    title: 'The first hour — boot, crash and onboarding stop being hostile',
+    highlights: [
+      'The app boots into its brand: the Lume mark pulsing on Night Sea with the wordmark beneath, instead of an anonymous dark rectangle during the app\'s longest moment.',
+      'The worst moment is now survivable. If the database ever fails to open, the screen offers three ways forward instead of a dead end: Try again actually retries, Export my data file hands you the SQLite file itself — sovereignty holds even in failure — and Share the error details gets the problem to someone who can fix it. Nothing is lost, and the screen says so. The crash fallback grew up the same way: calm copy, the stack folded behind Details, and an honest "this is a display problem, not a data problem."',
+      'Onboarding\'s inputs finally match its math. Selection cards are real presses — the old ones fired when a scroll happened to END on them, choosing activity levels nobody chose. The birthdate is three numeric boxes checked against the actual calendar, so the 31st of February is refused instead of stored. And a disabled Continue now says exactly what it is waiting for — "Still needed: your height, your weight" — instead of dimming in silence.',
+      'The wizard asks what it used to silently assume. Experience level — Beginner, Intermediate, Pro — is a proper step now; before, it defaulted to intermediate and shaped every pre-loaded session without anyone choosing it. Gender offers all five values the data model always had, and the body-for-energy-math control explains in one sentence why it exists.',
+      'And the finish is a moment: your calorie target lands as the big numeral in its bezel, the macro trio beneath, marked with the promise that holds the whole app together — on this device, no account, ever.',
+      '1538 checks in all, up from 1517.',
+    ],
+  },
+  {
     version: '3.0.3',
     date: '2026-09-01',
     title: 'Home becomes a briefing — four bands instead of thirteen cards',

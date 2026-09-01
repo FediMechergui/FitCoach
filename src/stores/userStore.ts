@@ -52,6 +52,12 @@ export interface OnboardingData {
   activityLevel: User['activityLevel'];
   goal: User['goal'];
   rate: User['rateOfChange'];
+  /**
+   * Asked at onboarding since 3.0.4. It shapes how many exercises a session
+   * pre-loads, the rep ranges and the rests; before this it silently defaulted
+   * to intermediate without anyone choosing it.
+   */
+  experienceLevel?: User['experienceLevel'];
 }
 
 /**
@@ -177,6 +183,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       goal: data.goal,
       rateOfChange: data.rate,
       bodyType,
+      ...(data.experienceLevel ? { experienceLevel: data.experienceLevel } : {}),
     });
     addWeighIn(data.weightKg, {
       bodyFatPct: data.bodyFatPct ?? null,

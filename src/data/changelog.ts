@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.63',
+    date: '2026-08-31',
+    title: 'Rest between sets now knows what is in your blood',
+    highlights: [
+      'The rest timer described a rested, clean-blooded, empty-stomached person. Nobody is that person every day, so it now adjusts for the state you actually turned up in — and it does it through mechanism, not mood: each factor changes the number only where there is a physiological path for it to.',
+      'Oxygen is the lever, because refilling the phosphagen tank is an entirely aerobic job. That gives an exact conversion rather than a guess: recovery follows 1 − e^(−t/τ), so if oxygen delivery drops to 90% of normal, the same recovery takes exactly 1/0.9 as long. The rest your set already earned is simply divided by the oxygen you actually have.',
+      'Smoking is the big one. Carbon monoxide binds haemoglobin about 250 times more readily than oxygen, so it sits there carrying nothing — and it makes the oxygen that IS bound harder to release at the muscle. Three cigarettes still on board reads as roughly 11% of your haemoglobin occupied, which stretches a heavy triple\'s rest from 4:15 to 5:00. It fades on the same four-hour half-life the smoking clock already uses, so the penalty disappears as the CO does.',
+      'A full stomach counts too, and counts small. Digestion commits blood to the gut that would otherwise be at the muscle, so it costs a little oxygen — but never more than a fraction of what smoking does, and nothing at all once you have digested.',
+      'Sleep is applied where the evidence actually points: to the nervous system, not the tank. Short nights blunt voluntary activation and raise perceived effort, so they lengthen the neural part of the rest that heavy and near-failure sets already earn — and leave an easy set of fifteen untouched, because there is no good evidence sleep slows the chemistry itself. Naps count toward how rested you are.',
+      'Neither more nor less. Good conditions earn a small reduction rather than just avoiding a penalty, everything is bounded, the five-minute ceiling still holds, and if nothing is known the number is exactly the evidence-based one it always was. The "why?" line now names each factor and its mechanism, and the refill bar tracks your real recovery rate rather than the textbook one.',
+      '1400 checks in all, up from 1372.',
+    ],
+  },
+  {
     version: '2.62',
     date: '2026-08-31',
     title: 'The model it was asking is permanently busy; the one that answers now leads',

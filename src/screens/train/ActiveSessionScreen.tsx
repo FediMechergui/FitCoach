@@ -33,6 +33,13 @@ import { useUserStore } from '@/stores/userStore';
 import { levelOrDefault } from '@/lib/level';
 import { exerciseProgression } from '@/repositories/statsRepo';
 import { estimate1RMFromSet } from '@/lib/oneRepMax';
+import { coLoad } from '@/lib/smokeClock';
+import { recentSmokeEvents } from '@/repositories/smokingRepo';
+import { stomachLoad, mealsFromEntries } from '@/lib/digestion';
+import { foodEntriesForDay } from '@/repositories/nutritionRepo';
+import { sleepSummary } from '@/repositories/sleepRepo';
+import { todayISO } from '@/lib/date';
+import type { RestConditions } from '@/lib/restPhysiology';
 import {
   prescribeRest,
   pcrRecovered,
@@ -319,7 +326,8 @@ function RestTimerBanner() {
 
   if (!restEndsAt || remaining <= 0) return null;
   const elapsed = Math.max(0, restDurationS - remaining);
-  const pcr = Math.round(pcrRecovered(elapsed) * 100);
+  // Against the tank's ACTUAL refill rate, which slows when oxygen is short.
+  const pcr = Math.round(pcrRecovered(elapsed, rx?.physiology?.tauS) * 100);
   return (
     <Card accent={theme.colors.warning} style={{ gap: 6 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -494,6 +502,29 @@ function ExerciseLogCard({
     };
   }, [lv.log.exerciseId]);
 
+  /*
+   * The state the lifter is actually in, re-read as the session runs.
+   *
+   * All three of these move DURING a session — carbon monoxide decays on a
+   * four-hour half-life, the stomach drains, and an hour of squatting is an
+   * hour further from breakfast — so this is recomputed as sets are completed
+   * rather than frozen at the door. The reads are local SQLite and cheap.
+   */
+  const conditions = useMemo<RestConditions>(() => {
+    try {
+      return {
+        coLoad: coLoad(recentSmokeEvents()),
+        stomachKcal: stomachLoad(mealsFromEntries(foodEntriesForDay(todayISO()))).loadKcal,
+        // Naps count: avgRest7d is night sleep plus what the naps were worth.
+        avgSleepHours: sleepSummary().avgRest7d,
+      };
+    } catch {
+      // Nothing known is a perfectly good answer — the prescription is then
+      // exactly the evidence-based one, unadjusted.
+      return {};
+    }
+  }, [lv.sets.length]);
+
   /** The rest this set earns — from what it was, where it sits, and who is lifting. */
   const rxFor = (d: { reps: number | null; weightKg: number | null; rpe: number | null; toFailure: boolean; durationS: number | null }): RestPrescription => {
     const completed = lv.sets.filter((s) => s.completed);
@@ -519,6 +550,7 @@ function ExerciseLogCard({
       sessionElapsedMin: (Date.now() - sessionStart) / 60_000,
       level,
       isProgress: d.weightKg != null && topWeightBefore > 0 && d.weightKg > topWeightBefore,
+      conditions,
     });
   };
 

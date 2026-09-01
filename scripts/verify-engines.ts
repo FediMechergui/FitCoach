@@ -85,6 +85,8 @@ import type { ReportData } from '../src/repositories/reportRepo';
 import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib/eatenAt';
 import { sessionStrain, postSessionMargins, marginStatuses, marginsStillRunning } from '../src/lib/postSession';
 import { prescribeRest, pcrRecovered } from '../src/lib/restPrescription';
+import { PCR_TAU_S, MAX_REST_S } from '../src/lib/restPrescription';
+import { restPhysiology, estimateCohbPct, o2DeliveryFactor, neuralRecoveryFactor, pcrTimeFor, BASELINE_COHB_PCT, MAX_COHB_PCT, MAX_O2_LOSS, MAX_SPLANCHNIC_LOSS, type RestConditions } from '../src/lib/restPhysiology';
 import { napBand, napValue, dayRest, timingFactor, nightSleepCostMin, napAdvice, BAND_EFFICIENCY, BAND_INERTIA_MIN, BAND_ALERTNESS_MIN, MAX_NAP_CREDIT_MIN } from '../src/lib/naps';
 import { profileFor, effectiveLoadKg, loadCalorieFactor, intensityCalorieFactor } from '../src/lib/loadProfile';
 import { EXPERIENCE_LEVELS, LEVEL_LABELS, slugsForLevel, prescriptionLine, levelOrDefault } from '../src/lib/level';
@@ -2618,7 +2620,7 @@ console.log('\nRest prescription — ATP-PCr, glycolytic, oxidative; the nervous
   check('Logging a set starts the rest the set earned, from the set BEFORE it is written', /const rx = isLifting \? rxFor\(draft\) : null;\s*store\.logSet\(lv\.log\.id, draft\);/.test(actSrc) && /store\.startRest\(rx\.restSec, rx\)/.test(actSrc));
   check('…using the movement pattern, bodyweight flag, history 1RM, set index, session clock, level and progress', /compound: COMPOUND_PATTERNS\.has\(lv\.pattern \?\? ''\)/.test(actSrc) && /bodyweight: lv\.equipmentType === 'bodyweight'/.test(actSrc) && /best1RMKg: effBest,/.test(actSrc) && /setIndex: completed\.length/.test(actSrc) && /sessionElapsedMin: \(Date\.now\(\) - sessionStart\)/.test(actSrc) && /isProgress: d\.weightKg != null && topWeightBefore > 0 && d\.weightKg > topWeightBefore/.test(actSrc));
   check('The card says how long and why (energy system, %1RM, CNS, tap for reasons)', /Rest set to/.test(actSrc) && /SYSTEM_LABEL\[lastRx\.system\]/.test(actSrc) && /lastRx\.reasons\.map/.test(actSrc));
-  check('The rest banner shows the creatine-phosphate tank refilling', /Creatine phosphate ~\{pcr\}% refilled/.test(actSrc) && /pcrRecovered\(elapsed\)/.test(actSrc));
+  check('The rest banner shows the creatine-phosphate tank refilling', /Creatine phosphate ~\{pcr\}% refilled/.test(actSrc) && /pcrRecovered\(elapsed, rx\?\.physiology\?\.tauS\)/.test(actSrc));
   check('The session detail carries the movement pattern', /pattern: exercises\.pattern,/.test(fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8')));
   check('The store remembers the prescription behind the current rest', /restRx: RestPrescription \| null;/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
 }
@@ -3431,6 +3433,64 @@ console.log('\nFailing over between free models, on evidence from a real device:
   check('A model that chats gets one plain retry', /if \(attempt\.error === 'unreadable'\)/.test(svc) && /post\(asked, undefined, timeoutMs, key, maxTokens \* 2, model\)/.test(svc));
   check('Every failure names which model produced it', /\$\{model\}: HTTP \$\{res\.status\}/.test(svc));
   check('Being busy is explained as shared capacity', /capacity is shared/.test(svc));
+}
+
+console.log('\nRest that accounts for the state you turned up in:');
+{
+  const heavy = {
+    reps: 3, weightKg: 140, rpe: 9, toFailure: false, durationS: null,
+    bodyweight: false, compound: true, best1RMKg: 160, setIndex: 2,
+    sessionElapsedMin: 30, level: 'intermediate' as const,
+  };
+  const rest = (conditions?: RestConditions) => prescribeRest({ ...heavy, conditions }).restSec;
+  const clean = rest();
+
+  // ── Carbon monoxide: the mechanism this is built on. PCr resynthesis is
+  //    entirely aerobic, so CO on the haemoglobin slows the refill itself.
+  check('A cigarette on board lengthens the rest', rest({ coLoad: 1 }) > clean);
+  check('Three lengthen it further', rest({ coLoad: 3 }) >= rest({ coLoad: 1 }));
+  check('COHb rises with the CO still on board', estimateCohbPct(0) === BASELINE_COHB_PCT && estimateCohbPct(1) > estimateCohbPct(0));
+  check('...and never reaches a figure that belongs in a hospital', estimateCohbPct(50) <= MAX_COHB_PCT);
+  check('Oxygen delivery falls with CO, never below the floor', o2DeliveryFactor({ coLoad: 3 }) < 1 && o2DeliveryFactor({ coLoad: 99 }) >= 1 - MAX_O2_LOSS);
+  check('A non-smoker is not penalised for baseline CO', o2DeliveryFactor({}) === 1);
+
+  // ── The conversion is exact, not a fudge: recovery is 1 - e^(-t/tau), so
+  //    time to the same fraction scales exactly as tau does.
+  const phys = restPhysiology({ coLoad: 3 }, PCR_TAU_S);
+  check('The time constant stretches by exactly the oxygen shortfall', Math.abs(phys.tauS - PCR_TAU_S / phys.o2Factor) < 0.2);
+  check('Reaching the same recovery takes proportionally longer', Math.abs(pcrTimeFor(0.9, phys.tauS) / pcrTimeFor(0.9, PCR_TAU_S) - 1 / phys.o2Factor) < 0.01);
+  check('The recovery curve honours the stretched constant', pcrRecovered(120, phys.tauS) < pcrRecovered(120, PCR_TAU_S));
+
+  // ── Digestion: real, and deliberately small next to CO.
+  check('A full stomach lengthens rest a little', rest({ stomachKcal: 600 }) > clean);
+  check('...but far less than smoking does', 1 - o2DeliveryFactor({ stomachKcal: 700 }) <= MAX_SPLANCHNIC_LOSS + 1e-9 && MAX_SPLANCHNIC_LOSS * 3 < MAX_O2_LOSS);
+  check('An empty stomach changes nothing', o2DeliveryFactor({ stomachKcal: 0 }) === 1);
+
+  // ── Sleep acts on the NERVOUS SYSTEM, not on the phosphagen tank. Claiming
+  //    otherwise would invent a mechanism to justify a number.
+  check('Short sleep does not touch oxygen delivery', o2DeliveryFactor({ avgSleepHours: 4 }) === 1);
+  check('...but does lengthen the neural allowance', neuralRecoveryFactor({ avgSleepHours: 5 }) > 1);
+  check('Enough sleep is neutral', neuralRecoveryFactor({ avgSleepHours: 7.5 }) === 1);
+  check('Excellent sleep earns a small reduction', neuralRecoveryFactor({ avgSleepHours: 9 }) < 1);
+  check('Unknown sleep changes nothing', neuralRecoveryFactor({}) === 1);
+  check('Short sleep lengthens a heavy set, which has a neural cost', rest({ avgSleepHours: 5 }) > clean);
+  // A set with no neural component cannot be moved by sleep alone.
+  const light = { ...heavy, reps: 15, weightKg: 20, rpe: 6, compound: false, best1RMKg: 40 };
+  check('...but not an easy set, which has none', prescribeRest({ ...light, conditions: { avgSleepHours: 5 } }).restSec === prescribeRest(light).restSec);
+
+  // ── Neither more nor less than necessary.
+  check('Knowing nothing leaves the evidence-based number untouched', prescribeRest({ ...heavy, conditions: {} }).restSec === clean);
+  check('...and says so rather than inventing a reason', prescribeRest({ ...heavy, conditions: {} }).physiology === undefined);
+  check('Everything at once still respects the five-minute ceiling', rest({ coLoad: 20, stomachKcal: 2000, avgSleepHours: 3 }) <= MAX_REST_S);
+  check('The change from the state is reported, not hidden', prescribeRest({ ...heavy, conditions: { coLoad: 3 } }).restBeforeStateSec === clean);
+  check('Each factor is explained by its mechanism', restPhysiology({ coLoad: 2, stomachKcal: 500, avgSleepHours: 5 }, PCR_TAU_S).notes.length === 3);
+
+  // ── The session screen reads the real, moving state.
+  const screen = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The session reads CO, stomach and sleep', /coLoad\(recentSmokeEvents\(\)\)/.test(screen) && /stomachLoad\(/.test(screen) && /sleepSummary\(\)\.avgRest7d/.test(screen));
+  check('Naps count toward how rested you are', /avgRest7d/.test(screen));
+  check('...and it re-reads as the session runs, since all three move', /\[lv\.sets\.length\]/.test(screen));
+  check('The recovery bar uses the real time constant', /pcrRecovered\(elapsed, rx\?\.physiology\?\.tauS\)/.test(screen));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

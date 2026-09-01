@@ -41,6 +41,10 @@
  *     fraction refilled after t seconds is modelled as 1 − e^(−t/45).
  *
  * ── This model ──
+ * The set decides the skeleton; lib/restPhysiology then adjusts it for the
+ * state you arrived in — carbon monoxide, a full stomach, a short night — each
+ * through the mechanism that actually connects it to recovery.
+ *
  * Classify the set by its duration and load (energy system), give it the base
  * rest that system wants for the intent, add for neural demand (near-maximal
  * load, failure, explosive work), add for accumulated fatigue (set number,
@@ -49,6 +53,8 @@
  * level, clamp to 30 s – 5 min and round to 15 s. Every function is pure so
  * the numbers can be checked without a device.
  */
+
+import { restPhysiology, type RestConditions, type RestPhysiology } from './restPhysiology';
 
 export type EnergySystem = 'phosphagen' | 'glycolytic' | 'oxidative';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -77,6 +83,11 @@ export interface RestInput {
   level: ExperienceLevel;
   /** heavier than any previous top set on this exercise — a step up */
   isProgress?: boolean;
+  /**
+   * The state you turned up in — CO on board, food still digesting, recent
+   * sleep. Omitted or empty leaves the prescription exactly as it was.
+   */
+  conditions?: RestConditions;
 }
 
 export interface RestPrescription {
@@ -94,6 +105,10 @@ export interface RestPrescription {
   fatigueSec: number;
   progressSec: number;
   levelFactor: number;
+  /** what the state you arrived in did to it, when anything was known */
+  physiology?: RestPhysiology;
+  /** the recommendation before physiology, seconds — so the change is legible */
+  restBeforeStateSec?: number;
   /** the recommendation, seconds (30..300, multiple of 15) */
   restSec: number;
   /** the evidence range for this kind of set, seconds */
@@ -126,10 +141,19 @@ export const MAX_REST_S = 300;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-/** Fraction of the phosphagen tank refilled after `sec` of rest (1 − e^(−t/τ)). */
-export function pcrRecovered(sec: number): number {
+/**
+ * Fraction of the phosphagen tank refilled after `sec` of rest (1 − e^(−t/τ)).
+ *
+ * The time constant is a parameter because it is not a constant of the person:
+ * refilling is aerobic, so it stretches when oxygen delivery is down (see
+ * lib/restPhysiology). Passing the prescription's own τ keeps the bar telling
+ * the truth — with carbon monoxide on board you really are less refilled at
+ * two minutes than the textbook curve claims.
+ */
+export function pcrRecovered(sec: number, tauS: number = PCR_TAU_S): number {
   if (sec <= 0) return 0;
-  return clamp(1 - Math.exp(-sec / PCR_TAU_S), 0, 1);
+  const tau = tauS > 0 ? tauS : PCR_TAU_S;
+  return clamp(1 - Math.exp(-sec / tau), 0, 1);
 }
 
 /** Reps in reserve from the set: failure flag first, then RPE. */
@@ -217,10 +241,42 @@ export function prescribeRest(i: RestInput): RestPrescription {
   const factor = LEVEL_REST_FACTOR[i.level] ?? 1;
   if (factor !== 1) reasons.push(i.level === 'beginner' ? 'beginner: lighter absolute loads recover faster' : 'advanced: heavier absolute loads need a little more');
 
-  const raw = (base + neural + fatigue + progress) * factor;
+  const before = Math.round(clamp((base + neural + fatigue + progress) * factor, MIN_REST_S, MAX_REST_S) / 15) * 15;
+
+  /*
+   * The state you arrived in, applied where each part of it belongs.
+   *
+   * The metabolic portion — base and accumulated fatigue — is refilled aerobically,
+   * so it is divided by the oxygen actually being delivered: at 90 % delivery
+   * the same recovery takes 1/0.9 as long, exactly. The neural portion is
+   * multiplied by the sleep factor instead, because that is where short sleep
+   * demonstrably acts and where carbon monoxide does not.
+   */
+  const phys = restPhysiology(i.conditions ?? {}, PCR_TAU_S);
+  const metabolic = (base + fatigue + progress) / phys.o2Factor;
+  const neuralAdjusted = neural * phys.neuralFactor;
+  for (const note of phys.notes) reasons.push(note);
+
+  const raw = (metabolic + neuralAdjusted) * factor;
   const restSec = Math.round(clamp(raw, MIN_REST_S, MAX_REST_S) / 15) * 15;
 
-  return { system, workSeconds: work, pctOneRM: pct, rir, cns, baseSec: base, neuralSec: neural, fatigueSec: fatigue, progressSec: progress, levelFactor: factor, restSec, rangeSec: range, reasons };
+  return {
+    system,
+    workSeconds: work,
+    pctOneRM: pct,
+    rir,
+    cns,
+    baseSec: base,
+    neuralSec: neural,
+    fatigueSec: fatigue,
+    progressSec: progress,
+    levelFactor: factor,
+    physiology: phys.neutral ? undefined : phys,
+    restBeforeStateSec: phys.neutral ? undefined : before,
+    restSec,
+    rangeSec: range,
+    reasons,
+  };
 }
 
 /** "2:30" */

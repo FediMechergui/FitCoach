@@ -149,7 +149,7 @@ export function ActiveSessionScreen() {
       onFoot: flow === 'cardio' && onFoot,
     });
     if (result) {
-      navigation.replace('SessionRecap', { sessionId: result.session.id, prCount: result.prCount, stepsAdded: result.stepsAdded });
+      navigation.replace('SessionDetail', { sessionId: result.session.id, justFinished: true, prCount: result.prCount, stepsAdded: result.stepsAdded });
     }
   };
 

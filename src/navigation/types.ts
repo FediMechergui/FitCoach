@@ -33,11 +33,10 @@ export type RootStackParamList = {
   ExerciseLibrary:
     | { pick?: boolean; sessionId?: number; draft?: boolean; sessionType?: SessionType }
     | undefined;
-  SessionRecap: { sessionId: number; prCount?: number; stepsAdded?: number };
   /** the ground-activity tracker: walk, run, hike, trail run, ruck, stairs, ride */
   Walk: { mode?: 'walk' | 'run'; activity?: string } | undefined;
   SessionHistory: undefined;
-  SessionDetail: { sessionId: number };
+  SessionDetail: { sessionId: number; justFinished?: boolean; prCount?: number; stepsAdded?: number };
   WalkDetail: { walkId: number };
 
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };

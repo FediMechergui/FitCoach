@@ -2525,8 +2525,10 @@ console.log('\nAfter the session — margins scaled by how hard it was:');
   check('marginsStillRunning is true while smoke/alcohol are ahead…', marginsStillRunning(mB, ended, NOW));
   check('…false once they have all passed, even though "next session" is days out', !marginsStillRunning(mB, NOW - 6 * 3_600_000, NOW));
   // ── Wiring ──
-  const recapSrc = fs.readFileSync('src/screens/train/SessionRecapScreen.tsx', 'utf8');
-  check('The recap shows the margins for THIS session', /postSessionFor\(route\.params\.sessionId\)/.test(recapSrc) && /<PostSessionCard endedAt=\{after\.endedAt\} strain=\{after\.strain\} margins=\{after\.margins\} \/>/.test(recapSrc));
+  // Superseded by 3.0.14: the recap merged into SessionDetail; the margins card
+  // lives there, recomputed with every reload and shown only while it is alive.
+  const recapSrc = fs.readFileSync('src/screens/train/SessionDetailScreen.tsx', 'utf8');
+  check('The recap shows the margins for THIS session', /setAfter\(postSessionFor\(sessionId\)\)/.test(recapSrc) && /<PostSessionCard endedAt=\{after\.endedAt\} strain=\{after\.strain\} margins=\{after\.margins\} \/>/.test(recapSrc));
   const walkSrc2 = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
   check('The walk/run recap shows them too, with the end time captured once', /endedAt: Date\.now\(\) \}\)/.test(walkSrc2) && /<PostSessionCard endedAt=\{summary\.endedAt\}/.test(walkSrc2));
   const homeSrc2 = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
@@ -3605,7 +3607,7 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
     walk('src');
     let concat = 0;
     for (const f of files) concat += (fs.readFileSync(f, 'utf8').match(/\+ '[0-9A-Fa-f]{2}'/g) ?? []).length;
-    check('Hex-suffix alpha concatenation never grows', concat <= 17, `${concat} sites (ratchet: 17)`);
+    check('Hex-suffix alpha concatenation never grows', concat <= 16, `${concat} sites (ratchet: 16)`);
   }
 
   // ── Shape. Hierarchy through curvature. ──
@@ -3941,6 +3943,19 @@ console.log('\nPrayers 3.0 - every state has a door:');
   const han = computePrayerTimes({ ...base, asrFactor: 2 });
   check('Hanafi Asr falls after Standard Asr', mins(han.asr) > mins(std.asr), `${std.asr} vs ${han.asr}`);
   check('...and only Asr moves with the factor', std.dhuhr === han.dhuhr && std.maghrib === han.maghrib && std.fajr === han.fajr);
+}
+
+console.log('\nSession 3.0 - one screen tells the story:');
+{
+  const det = fs.readFileSync('src/screens/train/SessionDetailScreen.tsx', 'utf8');
+  check('Finishing lands on SessionDetail in just-finished dress', /navigation\.replace\('SessionDetail', \{ sessionId: result\.session\.id, justFinished: true/.test(fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8')));
+  check('The celebration renders only on the finish, not on history visits', /\{justFinished && \(/.test(det) && /Nice work!/.test(det) && /\{justFinished && <Button title="Done"/.test(det));
+  check('PRs are passed fresh and derived for any later visit', /route\.params\.prCount \?\? logs\.flatMap\(\(l\) => l\.sets\)\.filter\(\(x\) => x\.isPr\)\.length/.test(det));
+  check('The margins card lives for its 12 hours, then becomes history', /after && Date\.now\(\) - after\.endedAt < 12 \* 3_600_000/.test(det));
+  check('Routine creation survives the recap - SaveAsRoutine lives here now', /function SaveAsRoutine\(/.test(det) && /saveRoutine\(trimmed, sessionExerciseIds\(sessionId\)\)/.test(det));
+  check('The steps card appears only with the finish that earned it', /justFinished && route\.params\.stepsAdded \?/.test(det));
+  check('The header tile wash is a token', /theme\.alpha\.tint14\(meta\.color\)/.test(det) && !det.includes("meta.color + '"));
+  check('The recap screen left cleanly - no file, no route, no callers', !fs.existsSync('src/screens/train/SessionRecapScreen.tsx') && !/SessionRecap/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/SessionRecap/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

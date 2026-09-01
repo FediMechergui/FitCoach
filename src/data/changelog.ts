@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.14',
+    date: '2026-09-01',
+    title: 'One screen tells the session\'s story',
+    highlights: [
+      'The post-session recap and the session detail were two screens telling the same story at different depths. They are one now: finishing a session lands on the detail screen wearing its celebration — the check, the PR count, the steps a walk added — and the same screen serves every later visit from history, editable as always.',
+      'The recovery margins — smoke, alcohol, eating, cold, next session — now appear on any session you open within 12 hours of finishing it, recomputed as you edit, instead of existing only in the one screen you could never return to. After 12 hours they are history and step aside.',
+      'Save-as-routine moved with the merge — it is the only place routines are born, and it now also works from history: open any past session and keep its exercise list as a routine.',
+      'PR counts are honest on every visit: passed fresh from the finish, and derived from the PR flags on the logged sets any time after.',
+      '1621 checks in all, up from 1613, and another hard-coded alpha wash went tokenised — 16 remain of the 20 the ratchet started at.',
+    ],
+  },
+  {
     version: '3.0.13',
     date: '2026-09-01',
     title: 'Prayers: every state has a door',

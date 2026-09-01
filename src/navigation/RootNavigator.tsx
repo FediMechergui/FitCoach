@@ -9,7 +9,6 @@ import { OnboardingScreen } from '@/screens/onboarding/OnboardingScreen';
 import { LogSessionScreen } from '@/screens/train/LogSessionScreen';
 import { ActiveSessionScreen } from '@/screens/train/ActiveSessionScreen';
 import { ExerciseLibraryScreen } from '@/screens/train/ExerciseLibraryScreen';
-import { SessionRecapScreen } from '@/screens/train/SessionRecapScreen';
 import { WalkScreen } from '@/screens/train/WalkScreen';
 import { SessionHistoryScreen } from '@/screens/train/SessionHistoryScreen';
 import { SessionDetailScreen } from '@/screens/train/SessionDetailScreen';
@@ -96,11 +95,6 @@ export function RootNavigator() {
             name="ExerciseLibrary"
             component={ExerciseLibraryScreen}
             options={{ title: 'Exercise Library' }}
-          />
-          <Stack.Screen
-            name="SessionRecap"
-            component={SessionRecapScreen}
-            options={{ headerShown: false }}
           />
           <Stack.Screen name="Walk" component={WalkScreen} options={{ title: '' }} />
           <Stack.Screen

@@ -10,7 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
-import { Row, Divider, SectionHeader } from '@/components/ui/misc';
+import { Row, Divider, SectionHeader, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   addSet,
@@ -28,6 +28,9 @@ import { toISODate } from '@/lib/date';
 import { formatDurationLong, formatDistance, formatPace, formatDuration } from '@/lib/format';
 import type { SetEntry } from '@/db/schema';
 import { useUserStore } from '@/stores/userStore';
+import { PostSessionCard } from '@/components/PostSessionCard';
+import { postSessionFor } from '@/repositories/postSessionRepo';
+import { saveRoutine, sessionExerciseIds, findRoutineByName } from '@/repositories/routinesRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DetailRoute = RouteProp<RootStackParamList, 'SessionDetail'>;
@@ -62,8 +65,14 @@ export function SessionDetailScreen() {
   const bodyKg = useUserStore((s) => s.currentWeightKg) ?? 75;
   const [detail, setDetail] = useState<SessionDetail>(() => getSessionDetail(sessionId));
   const [editing, setEditing] = useState(false);
+  const justFinished = route.params.justFinished ?? false;
+  const [after, setAfter] = useState(() => postSessionFor(sessionId));
 
-  const reload = useCallback(() => setDetail(getSessionDetail(sessionId)), [sessionId]);
+  const reload = useCallback(() => {
+    setDetail(getSessionDetail(sessionId));
+    // The margins scale with what is logged, so they refresh with the logs.
+    setAfter(postSessionFor(sessionId));
+  }, [sessionId]);
   useFocusEffect(useCallback(() => reload(), [reload]));
 
   const { session, logs } = detail;
@@ -71,6 +80,8 @@ export function SessionDetailScreen() {
   const isLifting = meta.flow === 'lifting';
   // Real per-exercise calorie split, recomputed on read from each movement's MET.
   const burn = sessionCalorieBreakdown(detail, bodyKg);
+  // Passed fresh from the finish; derived from the PR flags for any later visit.
+  const prCount = route.params.prCount ?? logs.flatMap((l) => l.sets).filter((x) => x.isPr).length;
 
   const confirmDelete = () => {
     Alert.alert('Delete session?', 'This permanently removes it from your history and stats.', [
@@ -88,13 +99,37 @@ export function SessionDetailScreen() {
 
   return (
     <Screen>
+      {/* Just finished — the recap moment lives here now, on the same screen
+          that can edit, price and delete the session. */}
+      {justFinished && (
+        <View style={{ alignItems: 'center', gap: 8, paddingVertical: theme.spacing.md }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: meta.color,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon="core.check" size={40} color="#fff" />
+          </View>
+          <Text variant="h1">Nice work!</Text>
+          <Text variant="body" color="textMuted">
+            {meta.label} session complete
+          </Text>
+          {prCount > 0 && <Badge label={`${prCount} new PR${prCount === 1 ? '' : 's'} 🏆`} color={theme.colors.warning} />}
+        </View>
+      )}
+
       <Row gap={12} style={{ alignItems: 'center' }}>
         <View
           style={{
             width: 48,
             height: 48,
             borderRadius: 16,
-            backgroundColor: meta.color + '22',
+            backgroundColor: theme.alpha.tint14(meta.color),
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -132,6 +167,17 @@ export function SessionDetailScreen() {
         </Row>
       ) : null}
 
+      {justFinished && route.params.stepsAdded ? (
+        <Card accent={theme.colors.primary}>
+          <Row gap={8} style={{ alignItems: 'center' }}>
+            <Icon icon="cardio.walk" size={18} color={theme.colors.primary} />
+            <Text variant="body" style={{ flex: 1 }}>
+              +{route.params.stepsAdded.toLocaleString()} steps added to today's count
+            </Text>
+          </Row>
+        </Card>
+      ) : null}
+
       {(session.moodBefore || session.moodAfter) && (
         <Card>
           <Row style={{ justifyContent: 'space-around', alignItems: 'center' }}>
@@ -154,6 +200,11 @@ export function SessionDetailScreen() {
           <Text variant="body">{session.notes}</Text>
         </Card>
       ) : null}
+
+      {/* The margins after this session — alive for 12 hours, then history. */}
+      {after && Date.now() - after.endedAt < 12 * 3_600_000 && (
+        <PostSessionCard endedAt={after.endedAt} strain={after.strain} margins={after.margins} />
+      )}
 
       {/* Where this day's training leaves your calorie goal + the over-training line */}
       <EnergyBalanceCard date={toISODate(new Date(session.startTime))} />
@@ -224,6 +275,11 @@ export function SessionDetailScreen() {
         </Text>
       )}
 
+      {/* Any session with exercises can be saved as a reusable routine — the
+          only place routines are born, so it survives the recap's death. */}
+      {logs.length > 0 && <SaveAsRoutine sessionId={session.id} defaultName={session.label} />}
+
+      {justFinished && <Button title="Done" icon="core.check" onPress={() => navigation.navigate('Main')} />}
       <Button title="Delete Session" variant="ghost" icon="core.delete" onPress={confirmDelete} color={theme.colors.danger} />
     </Screen>
   );
@@ -257,5 +313,52 @@ function AddSetRow({ lv, onAdded }: { lv: ExerciseLogView; onAdded: () => void }
       {f.distance && <View style={{ flex: 1 }}><Input label="km" value={distanceKm} onChangeText={setDistanceKm} placeholder="0" keyboardType="numeric" /></View>}
       <Button title="Add" size="sm" icon="core.add" onPress={add} fullWidth={false} color={theme.colors.primary} />
     </Row>
+  );
+}
+
+
+/**
+ * Save (or update) this session's exercise list as a reusable custom routine.
+ * Saving under an existing name updates that routine — templates stay current.
+ */
+function SaveAsRoutine({ sessionId, defaultName }: { sessionId: number; defaultName: string | null }) {
+  const theme = useTheme();
+  const [name, setName] = useState(defaultName ?? '');
+  const [savedAs, setSavedAs] = useState<string | null>(null);
+
+  const save = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existed = !!findRoutineByName(trimmed);
+    saveRoutine(trimmed, sessionExerciseIds(sessionId));
+    setSavedAs(existed ? `Updated routine “${trimmed}”` : `Saved routine “${trimmed}”`);
+  };
+
+  return (
+    <Card style={{ gap: 10 }} accent={theme.colors.primary}>
+      <Row gap={8} style={{ alignItems: 'center' }}>
+        <Icon icon="core.custom" size={18} color={theme.colors.primary} />
+        <Text variant="h3" style={{ flex: 1 }}>Save as routine</Text>
+      </Row>
+      {savedAs ? (
+        <Row gap={8} style={{ alignItems: 'center' }}>
+          <Icon icon="core.check" size={18} color={theme.colors.success} />
+          <Text variant="body" color="success">{savedAs}</Text>
+        </Row>
+      ) : (
+        <>
+          <Text variant="caption" color="textMuted">
+            Reuse this exact workout later from the Train tab. Saving with an existing name
+            updates that routine.
+          </Text>
+          <Row style={{ alignItems: 'flex-end' }}>
+            <View style={{ flex: 2 }}>
+              <Input value={name} onChangeText={setName} placeholder="e.g. My Push Day" />
+            </View>
+            <Button title="Save" size="sm" onPress={save} disabled={!name.trim()} style={{ flex: 1 }} fullWidth={false} />
+          </Row>
+        </>
+      )}
+    </Card>
   );
 }

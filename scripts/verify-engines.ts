@@ -3259,7 +3259,9 @@ console.log('\nThe first live photo failed silently; now the pipe bends instead 
   // JSON mode is requested in the form they do support.
   check('The first attempt asks for JSON mode the models support', /post\(asked, \{ type: 'json_object' \}/.test(svc));
   check('...with the schema described in the prompt both times', /matching exactly this JSON schema/.test(svc) && /const asked = \[\.\.\.content, hint\];/.test(svc));
-  check('Real answers are never retried as format problems', /first\.error !== 'failed' && first\.error !== 'unreadable'/.test(svc));
+  // Superseded by v2.62: the single first/retry pair is now a loop over the
+  // route, and an account-level answer ends it rather than being retried.
+  check('An account-level answer is never retried', /attempt\.error === 'no-key' \|\| attempt\.error === 'unauthorised'/.test(svc));
 
   // The free-model privacy gate is named, not lumped into "failed".
   check('The OpenRouter privacy refusal is recognised', /data policy\|allowed providers\|privacy/.test(svc));
@@ -3267,7 +3269,7 @@ console.log('\nThe first live photo failed silently; now the pipe bends instead 
   check('A refusal hidden in a 200 body is caught too', /json\.error\?\.message/.test(svc));
 
   // Failures say WHY, on screen.
-  check('Every failure path records what came back', /lastDetail = `HTTP \$\{res\.status\}/.test(svc) && /Not JSON: /.test(svc) && /no reply in \$\{waited\} s/.test(svc));
+  check('Every failure path records what came back', /lastDetail = `\$\{model\}: HTTP \$\{res\.status\}/.test(svc) && /Not JSON: /.test(svc) && /no reply in \$\{waited\} s/.test(svc));
   const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
   check('...and the screen shows it', /lastVisionDetail\(\)/.test(scr));
 }
@@ -3290,7 +3292,9 @@ console.log('\nThe request itself has to be one OpenRouter will accept:');
   check('The cap survives a longer fallback list', FALLBACK_MODELS.length + 1 > MAX_ROUTE_MODELS ? route.length === MAX_ROUTE_MODELS : true);
   check('Every model on the route is free', route.every((m) => m.includes(':free') || m === 'openrouter/free'));
   const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
-  check('The service builds its route through the capped helper', /models: modelRoute\(activeModel\(\)\)/.test(svc));
+  // Superseded by v2.62: the route is walked here, one named model per
+  // request, because the server-side `models` list did not fail over.
+  check('The service walks the capped route itself', /for \(const model of modelRoute\(activeModel\(\)\)\)/.test(svc));
   check('...and never inlines an uncapped list again', !/models: \[activeModel\(\), \.\.\.FALLBACK_MODELS/.test(svc));
 }
 
@@ -3324,7 +3328,7 @@ console.log('\nWaiting for a free model, without calling it a lost connection:')
   check('...and cropped square, which cuts the pixels as well', /allowsEditing: true,/.test(scr) && /aspect: \[1, 1\],/.test(scr));
 
   // Instrumented, so the next failure is conclusive rather than a guess.
-  check('A failure reports how much was sent and how long it waited', /Sent \$\{sentKb\} KB, no reply in \$\{waited\} s/.test(svc));
+  check('A failure reports how much was sent and how long it waited', /sent \$\{sentKb\} KB, no reply in \$\{waited\} s/.test(svc));
   check('...measured from the body actually posted', /const sentKb = Math\.round\(body\.length \/ 1024\);/.test(svc));
   check('The wait says it may take a minute', /free models queue when busy/.test(scr));
 }
@@ -3366,8 +3370,8 @@ console.log('\nAsking for JSON in a way these models can actually answer:');
   check('JSON mode is asked for in the supported way', /post\(asked, \{ type: 'json_object' \}/.test(svc));
   check('The strict schema format is no longer demanded', !/type: 'json_schema'/.test(svc));
   check('The shape is spelled out in the prompt instead', /matching exactly this JSON schema/.test(svc) && /Reply with ONE JSON object and nothing else/.test(svc));
-  check('The retry drops the format and doubles the budget', /post\(asked, undefined, timeoutMs, key, maxTokens \* 2\)/.test(svc));
-  check('Real answers are still never retried as formatting problems', /first\.error !== 'failed' && first\.error !== 'unreadable'/.test(svc));
+  check('The retry drops the format and doubles the budget', /post\(asked, undefined, timeoutMs, key, maxTokens \* 2, model\)/.test(svc));
+  check('...and is aimed at the model that just chatted', /if \(attempt\.error === 'unreadable'\)/.test(svc));
 
   // A reply cut off at the ceiling is a knowable failure, not a mystery.
   check('A truncated reply is named as truncated', /finish_reason === 'length'/.test(svc) && /cut short at the length limit/.test(svc));
@@ -3401,6 +3405,32 @@ console.log('\nMeasuring instead of guessing:');
   check('It never prints the key itself', /key\.slice\(-6\)/.test(svc));
   check('The screen can run it', /runDiagnostic\(\)/.test(scr));
   check('...and shows the report so it can be copied', /selectable/.test(scr));
+}
+
+console.log('\nFailing over between free models, on evidence from a real device:');
+{
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+
+  /*
+   * Measured from the phone: asked the simplest possible question,
+   * minimax-m3 answered correctly in about a second while BOTH gemma
+   * endpoints returned 429 "temporarily rate-limited upstream". Gemma was the
+   * primary, so every real request met that wall - and OpenRouter's own
+   * `models` fallback list did not rescue it.
+   */
+  check('The model that answers leads the route', DEFAULT_MODEL === 'minimax/minimax-m3:free');
+  check('The rate-limited ones are kept as fallbacks, not dropped', FALLBACK_MODELS.includes('google/gemma-4-31b-it:free'));
+  check('The route still starts with the working model', modelRoute(DEFAULT_MODEL)[0] === 'minimax/minimax-m3:free');
+
+  // Failover is ours now, not the server's.
+  check('Each request names exactly one model', /const body = JSON\.stringify\(\{\s*\n\s*model,/.test(svc));
+  check('...with no server-side fallback list', !/models: modelRoute\(activeModel\(\)\)/.test(svc));
+  check('The route is walked here instead', /for \(const model of modelRoute\(activeModel\(\)\)\)/.test(svc));
+  check('A busy model moves on to the next', /if \(attempt\.error === 'no-key' \|\| attempt\.error === 'unauthorised'\) return attempt;/.test(svc));
+  check('...while an account-level answer stops immediately', /attempt\.error === 'data-policy' \|\| attempt\.error === 'timeout'/.test(svc));
+  check('A model that chats gets one plain retry', /if \(attempt\.error === 'unreadable'\)/.test(svc) && /post\(asked, undefined, timeoutMs, key, maxTokens \* 2, model\)/.test(svc));
+  check('Every failure names which model produced it', /\$\{model\}: HTTP \$\{res\.status\}/.test(svc));
+  check('Being busy is explained as shared capacity', /capacity is shared/.test(svc));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

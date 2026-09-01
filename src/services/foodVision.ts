@@ -111,16 +111,24 @@ async function post(
   responseFormat: Record<string, unknown> | undefined,
   timeoutMs: number,
   key: string,
-  maxTokens: number
+  maxTokens: number,
+  model: string
 ): Promise<VisionResult<unknown>> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   // Measured so a failure can say how big the request was and how long it
   // waited — the difference between "the photo is too heavy" and "the free
   // model is busy", which otherwise look identical from the outside.
+  /*
+   * One named model per request, and no `models` array.
+   *
+   * OpenRouter's own fallback list did not rescue a rate-limited primary: with
+   * Gemma leading, every real call died on its 429 even though MiniMax was
+   * answering in a second on the same key. Walking the route here instead makes
+   * the failover observable and certain.
+   */
   const body = JSON.stringify({
-    model: activeModel(),
-    models: modelRoute(activeModel()),
+    model,
     messages: [{ role: 'user', content }],
     ...(responseFormat ? { response_format: responseFormat } : {}),
     temperature: 0,
@@ -143,7 +151,7 @@ async function post(
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      lastDetail = `HTTP ${res.status}${body ? ` — ${body.slice(0, 220)}` : ''}`;
+      lastDetail = `${model}: HTTP ${res.status}${body ? ` — ${body.slice(0, 220)}` : ''}`;
       if (res.status === 401 || res.status === 403) return { data: null, error: 'unauthorised' };
       if (res.status === 429) return { data: null, error: 'rate-limited' };
       /*
@@ -193,9 +201,8 @@ async function post(
     const aborted = e instanceof Error && e.name === 'AbortError';
     const waited = Math.round((Date.now() - startedAt) / 1000);
     lastDetail = aborted
-      ? `Sent ${sentKb} KB, no reply in ${waited} s. A free model that is busy usually answers on a ` +
-        `second try; if the size is large the photo is the problem.`
-      : `Could not reach openrouter.ai at all (after ${waited} s, ${sentKb} KB).`;
+      ? `${model}: sent ${sentKb} KB, no reply in ${waited} s.`
+      : `${model}: could not reach openrouter.ai (after ${waited} s, ${sentKb} KB).`;
     return { data: null, error: aborted ? 'timeout' : 'offline' };
   } finally {
     clearTimeout(timer);
@@ -213,23 +220,17 @@ async function ask(
   if (!key) return { data: null, error: 'no-key' };
 
   /*
-   * Ask for JSON in the only way these models actually support.
+   * Try each model in turn, and give a model that replies in prose one more
+   * chance without the JSON-mode parameter.
    *
-   * A `json_schema` response format requires the provider to advertise
-   * `structured_outputs`, and NONE of the free vision models this routes to
-   * do — they support plain `response_format` only. Demanding the schema
-   * therefore failed on every request: the model either refused the parameter
-   * or ignored it and replied in prose, which read back as "the answer
-   * couldn't be read".
+   * Free capacity is shared and frequently exhausted — a 429 from one endpoint
+   * says nothing about the next, so the loop moves on rather than giving up.
+   * An account-level answer (bad key, privacy policy) is true for every model,
+   * so those stop immediately; so does a timeout, which has already cost the
+   * user two minutes and should not cost six.
    *
-   * So: `json_object`, which they all support, with the schema spelled out in
-   * the prompt since that mode constrains syntax but not shape. The reply is
-   * then read by extractJson, which copes with a preamble or a code fence.
-   *
-   * The retry drops the format entirely and doubles the token budget, which
-   * covers both a provider that dislikes the parameter and a reply cut off
-   * mid-object. Auth, rate-limit, privacy and timeout answers are real, not
-   * formatting problems, and are never retried.
+   * The schema is described in the prompt because none of these models support
+   * enforced structured output; `json_object` constrains syntax only.
    */
   const hint: ChatMessageContent = {
     type: 'text',
@@ -240,10 +241,22 @@ async function ask(
   };
   const asked = [...content, hint];
 
-  const first = await post(asked, { type: 'json_object' }, timeoutMs, key, maxTokens);
-  if (first.error !== 'failed' && first.error !== 'unreadable') return first;
+  let last: VisionResult<unknown> = { data: null, error: 'failed' };
+  for (const model of modelRoute(activeModel())) {
+    const attempt = await post(asked, { type: 'json_object' }, timeoutMs, key, maxTokens, model);
+    if (attempt.data) return attempt;
+    last = attempt;
+    if (attempt.error === 'no-key' || attempt.error === 'unauthorised') return attempt;
+    if (attempt.error === 'data-policy' || attempt.error === 'timeout') return attempt;
 
-  return post(asked, undefined, timeoutMs, key, maxTokens * 2);
+    if (attempt.error === 'unreadable') {
+      // This model answered, just not in JSON. Ask it once more plainly.
+      const plain = await post(asked, undefined, timeoutMs, key, maxTokens * 2, model);
+      if (plain.data) return plain;
+      last = plain;
+    }
+  }
+  return last;
 }
 
 // ── 1. What is on the plate? ─────────────────────────────────────────────────
@@ -474,7 +487,10 @@ export function failureMessage(e: VisionFailure): string {
         'fine; try again, and it often answers on the second attempt.'
       );
     case 'rate-limited':
-      return 'The free model is busy (20 requests a minute, 50 a day). Try again shortly.';
+      return (
+        'Every free model was busy just now — their capacity is shared and gets used up. ' +
+        'This usually clears within a few minutes; try again.'
+      );
     case 'unauthorised':
       return 'That key was refused. Check it at openrouter.ai/keys.';
     case 'data-policy':

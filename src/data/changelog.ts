@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.62',
+    date: '2026-08-31',
+    title: 'The model it was asking is permanently busy; the one that answers now leads',
+    highlights: [
+      'The connection test did its job in one tap. Your key is fine, and MiniMax answered the test question correctly in about a second — but BOTH Google models returned "temporarily rate-limited upstream". Google\'s free vision capacity is popular enough to be saturated most of the time, and it was the one being asked first, so every photo hit that wall.',
+      'MiniMax now leads, on evidence rather than preference. The Google models stay on the list behind it, since being busy now says nothing about being busy later.',
+      'And the app no longer trusts the provider to fail over for it. It had been sending a list of alternatives and expecting a busy first choice to roll on to the second; that plainly was not happening. The app now tries each model itself, one at a time, so a busy one moves to the next with certainty rather than hope. A model that answers in prose still gets one more plain-worded try before the app gives up on it.',
+      'When every model really is busy, the message says so honestly — shared capacity, usually clears in a few minutes — instead of blaming your connection or your key. Any failure now names which model produced it.',
+      '1372 checks in all, up from 1361.',
+    ],
+  },
+  {
     version: '2.61',
     date: '2026-08-31',
     title: 'A test button, because guessing at this has not been working',

@@ -234,10 +234,11 @@ export function scalePer100g(n: AiNutritionPer100g, grams: number): ScaledPortio
 /**
  * The free vision model this ships with, and what to fall back to.
  *
- * All are free and image-capable, and all support a JSON response schema, which
- * is what makes the reply parseable rather than prose. OpenRouter walks this
- * list in order when one is rate-limited or down, so a busy free endpoint
- * degrades into a slower answer instead of a failure.
+ * MiniMax leads on evidence, not preference: asked the simplest possible
+ * question from a real device, it answered correctly in about a second, while
+ * both Gemma endpoints returned 429 — "temporarily rate-limited upstream".
+ * Google's free vision capacity is popular enough to be saturated much of the
+ * time, and leading with it meant every request met a wall.
  *
  * Every entry is a NAMED general-purpose multimodal model. A router is not
  * allowed here, and neither is anything that merely accepts an image: the free
@@ -245,11 +246,11 @@ export function scalePer100g(n: AiNutritionPer100g, grams: number): ScaledPortio
  * routing a photograph of an egg to it produced the reply "User Safety: safe"
  * — a perfectly valid answer to a question nobody asked.
  */
-export const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
+export const DEFAULT_MODEL = 'minimax/minimax-m3:free';
 export const FALLBACK_MODELS = [
-  'minimax/minimax-m3:free',
-  'google/gemma-4-26b-a4b-it:free',
   'dots-studio/dots-3-note-preview:free',
+  'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free',
 ];
 
 /**

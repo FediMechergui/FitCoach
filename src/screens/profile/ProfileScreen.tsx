@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Row, SectionHeader, Divider } from '@/components/ui/misc';
+import { Skeleton } from '@/components/ui/misc3';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
 import { useSmokingStore } from '@/stores/smokingStore';
@@ -40,7 +41,15 @@ export function ProfileScreen() {
     }, [load, loadSmoking])
   );
 
-  if (!user) return <Screen><Text>Loading…</Text></Screen>;
+  if (!user)
+    return (
+      <Screen>
+        <Skeleton height={64} />
+        <Skeleton height={150} />
+        <Skeleton height={90} />
+        <Skeleton height={260} />
+      </Screen>
+    );
 
   /** Over-the-air update check: download & apply without reinstalling the APK. */
   const checkForUpdates = async () => {
@@ -89,13 +98,16 @@ export function ProfileScreen() {
 
   return (
     <Screen>
+      <Text variant="eyebrow" color="textMuted">
+        You
+      </Text>
       <Row gap={14} style={{ alignItems: 'center' }}>
         <View
           style={{
             width: 64,
             height: 64,
             borderRadius: 20,
-            backgroundColor: theme.colors.primarySoft,
+            backgroundColor: theme.alpha.tint14(theme.colors.primary),
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -157,6 +169,25 @@ export function ProfileScreen() {
           </Text>
         </>
       )}
+
+      {/* Appearance — Salt has been fully built since 3.0; this is its door. */}
+      <SectionHeader title="Appearance" />
+      <SegmentedControl
+        options={[
+          { value: 'system', label: 'System' },
+          { value: 'night', label: 'Night Sea' },
+          { value: 'salt', label: 'Salt' },
+        ]}
+        value={theme.preference}
+        onChange={(v) => theme.setPreference(v)}
+      />
+      <Text variant="caption" color="textFaint" center>
+        {theme.preference === 'system'
+          ? 'Follows your phone — Night Sea in the dark, Salt in daylight.'
+          : theme.preference === 'night'
+            ? 'Night Sea — deep, tonal, calm. The app’s home palette.'
+            : 'Salt — mineral, bright, still unmistakably FitCoach.'}
+      </Text>
 
       {/* Units */}
       <SectionHeader title="Units" />

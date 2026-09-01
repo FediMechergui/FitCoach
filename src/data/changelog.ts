@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.8',
+    date: '2026-09-01',
+    title: 'The You hub finds the light switch',
+    highlights: [
+      'Salt — the complete daylight palette — has shipped inside the app since 3.0 with no way to turn it on. The You tab now has an Appearance control: System follows your phone, Night Sea is the deep tonal home palette, Salt is the bright mineral one. The choice persists on this device and applies instantly to every screen, navigation chrome included.',
+      'The hub itself joined 3.0 properly: it opens on its eyebrow, the avatar wears a token wash instead of a hard-coded colour, and while your profile loads you see the shape of the page instead of the word \'Loading\'.',
+      '1570 checks in all, up from 1565.',
+    ],
+  },
+  {
     version: '3.0.7',
     date: '2026-09-01',
     title: 'Nutrition speaks one fuel grammar',

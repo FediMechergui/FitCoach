@@ -3842,5 +3842,16 @@ console.log('\nNutrition 3.0 - one fuel grammar:');
   check('The water quick-add wash is a token, not a concat', /theme\.alpha\.tint22\(theme\.colors\.water\)/.test(scr7) && !/theme\.colors\.water \+ '/.test(scr7));
 }
 
+console.log('\nYou hub 3.0 - the light switch exists:');
+{
+  const you = fs.readFileSync('src/screens/profile/ProfileScreen.tsx', 'utf8');
+  // The provider shipped in 3.0 with no rendered control; this is its door.
+  check('The theme picker is rendered, all three choices offered', /value=\{theme\.preference\}/.test(you) && /theme\.setPreference\(v\)/.test(you) && ["'system'", "'night'", "'salt'"].every((v) => you.includes(`value: ${v}`)));
+  check('Each choice explains itself in one line', /Follows your phone/.test(you) && /home palette/.test(you) && /unmistakably FitCoach/.test(you));
+  check('Loading is a shape, not a word', !you.includes('Loading…') && /<Skeleton height=\{64\}/.test(you));
+  check('The hub opens on its eyebrow', /variant="eyebrow"/.test(you));
+  check('The avatar wash is a token, not the legacy soft colour', /theme\.alpha\.tint14\(theme\.colors\.primary\)/.test(you) && !/primarySoft/.test(you));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

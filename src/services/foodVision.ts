@@ -379,6 +379,88 @@ export async function researchNutrition(
   return { data: out, error: out.size > 0 ? null : 'unreadable' };
 }
 
+/**
+ * Ask every model on the route the simplest possible question, and report
+ * verbatim what each one says.
+ *
+ * This exists because the feature was debugged for several releases without
+ * anyone ever seeing a raw response — each failure was inferred from a
+ * one-line symptom, and each inference cost another release. One tap here
+ * separates the layers that were being guessed at: whether the key is
+ * accepted, whether each model answers at all, whether it can read an image,
+ * and whether it will produce JSON. Nothing is interpreted; the text is shown
+ * as it arrived.
+ */
+export async function runDiagnostic(base64Jpeg?: string): Promise<string> {
+  const key = openRouterKey();
+  if (!key) return 'No API key saved.';
+
+  const lines: string[] = [];
+  lines.push(`key: ...${key.slice(-6)}  (${key.length} chars)`);
+  lines.push(`route: ${modelRoute(activeModel()).join(', ')}`);
+  if (base64Jpeg) lines.push(`photo: ${Math.round((base64Jpeg.length * 0.75) / 1024)} KB`);
+  lines.push('');
+
+  for (const model of modelRoute(activeModel())) {
+    // Text first: proves the key and the model before an image is involved.
+    lines.push(`── ${model}`);
+    for (const stage of base64Jpeg ? (['text', 'image'] as const) : (['text'] as const)) {
+      const content: ChatMessageContent[] =
+        stage === 'text'
+          ? [{ type: 'text', text: 'Reply with exactly this and nothing else: {"ok":true}' }]
+          : [
+              { type: 'text', text: 'Name the food in this photo. Reply with only {"food":"<name>"}' },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Jpeg}` } },
+            ];
+      const started = Date.now();
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'X-Title': 'FitCoach',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content }],
+            temperature: 0,
+            max_tokens: 200,
+          }),
+        });
+        const raw = await res.text().catch(() => '');
+        const secs = Math.round((Date.now() - started) / 1000);
+        if (!res.ok) {
+          lines.push(`  ${stage}: HTTP ${res.status} (${secs}s) ${raw.slice(0, 260)}`);
+          continue;
+        }
+        let reply = '';
+        let finish = '';
+        try {
+          const j = JSON.parse(raw) as {
+            choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+            error?: { message?: string };
+          };
+          if (j.error?.message) {
+            lines.push(`  ${stage}: error (${secs}s) ${String(j.error.message).slice(0, 260)}`);
+            continue;
+          }
+          reply = j.choices?.[0]?.message?.content ?? '';
+          finish = j.choices?.[0]?.finish_reason ?? '';
+        } catch {
+          lines.push(`  ${stage}: unparseable envelope (${secs}s) ${raw.slice(0, 260)}`);
+          continue;
+        }
+        lines.push(`  ${stage}: OK (${secs}s, finish ${finish || '?'}) reply: ${JSON.stringify(reply).slice(0, 300)}`);
+      } catch (e) {
+        const secs = Math.round((Date.now() - started) / 1000);
+        lines.push(`  ${stage}: request failed (${secs}s) ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
 /** A human explanation for each way this can fail. */
 export function failureMessage(e: VisionFailure): string {
   switch (e) {

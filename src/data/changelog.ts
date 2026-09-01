@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.61',
+    date: '2026-08-31',
+    title: 'A test button, because guessing at this has not been working',
+    highlights: [
+      'Photo logging has now failed six times for six different reasons, each one worked out from a single line of symptom and fixed blind. That approach has cost a release per guess, so this one adds no guess at all — it adds the instrument that should have come first.',
+      '"Test the connection", on the photo screen, asks each of the three models the simplest question there is and prints exactly what each one says back: the HTTP status, the reply, the finish reason, how long it took. It asks in plain text first, so a model that cannot be reached at all is never confused with one that cannot read a picture.',
+      'It answers, in one tap, everything the last several releases were inferring: whether the key is accepted, whether each model responds, whether it is refusing the request or replying with something unexpected. The text is shown exactly as it arrived and can be selected and copied. Your key is never printed — only its last six characters, to confirm which one is saved.',
+      '1361 checks in all, up from 1353.',
+    ],
+  },
+  {
     version: '2.60',
     date: '2026-08-31',
     title: 'The app was demanding a reply format none of its models can produce',

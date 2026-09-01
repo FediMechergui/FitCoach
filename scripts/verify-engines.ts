@@ -3387,5 +3387,21 @@ console.log('\nAsking for JSON in a way these models can actually answer:');
   check('The scanner finds the first balanced value', firstBalancedJson('noise {"a":1} more {"b":2}') === '{"a":1}');
 }
 
+console.log('\nMeasuring instead of guessing:');
+{
+  const svc = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+  const scr = fs.readFileSync('src/screens/nutrition/PhotoFoodScreen.tsx', 'utf8');
+  // Several releases were spent inferring a network failure from a one-line
+  // symptom. This asks each model directly and prints what it says, verbatim.
+  check('There is a connection test', /export async function runDiagnostic/.test(svc));
+  check('It tries every model on the route', /for \(const model of modelRoute\(activeModel\(\)\)\)/.test(svc));
+  check('It proves text before blaming the image', /'text', 'image'/.test(svc));
+  check('It reports the raw reply, not a verdict', /JSON\.stringify\(reply\)/.test(svc) && /raw\.slice\(0, 260\)/.test(svc));
+  check('It reports the finish reason', /finish \$\{finish/.test(svc));
+  check('It never prints the key itself', /key\.slice\(-6\)/.test(svc));
+  check('The screen can run it', /runDiagnostic\(\)/.test(scr));
+  check('...and shows the report so it can be copied', /selectable/.test(scr));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

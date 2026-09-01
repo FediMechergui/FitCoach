@@ -24,6 +24,7 @@ import {
   researchNutrition,
   failureMessage,
   lastVisionDetail,
+  runDiagnostic,
   DEFAULT_MODEL,
   type VisionFailure,
 } from '@/services/foodVision';
@@ -71,6 +72,9 @@ export function PhotoFoodScreen() {
   /** foods the model saw but nothing could price — never silently dropped */
   const [dropped, setDropped] = useState<string[]>([]);
   const [error, setError] = useState<VisionFailure | null>(null);
+  /** verbatim report from the connection test, shown as it arrived */
+  const [report, setReport] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
   const [eatenAt, setEatenAt] = useState<EatenAtChoice>({ kind: 'now' });
 
   const catalogue = useMemo(() => [...customFoodsAsItems(), ...SEARCH_FOOD_DB], []);
@@ -426,6 +430,19 @@ export function PhotoFoodScreen() {
         title="Photograph a meal"
         subtitle="A free model names what is on the plate; your own food database supplies the numbers."
       />
+      {report && (
+        <Card accent={theme.colors.accent}>
+          <View style={{ gap: 6 }}>
+            <Text variant="label">Connection test</Text>
+            {/* Verbatim, and selectable, so it can be copied and read back. */}
+            <Text variant="caption" color="textMuted" selectable style={{ fontFamily: 'monospace' }}>
+              {report}
+            </Text>
+            <Button title="Hide" variant="ghost" onPress={() => setReport(null)} />
+          </View>
+        </Card>
+      )}
+
       {error && (
         <Card accent={theme.colors.danger}>
           <Text variant="caption" color="textMuted">
@@ -444,6 +461,22 @@ export function PhotoFoodScreen() {
       <Button title="Choose from gallery" variant="ghost" onPress={() => void run(false)} />
       {/* Without this a mistyped key is permanent: every call returns 401 and
           the setup card never shows again, so the feature is stuck for good. */}
+      {/* One tap that answers, in raw text, every question the last several
+          releases were guessing at: is the key accepted, does each model
+          answer, can it read an image, will it produce JSON. */}
+      <Button
+        title={testing ? 'Testing…' : 'Test the connection'}
+        variant="ghost"
+        disabled={testing}
+        onPress={() => {
+          setTesting(true);
+          setReport('Running…');
+          void runDiagnostic()
+            .then(setReport)
+            .catch((e) => setReport(String(e)))
+            .finally(() => setTesting(false));
+        }}
+      />
       <Button
         title="Replace API key"
         variant="ghost"

@@ -26,6 +26,7 @@ import { useCycleStore } from '@/stores/cycleStore';
 import { useUsageStore } from '@/stores/usageStore';
 import { ConsistencyCard } from '@/components/ConsistencyCard';
 import { ReadinessStrip } from '@/components/ReadinessStrip';
+import { SessionTypeSheet } from '@/components/SessionTypeSheet';
 import { FuelCell } from '@/components/FuelCell';
 import { EnergyBalanceStrip } from '@/components/EnergyBalanceCard';
 import { PHASE_GUIDANCE } from '@/lib/cycle';
@@ -104,6 +105,7 @@ export function HomeScreen() {
   const [prayersSet, setPrayersSet] = useState<Set<string>>(new Set());
   const [faithOn, setFaithOn] = useState(false);
   const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
+  const [showTypePicker, setShowTypePicker] = useState(false);
 
   // Tips are refreshed ONCE per app open — an intent boundary, not a focus
   // effect. Looking at Home must never write to the database.
@@ -208,7 +210,7 @@ export function HomeScreen() {
         <Button
           title="Start Session"
           icon="core.start"
-          onPress={() => navigation.navigate('SessionTypePicker')}
+          onPress={() => setShowTypePicker(true)}
           style={{ flex: 2 }}
           fullWidth={false}
         />
@@ -431,6 +433,7 @@ export function HomeScreen() {
           </Card>
         </Pressable>
       )}
+      <SessionTypeSheet visible={showTypePicker} onClose={() => setShowTypePicker(false)} />
     </Screen>
   );
 }

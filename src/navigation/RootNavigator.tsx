@@ -6,7 +6,6 @@ import { useUserStore } from '@/stores/userStore';
 import { TabNavigator } from './TabNavigator';
 
 import { OnboardingScreen } from '@/screens/onboarding/OnboardingScreen';
-import { SessionTypePickerScreen } from '@/screens/train/SessionTypePickerScreen';
 import { LogSessionScreen } from '@/screens/train/LogSessionScreen';
 import { ActiveSessionScreen } from '@/screens/train/ActiveSessionScreen';
 import { ExerciseLibraryScreen } from '@/screens/train/ExerciseLibraryScreen';
@@ -83,11 +82,6 @@ export function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
-          <Stack.Screen
-            name="SessionTypePicker"
-            component={SessionTypePickerScreen}
-            options={{ title: 'Start a Session', presentation: 'modal' }}
-          />
           <Stack.Screen name="LogSession" component={LogSessionScreen} options={{ title: '', presentation: 'modal' }} />
           <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: '' }} />
           <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: '' }} />

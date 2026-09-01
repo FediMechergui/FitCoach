@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.10',
+    date: '2026-09-01',
+    title: 'Starting a session is a moment, not a destination',
+    highlights: [
+      'Picking a session type used to be a whole screen you navigated to and back from. It is a bottom sheet now — tap Start on Home or Train and the nine types rise over where you already are; dismissing costs nothing, and Start drops you straight into the live session with no picker left behind on the back stack.',
+      'The mind-body mood check-in rides along in the sheet exactly as before.',
+      'One more hard-coded alpha concat died with the old screen — 17 remain of the 20 the ratchet started at. 1582 checks in all, up from 1576.',
+    ],
+  },
+  {
     version: '3.0.9',
     date: '2026-09-01',
     title: 'The rest banner earns its numbers',

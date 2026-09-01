@@ -3605,7 +3605,7 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
     walk('src');
     let concat = 0;
     for (const f of files) concat += (fs.readFileSync(f, 'utf8').match(/\+ '[0-9A-Fa-f]{2}'/g) ?? []).length;
-    check('Hex-suffix alpha concatenation never grows', concat <= 18, `${concat} sites (ratchet: 18)`);
+    check('Hex-suffix alpha concatenation never grows', concat <= 17, `${concat} sites (ratchet: 17)`);
   }
 
   // ── Shape. Hierarchy through curvature. ──
@@ -3866,6 +3866,20 @@ console.log('\nActiveSession 3.0 - the rest banner earns its numbers:');
   check('restoreSetEntry puts the row back verbatim, id aside', /export function restoreSetEntry\(row: SetRow\)/.test(sessRepo) && /const \{ id: _dropped, \.\.\.values \} = row;\s*\n\s*const res = db\.insert\(setEntries\)/.test(sessRepo));
   const sessStore = fs.readFileSync('src/stores/sessionStore.ts', 'utf8');
   check('The store refreshes after a restore, like every other write', /restoreSet: \(row\) => \{\s*\n\s*restoreSetEntry\(row\);\s*\n\s*get\(\)\.refresh\(\);/.test(sessStore));
+}
+
+console.log('\nSession start 3.0 - a moment, not a destination:');
+{
+  const sheet = fs.readFileSync('src/components/SessionTypeSheet.tsx', 'utf8');
+  check('The type picker is a sheet, opened in place', /export function SessionTypeSheet\(\{ visible, onClose \}/.test(sheet) && /<Sheet visible=\{visible\} onClose=\{onClose\}>/.test(sheet));
+  check('Start lands directly in the live session and resets the sheet', /setSelected\(null\);\s*\n\s*setMood\(null\);\s*\n\s*onClose\(\);\s*\n\s*navigation\.navigate\('ActiveSession'/.test(sheet));
+  check('The mind-body mood check-in rides along', /isMindBody &&/.test(sheet) && /MOOD_EMOJI\.map/.test(sheet));
+  check('The active wash is a token, not a concat', /theme\.alpha\.tint14\(m\.color\)/.test(sheet) && !/m\.color \+ '/.test(sheet));
+  // Both doors open the sheet; the stack route is gone entirely.
+  const home10 = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  const train10 = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
+  check('Home and Train both open it where you stand', [home10, train10].every((src) => /setShowTypePicker\(true\)/.test(src) && /<SessionTypeSheet visible=\{showTypePicker\}/.test(src)));
+  check('The old full-screen route left cleanly', !fs.existsSync('src/screens/train/SessionTypePickerScreen.tsx') && !/SessionTypePicker/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/SessionTypePicker/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

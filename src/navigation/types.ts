@@ -13,7 +13,6 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
 
-  SessionTypePicker: undefined;
   LogSession: undefined;
   SplitPicker: undefined;
   /** per-category methods / splits / routines */

@@ -22,6 +22,7 @@ import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
 import { fromISODate, toISODate } from '@/lib/date';
 import { ReadinessStrip } from '@/components/ReadinessStrip';
+import { SessionTypeSheet } from '@/components/SessionTypeSheet';
 import { mealsFromEntries, type MealForDigestion } from '@/lib/digestion';
 import { foodEntriesForDay } from '@/repositories/nutritionRepo';
 import { recentSmokeEvents, isSmokingEnabled } from '@/repositories/smokingRepo';
@@ -55,6 +56,7 @@ export function TrainScreen() {
   const [openRoutine, setOpenRoutine] = useState<number | null>(null);
   const [openSession, setOpenSession] = useState<number | null>(null);
   const [sessionPeek, setSessionPeek] = useState<SessionExercisePeek[]>([]);
+  const [showTypePicker, setShowTypePicker] = useState(false);
   const [digestMeals, setDigestMeals] = useState<MealForDigestion[]>([]);
   const [smokes, setSmokes] = useState<SmokeEvent[]>([]);
   const [smokingOn, setSmokingOn] = useState(false);
@@ -139,7 +141,7 @@ export function TrainScreen() {
           title="Start a Session"
           icon="core.start"
           size="lg"
-          onPress={() => navigation.navigate('SessionTypePicker')}
+          onPress={() => setShowTypePicker(true)}
         />
       )}
 
@@ -343,6 +345,7 @@ export function TrainScreen() {
           );
         })
       )}
+      <SessionTypeSheet visible={showTypePicker} onClose={() => setShowTypePicker(false)} />
     </Screen>
   );
 }

@@ -20,6 +20,13 @@ const TAB_ICON = {
   Profile: ICONS.nav.profile,
 } as const;
 
+/**
+ * 3.0: 64px, Lume for the active tab, hairline top. The fifth tab reads "You"
+ * — it was never really a profile; it carries a third of the app (body, goals,
+ * health modules, app & data), and its 3.0 redesign makes it that hub
+ * explicitly. The ROUTE name stays `Profile` so nothing navigating there
+ * breaks; only the label changes.
+ */
 export function TabNavigator() {
   const theme = useTheme();
   return (
@@ -31,7 +38,7 @@ export function TabNavigator() {
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.border,
-          height: 62,
+          height: 64,
           paddingBottom: 8,
           paddingTop: 6,
         },
@@ -45,7 +52,7 @@ export function TabNavigator() {
       <Tab.Screen name="Train" component={TrainScreen} />
       <Tab.Screen name="Nutrition" component={NutritionScreen} />
       <Tab.Screen name="Stats" component={StatsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'You' }} />
     </Tab.Navigator>
   );
 }

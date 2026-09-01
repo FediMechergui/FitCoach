@@ -1,5 +1,6 @@
 /* Smoke-test the pure domain engines against known values. Run: npx tsx scripts/verify-engines.ts */
 import fs from 'node:fs';
+import { darkTheme, lightTheme, lume, withAlpha, radius, spacing, typography, FONT_BY_VARIANT, motion } from '../src/theme';
 import { calculateBMR, calculateTDEE, computeTargets, refineTDEE, GOAL_LABELS, GOAL_BLURBS, GOAL_NOTES, GOAL_ORDER, recommendedFiberG, FIBRE_MIN_G, FIBRE_G_PER_1000_KCAL } from '../src/lib/calories';
 import { epley1RM, brzycki1RM, estimate1RM } from '../src/lib/oneRepMax';
 import { caloriesFromMet, netCaloriesFromMet, gradeMultiplier, walkCalories, walkRunMet } from '../src/lib/met';
@@ -3556,6 +3557,104 @@ console.log('\nA library big enough to be whole, graded so it can be used:');
   check('Both prefill pickers pass difficulty through', /slugsForLevel\(day\.exercises, level, difficultyBySlug\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /difficultyBySlug/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
   // New exercises only reach an existing install when the schema version moves.
   check('The schema bump is what delivers them', /const SCHEMA_VERSION = 32;/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
+}
+
+console.log('\n3.0 "Lume" - the design platform holds its own rules:');
+{
+  // ── The accent. Lume is the only colour allowed to mean "interactive". ──
+  check('The brand is Lume, not the old blue', darkTheme.colors.primary === lume.base && darkTheme.colors.primary === '#3FE0B6');
+  check('Success shares the brand, as it always quietly did', darkTheme.colors.success === lume.base);
+  check('On Salt the interactive ink darkens for contrast', lightTheme.colors.primary === '#0FA57F');
+  check('There is no fourth status colour - info reads as ink', darkTheme.colors.info === darkTheme.colors.textMuted);
+  check('Carbs keep blue, which is why the brand could not', darkTheme.colors.carbs === '#6FA7F5' && darkTheme.colors.carbs !== darkTheme.colors.primary);
+
+  // ── Night Sea: tonal depth, hairlines - not a solid third colour. ──
+  check('The ground shifted toward teal', darkTheme.colors.bg === '#070C14');
+  check('Hairlines are ink at alpha, not hex walls', darkTheme.colors.border.startsWith('rgba(') && lightTheme.colors.border.startsWith('rgba('));
+  check('The surface ramp exists', darkTheme.colors.surface !== darkTheme.colors.bg && darkTheme.colors.surfaceAlt !== darkTheme.colors.surface && !!darkTheme.colors.surface3);
+  check('Elevation is a real token set', !!darkTheme.elevation.e1 && !!darkTheme.elevation.e2 && !!darkTheme.elevation.e3);
+  check('Night Sea depth is tonal - no shadows faked in the dark', darkTheme.elevation.e1.shadowOpacity === undefined && lightTheme.elevation.e1.shadowOpacity !== undefined);
+
+  // ── Alpha is a token, and the concat habit can only shrink. ──
+  check('withAlpha produces real rgba', withAlpha('#3FE0B6', 0.14) === 'rgba(63,224,182,0.14)');
+  check('The five alpha steps exist', typeof darkTheme.alpha.tint04 === 'function' && darkTheme.alpha.tint22('#FFFFFF') === 'rgba(255,255,255,0.22)');
+  {
+    // Ratchet: 20 hex-concat sites existed when the token landed. New code
+    // must use withAlpha; this count may only go down.
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const f of fs.readdirSync(dir)) {
+        const full = dir + '/' + f;
+        if (fs.statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(f)) files.push(full);
+      }
+    };
+    walk('src');
+    let concat = 0;
+    for (const f of files) concat += (fs.readFileSync(f, 'utf8').match(/\+ '[0-9A-Fa-f]{2}'/g) ?? []).length;
+    check('Hex-suffix alpha concatenation never grows', concat <= 20, `${concat} sites (ratchet: 20)`);
+  }
+
+  // ── Shape. Hierarchy through curvature. ──
+  check('Cards are 20, sheets are 28, controls are 10', radius.lg === 20 && radius.xl === 28 && radius.sm === 10);
+  check('The missing 20 joined the spacing ramp', spacing.s20 === 20);
+
+  // ── Type. Two families, tabular numerals, an 11px floor. ──
+  const variants = Object.keys(typography) as Array<keyof typeof typography>;
+  check('Nothing sits below the 11px floor, ever', variants.every((v) => typography[v].fontSize >= 11));
+  check('The numeral roles exist and are tabular', (typography.numeralXL.fontVariant ?? []).includes('tabular-nums') && (typography.numeralM.fontVariant ?? []).includes('tabular-nums'));
+  check('Every variant knows its family', variants.every((v) => !!FONT_BY_VARIANT[v]));
+  check('Numerals wear Space Grotesk; body wears Inter', FONT_BY_VARIANT.numeralXL.startsWith('SpaceGrotesk') && FONT_BY_VARIANT.body.startsWith('Inter'));
+  for (const f of ['SpaceGrotesk-Bold', 'SpaceGrotesk-SemiBold', 'SpaceGrotesk-Medium', 'Inter-Regular', 'Inter-Medium', 'Inter-SemiBold']) {
+    const bytes = fs.readFileSync(`assets/fonts/${f}.ttf`);
+    check(`${f} ships and is a real TTF`, bytes.length > 10000 && bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0);
+  }
+  const textSrc = fs.readFileSync('src/components/ui/Text.tsx', 'utf8');
+  check('Text degrades to the system face if fonts fail', /fontsLoaded\(\) \? \{ fontFamily/.test(textSrc));
+
+  // ── Motion reveals state; the wheel is sacred. ──
+  check('The motion tokens exist', motion.swift === 120 && motion.settle === 200 && motion.sweep === 320);
+  check('The challenge spin is untouched', motion.wheel === 3600);
+
+  // ── The theme is finally a choice. ──
+  const provider = fs.readFileSync('src/theme/ThemeProvider.tsx', 'utf8');
+  check('System / Night Sea / Salt persists in kv', /kvGet<string>\(KV_THEME\)/.test(provider) && /kvSet\(KV_THEME, p\)/.test(provider));
+  const appSrc = fs.readFileSync('App.tsx', 'utf8');
+  check('Navigation chrome consumes the chosen theme, not the OS', /function ThemedApp\(\)/.test(appSrc) && !/const scheme = useColorScheme\(\)/.test(appSrc));
+  check('The brand fonts load at boot, best-effort', /await loadBrandFonts\(\);/.test(appSrc));
+
+  // ── The new primitives, present and honest. ──
+  const toastSrc = fs.readFileSync('src/components/ui/Toast.tsx', 'utf8');
+  check('The Undo toast gives six seconds of forgiveness', /t\.duration \?\? 6000/.test(toastSrc) && /export function toast\(/.test(toastSrc));
+  check('...and is mounted once at the root', /<ToastHost \/>/.test(appSrc));
+  const meterSrc = fs.readFileSync('src/components/ui/Meter.tsx', 'utf8');
+  check('The Meter has exactly its two forms', /export function Rail\(/.test(meterSrc) && /export function Arc\(/.test(meterSrc));
+  check('Past 100% the fill shows overflow instead of lying', (meterSrc.match(/Math\.min\(0\.5, Math\.max\(0, frac - 1\)/g) ?? []).length === 2);
+  const sheetSrc = fs.readFileSync('src/components/ui/Sheet.tsx', 'utf8');
+  check('Sheets wear the 28 radius v2 shipped and never used', /borderTopLeftRadius: theme\.radius\.xl/.test(sheetSrc));
+  const misc3 = fs.readFileSync('src/components/ui/misc3.tsx', 'utf8');
+  check('Skeleton, EmptyState, ProvenanceChip and Metric exist', /export function Skeleton/.test(misc3) && /export function EmptyState/.test(misc3) && /export function ProvenanceChip/.test(misc3) && /export function Metric/.test(misc3));
+  check('Provenance speaks the four honest words', /Measured/.test(misc3) && /Derived/.test(misc3) && /Estimate/.test(misc3) && /Your entry/.test(misc3));
+
+  // ── Re-cuts keep their contracts. ──
+  const cardSrc = fs.readFileSync('src/components/ui/Card.tsx', 'utf8');
+  check('A tappable Card is a real Pressable with a role', /accessibilityRole="button"/.test(cardSrc) && /android_ripple/.test(cardSrc));
+  check('The 3px accent bar survives - it is a learned pattern', /borderLeftWidth: 3/.test(cardSrc));
+  const buttonSrc = fs.readFileSync('src/components/ui/Button.tsx', 'utf8');
+  check('The primary wears Lume ink, not white-on-mint', /isBrand \? lume\.ink : '#fff'/.test(buttonSrc));
+  check('A disabled button can say why', /hint\?: string/.test(buttonSrc) && /disabled && hint/.test(buttonSrc));
+  const inputSrc = fs.readFileSync('src/components/ui/Input.tsx', 'utf8');
+  check('Inputs gained focus ring, error and helper', /focused/.test(inputSrc) && /error\?: string/.test(inputSrc) && /helper\?: string/.test(inputSrc));
+  const tabSrc = fs.readFileSync('src/navigation/TabNavigator.tsx', 'utf8');
+  check('The fifth tab reads You; the route name stays Profile', /tabBarLabel: 'You'/.test(tabSrc) && /name="Profile"/.test(tabSrc));
+  check('The tab bar stands 64 tall', /height: 64/.test(tabSrc));
+
+  // ── The famous unwired switch, actually wired this time. ──
+  // The v2.64 guard only proved the identifier existed; this proves the
+  // setter is CALLED from a rendered control.
+  const lib = fs.readFileSync('src/screens/train/ExerciseLibraryScreen.tsx', 'utf8');
+  check('"Fits my level" is a control a finger can reach', /onPress=\{\(\) => setForMyLevel\(\(v\) => !v\)\}/.test(lib));
+  check('...that names the level it filters for', /Fits my level \(\$\{LEVEL_LABELS\[level\]\}\)/.test(lib));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

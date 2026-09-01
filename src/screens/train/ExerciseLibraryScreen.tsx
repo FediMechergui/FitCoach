@@ -32,7 +32,7 @@ import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS, ALIA
 import { subMuscleOf, subMusclesFor } from '@/lib/subMuscle';
 import { difficultyBySlug } from '@/data/exercises';
 import { DIFFICULTY_LABELS, suitsLevel, levelFit, levelNote, type Difficulty } from '@/lib/exerciseDifficulty';
-import { levelOrDefault } from '@/lib/level';
+import { levelOrDefault, LEVEL_LABELS } from '@/lib/level';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
@@ -166,6 +166,16 @@ export function ExerciseLibraryScreen() {
           />
         )}
         <SegmentedControl scrollable options={EQUIP_FILTERS} value={equip} onChange={setEquip} accent={theme.colors.warning} />
+        {/* The famous unwired switch, wired. The filtering shipped in v2.64;
+            the control that flips it never rendered anywhere — a fully coded
+            feature nobody could reach. */}
+        <View style={{ flexDirection: 'row' }}>
+          <Chip
+            label={`Fits my level (${LEVEL_LABELS[level]})`}
+            active={forMyLevel}
+            onPress={() => setForMyLevel((v) => !v)}
+          />
+        </View>
       </View>
 
       <FlatList

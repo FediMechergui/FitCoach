@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0',
+    date: '2026-09-01',
+    title: 'Lume — the redesign begins, and the whole app already wears it',
+    highlights: [
+      'FitCoach 3.0. The engines you trust are untouched — every number, every model, every check. What changes is the body they live in, and it changes everywhere at once: the new design platform re-skins all fifty screens through the components they already share.',
+      'Meet Lume. The mint that always quietly owned the moments that mattered — success, streaks, outdoor air, smoke-free — is now the signature: the one colour that means "you can act". The old blue steps down to being the carbs colour, which it always deserved. Around it: Night Sea, a deep teal-navy ground with real tonal depth, hairlines instead of borders, and a domain palette rebuilt so no metric shouts over another.',
+      'The app finally has a voice. Space Grotesk — squared, technical, with true tabular figures — carries every heading and every number; Inter carries the words. If the fonts ever fail to load, everything falls back to the system face and simply looks plainer — never broken.',
+      'And a choice: System, Night Sea, or Salt — a warm mineral light theme — picked in the app and remembered. The light palette existed for two years; now there is a way to see it.',
+      'New under the hood, arriving screen by screen in 3.0.x: bottom sheets, one progress grammar whose fills never lie past 100%, the six-second Undo toast that will replace silent deletes, skeleton first-paints, and provenance chips — Measured, Derived, Estimate, Your entry — so the honesty the data always carried is worn on the surface.',
+      'One overdue fix ships today: the exercise library\'s "Fits my level" filter — fully built in 2.64, reachable by nobody, because the switch itself was never rendered. It is a real control now, and a check guards that it stays one.',
+      '1480 checks in all, up from 1433 — the design platform now defends its own rules: the 11px type floor, the Lume-only accent, the alpha tokens, the overflow honesty.',
+    ],
+  },
+  {
     version: '2.64',
     date: '2026-08-31',
     title: '163 more exercises, and every one of them now says how hard it is',

@@ -1,11 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { WeatherCard } from '@/components/WeatherCard';
-import { DigestionCard } from '@/components/DigestionCard';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { mealsFromEntries } from '@/lib/digestion';
 import { foodEntriesForDay } from '@/repositories/nutritionRepo';
 import { recentSmokeEvents } from '@/repositories/smokingRepo';
 import { activePostSession } from '@/repositories/postSessionRepo';
-import { PostSessionCard } from '@/components/PostSessionCard';
 import { weatherAdjustedWaterGoal } from '@/repositories/weatherRepo';
 import { View, Pressable, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -16,8 +13,9 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { ProgressRing } from '@/components/ui/ProgressRing';
+import { Metric } from '@/components/ui/misc3';
 import { StatTile } from '@/components/ui/StatTile';
+import { toast } from '@/components/ui/Toast';
 import { SectionHeader, Row } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useUserStore } from '@/stores/userStore';
@@ -26,7 +24,9 @@ import { useSmokingStore } from '@/stores/smokingStore';
 import { useSleepStore } from '@/stores/sleepStore';
 import { useCycleStore } from '@/stores/cycleStore';
 import { useUsageStore } from '@/stores/usageStore';
-import { StreakMeter } from '@/components/StreakMeter';
+import { ConsistencyCard } from '@/components/ConsistencyCard';
+import { ReadinessStrip } from '@/components/ReadinessStrip';
+import { FuelCell } from '@/components/FuelCell';
 import { EnergyBalanceStrip } from '@/components/EnergyBalanceCard';
 import { PHASE_GUIDANCE } from '@/lib/cycle';
 import { getDailySteps } from '@/repositories/activityRepo';
@@ -38,9 +38,7 @@ import { getPrayerSettings, prayersDone, togglePrayer, DAILY_PRAYERS } from '@/r
 import { SELF_CARE_ITEMS } from '@/lib/selfCare';
 import { PRAYER_NAMES } from '@/lib/prayers';
 import type { CoachTip } from '@/db/schema';
-import { roundKcal } from '@/lib/format';
 import { todayISO } from '@/lib/date';
-import { recommendedFiberG } from '@/lib/calories';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const CATEGORY_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
@@ -57,6 +55,25 @@ const CATEGORY_COLOR: Record<string, keyof ReturnType<typeof useTheme>['colors']
   health: 'danger',
 };
 
+/** Coach tips shown on Home; the rest wait their turn. */
+const MAX_TIPS = 2;
+
+/**
+ * Home 3.0 — a daily briefing in four bands, not a card pile.
+ *
+ *   Presence  — who you are today: greeting, the next right action, one
+ *               consistency story (training + check-in merged).
+ *   Readiness — one verdict strip; the physiology lives a tap down in a sheet.
+ *               Clear states show — silence is not reassurance.
+ *   Fuel      — one cell, one progress grammar: the calorie Arc with Water /
+ *               Steps / Protein Rails, the energy ledger beneath, two macro
+ *               Metrics and a door to the rest.
+ *   Life      — self-care (with forgiveness), prayers, at most two coach tips,
+ *               and the recovery row.
+ *
+ * Reads stop writing here: coach tips refresh once per app open, not on every
+ * focus — opening Home no longer inserts rows for being looked at.
+ */
 export function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
@@ -88,12 +105,18 @@ export function HomeScreen() {
   const [faithOn, setFaithOn] = useState(false);
   const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
 
+  // Tips are refreshed ONCE per app open — an intent boundary, not a focus
+  // effect. Looking at Home must never write to the database.
+  useEffect(() => {
+    setTips(refreshCoachTips());
+  }, []);
+
   const reload = useCallback(() => {
     setDate(todayISO());
     refreshNutrition();
     setSteps(getDailySteps()?.stepCount ?? 0);
     setStreak(currentStreak());
-    setTips(refreshCoachTips());
+    setTips(activeCoachTips());
     loadSmoking();
     loadSleep();
     loadCycle();
@@ -105,9 +128,27 @@ export function HomeScreen() {
     setAfter(activePostSession());
   }, [setDate, refreshNutrition, loadSmoking, loadSleep, loadCycle, loadUsage]);
 
+  /**
+   * Self-care with forgiveness: the counter still cycles, but wrapping back to
+   * zero — v2's silent fourth-tap data wipe — now announces itself and can be
+   * undone. The undo replays the taps back to where you were.
+   */
   const tapCare = (key: string) => {
+    const before = care[key] ?? 0;
     bumpSelfCare(key);
-    setCare(getSelfCare());
+    const now = getSelfCare();
+    setCare(now);
+    const item = SELF_CARE_ITEMS.find((i) => i.key === key);
+    if ((now[key] ?? 0) < before) {
+      toast({
+        message: `${item?.label ?? 'Counter'} reset to 0`,
+        actionLabel: 'Undo',
+        onAction: () => {
+          for (let i = 0; i < before; i++) bumpSelfCare(key);
+          setCare(getSelfCare());
+        },
+      });
+    }
   };
   const tapPrayer = (prayer: string) => {
     togglePrayer(prayer);
@@ -132,14 +173,13 @@ export function HomeScreen() {
   const smokes = useMemo(() => recentSmokeEvents(), [smokingEnabled, smokingToday]);
   const calTarget = goal?.calorieTarget ?? 2200;
   const calConsumed = food?.calories ?? 0;
-  // Rounded even though dayNutrition already rounds its total: the subtraction
-  // itself can reintroduce a tail if the target is ever fractional, and this
-  // number is rendered raw into the ring.
-  const calRemaining = roundKcal(Math.max(0, calTarget - calConsumed));
   // The weather adds to the base water goal on hot days — never subtracts.
   const waterAdj = useMemo(() => weatherAdjustedWaterGoal(goal?.waterGoalMl ?? 2500), [goal, food]);
-  const waterGoal = waterAdj.totalMl;
   const water = beverages?.hydrationMl ?? 0;
+  const weatherLine =
+    waterAdj.feelsLike != null
+      ? `Feels like ${Math.round(waterAdj.feelsLike)}°${waterAdj.extraMl > 0 ? ` — +${waterAdj.extraMl} ml water today` : ''}`
+      : null;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -147,6 +187,7 @@ export function HomeScreen() {
   const dismiss = (id: number) => {
     dismissCoachTip(id);
     setTips(activeCoachTips());
+    toast({ message: 'Tip muted for now' });
   };
 
   return (
@@ -155,69 +196,20 @@ export function HomeScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
       }
     >
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
-          <Text variant="caption" color="textMuted">
-            {greeting},
-          </Text>
-          <Text variant="h1">{user?.name ?? 'Athlete'}</Text>
-        </View>
-        <Row gap={6} style={{ alignItems: 'center' }}>
-          <Icon icon="nav.train" size={18} color={theme.colors.primary} />
-          <Text variant="h2">{streak}</Text>
-          <Text variant="caption" color="textMuted">
-            training day{streak === 1 ? '' : 's'}
-          </Text>
-        </Row>
-      </Row>
+      {/* ── Presence ─────────────────────────────────────────────────────── */}
+      <View>
+        <Text variant="eyebrow" color="textMuted">
+          {greeting}
+        </Text>
+        <Text variant="display">{user?.name ?? 'Athlete'}</Text>
+      </View>
 
-      {/* Daily check-in streak meter */}
-      {usage && <StreakMeter streak={usage} />}
-
-      {/* Today's weather and what it changes; whether the last meal has cleared */}
-      <WeatherCard />
-      <DigestionCard meals={digestMeals} smokes={smokes} smokingEnabled={smokingEnabled} compact />
-      {after && <PostSessionCard endedAt={after.endedAt} strain={after.strain} margins={after.margins} compact title="After today's session" />}
-
-      {/* Primary rings */}
-      <Card>
-        <Row style={{ justifyContent: 'space-around', alignItems: 'center' }}>
-          <ProgressRing
-            progress={calTarget ? calConsumed / calTarget : 0}
-            size={128}
-            color={theme.colors.calories}
-            value={`${calRemaining}`}
-            label="kcal left"
-          />
-          <View style={{ gap: theme.spacing.md }}>
-            <MiniRing
-              progress={waterGoal ? water / waterGoal : 0}
-              color={theme.colors.water}
-              icon="nutrition.water"
-              value={`${(water / 1000).toFixed(1)}L`}
-              label={`of ${(waterGoal / 1000).toFixed(1)}L`}
-            />
-            <MiniRing
-              progress={steps / STEP_GOAL}
-              color={theme.colors.accent}
-              icon="cardio.steps"
-              value={steps.toLocaleString()}
-              label={`of ${STEP_GOAL.toLocaleString()}`}
-            />
-          </View>
-        </Row>
-      </Card>
-
-      {/* Simple calorie balance: eaten · burned · left · restore */}
-      <EnergyBalanceStrip onPress={() => navigation.navigate('Main', { screen: 'Nutrition' } as never)} />
-
-      {/* Quick actions */}
       <Row>
         <Button
           title="Start Session"
           icon="core.start"
           onPress={() => navigation.navigate('SessionTypePicker')}
-          style={{ flex: 1 }}
+          style={{ flex: 2 }}
           fullWidth={false}
         />
         <Button
@@ -230,7 +222,53 @@ export function HomeScreen() {
         />
       </Row>
 
-      {/* Self-care / hygiene check-ins */}
+      {usage && <ConsistencyCard usage={usage} trainingStreak={streak} />}
+
+      {/* ── Readiness ────────────────────────────────────────────────────── */}
+      <ReadinessStrip
+        meals={digestMeals}
+        smokes={smokes}
+        smokingEnabled={smokingEnabled}
+        after={after}
+        weatherLine={weatherLine}
+      />
+
+      {/* ── Fuel ─────────────────────────────────────────────────────────── */}
+      <FuelCell
+        calConsumed={calConsumed}
+        calTarget={calTarget}
+        water={water}
+        waterGoal={waterAdj.totalMl}
+        waterExtraMl={waterAdj.extraMl}
+        steps={steps}
+        stepGoal={STEP_GOAL}
+        protein={food?.protein ?? 0}
+        proteinGoal={goal?.proteinG ?? 0}
+        onPress={() => navigation.navigate('Main', { screen: 'Nutrition' } as never)}
+      />
+      <EnergyBalanceStrip onPress={() => navigation.navigate('Main', { screen: 'Nutrition' } as never)} />
+
+      <Row>
+        <Metric
+          value={`${Math.round(food?.carbs ?? 0)}g`}
+          label={`Carbs · of ${goal?.carbsG ?? 0}g`}
+          accent={theme.colors.carbs}
+          progress={{ value: food?.carbs ?? 0, max: goal?.carbsG || 1 }}
+        />
+        <Metric
+          value={`${Math.round(food?.fat ?? 0)}g`}
+          label={`Fat · of ${goal?.fatG ?? 0}g`}
+          accent={theme.colors.fat}
+          progress={{ value: food?.fat ?? 0, max: goal?.fatG || 1 }}
+        />
+      </Row>
+      <Pressable onPress={() => navigation.navigate('Main', { screen: 'Nutrition' } as never)}>
+        <Text variant="label" color="primary">
+          All macros & micros →
+        </Text>
+      </Pressable>
+
+      {/* ── Life ─────────────────────────────────────────────────────────── */}
       <SectionHeader title="Self-care" />
       <Card>
         <Row style={{ justifyContent: 'space-around' }}>
@@ -247,7 +285,7 @@ export function HomeScreen() {
                     borderRadius: 28,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: done ? color : (color as string) + '22',
+                    backgroundColor: done ? color : theme.alpha.tint14(color as string),
                     borderWidth: 2,
                     borderColor: count > 0 ? color : theme.colors.border,
                   }}
@@ -257,7 +295,7 @@ export function HomeScreen() {
                 <Text variant="caption" color={count > 0 ? 'text' : 'textFaint'} style={{ textAlign: 'center' }}>
                   {item.label}
                 </Text>
-                <Text variant="caption" color="textFaint" style={{ fontSize: 10 }}>
+                <Text variant="caption" color="textFaint" style={{ fontSize: 11 }}>
                   {item.target > 1 ? `${count}/${item.target}` : done ? 'Done ✓' : item.hint}
                 </Text>
               </Pressable>
@@ -305,11 +343,11 @@ export function HomeScreen() {
         </>
       )}
 
-      {/* Coach tips */}
+      {/* Coach tips — at most two; the coach advises, it doesn't lecture. */}
       {tips.length > 0 && (
         <View style={{ gap: theme.spacing.md }}>
           <SectionHeader title="Coach Tips" />
-          {tips.map((tip) => (
+          {tips.slice(0, MAX_TIPS).map((tip) => (
             <Card key={tip.id} accent={theme.colors[CATEGORY_COLOR[tip.category] ?? 'primary']}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Row gap={10} style={{ flex: 1, alignItems: 'flex-start' }}>
@@ -330,43 +368,8 @@ export function HomeScreen() {
         </View>
       )}
 
-      {/* Today macros */}
-      <SectionHeader title="Today's Nutrition" action="Log" onAction={() => navigation.navigate('Main', { screen: 'Nutrition' } as never)} />
-      <Row>
-        <StatTile
-          icon="nutrition.protein"
-          label="Protein"
-          value={`${Math.round(food?.protein ?? 0)}g`}
-          sub={`of ${goal?.proteinG ?? 0}g`}
-          accent={theme.colors.protein}
-        />
-        <StatTile
-          icon="nutrition.carbs"
-          label="Carbs"
-          value={`${Math.round(food?.carbs ?? 0)}g`}
-          sub={`of ${goal?.carbsG ?? 0}g`}
-          accent={theme.colors.carbs}
-        />
-      </Row>
-      {/* Four tiles across would wrap the labels, so the macros run 2×2. */}
-      <Row>
-        <StatTile
-          icon="nutrition.fat"
-          label="Fat"
-          value={`${Math.round(food?.fat ?? 0)}g`}
-          sub={`of ${goal?.fatG ?? 0}g`}
-          accent={theme.colors.fat}
-        />
-        <StatTile
-          icon="nutrition.fiber"
-          label="Fibre"
-          value={`${Math.round(food?.fiber ?? 0)}g`}
-          sub={`of ${recommendedFiberG(goal?.calorieTarget ?? 2200)}g`}
-          accent={theme.colors.fiber}
-        />
-      </Row>
-
-      {/* Recovery: sleep + cycle */}
+      {/* Recovery row — when the cycle is on, alcohol keeps its own slot
+          instead of the two fighting over one tile. */}
       <Row>
         <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Sleep')}>
           <StatTile
@@ -393,6 +396,11 @@ export function HomeScreen() {
           </Pressable>
         )}
       </Row>
+      {cycleEnabled && cycleState ? (
+        <Pressable onPress={() => navigation.navigate('Alcohol')}>
+          <StatTile icon="alcohol.beer" label="Alcohol" value="Log" sub="tap to track" accent={theme.colors.warning} />
+        </Pressable>
+      ) : null}
 
       {/* Smoking tracker tile (opt-in) */}
       {smokingEnabled && (
@@ -424,36 +432,5 @@ export function HomeScreen() {
         </Pressable>
       )}
     </Screen>
-  );
-}
-
-function MiniRing({
-  progress,
-  color,
-  icon,
-  value,
-  label,
-}: {
-  progress: number;
-  color: string;
-  icon: string;
-  value: string;
-  label: string;
-}) {
-  const theme = useTheme();
-  return (
-    <Row gap={10} style={{ alignItems: 'center' }}>
-      <ProgressRing progress={progress} size={52} strokeWidth={6} color={color}>
-        <Icon icon={icon} size={18} color={color} />
-      </ProgressRing>
-      <View>
-        <Text variant="bodyStrong" style={{ fontVariant: ['tabular-nums'] }}>
-          {value}
-        </Text>
-        <Text variant="caption" color="textMuted">
-          {label}
-        </Text>
-      </View>
-    </Row>
   );
 }

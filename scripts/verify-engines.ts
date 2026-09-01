@@ -1241,7 +1241,11 @@ console.log('\nDigestion clock — a stomach load that stacks:');
   const nutSrcD = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
   check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\}/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
   check('The Train tab asks the question at hard intensity, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingOn\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
-  check('Home shows the compact summary, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\} compact/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  // Superseded by the 3.0 bento: Home shows the readiness VERDICT; the full
+  // digestion card (smoke clock included) lives one tap down in the sheet.
+  check('Home carries the readiness strip', /<ReadinessStrip/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  check('...whose sheet holds the full digestion card', /<DigestionCard meals=\{meals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\} \/>/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')));
+  check('...and a clear day says so instead of hiding', /Clear to train/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')));
   const cardSrcD = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
   // Two meters, never one merged bar.
   check('The card draws the stomach and the smoke as two separate meters', /<Meter icon="digest\.stomach" title="Stomach"/.test(cardSrcD) && /<Meter icon="smoking\.cigarette" title="Smoke"/.test(cardSrcD));
@@ -1828,7 +1832,9 @@ console.log('\nNumber display — no floating-point tails:');
   check('Daily totals are rounded in the repository', /calories: roundKcal\(total\.calories\)/.test(nutSrc) && /protein: roundGrams\(total\.protein\)/.test(nutSrc));
   check('The trend rows are rounded too', /calories: roundKcal\(r\.calories\), protein: roundGrams\(r\.protein\)/.test(nutSrc));
   const homeSrc = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
-  check('The Home ring rounds what it renders', /calRemaining = roundKcal\(/.test(homeSrc));
+  // The ring became the Fuel Arc; the rounding moved with the numeral.
+  check('The Fuel cell rounds what it renders', /Math\.round\(calTarget - calConsumed\)/.test(fs.readFileSync('src/components/FuelCell.tsx', 'utf8')));
+  check('...and says "+n over" instead of clamping the number', /kcal over/.test(fs.readFileSync('src/components/FuelCell.tsx', 'utf8')));
 }
 
 console.log('\nEffort — proximity to failure:');
@@ -2236,7 +2242,10 @@ console.log('\nFibre — the fourth bar:');
   check('The fibre slice sits beside the carb slice', /shares\.carbs, color: theme\.colors\.carbs \},\s*\{ frac: shares\.fiber/.test(donutSrc));
   check('The donut draws foodMath\'s split, not its own arithmetic', /macroEnergyShares\(\{ protein, carbs, fat, fiber \}\)/.test(donutSrc) && !/\* 9\b/.test(donutSrc));
   const homeScreenSrc = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
-  check('Home shows a fibre tile with the same target', /label="Fibre"[\s\S]{0,120}recommendedFiberG\(goal\?\.calorieTarget/.test(homeScreenSrc));
+  // Fibre's tile left Home in the bento collapse (two Metrics + a door);
+  // the same target still governs the Nutrition screen's fibre rail.
+  check('Home collapses macros to two Metrics and a door', /All macros & micros/.test(homeScreenSrc) && (homeScreenSrc.match(/<Metric\b/g) ?? []).length === 2);
+  check('The fibre target still rules the Nutrition screen', /recommendedFiberG\(calTarget\)/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
   const themeSrc = fs.readFileSync('src/theme/index.ts', 'utf8');
   check('Fibre has its own colour token', /fiber: '#[0-9A-Fa-f]{6}'/.test(themeSrc));
   check('The fibre icon resolves', !!(ICONS as Record<string, Record<string, unknown>>).nutrition?.fiber);
@@ -2518,7 +2527,8 @@ console.log('\nAfter the session — margins scaled by how hard it was:');
   const walkSrc2 = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
   check('The walk/run recap shows them too, with the end time captured once', /endedAt: Date\.now\(\) \}\)/.test(walkSrc2) && /<PostSessionCard endedAt=\{summary\.endedAt\}/.test(walkSrc2));
   const homeSrc2 = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
-  check('Home carries a compact reminder while margins run', /setAfter\(activePostSession\(\)\)/.test(homeSrc2) && /<PostSessionCard endedAt=\{after\.endedAt\} strain=\{after\.strain\} margins=\{after\.margins\} compact/.test(homeSrc2));
+  check('Home still reads the running margins', /setAfter\(activePostSession\(\)\)/.test(homeSrc2));
+  check('...notes them on the readiness strip and details them in its sheet', /post-session margins running/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')) && /<PostSessionCard[\s\S]{0,200}margins=\{after\.margins\}/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')));
   const psRepo = fs.readFileSync('src/repositories/postSessionRepo.ts', 'utf8');
   check('The repo builds strain from completed sets, tonnage, bodyweight and the module flag', /\.filter\(\(s\) => s\.completed\)/.test(psRepo) && /volumeKg: session\.totalVolume/.test(psRepo) && /latestWeight\(userId\)\?\.weightKg/.test(psRepo) && /smokingEnabled: isSmokingEnabled\(userId\)/.test(psRepo));
   check('…and the Home reminder only looks 12 h back', /12 \* 3_600_000/.test(psRepo));
@@ -3698,6 +3708,38 @@ console.log('\n3.0.1 - the slick pass keeps its own discipline:');
   check('An active chip is a tinted wash with coloured text', /theme\.alpha\.tint14\(brand\)/.test(chipSrc) && !/color=\{active \? '#fff'/.test(chipSrc));
   const tileSrc = fs.readFileSync('src/components/ui/StatTile.tsx', 'utf8');
   check('Stat tiles: eyebrow label over a Grotesk numeral', /variant="eyebrow"/.test(tileSrc) && /variant="numeralM"/.test(tileSrc));
+}
+
+console.log('\nHome 3.0 - a briefing in four bands, and reads that stop writing:');
+{
+  const home = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+
+  // ── Reads stop writing. Coach tips refresh once per app open; looking at
+  //    Home must never insert rows.
+  check('Tips refresh once, at the app-open boundary', /useEffect\(\(\) => \{\s*\n\s*setTips\(refreshCoachTips\(\)\);\s*\n\s*\}, \[\]\);/.test(home));
+  check('Focus reloads read, they do not write', /setTips\(activeCoachTips\(\)\);/.test(home) && (home.match(/refreshCoachTips\(\)/g) ?? []).length === 1);
+  check('The coach offers at most two tips', /MAX_TIPS = 2/.test(home) && /tips\.slice\(0, MAX_TIPS\)/.test(home));
+
+  // ── One consistency story instead of two unlabeled streaks.
+  check('The two streaks merged into one card', /<ConsistencyCard usage=\{usage\} trainingStreak=\{streak\}/.test(home));
+  const cons = fs.readFileSync('src/components/ConsistencyCard.tsx', 'utf8');
+  check('...that labels both numbers', /Training/.test(cons) && /Check-in/.test(cons));
+  check('...and never threatens loss', /no shame attached/.test(cons));
+
+  // ── Self-care gained forgiveness: the wrap-to-zero announces and undoes.
+  check('A self-care wrap-to-zero can be undone', /reset to 0/.test(home) && /actionLabel: 'Undo'/.test(home));
+  check('...by replaying the taps back', /for \(let i = 0; i < before; i\+\+\) bumpSelfCare\(key\);/.test(home));
+
+  // ── The greeting speaks in the new voice.
+  check('The greeting is an eyebrow over a display name', /variant="eyebrow" color="textMuted">\s*\n\s*\{greeting\}/.test(home) && /variant="display">\{user\?\.name/.test(home));
+
+  // ── Cycle and Alcohol stop fighting for one slot.
+  check('With the cycle on, alcohol keeps its own tile', /cycleEnabled && cycleState \? \(\s*\n\s*<Pressable onPress=\{\(\) => navigation\.navigate\('Alcohol'\)\}/.test(home));
+
+  // ── The Fuel band is one grammar.
+  const fuel = fs.readFileSync('src/components/FuelCell.tsx', 'utf8');
+  check('Fuel is one Arc and three Rails - one grammar', /<Arc value=\{calConsumed\}/.test(fuel) && (fuel.match(/<Rail /g) ?? []).length === 1 && /FuelRail/.test(fuel));
+  check('The heat surcharge on water is explained, not silent', /for the heat/.test(fuel));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.3',
+    date: '2026-09-01',
+    title: 'Home becomes a briefing — four bands instead of thirteen cards',
+    highlights: [
+      'Presence. The greeting speaks in the new voice, and the two streaks that sat next to each other unexplained — training days in the corner, check-in flames below — merge into one consistency story: both numbers labelled, the week as quiet dots, the milestone as a rail. Nothing in it can threaten loss; a slip just restarts the counter, no shame attached.',
+      'Readiness. The three stacked cards (weather, digestion, post-session) become one verdict strip that is ALWAYS there — "Clear to train" now shows instead of the app going silent at exactly the moment reassurance matters. Tap it and the full physiology opens in a sheet: the stomach clock, the smoke clock, the margins, the weather, everything the cards knew, unchanged.',
+      'Fuel. One cell, one grammar: the calorie Arc beside Water, Steps and Protein rails — replacing the ring, the two mini-rings and the four-tile strip that each spoke their own language within two hundred pixels. Overshoot your target and the number says "+n over" honestly while the arc hatches on in caution. The heat\'s water surcharge is explained right on the rail.',
+      'Life. Self-care gains forgiveness: cycling a counter past its target used to silently wipe it — now it announces the reset with six seconds of Undo that replays your taps back. Coach tips cap at two. And when the cycle tracker is on, Alcohol keeps its own tile instead of the two fighting for one slot.',
+      'And reads stop writing: opening Home used to run the coach-tip generator — a write — every single time the screen got focus. Tips now refresh once per app open; looking at your own dashboard no longer inserts rows.',
+      '1517 checks in all, up from 1500.',
+    ],
+  },
+  {
     version: '3.0.2',
     date: '2026-09-01',
     title: 'Start Session comes back — the pill that swallowed its own label',

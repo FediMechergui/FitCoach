@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+import { Animated, Easing, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
+import { motion } from '@/theme';
 import { Text } from './Text';
 
 /**
@@ -16,6 +17,8 @@ import { Text } from './Text';
  * module-level `toast()` — no context threading, usable from stores and
  * services as well as screens.
  */
+
+const HOUSE_EASING = Easing.bezier(motion.bezier[0], motion.bezier[1], motion.bezier[2], motion.bezier[3]);
 
 export interface ToastOptions {
   message: string;
@@ -49,6 +52,7 @@ export function ToastHost() {
       Animated.timing(opacity, {
         toValue: 1,
         duration: theme.motion.swift,
+        easing: HOUSE_EASING,
         useNativeDriver: true,
       }).start();
       timer.current = setTimeout(() => dismiss(), t.duration ?? 6000);
@@ -69,6 +73,7 @@ export function ToastHost() {
     Animated.timing(opacity, {
       toValue: 0,
       duration: theme.motion.swift,
+      easing: HOUSE_EASING,
       useNativeDriver: true,
     }).start(() => setCurrent(null));
   };

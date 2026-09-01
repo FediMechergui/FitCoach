@@ -196,6 +196,18 @@ export const typography = {
     letterSpacing: -1.3,
     fontVariant: ['tabular-nums'] as const,
   },
+  /**
+   * The eyebrow — a microscopic uppercase label tracked wide open, in the
+   * display face: PUSH DAY, REST, SET 4. It is how this app says a section
+   * name like a coach rather than a form. Sits exactly on the 11px floor.
+   */
+  eyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600' as const,
+    letterSpacing: 2.2,
+    textTransform: 'uppercase' as const,
+  },
   /** v2 compatibility: tabular numbers at body size */
   mono: {
     fontSize: 15,
@@ -217,11 +229,18 @@ export const FONT_BY_VARIANT: Record<keyof typeof typography, string> = {
   caption: 'Inter-Regular',
   numeralM: 'SpaceGrotesk-SemiBold',
   numeralXL: 'SpaceGrotesk-Bold',
+  eyebrow: 'SpaceGrotesk-Medium',
   mono: 'SpaceGrotesk-SemiBold',
 };
 
 // ── Motion — reveals state, never invents excitement ────────────────────────
 export const motion = {
+  /**
+   * The house curve — fast out of the gate, long settle, like a plate set
+   * down rather than dropped. Every animated component builds its Easing
+   * from this; linear and ease-in-out are not used anywhere.
+   */
+  bezier: [0.32, 0.72, 0, 1] as const,
   /** press states, chip toggles, checkbox fills */
   swift: 120,
   /** sheet open, accordion, tab cross-fade */
@@ -268,16 +287,16 @@ function elevations(colors: ColorTokens, dark: boolean) {
           shadowOpacity: opacity,
           shadowRadius: blur / 2,
           shadowOffset: { width: 0, height: y },
-          elevation: y,
+          elevation: Math.round(y / 2),
         };
   return {
-    /** resting card */
+    /** resting card — on Salt it floats on diffused ambient light */
     e1: {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
       borderTopColor: dark ? colors.topLight : colors.border,
-      ...shadow(2, 8, 0.08),
+      ...shadow(6, 24, 0.06),
     } as ElevationStyle,
     /** raised: active bars, open accordions, FABs */
     e2: {
@@ -285,14 +304,14 @@ function elevations(colors: ColorTokens, dark: boolean) {
       borderWidth: 1,
       borderColor: colors.borderStrong,
       borderTopColor: dark ? colors.topLight : colors.borderStrong,
-      ...shadow(4, 16, 0.1),
+      ...shadow(10, 32, 0.08),
     } as ElevationStyle,
     /** sheets & dialogs */
     e3: {
       backgroundColor: colors.surface3,
       borderWidth: 1,
       borderColor: colors.borderStrong,
-      ...shadow(8, 32, 0.14),
+      ...shadow(16, 48, 0.12),
     } as ElevationStyle,
   };
 }

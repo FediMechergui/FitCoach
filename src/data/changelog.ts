@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.1',
+    date: '2026-09-01',
+    title: 'The slick pass — machined surfaces, athletic type, real motion',
+    highlights: [
+      'One signature, worn everywhere: the double bezel. The top of every page and every primary button now sits like a glass plate in a machined tray — a thin tinted ring in the page\'s own colour, curves kept concentric the way lathed hardware keeps them. One component carries it, so no screen had to be decorated to receive it.',
+      'Buttons became hardware too. The main action on a screen is a full pill in its charged ring; press it and it compresses — a real scale into the deeper Lume on a spring curve, not an opacity blink. An icon on a primary rides in its own circular well at the trailing edge, flush like a machined control.',
+      'A new voice for labels: the eyebrow — tracked-wide uppercase Space Grotesk, the register a coach writes drills in. Stat tiles across the whole app now read EYEBROW over a big tabular numeral, which is what a numbers app should look like.',
+      'Both themes are now deliberate, not one theme twice. Salt (light) floats its cards on large, low, diffused ambient shadows — real light physics — while Night Sea keeps its tonal depth and refuses fake shadows entirely. Active chips stopped shouting: a tinted wash with coloured text, leaving saturation to the data.',
+      'And one motion curve everywhere — fast out of the gate, long settle, like a plate set down rather than dropped. Sheets, toasts and presses all ride it; nothing in the app animates linearly.',
+      '1497 checks in all, up from 1480 — the pass guards its own discipline, including that the bezel never touched the script-verified hero geometry.',
+    ],
+  },
+  {
     version: '3.0',
     date: '2026-09-01',
     title: 'Lume — the redesign begins, and the whole app already wears it',

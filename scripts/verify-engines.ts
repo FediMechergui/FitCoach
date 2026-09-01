@@ -3657,5 +3657,41 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
   check('...that names the level it filters for', /Fits my level \(\$\{LEVEL_LABELS\[level\]\}\)/.test(lib));
 }
 
+console.log('\n3.0.1 - the slick pass keeps its own discipline:');
+{
+  // ── The signature is spent in one place: the double-bezel. ──
+  const bezelSrc = fs.readFileSync('src/components/ui/Bezel.tsx', 'utf8');
+  check('The Bezel exists: tray, hairline ring, concentric core', /padding: inset/.test(bezelSrc) && /borderRadius: outer - inset/.test(bezelSrc));
+  const heroSrc2 = fs.readFileSync('src/components/ui/PageHero.tsx', 'utf8');
+  check('PageHero wears it on every pushed page', /<Bezel tint=\{tint\}>/.test(heroSrc2));
+  check('...without touching the guarded geometry', /width: 44/.test(heroSrc2) && /size=\{24\}/.test(heroSrc2) && /INLINE_SUBTITLE_MAX = 100/.test(heroSrc2));
+  check('...and its tint is a token, not a hex concat', /theme\.alpha\.tint14\(tint\)/.test(heroSrc2) && !/tint \+ '/.test(heroSrc2));
+  check('The eyebrow speaks in the coach register', typography.eyebrow.letterSpacing === 2.2 && typography.eyebrow.textTransform === 'uppercase' && typography.eyebrow.fontSize === 11);
+  check('...set in the display face', FONT_BY_VARIANT.eyebrow.startsWith('SpaceGrotesk'));
+
+  // ── CTAs became hardware. ──
+  const btnSrc = fs.readFileSync('src/components/ui/Button.tsx', 'utf8');
+  check('Md/lg buttons are pills; sm stays flat for dense rows', /const pill = size !== 'sm';/.test(btnSrc));
+  check('The primary sits in its charged ring', /const ringed = pill && variant === 'primary'/.test(btnSrc) && /padding: 3/.test(btnSrc));
+  check('A primary icon rides in its own trailing well', /trailingWell/.test(btnSrc) && /rgba\(6,32,25,0\.14\)/.test(btnSrc));
+  check('Presses land on the house curve, never linear', /Easing\.bezier\(motion\.bezier\[0\]/.test(btnSrc) && /toValue: to/.test(btnSrc));
+
+  // ── Motion: one curve everywhere it interpolates. ──
+  check('The house bezier is a token', motion.bezier.length === 4 && motion.bezier[0] === 0.32 && motion.bezier[3] === 1);
+  for (const f of ['src/components/ui/Sheet.tsx', 'src/components/ui/Toast.tsx']) {
+    check(`${f.split('/').pop()} animates on the house curve`, /easing: HOUSE_EASING/.test(fs.readFileSync(f, 'utf8')));
+  }
+
+  // ── Both themes are deliberate, not one theme twice. ──
+  check('Salt floats on diffused ambient shadow', (lightTheme.elevation.e1.shadowRadius ?? 0) >= 12 && (lightTheme.elevation.e1.shadowOpacity ?? 1) <= 0.06);
+  check('Night Sea still refuses faked shadows', lightTheme.elevation.e3.shadowRadius === 24 && darkTheme.elevation.e3.shadowRadius === undefined);
+
+  // ── Controls stopped shouting; numbers got the voice instead. ──
+  const chipSrc = fs.readFileSync('src/components/ui/Chip.tsx', 'utf8');
+  check('An active chip is a tinted wash with coloured text', /theme\.alpha\.tint14\(brand\)/.test(chipSrc) && !/color=\{active \? '#fff'/.test(chipSrc));
+  const tileSrc = fs.readFileSync('src/components/ui/StatTile.tsx', 'utf8');
+  check('Stat tiles: eyebrow label over a Grotesk numeral', /variant="eyebrow"/.test(tileSrc) && /variant="numeralM"/.test(tileSrc));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

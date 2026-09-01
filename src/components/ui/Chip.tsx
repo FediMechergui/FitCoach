@@ -25,13 +25,13 @@ export function Chip({ label, icon, active, color, onPress, small }: ChipProps) 
         paddingVertical: small ? 5 : 7,
         paddingHorizontal: small ? 10 : 12,
         borderRadius: theme.radius.pill,
-        backgroundColor: active ? brand : theme.colors.surfaceAlt,
+        backgroundColor: active ? theme.alpha.tint14(brand) : theme.colors.surfaceAlt,
         borderWidth: 1,
-        borderColor: active ? brand : theme.colors.border,
+        borderColor: active ? theme.alpha.tint22(brand) : theme.colors.border,
       }}
     >
-      {icon ? <Icon icon={icon} size={small ? 12 : 14} color={active ? '#fff' : theme.colors.textMuted} /> : null}
-      <Text variant="caption" color={active ? '#fff' : theme.colors.textMuted}>
+      {icon ? <Icon icon={icon} size={small ? 12 : 14} color={active ? brand : theme.colors.textMuted} /> : null}
+      <Text variant="caption" color={active ? brand : theme.colors.textMuted} style={active ? { fontWeight: '600' } : undefined}>
         {label}
       </Text>
     </View>

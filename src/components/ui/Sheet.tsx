@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Modal, Pressable, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Modal, Pressable, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
+import { motion } from '@/theme';
 
 /**
  * The bottom sheet — 3.0's standard modal surface.
@@ -11,6 +12,8 @@ import { useTheme } from '@/theme/ThemeProvider';
  * screen that opened it. E3 elevation, radius 28 (the token v2 shipped and
  * never used), grabber on top.
  */
+
+const HOUSE_EASING = Easing.bezier(motion.bezier[0], motion.bezier[1], motion.bezier[2], motion.bezier[3]);
 
 interface SheetProps {
   visible: boolean;
@@ -32,6 +35,7 @@ export function Sheet({ visible, onClose, children, maxHeightFraction = 0.88 }: 
       Animated.timing(slide, {
         toValue: 1,
         duration: theme.motion.settle,
+        easing: HOUSE_EASING,
         useNativeDriver: true,
       }).start();
     }

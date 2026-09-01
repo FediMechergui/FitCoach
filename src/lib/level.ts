@@ -18,6 +18,7 @@
  */
 
 import type { ExperienceLevel } from './restPrescription';
+import { suitsLevel, type Difficulty } from './exerciseDifficulty';
 export type { ExperienceLevel } from './restPrescription';
 
 export const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
@@ -78,9 +79,32 @@ export const LEVEL_PRESCRIPTION: Record<ExperienceLevel, LevelPrescription> = {
  * data are compounds-first, so trimming for a beginner keeps the ones that
  * matter; advanced keeps everything.
  */
-export function slugsForLevel(slugs: string[], level: ExperienceLevel): string[] {
+export function slugsForLevel(
+  slugs: string[],
+  level: ExperienceLevel,
+  difficultyOfSlug?: (slug: string) => Difficulty | null
+): string[] {
   const max = LEVEL_PRESCRIPTION[level].maxExercises;
-  return Number.isFinite(max) ? slugs.slice(0, max) : slugs;
+
+  /*
+   * Drop what the level has no business being handed before trimming by count.
+   *
+   * Level used to change only HOW MANY exercises were pre-loaded, never WHICH,
+   * so a beginner's first session could open with a muscle-up as long as it sat
+   * high enough in the list. Anything outside the level's band is removed here
+   * — but only if enough remains to still be a session, because a thin day of
+   * movements you can do beats a full one you cannot.
+   */
+  let list = slugs;
+  if (difficultyOfSlug) {
+    const fits = slugs.filter((slug) => {
+      const d = difficultyOfSlug(slug);
+      return d == null || suitsLevel(d, level);
+    });
+    if (fits.length >= Math.min(3, slugs.length)) list = fits;
+  }
+
+  return Number.isFinite(max) ? list.slice(0, max) : list;
 }
 
 /** The prescription in one line: "3 sets × 8–12 (compounds 5–8) · rest ~1.5–2 min". */

@@ -20,6 +20,7 @@ import { ExercisePeek } from '@/components/ExercisePeek';
 import { useSessionStore } from '@/stores/sessionStore';
 import { LevelPicker, useExperienceLevel } from '@/components/LevelPicker';
 import { slugsForLevel } from '@/lib/level';
+import { difficultyBySlug } from '@/data/exercises';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type MethodRoute = RouteProp<RootStackParamList, 'MethodPicker'>;
@@ -53,7 +54,7 @@ export function MethodPickerScreen() {
   const startMethod = (m: TrainingMethod) => {
     // `style` tags the session with the method so progress can be compared
     // like-for-like later (5×5 vs 5×5, HIIT vs HIIT).
-    begin(sessionType, { label: m.label, style: m.key, prefillSlugs: trims && m.prefillSlugs ? slugsForLevel(m.prefillSlugs, level) : m.prefillSlugs });
+    begin(sessionType, { label: m.label, style: m.key, prefillSlugs: trims && m.prefillSlugs ? slugsForLevel(m.prefillSlugs, level, difficultyBySlug) : m.prefillSlugs });
     const id = useSessionStore.getState().activeId!;
     navigation.replace('ActiveSession', { sessionId: id });
   };

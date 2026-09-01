@@ -26,6 +26,8 @@ import { rangeMinutes, minutesToHM, minutesToHours, hmToMinutes } from '../src/l
 import { projectedYearHours, timeEquivalents, minutesFor } from '../src/lib/habits';
 import { estimateFromDescription as estFood } from '../src/data/foods';
 import { EXERCISE_LIBRARY, WARMUPS_BY_MUSCLE } from '../src/data/exercises';
+import { difficultyBySlug } from '../src/data/exercises';
+import { difficultyOf, skillDifficulty, suitsLevel, levelFit, levelNote, DIFFICULTY_LABELS, type Difficulty } from '../src/lib/exerciseDifficulty';
 import { SPLITS } from '../src/data/splits';
 import { computePrayerTimes, nextPrayer } from '../src/lib/prayers';
 import { resolveWindow, fastingState } from '../src/lib/fasting';
@@ -2656,8 +2658,8 @@ console.log('\nPredetermined sessions — every method pre-loads real exercises;
   const bootLv = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
   check('users.experience_level is in the DDL and ADDED_COLUMNS, schema ≥ 28', /experience_level TEXT,/.test(bootLv) && /table: 'users', column: 'experience_level'/.test(bootLv) && Number(/const SCHEMA_VERSION = (\d+);/.exec(bootLv)?.[1]) >= 28);
   check('Split, method and program pickers all carry the level picker', ['src/screens/train/SplitPickerScreen.tsx', 'src/screens/train/MethodPickerScreen.tsx', 'src/screens/train/ProgramPickerScreen.tsx'].every((f) => /<LevelPicker/.test(fs.readFileSync(f, 'utf8'))));
-  check('The split pre-loads by level and shows the prescription', /prefillSlugs: slugsForLevel\(day\.exercises, level\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /rx\.sets\} sets × \{rx\.reps\}/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')));
-  check('Lifting methods pre-load by level; others in full', /trims && m\.prefillSlugs \? slugsForLevel\(m\.prefillSlugs, level\) : m\.prefillSlugs/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
+  check('The split pre-loads by level and shows the prescription', /prefillSlugs: slugsForLevel\(day\.exercises, level, difficultyBySlug\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /rx\.sets\} sets × \{rx\.reps\}/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')));
+  check('Lifting methods pre-load by level; others in full', /trims && m\.prefillSlugs \? slugsForLevel\(m\.prefillSlugs, level, difficultyBySlug\) : m\.prefillSlugs/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
   check('Programs at your level come first and are badged', /a\.level === level \? 0 : 1/.test(fs.readFileSync('src/screens/train/ProgramPickerScreen.tsx', 'utf8')) && /· for you/.test(fs.readFileSync('src/screens/train/ProgramPickerScreen.tsx', 'utf8')));
   check('The level is editable on the profile and saved by the picker', /experienceLevel: experience,/.test(fs.readFileSync('src/screens/profile/EditProfileScreen.tsx', 'utf8')) && /updateProfile\(\{ experienceLevel: v as ExperienceLevel \}\)/.test(fs.readFileSync('src/components/LevelPicker.tsx', 'utf8')));
 }
@@ -3491,6 +3493,69 @@ console.log('\nRest that accounts for the state you turned up in:');
   check('Naps count toward how rested you are', /avgRest7d/.test(screen));
   check('...and it re-reads as the session runs, since all three move', /\[lv\.sets\.length\]/.test(screen));
   check('The recovery bar uses the real time constant', /pcrRecovered\(elapsed, rx\?\.physiology\?\.tauS\)/.test(screen));
+}
+
+console.log('\nA library big enough to be whole, graded so it can be used:');
+{
+  const vis = EXERCISE_LIBRARY.filter((e) => !e.aliasOf);
+
+  // ── Size and integrity. Growth is worthless if it arrives as duplicates.
+  check('The library is large', vis.length >= 740, `${vis.length} browsable`);
+  const slugSeen = new Set<string>();
+  const dupSlugs = vis.filter((e) => e.slug && (slugSeen.has(e.slug) || (slugSeen.add(e.slug), false)));
+  check('Every slug is unique', dupSlugs.length === 0, dupSlugs.map((e) => e.slug).slice(0, 3).join(', '));
+  const nameCount = new Map<string, number>();
+  for (const e of vis) nameCount.set(e.name.toLowerCase(), (nameCount.get(e.name.toLowerCase()) ?? 0) + 1);
+  const dupNames = [...nameCount.entries()].filter(([, n]) => n > 1).map(([n]) => n);
+  check('No two browsable exercises share a name', dupNames.length === 0, dupNames.slice(0, 3).join(', '));
+  check('Every exercise has a description', vis.filter((e) => !e.description).length < vis.length * 0.35);
+
+  // ── Difficulty exists on everything, and actually differs.
+  check('Every exercise carries a difficulty', vis.every((e) => e.difficulty != null));
+  check('...within the scale', vis.every((e) => e.difficulty! >= 1 && e.difficulty! <= 5));
+  const dist = [1, 2, 3, 4, 5].map((d) => vis.filter((e) => e.difficulty === d).length);
+  check('All five grades are populated', dist.every((n) => n > 0), dist.join('/'));
+  check('...and none of them swallows the library', dist.every((n) => n < vis.length * 0.6), dist.join('/'));
+  check('The easy end is real, not a token', dist[0] >= 20 && dist[1] >= 100, `${dist[0]} at 1, ${dist[1]} at 2`);
+  check('The hard end is real too', dist[3] >= 50 && dist[4] >= 8, `${dist[3]} at 4, ${dist[4]} at 5`);
+
+  // ── The grading has to agree with what a coach would say.
+  const dOf = (slug: string) => vis.find((e) => e.slug === slug)?.difficulty ?? null;
+  check('A muscle-up is elite', dOf('muscle-up') === 5);
+  check('A pistol squat is hard', dOf('pistol-squat') === 4);
+  check('A glute bridge is for anyone', dOf('glute-bridge') === 1);
+  check('A machine isolation is beginner-friendly', dOf('leg-extension') === 2);
+  check('Named skills beat the derivation', skillDifficulty('front-lever-tuck') === 5 && skillDifficulty('some-cable-row') === null);
+  check('...and the longest match wins', skillDifficulty('ring-muscle-up') === 5);
+  check('An authored value beats everything', difficultyOf({ slug: 'muscle-up', difficulty: 2 }) === 2);
+  check('Equipment sets the floor when nothing else applies', difficultyOf({ slug: 'x', equipmentType: 'machine', pattern: 'curl' }) < difficultyOf({ slug: 'y', equipmentType: 'barbell', pattern: 'hinge' }));
+
+  // ── Level bands: overlapping on purpose, and never hiding anything.
+  check('A beginner has plenty to do', vis.filter((e) => suitsLevel(e.difficulty as Difficulty, 'beginner')).length >= 500);
+  check('An advanced lifter is not offered only hard things', suitsLevel(2, 'advanced'));
+  check('A beginner is not offered elite skills', !suitsLevel(5, 'beginner'));
+  check('The bands overlap, so levels are not silos', suitsLevel(3, 'beginner') && suitsLevel(3, 'intermediate') && suitsLevel(3, 'advanced'));
+  check('Fit peaks at each level\'s own centre', levelFit(2, 'beginner') > levelFit(4, 'beginner') && levelFit(4, 'advanced') > levelFit(2, 'advanced'));
+  check('An out-of-band exercise explains itself', !!levelNote(5, 'beginner') && levelNote(3, 'intermediate') === null);
+
+  // ── Prefilled sessions stop handing a beginner things they cannot do.
+  const day = ['leg-extension', 'muscle-up', 'glute-bridge', 'full-planche', 'leg-press', 'lat-pulldown', 'human-flag'];
+  const forBeginner = slugsForLevel(day, 'beginner', (sl) => difficultyBySlug(sl));
+  check('A prefill drops what the level cannot do', !forBeginner.includes('muscle-up') && !forBeginner.includes('full-planche'));
+  check('...and keeps what it can', forBeginner.includes('leg-extension'));
+  check('An advanced lifter keeps the hard ones', slugsForLevel(day, 'advanced', (sl) => difficultyBySlug(sl)).includes('muscle-up'));
+  // A day of nothing but hard movements must not become an empty day.
+  const allHard = ['muscle-up', 'full-planche', 'human-flag'];
+  check('It never empties a session to enforce a band', slugsForLevel(allHard, 'beginner', (sl) => difficultyBySlug(sl)).length > 0);
+  check('Without a difficulty source it behaves exactly as before', slugsForLevel(day, 'beginner').length === Math.min(day.length, 4));
+
+  // ── And the screens use it.
+  const lib = fs.readFileSync('src/screens/train/ExerciseLibraryScreen.tsx', 'utf8');
+  check('The library orders by how well each movement fits you', /levelFit\(/.test(lib) && /forMyLevel/.test(lib));
+  check('...and shows how hard each one is', /DIFFICULTY_LABELS\[d\]/.test(lib));
+  check('Both prefill pickers pass difficulty through', /slugsForLevel\(day\.exercises, level, difficultyBySlug\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /difficultyBySlug/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
+  // New exercises only reach an existing install when the schema version moves.
+  check('The schema bump is what delivers them', /const SCHEMA_VERSION = 32;/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

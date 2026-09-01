@@ -48,8 +48,12 @@ import { seedExerciseLibrary } from './seed';
  *                  app-level odds and ends) + custom_foods.source, which marks a
  *                  food whose numbers came from a model rather than from you or
  *                  from the curated catalogue. NULL reads as 'user'.
+ *   31 → 32 v2.64: +163 exercises (hamstrings, glutes, calves, arms, core,
+ *                  bodyweight progressions, machines/cables, mobility) and an
+ *                  authored difficulty on every entry. The bump is what makes
+ *                  an existing install re-seed and actually receive them.
  */
-const SCHEMA_VERSION = 31;
+const SCHEMA_VERSION = 32;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

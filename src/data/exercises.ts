@@ -5,6 +5,7 @@ import type {
   TrackingType,
 } from '@/db/schema';
 import { SUB_MUSCLE_TAGS } from './subMuscleTags';
+import { difficultyOf, type Difficulty } from '@/lib/exerciseDifficulty';
 
 /**
  * Built-in exercise & activity library.
@@ -35,6 +36,13 @@ export interface SeedExercise {
   trackingType: TrackingType;
   icon: string;
   met?: number;
+  /**
+   * How hard it is, 1-5 (see lib/exerciseDifficulty for what each number
+   * means). Authored where it is known; derived from equipment and movement
+   * pattern otherwise, with named skills overriding both. Every entry in
+   * EXERCISE_LIBRARY carries one by the time it is exported.
+   */
+  difficulty?: Difficulty;
   /**
    * This entry is the same movement as `aliasOf` under an older/newer slug.
    * Both rows stay in the database forever (logs point at them), but the
@@ -190,7 +198,7 @@ export const PATTERN_CUES: Record<MovementPattern, string[]> = {
 
 // Compact builder to keep this large table readable.
 type Opts = Partial<
-  Pick<SeedExercise, 'equipment' | 'description' | 'instructions' | 'trackingType' | 'met' | 'sessionType' | 'subMuscle' | 'aliasOf'>
+  Pick<SeedExercise, 'equipment' | 'description' | 'instructions' | 'trackingType' | 'met' | 'sessionType' | 'subMuscle' | 'aliasOf' | 'difficulty'>
 >;
 function S(
   slug: string,
@@ -219,6 +227,7 @@ function S(
     trackingType: opts.trackingType ?? 'reps_weight',
     icon,
     met: opts.met ?? (isBodyweight ? 6 : 5),
+    difficulty: opts.difficulty,
     aliasOf: opts.aliasOf,
   };
 }
@@ -1855,6 +1864,502 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
     subMuscle: 'triceps_long', trackingType: 'reps_only', met: 4,
     description: 'Extensions against a bar or rings set at hip height — lower your head behind the bar and press back out. Change the difficulty by walking your feet in or out.',
   }),
+
+  // ── v2.64: filling the thin corners of the library ──
+  // Hamstrings, glutes, calves, arms, core, bodyweight progressions,
+  // machine and cable work, and mobility — the areas a whole app needs
+  // and this one was short of. Every entry carries an authored
+  // difficulty, so the ladders (wall push-up through planche) read as
+  // ladders rather than as one flat wall of movements.
+  S('advanced-tuck-front-lever', 'Advanced Tuck Front Lever', 'back', 'bodyweight', 'core', ['back', 'core', 'biceps'], 'strength.calisthenics', {
+    trackingType: 'duration', met: 5.5, difficulty: 4, description: 'A front lever hold with the knees tucked but the back flat and the hips opened, the step between the tuck and straddle versions.',
+  }),
+  S('band-assisted-pull-up', 'Band-Assisted Pull-Up', 'back', 'other', 'vertical_pull', ['back', 'biceps'], 'strength.band', {
+    trackingType: 'reps_only', met: 5, difficulty: 2, description: 'A pull-up with a resistance band under the foot or knee taking part of your bodyweight, letting you train full reps before you own them.',
+  }),
+  S('chest-to-bar-pull-up', 'Chest-to-Bar Pull-Up', 'back', 'bodyweight', 'vertical_pull', ['back', 'biceps', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6.5, difficulty: 4, description: 'A pull-up pulled high enough to touch the chest to the bar, building the extra range and pulling power a muscle-up needs.',
+  }),
+  S('inverted-row-feet-elevated', 'Inverted Row (Feet Elevated)', 'back', 'bodyweight', 'horizontal_pull', ['back', 'biceps', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 3, description: 'A horizontal row under a bar with the feet raised on a box, making the body angle steeper and the pull considerably harder.',
+  }),
+  S('iso-lateral-high-row', 'Iso-Lateral High Row (Plate-Loaded)', 'back', 'machine', 'vertical_pull', ['back', 'biceps'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'A chest-supported machine pull from above and in front, one arm at a time, hitting the lats on a downward angle.',
+  }),
+  S('jumping-pull-up', 'Jumping Pull-Up', 'back', 'bodyweight', 'vertical_pull', ['back', 'biceps'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6, difficulty: 2, description: 'A pull-up started with a jump from the floor so you can train the top half of the movement before you can pull your full weight.',
+  }),
+  S('lat-pulldown-single-arm', 'Single-Arm Lat Pulldown', 'back', 'cable', 'vertical_pull', ['back', 'biceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A pulldown with one handle so the lat can be trained through a fuller range and side-to-side gaps get exposed.',
+  }),
+  S('machine-pullover', 'Machine Pullover', 'back', 'machine', 'vertical_pull', ['back', 'chest'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A seated machine that drives the elbows down in an arc, loading the lats through a long range with no grip or biceps limit.',
+  }),
+  S('negative-pull-up', 'Negative Pull-Up', 'back', 'bodyweight', 'vertical_pull', ['back', 'biceps', 'forearms'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 2, description: 'Jump or step to the top of a pull-up and lower slowly under control, the standard way to build a first full rep.',
+  }),
+  S('seated-back-extension-machine', 'Seated Back Extension Machine', 'back', 'machine', 'hinge', ['back', 'glutes'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 1, description: 'A seated machine that loads spinal extension against a pad, giving lower-back work to people who cannot yet hold a 45-degree bench.',
+  }),
+  S('seated-cable-row-single-arm', 'Single-Arm Seated Cable Row', 'back', 'cable', 'horizontal_pull', ['back', 'biceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A seated row performed one arm at a time, allowing extra reach at the front and a harder shoulder-blade squeeze at the back.',
+  }),
+  S('smith-machine-row', 'Bent-Over Row (Smith Machine)', 'back', 'machine', 'horizontal_pull', ['back', 'biceps'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'A bent-over row on a fixed vertical bar path, which keeps the bar tracking straight so you can hold a stricter hinge position.',
+  }),
+  S('straddle-front-lever', 'Straddle Front Lever', 'back', 'bodyweight', 'core', ['back', 'core', 'biceps'], 'strength.calisthenics', {
+    trackingType: 'duration', met: 6, difficulty: 5, description: 'A front lever hold with the legs split wide to shorten the lever, the last step before the full front lever.',
+  }),
+  S('t-bar-row-chest-supported', 'Chest-Supported T-Bar Row', 'back', 'machine', 'horizontal_pull', ['back', 'biceps'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'A T-bar row with the torso braced against a pad, so heavy mid-back work happens with no lower-back or hinge fatigue.',
+  }),
+  S('tuck-back-lever', 'Tuck Back Lever', 'back', 'bodyweight', 'core', ['back', 'chest', 'core'], 'strength.calisthenics', {
+    trackingType: 'duration', met: 5, difficulty: 3, description: 'A face-down horizontal hold under a bar or rings with the knees tucked, the first step of the back lever progression.',
+  }),
+  S('barbell-curl-21s', '21s Curl (Barbell)', 'biceps', 'barbell', 'curl', ['biceps', 'forearms'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A curl set of seven bottom-half reps, seven top-half reps and seven full reps performed back to back to accumulate time under tension in every part of the range.',
+  }),
+  S('bayesian-cable-curl', 'Bayesian Cable Curl', 'biceps', 'cable', 'curl', ['biceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 3, description: 'A single-arm cable curl performed facing away from a low pulley with the arm behind the torso, keeping tension on the biceps in the fully stretched position.',
+  }),
+  S('behind-the-back-cable-curl', 'Behind-the-Back Cable Curl', 'biceps', 'cable', 'curl', ['biceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'A single-arm curl with the cable running behind the body from a low pulley, holding the upper arm slightly behind the torso to bias the long head of the biceps.',
+  }),
+  S('chin-up-supinated', 'Chin-Up (Supinated Grip)', 'biceps', 'bodyweight', 'vertical_pull', ['biceps', 'back'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6, difficulty: 3, description: 'A bodyweight pull to the bar with palms facing the lifter, loading the biceps heavily alongside the lats.',
+  }),
+  S('gironda-drag-curl-cable', 'Cable Drag Curl', 'biceps', 'cable', 'curl', ['biceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'A cable curl in which the elbows travel backwards and the handle is dragged up the torso, shortening the biceps without letting the front delts take over.',
+  }),
+  S('machine-bicep-curl-seated', 'Seated Biceps Curl Machine', 'biceps', 'machine', 'curl', ['biceps'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 1, description: 'A machine curl with the upper arms fixed on a pad, giving a stable path for beginners or for high-rep work at the end of a session.',
+  }),
+  S('seated-dumbbell-curl', 'Seated Dumbbell Curl', 'biceps', 'dumbbell', 'curl', ['biceps', 'forearms'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 1, description: 'A curl performed seated upright on a bench, which prevents leg drive and body English so the biceps do the work.',
+  }),
+  S('spider-curl-dumbbell', 'Spider Curl (Dumbbell)', 'biceps', 'dumbbell', 'curl', ['biceps', 'forearms'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'A curl performed lying chest-down on an incline bench so the arms hang straight down, removing swing and loading the biceps in the shortened position.',
+  }),
+  S('waiter-curl', 'Waiter Curl (Dumbbell)', 'biceps', 'dumbbell', 'curl', ['biceps', 'forearms'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'A curl holding a single dumbbell flat between both hands like a tray, which keeps the wrists supinated and concentrates the load on the biceps.',
+  }),
+  S('weighted-chin-up', 'Weighted Chin-Up', 'biceps', 'bodyweight', 'vertical_pull', ['biceps', 'back'], 'strength.calisthenics', {
+    trackingType: 'reps_weight', met: 6.5, difficulty: 4, description: 'A supinated pull-up performed with extra load on a belt or between the feet, used to build maximal biceps and lat strength.',
+  }),
+  S('zottman-curl', 'Zottman Curl (Dumbbell)', 'biceps', 'dumbbell', 'curl', ['biceps', 'forearms'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 3, description: 'A dumbbell curl lifted with a supinated grip and lowered with a pronated grip, training the biceps on the way up and the forearm extensors and brachioradialis on the way down.',
+  }),
+  S('eccentric-heel-drop', 'Eccentric Heel Drop', 'calves', 'bodyweight', 'calf_raise', ['calves'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 1, description: 'Rise on both feet at the edge of a step, then lower one heel slowly below the step — the standard loading drill for Achilles tendon rehab.',
+  }),
+  S('pogo-hops', 'Pogo Hops', 'calves', 'bodyweight', 'calf_raise', ['calves', 'quads'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 8, difficulty: 2, description: 'Small, fast rebounding hops driven from the ankles with stiff knees, training calf and Achilles elasticity for running and jumping.',
+  }),
+  S('seated-barbell-calf-raise', 'Seated Barbell Calf Raise', 'calves', 'barbell', 'calf_raise', ['calves'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'Seated with a padded barbell across the thighs and the balls of the feet on a block, pressing up through the toes to load the soleus without a machine.',
+  }),
+  S('smith-calf-raise', 'Smith Machine Calf Raise', 'calves', 'machine', 'calf_raise', ['calves'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'Standing calf raises with the bar on the shoulders in a Smith machine, so you can chase heavy loads without balancing the bar.',
+  }),
+  S('smith-machine-calf-raise', 'Calf Raise (Smith Machine)', 'calves', 'machine', 'calf_raise', ['calves'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 1, description: 'A standing calf raise with the bar fixed on the shoulders, so you can chase a full stretch and squeeze without balancing the load.',
+  }),
+  S('tib-bar-raise', 'Weighted Tibialis Raise (Tib Bar)', 'calves', 'other', 'calf_raise', ['calves'], 'strength.band', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'Toe raises against a loaded tib bar or ankle strap, adding progressive resistance to the shin muscles for knee and ankle resilience.',
+  }),
+  S('tibialis-raise', 'Tibialis Raise', 'calves', 'bodyweight', 'calf_raise', ['calves'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 1, description: 'Heels planted with your back against a wall, lifting the toes toward the shins to train the tibialis anterior and balance out calf work.',
+  }),
+  S('toe-walk', 'Toe Walk', 'calves', 'bodyweight', 'carry', ['calves', 'core'], 'strength.calisthenics', {
+    trackingType: 'distance', met: 4.5, difficulty: 1, description: 'Walking on the balls of the feet with the heels held high, building calf and foot endurance for a set distance.',
+  }),
+  S('cable-chest-press-standing', 'Standing Cable Chest Press', 'chest', 'cable', 'horizontal_push', ['chest', 'triceps', 'core'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 2, description: 'A press away from the body from chest-height pulleys while standing, adding a core anti-extension demand to the push.',
+  }),
+  S('cable-fly-single-arm', 'Single-Arm Cable Fly', 'chest', 'cable', 'horizontal_push', ['chest'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A one-arm fly that lets the working side travel across the midline for a longer stretch and squeeze than a two-arm crossover.',
+  }),
+  S('chest-press-machine-incline', 'Incline Chest Press Machine', 'chest', 'machine', 'horizontal_push', ['chest', 'shoulders', 'triceps'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 1, description: 'A seated pressing machine set on an upward angle to bias the upper chest without needing bench-press balance.',
+  }),
+  S('iso-lateral-chest-press', 'Iso-Lateral Chest Press (Plate-Loaded)', 'chest', 'machine', 'horizontal_push', ['chest', 'triceps', 'shoulders'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'A plate-loaded press with independent arms, so each side moves its own load and strength differences cannot be hidden.',
+  }),
+  S('knee-push-up', 'Knee Push-Up', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'triceps', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3.5, difficulty: 1, description: 'A push-up done from the knees instead of the toes, cutting the load so you can build reps toward the full version.',
+  }),
+  S('korean-dip', 'Korean Dip', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'triceps', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6.5, difficulty: 4, description: 'A dip on a straight bar held behind the back, loading the chest and shoulders through a deep and demanding range.',
+  }),
+  S('smith-machine-incline-press', 'Incline Bench Press (Smith Machine)', 'chest', 'machine', 'horizontal_push', ['chest', 'shoulders', 'triceps'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'An incline press on a fixed bar path, letting you train the upper chest heavily without a spotter.',
+  }),
+  S('wall-push-up', 'Wall Push-Up', 'chest', 'bodyweight', 'horizontal_push', ['chest', 'triceps', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 1, description: 'A push-up performed standing with the hands flat on a wall, the easiest entry point for building pressing strength.',
+  }),
+  S('body-saw-plank', 'Body Saw Plank', 'core', 'bodyweight', 'core', ['core', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3.5, difficulty: 3, description: 'In a forearm plank with the feet on sliders, rock the body backward and forward so the lever lengthens, making the plank harder without adding weight.',
+  }),
+  S('cable-woodchop-high-low', 'Cable Woodchop (High to Low)', 'core', 'cable', 'rotation', ['core', 'shoulders'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 2, description: 'Pull a high cable diagonally across the body to the opposite hip while turning through the trunk, training rotation under steady load.',
+  }),
+  S('cable-woodchop-low-to-high', 'Reverse Cable Woodchop (Low-to-High)', 'core', 'cable', 'rotation', ['core', 'shoulders'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A diagonal rotation pulling from a low pulley up across the body, training the obliques in the opposite direction to the standard chop.',
+  }),
+  S('captains-chair-knee-raise', 'Captain\'s Chair Knee Raise', 'core', 'machine', 'core', ['core'], 'strength.machine', {
+    trackingType: 'reps_only', met: 4, difficulty: 2, description: 'Supported on the forearms in a captain\'s chair rack, lift the knees toward the chest so the abs work without grip or hanging strength limiting the set.',
+  }),
+  S('copenhagen-plank', 'Copenhagen Plank', 'core', 'bodyweight', 'core', ['core', 'legs'], 'strength.calisthenics', {
+    trackingType: 'duration', met: 3, difficulty: 3, description: 'A side plank with the top leg resting on a bench and the body held up through the inner thigh, used to strengthen the adductors and lateral core together.',
+  }),
+  S('ghd-sit-up', 'GHD Sit-Up', 'core', 'machine', 'core', ['core', 'quads'], 'strength.machine', {
+    trackingType: 'reps_only', met: 5, difficulty: 4, description: 'Seated on a glute-ham developer with the hips off the pad, extend back below horizontal and sit up again, training the abs through a much larger range than a floor sit-up.',
+  }),
+  S('hanging-knee-raise', 'Hanging Knee Raise', 'core', 'bodyweight', 'core', ['core', 'forearms'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 4, difficulty: 2, description: 'Hang from a bar and draw the knees up toward the chest with a controlled descent, serving as the standard bent-leg step toward straight-leg raises.',
+  }),
+  S('hanging-windshield-wipers', 'Hanging Windshield Wipers', 'core', 'bodyweight', 'rotation', ['core', 'back'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6, difficulty: 5, description: 'Hanging from a bar with legs raised toward it, sweep the feet side to side in an arc, demanding heavy oblique strength and grip endurance.',
+  }),
+  S('medicine-ball-rotational-throw', 'Medicine Ball Rotational Throw', 'core', 'other', 'rotation', ['core', 'shoulders'], 'strength.band', {
+    trackingType: 'reps_weight', met: 6.5, difficulty: 3, description: 'Stand side-on to a wall and throw a medicine ball hard across the body, developing explosive rotational power for throwing and striking sports.',
+  }),
+  S('pallof-press', 'Pallof Press (Cable)', 'core', 'cable', 'core', ['core'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'Standing side-on to a cable, press the handle straight out from the chest and resist the pull that tries to rotate you, training the core to prevent rotation rather than produce it.',
+  }),
+  S('plank-shoulder-tap', 'Plank Shoulder Tap', 'core', 'bodyweight', 'core', ['core', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3.5, difficulty: 2, description: 'From a high plank, tap each hand to the opposite shoulder while keeping the hips still, an accessible way to train anti-rotation.',
+  }),
+  S('side-lying-hip-raise', 'Side-Lying Hip Raise', 'core', 'bodyweight', 'core', ['core', 'glutes'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 2, description: 'From a forearm side plank on bent knees, lower and lift the hips repeatedly to work the obliques and lateral hip through a range of motion.',
+  }),
+  S('stir-the-pot', 'Stir the Pot (Swiss Ball)', 'core', 'other', 'core', ['core', 'shoulders'], 'strength.band', {
+    trackingType: 'reps_only', met: 3.5, difficulty: 3, description: 'Plank on the forearms on a Swiss ball and draw slow circles with the elbows, holding a rigid trunk while the support surface keeps moving.',
+  }),
+  S('swiss-ball-pike', 'Swiss Ball Pike', 'core', 'other', 'core', ['core', 'shoulders'], 'strength.band', {
+    trackingType: 'reps_only', met: 4.5, difficulty: 4, description: 'With the shins on a Swiss ball in a push-up position, pull the hips high into a pike and return, a demanding progression toward straight-leg core control.',
+  }),
+  S('toes-to-bar', 'Toes-to-Bar', 'core', 'bodyweight', 'core', ['core', 'back', 'forearms'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6.5, difficulty: 4, description: 'From a hang, bring both feet up to touch the bar and return under control, combining full-range hip flexion with lat and grip strength.',
+  }),
+  S('torso-rotation-machine', 'Torso Rotation Machine', 'core', 'machine', 'rotation', ['core'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 1, description: 'A seated machine with the hips pinned that loads twisting through the trunk to train the obliques directly.',
+  }),
+  S('tuck-l-sit', 'Tuck L-Sit', 'core', 'bodyweight', 'core', ['core', 'triceps', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'duration', met: 3.5, difficulty: 2, description: 'A support hold on parallettes or the floor with the knees tucked to the chest, the regression that leads to a full L-sit.',
+  }),
+  S('weighted-plank', 'Weighted Plank', 'core', 'other', 'core', ['core', 'shoulders'], 'strength.band', {
+    trackingType: 'duration', met: 3.5, difficulty: 3, description: 'A standard forearm plank with a weight plate placed on the upper back, adding load so the hold builds strength instead of only endurance.',
+  }),
+  S('barbell-hold-for-time', 'Barbell Static Hold', 'forearms', 'barbell', 'carry', ['forearms', 'back'], 'strength.barbell', {
+    trackingType: 'duration', met: 3.5, difficulty: 2, description: 'A timed hold of a loaded barbell at arm\'s length from a rack, used to build grip endurance for deadlifts and rows.',
+  }),
+  S('rice-bucket-grip-work', 'Rice Bucket Grip Drill', 'forearms', 'other', 'curl', ['forearms'], 'strength.band', {
+    trackingType: 'duration', met: 2.5, difficulty: 1, description: 'A timed drill digging, squeezing and rotating the hands through a bucket of rice to train the finger flexors and extensors with low joint stress.',
+  }),
+  S('suitcase-carry', 'Suitcase Carry', 'forearms', 'dumbbell', 'carry', ['forearms', 'core'], 'strength.dumbbell', {
+    trackingType: 'distance', met: 5.5, difficulty: 2, description: 'A loaded walk carrying weight in one hand only, training grip while the core resists sideways lean.',
+  }),
+  S('b-stance-hip-thrust', 'B-Stance Hip Thrust (Barbell)', 'glutes', 'barbell', 'hinge', ['glutes', 'hamstrings'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'Hip thrust with one foot staggered back as a kickstand so most of the load goes through the front leg.',
+  }),
+  S('banded-lateral-walk', 'Banded Lateral Walk', 'glutes', 'other', 'hinge', ['glutes'], 'strength.band', {
+    trackingType: 'duration', met: 3.5, difficulty: 1, description: 'Sideways stepping in a half-squat with a band around the knees to strengthen the hip abductors.',
+  }),
+  S('bench-reverse-hyper', 'Bench Reverse Hyperextension', 'glutes', 'bodyweight', 'hinge', ['glutes', 'hamstrings', 'back'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3.5, difficulty: 2, description: 'Lying face down on a bench and raising the legs to hip height, a bodyweight way to train hip extension.',
+  }),
+  S('cable-hip-abduction', 'Standing Cable Hip Abduction', 'glutes', 'cable', 'hinge', ['glutes'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'Pulling the leg out to the side against a low pulley, isolating the gluteus medius under constant tension.',
+  }),
+  S('clamshell', 'Clamshell (Band)', 'glutes', 'other', 'hinge', ['glutes'], 'strength.band', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 1, description: 'Side-lying knee opening against a band around the thighs that targets the gluteus medius for hip stability.',
+  }),
+  S('curtsy-lunge', 'Curtsy Lunge', 'glutes', 'bodyweight', 'lunge', ['glutes', 'quads'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 2, description: 'Lunge with the rear leg crossing behind the front, emphasising the gluteus medius and hip control.',
+  }),
+  S('db-reverse-lunge', 'Reverse Lunge (Dumbbell)', 'glutes', 'dumbbell', 'lunge', ['glutes', 'quads', 'hamstrings'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 6, difficulty: 2, description: 'Stepping backward into a lunge with dumbbells, a knee-friendly single-leg lift that favours the glutes.',
+  }),
+  S('frog-pump', 'Frog Pump', 'glutes', 'bodyweight', 'hinge', ['glutes'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 1, description: 'Floor bridge with the soles of the feet together and knees turned out, used for high-rep glute work.',
+  }),
+  S('ghd-hip-extension', 'GHD Hip Extension', 'glutes', 'machine', 'hinge', ['glutes', 'hamstrings', 'back'], 'strength.machine', {
+    trackingType: 'reps_only', met: 4, difficulty: 3, description: 'Raising the torso from a hanging position on a glute-ham developer with the knees fixed, training hip extension alone.',
+  }),
+  S('glute-bridge-march', 'Glute Bridge March', 'glutes', 'bodyweight', 'hinge', ['glutes', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 2, description: 'Holding a bridge while lifting one knee at a time, training the glutes to keep the hips level on one leg.',
+  }),
+  S('glute-drive-machine', 'Glute Drive Machine', 'glutes', 'machine', 'hinge', ['glutes', 'hamstrings'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 1, description: 'A seated hip-thrust machine with a padded lap bar, giving the same glute work as a barbell thrust with no setup or bar discomfort.',
+  }),
+  S('hip-airplane', 'Hip Airplane', 'glutes', 'bodyweight', 'rotation', ['glutes', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3, difficulty: 4, description: 'Single-leg hinge with the pelvis rotating open and closed, training hip rotation control and balance.',
+  }),
+  S('hip-thrust-machine', 'Hip Thrust Machine', 'glutes', 'machine', 'hinge', ['glutes', 'hamstrings'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'Loaded hip thrust in a fixed machine, removing the bar setup so the glutes can be trained heavy.',
+  }),
+  S('kb-sumo-deadlift', 'Kettlebell Sumo Deadlift', 'glutes', 'other', 'hinge', ['glutes', 'hamstrings', 'quads'], 'strength.band', {
+    trackingType: 'reps_weight', met: 5, difficulty: 1, description: 'Wide-stance deadlift with a kettlebell between the feet, the simplest way to learn a loaded hinge.',
+  }),
+  S('kneeling-squat', 'Barbell Kneeling Squat', 'glutes', 'barbell', 'hinge', ['glutes', 'hamstrings'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'Sitting back and driving the hips forward from a tall kneeling position with a bar on the back, loading hip extension without the knees or ankles.',
+  }),
+  S('monster-walk', 'Monster Walk (Band)', 'glutes', 'other', 'hinge', ['glutes', 'quads'], 'strength.band', {
+    trackingType: 'duration', met: 4, difficulty: 2, description: 'Forward and backward stepping in a half-squat against a band around the knees, building hip abductor endurance.',
+  }),
+  S('reverse-hack-squat', 'Reverse Hack Squat', 'glutes', 'machine', 'squat', ['glutes', 'quads', 'hamstrings'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5.5, difficulty: 3, description: 'A hack squat performed facing into the pad, which shifts the load onto the glutes and hamstrings through a deep hip range.',
+  }),
+  S('reverse-hyperextension', 'Reverse Hyperextension (Machine)', 'glutes', 'machine', 'hinge', ['glutes', 'hamstrings', 'back'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4, difficulty: 3, description: 'Swinging the legs up from a fixed torso to train hip extension with very little load on the spine.',
+  }),
+  S('single-leg-hip-thrust', 'Single-Leg Hip Thrust', 'glutes', 'bodyweight', 'hinge', ['glutes', 'hamstrings'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 4, difficulty: 3, description: 'Hip thrust from a bench with one foot on the floor and the other leg lifted, loading each glute on its own.',
+  }),
+  S('smith-machine-hip-thrust', 'Hip Thrust (Smith Machine)', 'glutes', 'machine', 'hinge', ['glutes', 'hamstrings'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'A bench-supported hip thrust with the bar running in the Smith rails, making heavy loads easy to unrack and re-rack alone.',
+  }),
+  S('step-through-lunge', 'Step-Through Lunge', 'glutes', 'bodyweight', 'lunge', ['glutes', 'quads', 'hamstrings'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 6, difficulty: 3, description: 'Continuous forward-then-backward lunge on the same leg without resting the foot down, training balance and single-leg control.',
+  }),
+  S('trap-bar-deadlift', 'Trap Bar Deadlift', 'glutes', 'barbell', 'hinge', ['glutes', 'quads', 'hamstrings'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 6, difficulty: 3, description: 'Deadlift from inside a hex bar with neutral handles, an easier-to-learn way to train heavy hip extension.',
+  }),
+  S('cable-romanian-deadlift', 'Cable Romanian Deadlift', 'hamstrings', 'cable', 'hinge', ['hamstrings', 'glutes', 'back'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 2, description: 'Romanian deadlift against a low cable, keeping tension on the hamstrings through the whole range.',
+  }),
+  S('deficit-deadlift', 'Deficit Deadlift', 'hamstrings', 'barbell', 'hinge', ['hamstrings', 'glutes', 'back'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 6, difficulty: 4, description: 'Deadlift while standing on a plate or block, adding range of motion to build strength off the floor.',
+  }),
+  S('dowel-hip-hinge', 'Dowel Hip Hinge', 'hamstrings', 'other', 'hinge', ['hamstrings', 'glutes', 'back'], 'strength.band', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 1, description: 'Hinge drill with a dowel held along the spine, teaching a neutral back and a hips-back pattern before adding load.',
+  }),
+  S('jefferson-curl', 'Jefferson Curl', 'hamstrings', 'dumbbell', 'hinge', ['hamstrings', 'back'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 3, difficulty: 4, description: 'Slow segmental roll-down and back up holding a light weight, used to build strength at the end range of hamstring flexibility.',
+  }),
+  S('snatch-grip-deadlift', 'Snatch-Grip Deadlift', 'hamstrings', 'barbell', 'hinge', ['hamstrings', 'back', 'glutes'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 6, difficulty: 4, description: 'Deadlift with a very wide grip that lengthens the range of motion and loads the upper back and hamstrings hard.',
+  }),
+  S('staggered-stance-rdl', 'Staggered-Stance Romanian Deadlift (Dumbbell)', 'hamstrings', 'dumbbell', 'hinge', ['hamstrings', 'glutes'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 3, description: 'Romanian deadlift with the rear foot on its toes as a kickstand, shifting most of the load onto the front hamstring.',
+  }),
+  S('standing-leg-curl', 'Standing Leg Curl (Machine)', 'hamstrings', 'machine', 'hinge', ['hamstrings'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'Single-leg knee curl performed standing, isolating one hamstring at a time.',
+  }),
+  S('standing-leg-curl-machine', 'Standing Leg Curl (Single-Leg)', 'hamstrings', 'machine', 'hinge', ['hamstrings', 'calves'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4, difficulty: 2, description: 'A one-leg hamstring curl performed upright with the hip extended, training knee flexion in a position the lying and seated curls miss.',
+  }),
+  S('swiss-ball-leg-curl', 'Stability Ball Leg Curl', 'hamstrings', 'other', 'hinge', ['hamstrings', 'glutes', 'core'], 'strength.band', {
+    trackingType: 'reps_only', met: 4, difficulty: 2, description: 'Bridging with the heels on a stability ball and curling it in, working the hamstrings and glutes together.',
+  }),
+  S('weighted-nordic-curl', 'Weighted Nordic Curl', 'hamstrings', 'other', 'hinge', ['hamstrings'], 'strength.band', {
+    trackingType: 'reps_weight', met: 6, difficulty: 5, description: 'Nordic curl performed holding a plate to the chest, an advanced eccentric overload for the hamstrings.',
+  }),
+  S('hip-adduction-machine', 'Hip Adduction Machine', 'legs', 'machine', 'squat', ['legs', 'quads'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 1, description: 'A seated machine that squeezes the knees together against resistance to train the inner-thigh adductors.',
+  }),
+  S('90-90-hip-switch', '90/90 Hip Switch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'glutes', 'legs'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 2, sessionType: 'mindbody', description: 'Seated rotation of both legs from one 90/90 position to the other, training internal and external hip rotation.',
+  }),
+  S('banded-shoulder-dislocates', 'Banded Shoulder Dislocates', 'mobility', 'other', 'mobility', ['mobility', 'shoulders', 'chest'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 2, sessionType: 'mindbody', description: 'Passing a band overhead and behind the body with straight arms to open the shoulders before pressing or overhead work.',
+  }),
+  S('butterfly-stretch', 'Butterfly Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'legs'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A seated hold with the soles of the feet together and the knees dropped out, stretching the groin and inner thighs.',
+  }),
+  S('cat-cow', 'Cat-Cow', 'mobility', 'bodyweight', 'mobility', ['mobility', 'back', 'core'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'Alternating spinal flexion and extension on hands and knees, used to warm the back and hips before training.',
+  }),
+  S('childs-pose', 'Child\'s Pose', 'mobility', 'bodyweight', 'mobility', ['mobility', 'back', 'glutes'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A kneeling rest position with the hips sat back and the arms reaching forward, stretching the lats, lower back and hips.',
+  }),
+  S('doorway-pec-stretch', 'Doorway Pec Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'chest', 'shoulders'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A standing stretch with the forearm braced on a door frame, opening the chest and front of the shoulder.',
+  }),
+  S('downward-dog', 'Downward Dog', 'mobility', 'bodyweight', 'mobility', ['mobility', 'hamstrings', 'shoulders'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2.5, difficulty: 2, sessionType: 'mindbody', description: 'An inverted V hold on the hands and feet that lengthens the hamstrings, calves and shoulders at once.',
+  }),
+  S('frog-stretch', 'Frog Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'legs', 'glutes'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2.3, difficulty: 2, sessionType: 'mindbody', description: 'A wide-knee kneeling hold that opens the groin and inner thigh for squatting and lateral movement.',
+  }),
+  S('front-split', 'Front Split', 'mobility', 'bodyweight', 'mobility', ['mobility', 'hamstrings', 'quads'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2.5, difficulty: 5, sessionType: 'mindbody', description: 'A full lengthwise split held on the floor, the end point of sustained hamstring and hip flexor flexibility work.',
+  }),
+  S('half-kneeling-hip-flexor-stretch', 'Half-Kneeling Hip Flexor Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'quads', 'glutes'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A half-kneeling hold with the pelvis tucked under, stretching the hip flexors of the rear leg.',
+  }),
+  S('hamstring-nerve-floss', 'Hamstring Nerve Floss', 'mobility', 'bodyweight', 'mobility', ['mobility', 'hamstrings'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2, difficulty: 2, sessionType: 'mindbody', description: 'A supine drill repeatedly straightening and bending the raised leg to glide the sciatic nerve and ease hamstring tightness.',
+  }),
+  S('hip-cars', 'Hip CARs', 'mobility', 'bodyweight', 'mobility', ['mobility', 'glutes', 'legs'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 3, sessionType: 'mindbody', description: 'A standing slow full-range circle of one hip while the pelvis stays braced, training active control at the end of hip range.',
+  }),
+  S('knee-to-wall-ankle-drill', 'Knee-to-Wall Ankle Drill', 'mobility', 'bodyweight', 'mobility', ['mobility', 'calves'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'Driving the knee forward over the toes toward a wall with the heel flat, to build the ankle dorsiflexion a deep squat needs.',
+  }),
+  S('neck-cars', 'Neck CARs', 'mobility', 'bodyweight', 'mobility', ['mobility', 'neck'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'Slow controlled circles of the head through its full range, used as a daily range check and a warm-up for the neck.',
+  }),
+  S('open-book-thoracic-rotation', 'Open Book Thoracic Rotation', 'mobility', 'bodyweight', 'mobility', ['mobility', 'back', 'chest'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2, difficulty: 2, sessionType: 'mindbody', description: 'A side-lying drill sweeping the top arm across the body to restore rotation through the mid-back.',
+  }),
+  S('pancake-stretch', 'Pancake Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'hamstrings', 'legs'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2.5, difficulty: 4, sessionType: 'mindbody', description: 'A seated wide-straddle fold with the chest reaching toward the floor, developing deep adductor and hamstring range.',
+  }),
+  S('pigeon-pose', 'Pigeon Pose', 'mobility', 'bodyweight', 'mobility', ['mobility', 'glutes'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2.3, difficulty: 3, sessionType: 'mindbody', description: 'A floor hold with the front shin angled across the body, targeting the glutes and deep hip rotators.',
+  }),
+  S('quadruped-wrist-rocks', 'Quadruped Wrist Rocks', 'mobility', 'bodyweight', 'mobility', ['mobility', 'forearms'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'Rocking bodyweight over the hands through several palm and knuckle positions to prepare the wrists for front squats, presses and floor work.',
+  }),
+  S('scapular-push-up', 'Scapular Push-Up', 'mobility', 'bodyweight', 'mobility', ['mobility', 'back', 'shoulders'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 2, sessionType: 'mindbody', description: 'A push-up position where only the shoulder blades move, spreading and squeezing to train serratus control and shoulder health.',
+  }),
+  S('seated-forward-fold', 'Seated Forward Fold', 'mobility', 'bodyweight', 'mobility', ['mobility', 'hamstrings', 'back'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 2, sessionType: 'mindbody', description: 'A seated hold reaching toward the feet with the legs straight, stretching the hamstrings and lower back.',
+  }),
+  S('shoulder-cars', 'Shoulder CARs', 'mobility', 'bodyweight', 'mobility', ['mobility', 'shoulders'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 2.5, difficulty: 3, sessionType: 'mindbody', description: 'A slow full-range circle of one arm with the torso held still, maintaining the shoulder range you can actively control.',
+  }),
+  S('standing-quad-stretch', 'Standing Quad Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'quads'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A standing hold drawing the heel toward the glute to stretch the quadriceps and hip flexor.',
+  }),
+  S('thread-the-needle', 'Thread the Needle', 'mobility', 'bodyweight', 'mobility', ['mobility', 'back', 'shoulders'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A quadruped hold with one arm threaded under the body, rotating and stretching the upper back and rear shoulder.',
+  }),
+  S('wall-calf-stretch', 'Wall Calf Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'calves'], 'mindbody.stretch', {
+    trackingType: 'duration', met: 2, difficulty: 1, sessionType: 'mindbody', description: 'A standing hold with the ball of the foot against a wall and the heel down, stretching the calf and Achilles.',
+  }),
+  S('worlds-greatest-stretch', 'World\'s Greatest Stretch', 'mobility', 'bodyweight', 'mobility', ['mobility', 'glutes', 'back'], 'mindbody.stretch', {
+    trackingType: 'reps_only', met: 3, difficulty: 2, sessionType: 'mindbody', description: 'A deep lunge with the elbow to the instep and a reach into thoracic rotation, covering hips, groin and upper back in one warm-up movement.',
+  }),
+  S('banded-neck-rotation', 'Banded Neck Rotation', 'neck', 'other', 'core', ['neck'], 'strength.band', {
+    instructions: ['Sit or stand tall with a light band anchored at head height to one side.', 'Turn your head slowly against the band, only as far as stays comfortable.', 'Return under control; never let the band snap your head back.', 'Build up over weeks. The neck responds to little and often, not to load.'], subMuscle: 'neck_lateral', trackingType: 'reps_only', met: 2.5, difficulty: 1, description: 'With a light band anchored to the side of the head, turn the chin toward the shoulder against the band\'s pull to train rotation, which straight flexion and extension work misses.',
+  }),
+  S('chin-tuck-hold', 'Chin Tuck Hold', 'neck', 'bodyweight', 'core', ['neck'], 'strength.calisthenics', {
+    instructions: ['Sit or stand tall, eyes level.', 'Draw the chin straight back, as if making a double chin, without tilting.', 'Hold gently and breathe; you should feel a stretch, never a pinch.', 'Stop immediately if anything sharpens, tingles or refers down an arm.'], subMuscle: 'neck_flexors', trackingType: 'duration', met: 2, difficulty: 1, description: 'Draw the chin gently back and hold, activating the deep neck flexors in a low-load drill commonly used for posture and neck pain.',
+  }),
+  S('prone-neck-extension-plate', 'Prone Neck Extension (Plate)', 'neck', 'other', 'core', ['neck', 'back'], 'strength.band', {
+    instructions: ['Lie face down on a bench with the head clear of the end.', 'Start with NO plate for the first few sessions; learn the range first.', 'Raise the head slowly until level, then lower under control.', 'Add a light plate on a towel only once the bodyweight version is easy.'], subMuscle: 'neck_extensors', trackingType: 'reps_weight', met: 3, difficulty: 3, description: 'Lie face down on a bench with the head off the end and a towel-wrapped plate on the back of the skull, then lift the head through a slow range to load the neck extensors.',
+  }),
+  S('supine-neck-flexion-plate', 'Supine Neck Flexion (Plate)', 'neck', 'other', 'core', ['neck'], 'strength.band', {
+    instructions: ['Lie face up on a bench with the head clear of the end.', 'Start with NO plate; the neck needs less load than you think.', 'Tuck the chin and curl the head up slowly, then lower under control.', 'Never jerk, and stop at once if anything sharpens or refers down an arm.'], subMuscle: 'neck_flexors', trackingType: 'reps_weight', met: 3, difficulty: 3, description: 'Lie face up with the head off a bench and a towel-wrapped plate on the forehead, curling the chin toward the chest to load the neck flexors.',
+  }),
+  S('anderson-squat', 'Anderson Squat (Pin Squat)', 'quads', 'barbell', 'squat', ['quads', 'glutes', 'core'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5.5, difficulty: 4, description: 'Each rep starts from a dead stop with the bar resting on rack pins at squat depth, training pure concentric strength with no stretch reflex.',
+  }),
+  S('assisted-pistol-squat', 'Assisted Pistol Squat (Box)', 'quads', 'bodyweight', 'squat', ['quads', 'glutes', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 2, description: 'A single-leg squat sitting back to a box or holding a support, the standard way to build up to a free pistol squat.',
+  }),
+  S('band-terminal-knee-extension', 'Terminal Knee Extension (Band)', 'quads', 'other', 'squat', ['quads'], 'strength.band', {
+    trackingType: 'reps_only', met: 3, difficulty: 1, description: 'A band pulls the back of the knee forward while you straighten the leg fully, a low-load rehab drill for the last few degrees of knee extension.',
+  }),
+  S('barbell-split-squat', 'Split Squat (Barbell)', 'quads', 'barbell', 'lunge', ['quads', 'glutes'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'Feet fixed in a long stride with the bar on the back, lowering the rear knee toward the floor for heavy single-leg work without stepping.',
+  }),
+  S('belt-squat', 'Belt Squat (Machine)', 'quads', 'machine', 'squat', ['quads', 'glutes'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'Squatting with the load hanging from a hip belt instead of the shoulders, so the legs get worked with almost no spinal loading.',
+  }),
+  S('box-squat', 'Box Squat (Barbell)', 'quads', 'barbell', 'squat', ['quads', 'glutes', 'core'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'Back squat to a box set at a fixed height, sitting back and pausing briefly to standardise depth and strengthen the bottom position.',
+  }),
+  S('broad-jump', 'Standing Broad Jump', 'quads', 'bodyweight', 'squat', ['quads', 'glutes', 'calves'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 8, difficulty: 3, description: 'A maximal two-footed jump forward for distance, landing under control — a simple test and trainer of horizontal leg power.',
+  }),
+  S('chair-squat', 'Chair Squat (Sit-to-Stand)', 'quads', 'bodyweight', 'squat', ['quads', 'glutes'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 3.5, difficulty: 1, description: 'Squatting down to touch a chair or bench and standing back up, the simplest way to learn the squat and build leg strength from zero.',
+  }),
+  S('cossack-squat', 'Cossack Squat', 'quads', 'bodyweight', 'squat', ['quads', 'glutes', 'hamstrings'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 4.5, difficulty: 3, description: 'From a very wide stance, sinking fully onto one bent leg with the other straight and toes up, building single-leg strength through a deep side range.',
+  }),
+  S('cyclist-squat', 'Cyclist Squat (Heel-Elevated)', 'quads', 'barbell', 'squat', ['quads', 'glutes'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 3, description: 'Back squat with the heels raised on plates or a wedge and a narrow stance, shifting the work strongly onto the quads.',
+  }),
+  S('db-lateral-lunge', 'Lateral Lunge (Dumbbell)', 'quads', 'dumbbell', 'lunge', ['quads', 'glutes'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 2, description: 'A wide step to the side, sitting into the stepping leg while the other stays straight, training the legs and adductors sideways.',
+  }),
+  S('depth-jump', 'Depth Jump', 'quads', 'bodyweight', 'squat', ['quads', 'glutes', 'calves'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 8.5, difficulty: 4, description: 'Stepping off a low box and rebounding into an immediate maximal jump on landing, an advanced plyometric for reactive strength that needs a strength base first.',
+  }),
+  S('jumping-lunge', 'Jumping Lunge', 'quads', 'bodyweight', 'lunge', ['quads', 'glutes', 'calves'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 8, difficulty: 3, description: 'Explosive lunges that switch legs in mid-air, training single-leg power and conditioning.',
+  }),
+  S('landmine-squat', 'Landmine Squat', 'quads', 'barbell', 'squat', ['quads', 'glutes', 'core'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 2, description: 'Holding the end of a landmine-anchored barbell at the chest and squatting, with the arced bar path making an upright, deep squat easy to hit.',
+  }),
+  S('pause-squat', 'Pause Squat (Barbell)', 'quads', 'barbell', 'squat', ['quads', 'glutes', 'core'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5.5, difficulty: 3, description: 'Back squat held motionless for two to three seconds at the bottom before driving up, removing the bounce and building strength out of the hole.',
+  }),
+  S('pendulum-squat', 'Pendulum Squat (Machine)', 'quads', 'machine', 'squat', ['quads', 'glutes'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5.5, difficulty: 3, description: 'A squat machine whose platform swings on an arc, keeping the torso upright and letting the knees travel through a deep, quad-heavy range.',
+  }),
+  S('reverse-nordic-curl', 'Reverse Nordic Curl', 'quads', 'bodyweight', 'squat', ['quads', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 4, description: 'Kneeling tall and leaning the whole body backward under control, loading the quads hard in a lengthened position with no equipment.',
+  }),
+  S('smith-machine-split-squat', 'Split Squat (Smith Machine)', 'quads', 'machine', 'lunge', ['quads', 'glutes'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 5.5, difficulty: 4, description: 'A loaded single-leg squat under a fixed bar path, which removes the balance problem so the working leg can be taken to genuine failure.',
+  }),
+  S('spanish-squat', 'Spanish Squat (Band)', 'quads', 'other', 'squat', ['quads'], 'strength.band', {
+    trackingType: 'reps_only', met: 4, difficulty: 2, description: 'Squatting while a heavy band loops behind the knees and anchors in front, keeping the shins vertical and loading the quads and patellar tendon.',
+  }),
+  S('wall-facing-squat', 'Wall-Facing Squat', 'quads', 'bodyweight', 'squat', ['quads', 'glutes', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 4, difficulty: 3, description: 'Squatting with the toes a few inches from a wall so any forward lean is blocked, a self-correcting drill for upright squat technique and ankle mobility.',
+  }),
+  S('advanced-tuck-planche', 'Advanced Tuck Planche', 'shoulders', 'bodyweight', 'core', ['shoulders', 'core', 'chest'], 'strength.calisthenics', {
+    subMuscle: 'front_delt', trackingType: 'duration', met: 5.5, difficulty: 4, description: 'A planche hold with the knees tucked, the back flat and the hips level with the shoulders, the step above the tuck planche.',
+  }),
+  S('crow-pose', 'Crow Pose', 'shoulders', 'bodyweight', 'core', ['shoulders', 'core', 'forearms'], 'strength.calisthenics', {
+    subMuscle: 'front_delt', trackingType: 'duration', met: 4, difficulty: 3, description: 'A hand balance with the knees resting on the upper arms, the usual first step into supporting your bodyweight on your hands.',
+  }),
+  S('elevated-pike-push-up', 'Elevated Pike Push-Up', 'shoulders', 'bodyweight', 'vertical_push', ['shoulders', 'triceps'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5.5, difficulty: 3, description: 'A pike push-up with the feet on a box, steepening the angle so the shoulders carry more of your bodyweight.',
+  }),
+  S('full-planche', 'Full Planche', 'shoulders', 'bodyweight', 'core', ['shoulders', 'core', 'chest'], 'strength.calisthenics', {
+    subMuscle: 'front_delt', trackingType: 'duration', met: 6, difficulty: 5, description: 'A straight-arm hold with the whole body horizontal and only the hands on the floor, one of the hardest straight-arm strength skills.',
+  }),
+  S('german-hang', 'German Hang', 'shoulders', 'bodyweight', 'core', ['shoulders', 'chest', 'back'], 'strength.calisthenics', {
+    subMuscle: 'front_delt', trackingType: 'duration', met: 3, difficulty: 3, description: 'A straight-arm hang behind the body from rings or a bar, building shoulder extension strength and tolerance for lever work.',
+  }),
+  S('handstand-wall-walk', 'Handstand Wall Walk', 'shoulders', 'bodyweight', 'core', ['shoulders', 'core', 'triceps'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 3, description: 'Walk the feet up a wall from a plank while the hands step in toward it, building the handstand line and shoulder endurance.',
+  }),
+  S('straddle-planche', 'Straddle Planche', 'shoulders', 'bodyweight', 'core', ['shoulders', 'core', 'chest'], 'strength.calisthenics', {
+    subMuscle: 'front_delt', trackingType: 'duration', met: 6, difficulty: 5, description: 'A planche hold with the legs split wide to shorten the lever, the final progression before the full planche.',
+  }),
+  S('wall-handstand-shoulder-tap', 'Wall Handstand Shoulder Tap', 'shoulders', 'bodyweight', 'core', ['shoulders', 'core'], 'strength.calisthenics', {
+    subMuscle: 'front_delt', trackingType: 'reps_only', met: 5, difficulty: 4, description: 'Lift one hand to tap the opposite shoulder while holding a chest-to-wall handstand, training the single-arm loading needed to balance free.',
+  }),
+  S('bodyweight-triceps-extension-bar', 'Bodyweight Triceps Extension (Bar)', 'triceps', 'bodyweight', 'triceps_extension', ['triceps', 'core'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 3, description: 'A triceps extension against bodyweight performed under a fixed bar or Smith machine, lowering the head under the bar and extending the elbows to press back up.',
+  }),
+  S('cable-overhead-rope-extension-single', 'Single-Arm Overhead Cable Extension', 'triceps', 'cable', 'triceps_extension', ['triceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'A one-armed extension with the elbow held overhead against a low pulley, training the long head of the triceps in a stretched position one side at a time.',
+  }),
+  S('california-press', 'California Press (Barbell)', 'triceps', 'barbell', 'triceps_extension', ['triceps', 'chest'], 'strength.barbell', {
+    trackingType: 'reps_weight', met: 5, difficulty: 4, description: 'A bench movement combining a skullcrusher lowering with a close-grip press back to lockout, letting the triceps be trained with more load than a strict extension.',
+  }),
+  S('negative-dip', 'Negative Dip', 'triceps', 'bodyweight', 'horizontal_push', ['triceps', 'chest', 'shoulders'], 'strength.calisthenics', {
+    trackingType: 'reps_only', met: 5, difficulty: 2, description: 'Start at the top of a dip and lower slowly under control, building the strength needed to press back up unassisted.',
+  }),
+  S('parallel-bar-support-hold', 'Parallel Bar Support Hold', 'triceps', 'bodyweight', 'core', ['triceps', 'shoulders', 'core'], 'strength.calisthenics', {
+    trackingType: 'duration', met: 3, difficulty: 1, description: 'A locked-out hold at the top of the dip position on parallel bars, the first step in any dip progression.',
+  }),
+  S('reverse-grip-cable-pushdown', 'Reverse-Grip Cable Pushdown', 'triceps', 'cable', 'triceps_extension', ['triceps'], 'strength.cable', {
+    trackingType: 'reps_weight', met: 3.5, difficulty: 2, description: 'A pushdown taken with an underhand grip on a straight bar, which emphasises the medial head of the triceps.',
+  }),
+  S('ring-skullcrusher', 'Ring Skullcrusher', 'triceps', 'other', 'triceps_extension', ['triceps', 'core'], 'strength.band', {
+    trackingType: 'reps_only', met: 5.5, difficulty: 4, description: 'A bodyweight extension on gymnastic rings where the body is lowered by bending the elbows and driven back to a plank, demanding triceps strength plus shoulder stability.',
+  }),
+  S('rolling-dumbbell-extension', 'Rolling Dumbbell Extension', 'triceps', 'dumbbell', 'triceps_extension', ['triceps'], 'strength.dumbbell', {
+    trackingType: 'reps_weight', met: 4.5, difficulty: 3, description: 'A lying extension in which the dumbbells are rolled back past the head before being pressed up, adding a stretch under load and easing stress on the elbows.',
+  }),
+  S('triceps-dip-machine', 'Triceps Dip Machine', 'triceps', 'machine', 'triceps_extension', ['triceps', 'chest'], 'strength.machine', {
+    trackingType: 'reps_weight', met: 4, difficulty: 1, description: 'A seated machine that mimics the dip with a selectable load, letting the triceps be trained heavily by lifters who cannot yet dip their bodyweight.',
+  }),
+  S('weighted-dip-triceps', 'Weighted Parallel Bar Dip', 'triceps', 'bodyweight', 'triceps_extension', ['triceps', 'chest'], 'strength.calisthenics', {
+    trackingType: 'reps_weight', met: 6, difficulty: 4, description: 'A parallel-bar dip performed upright with added load on a belt, one of the heaviest ways to train the triceps through a full range.',
+  }),
 ];
 
 /**
@@ -1863,11 +2368,31 @@ const RAW_EXERCISE_LIBRARY: SeedExercise[] = [
  * ships a pinned `subMuscle` (see src/data/subMuscleTags.ts) rather than relying
  * on runtime inference. Literals that already declare a sub-muscle win.
  */
-export const EXERCISE_LIBRARY: SeedExercise[] = RAW_EXERCISE_LIBRARY.map((e) =>
-  !e.subMuscle && e.slug && SUB_MUSCLE_TAGS[e.slug]
-    ? { ...e, subMuscle: SUB_MUSCLE_TAGS[e.slug] }
-    : e
+export const EXERCISE_LIBRARY: SeedExercise[] = RAW_EXERCISE_LIBRARY.map((e) => {
+  const withTag =
+    !e.subMuscle && e.slug && SUB_MUSCLE_TAGS[e.slug]
+      ? { ...e, subMuscle: SUB_MUSCLE_TAGS[e.slug] }
+      : e;
+  /*
+   * Difficulty is resolved once, here, so every consumer reads a number rather
+   * than re-deriving one — and so a new exercise cannot ship without one. An
+   * authored value wins; otherwise a named skill; otherwise the equipment and
+   * pattern decide (see lib/exerciseDifficulty).
+   */
+  return { ...withTag, difficulty: difficultyOf(withTag) };
+});
+
+/**
+ * The difficulty of a slug, for callers that hold slugs rather than exercises
+ * — prefill lists, saved routines, split days.
+ */
+const DIFFICULTY_BY_SLUG: ReadonlyMap<string, Difficulty> = new Map(
+  EXERCISE_LIBRARY.filter((e) => e.slug && e.difficulty).map((e) => [e.slug!, e.difficulty!])
 );
+
+export function difficultyBySlug(slug: string): Difficulty | null {
+  return DIFFICULTY_BY_SLUG.get(slug) ?? null;
+}
 
 /** Suggested duration (minutes) for the prayer meditation exercises. */
 export const PRAYER_EXERCISE_MINUTES: Record<string, number> = {

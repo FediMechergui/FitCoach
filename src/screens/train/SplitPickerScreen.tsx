@@ -18,6 +18,7 @@ import { MUSCLE_LABELS } from '@/data/exercises';
 import { LevelPicker, useExperienceLevel } from '@/components/LevelPicker';
 import { slugsForLevel, LEVEL_PRESCRIPTION, LEVEL_LABELS } from '@/lib/level';
 import { useSessionStore } from '@/stores/sessionStore';
+import { difficultyBySlug } from '@/data/exercises';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -37,14 +38,14 @@ export function SplitPickerScreen() {
       label: `${split.name} · ${day.label}`,
       splitKey: split.key,
       splitDay: day.key,
-      prefillSlugs: slugsForLevel(day.exercises, level),
+      prefillSlugs: slugsForLevel(day.exercises, level, difficultyBySlug),
     });
     const id = useSessionStore.getState().activeId!;
     navigation.replace('ActiveSession', { sessionId: id });
   };
 
   // Preview the exercises that will be pre-loaded — trimmed for a beginner, compounds first.
-  const preview = day ? exercisesBySlugs(slugsForLevel(day.exercises, level)) : [];
+  const preview = day ? exercisesBySlugs(slugsForLevel(day.exercises, level, difficultyBySlug)) : [];
 
   return (
     <Screen>

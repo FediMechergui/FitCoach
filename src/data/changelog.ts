@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.64',
+    date: '2026-08-31',
+    title: '163 more exercises, and every one of them now says how hard it is',
+    highlights: [
+      'The library goes from 590 movements to 753, filling the corners that were thin: hamstrings and glutes, calves, arms, core, machine and cable work, and mobility. Hamstrings nearly doubled, glutes went from 13 to 35, quads from 21 to 41, mobility from 36 to 61. Every entry is a real, named movement a coach would recognise — no invented variations, no near-duplicates, and the app refuses to ship two exercises with the same name or slug.',
+      'Bodyweight now has its ladders. Wall push-up through to the planche, negative pull-up through to the muscle-up, tuck front lever through to the full one — so a progression reads as a progression instead of a flat wall of movements with no way in.',
+      'Every exercise now carries a difficulty from 1 to 5, and they genuinely differ: 45 movements anyone can do on day one, 217 a beginner learns in a session, 374 standard gym lifts, 103 that demand real strength, 14 that most people never own. It is authored where it is known, and derived from the equipment and the movement pattern otherwise — not guessed from the name, which is what used to happen and which cannot tell a pistol squat from a squat.',
+      'Your level now changes WHICH exercises you get, not just how many. Browsing leads with what fits you and says how hard each one is, with a word when something sits outside your range — but nothing is ever hidden, because seeing the hard thing is how you come to want it. There is a toggle for when only the doable matters.',
+      'And a prefilled session stops handing a beginner things they cannot do. Picking a split or a method used to trim the list by COUNT alone, so a first session could open with a muscle-up as long as it sat high enough in the list. It now drops what the level has no business being handed — unless that would leave too little to train, because a short day you can do beats a full one you cannot.',
+      '1433 checks in all, up from 1400.',
+    ],
+  },
+  {
     version: '2.63',
     date: '2026-08-31',
     title: 'Rest between sets now knows what is in your blood',

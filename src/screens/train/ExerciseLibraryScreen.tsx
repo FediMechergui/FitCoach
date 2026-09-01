@@ -30,6 +30,9 @@ import { SESSION_TYPE_META } from '@/constants/sessionTypes';
 import { Chip } from '@/components/ui/Chip';
 import { MUSCLE_GROUPS, MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS, ALIAS_SLUGS } from '@/data/exercises';
 import { subMuscleOf, subMusclesFor } from '@/lib/subMuscle';
+import { difficultyBySlug } from '@/data/exercises';
+import { DIFFICULTY_LABELS, suitsLevel, levelFit, levelNote, type Difficulty } from '@/lib/exerciseDifficulty';
+import { levelOrDefault } from '@/lib/level';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
@@ -74,6 +77,9 @@ export function ExerciseLibraryScreen() {
   const [muscle, setMuscle] = useState<string>('all');
   const [subMuscle, setSubMuscle] = useState<string>('all');
   const [equip, setEquip] = useState<EquipmentType | 'all'>('all');
+  /** The lifter's own level, so the list can lead with what actually fits. */
+  const level = levelOrDefault(useUserStore((u) => u.user?.experienceLevel));
+  const [forMyLevel, setForMyLevel] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<ExerciseView | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -99,10 +105,23 @@ export function ExerciseLibraryScreen() {
     return subMusclesFor(muscleItems);
   }, [muscle, muscleItems]);
 
-  const items = useMemo(
-    () => (subMuscle === 'all' ? muscleItems : muscleItems.filter((e) => subMuscleOf(e) === subMuscle)),
-    [muscleItems, subMuscle]
-  );
+  /*
+   * Filtered by sub-muscle, then ordered by how well each movement fits the
+   * level — and optionally narrowed to it.
+   *
+   * Level used to change only how MANY exercises a prefilled session loaded,
+   * never WHICH, so browsing showed a beginner the same wall of muscle-ups as
+   * anyone else. Nothing is hidden by default: the list leads with what fits
+   * and lets the rest sit behind it, because seeing the hard thing is how you
+   * come to want it. The toggle is for when only the doable matters.
+   */
+  const items = useMemo(() => {
+    const base = subMuscle === 'all' ? muscleItems : muscleItems.filter((e) => subMuscleOf(e) === subMuscle);
+    const rated = base.map((e, i) => ({ e, i, d: ((e.slug ? difficultyBySlug(e.slug) : null) ?? 3) as Difficulty }));
+    const pool = forMyLevel ? rated.filter((x) => suitsLevel(x.d, level)) : rated;
+    // Stable: equally-fitting exercises keep the catalogue's own order.
+    return pool.sort((x, y) => levelFit(y.d, level) - levelFit(x.d, level) || x.i - y.i).map((x) => x.e);
+  }, [muscleItems, subMuscle, level, forMyLevel]);
 
   const onSelect = useCallback(
     (ex: ExerciseView) => {
@@ -198,6 +217,17 @@ export function ExerciseLibraryScreen() {
                     <Text variant="caption" color={theme.colors.calories} numberOfLines={1} style={{ marginTop: 1 }}>
                       ≈ {kcalPer10} kcal / 10 min · {Math.round(kcalPer10 / 10)} kcal/min
                     </Text>
+                    {(() => {
+                      // How hard it is, plus a word when it sits outside your level.
+                      const d = ((item.slug ? difficultyBySlug(item.slug) : null) ?? 3) as Difficulty;
+                      const note = levelNote(d, level);
+                      return (
+                        <Text variant="caption" color="textFaint" numberOfLines={1} style={{ marginTop: 1 }}>
+                          {'\u25CF'.repeat(d)}{'\u25CB'.repeat(5 - d)} {DIFFICULTY_LABELS[d]}
+                          {note ? ` · ${note}` : ''}
+                        </Text>
+                      );
+                    })()}
                   </View>
                 </Row>
                 {/* In pick mode, still let the user open the how-to guide. */}

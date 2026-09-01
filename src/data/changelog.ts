@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.6',
+    date: '2026-09-01',
+    title: 'The diary earns edit',
+    highlights: [
+      'The one unforgivable gap is closed: a logged food entry could only be deleted and re-entered, never corrected. Now tapping any diary row opens an edit sheet — change the quantity, move it to another meal, fix the time you actually ate it.',
+      'Quantity edits are honest. The row stores totals, so a change from 2 servings to 3 rescales every figure — calories, all four macros, and every micronutrient in the entry — from the same per-serving base the entry was logged at. An honest-log estimate has no serving to rescale, and the sheet says so instead of pretending.',
+      'The eaten-at time is the one the digestion clock reads, so fixing \'12:40\' to \'13:30\' moves the readiness verdict with it — and the time stays anchored to the day you are viewing, not to today.',
+      'Deleting forgives now. The X removes the entry at once and the toast holds the door open for six seconds — Undo puts the row back exactly as it was, micros and all. No confirmation dialog stands in the way of either direction.',
+      '1560 checks in all, up from 1546.',
+    ],
+  },
+  {
     version: '3.0.5',
     date: '2026-09-01',
     title: 'Train gets a spine — Start, Browse, History',

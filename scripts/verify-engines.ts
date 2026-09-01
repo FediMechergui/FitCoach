@@ -3803,5 +3803,29 @@ console.log('\nTrain 3.0 - a spine, not a pile:');
   check('The resume card rides raised elevation', /<Card accent=\{theme\.colors\.accent\} raised>/.test(train));
 }
 
+console.log('\nNutrition 3.0 - the diary earns edit:');
+{
+  const repo = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
+  // The rescale is a ratio against the stored quantity, applied to every total.
+  check('Quantity edits rescale from the implied per-serving base', /const f = newQty \/ row\.quantity;/.test(repo));
+  check('...touching all five stored totals', ['calories', 'proteinG', 'carbsG', 'fatG', 'fiberG'].every((k) => new RegExp(`updates\\.${k} = Math\\.round\\(row\\.${k} \\* f \\* 10\\) / 10;`).test(repo)));
+  check('...and the micros JSON scales with them', /scaled\[k\] = Math\.round\(v \* f \* 100\) \/ 100;/.test(repo));
+  check('A malformed micros blob survives the edit untouched', /} catch \{\s*\n\s*\/\/ A malformed micros blob stays as it was/.test(repo));
+  check('Honest-log rows never pretend to have a serving to rescale', /row\.logMode === 'precise' &&\s*\n\s*row\.quantity > 0/.test(repo));
+  check('Eaten-at edits land in createdAt, where every reader looks', /if \(patch\.eatenAt != null && Number\.isFinite\(patch\.eatenAt\)\) updates\.createdAt = patch\.eatenAt;/.test(repo));
+  check('Restore puts the row back verbatim, id aside', /const \{ id: _dropped, \.\.\.values \} = row;/.test(repo) && /db\.insert\(foodEntries\)\.values\(values\)\.run\(\);/.test(repo));
+
+  const store = fs.readFileSync('src/stores/nutritionStore.ts', 'utf8');
+  check('The store exposes edit, snapshot and restore, each refreshing the day', /editFood/.test(store) && /snapshotFood/.test(store) && /restoreFood/.test(store) && /updateFoodEntry\(id, patch\);/.test(store));
+
+  const scr = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
+  check('Tapping a diary row opens the edit sheet', /onPress=\{\(\) => openEdit\(e\)\}/.test(scr));
+  check('The X-delete forgives: snapshot first, then a six-second Undo', /const snap = snapshotFood\(id\);/.test(scr) && /actionLabel: 'Undo',\s*\n\s*onAction: \(\) => restoreFood\(snap\),/.test(scr));
+  check('...and no blocking Alert guards the diary', !/Alert\.alert/.test(scr));
+  check('Only precise entries offer the quantity field', /editing\.logMode === 'precise' \? \(\s*\n\s*<Input/.test(scr));
+  check('The edited time stays anchored to the day being viewed', scr.includes('new Date(`${date}T${'));
+  check('The meal slot moves through a segmented control over all four slots', /SegmentedControl\s*\n\s*options=\{MEAL_TYPES\.map/.test(scr));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

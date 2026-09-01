@@ -114,6 +114,74 @@ export function deleteFoodEntry(id: number): void {
   db.delete(foodEntries).where(eq(foodEntries.id, id)).run();
 }
 
+/**
+ * Edit a logged entry — the promise the diary made and never kept.
+ *
+ * The row stores TOTALS (per-serving x quantity at insert), so changing the
+ * quantity rescales every stored figure from the implied per-serving base, and
+ * the micros JSON scales with them. Meal slot and eaten-at move as given.
+ * Honest-log entries have no meaningful quantity; for them only the slot and
+ * the time are editable.
+ */
+export function updateFoodEntry(
+  id: number,
+  patch: { quantity?: number; mealType?: MealType; eatenAt?: number }
+): void {
+  const row = db.select().from(foodEntries).where(eq(foodEntries.id, id)).get();
+  if (!row) return;
+
+  const updates: Record<string, unknown> = {};
+  if (patch.mealType) updates.mealType = patch.mealType;
+  if (patch.eatenAt != null && Number.isFinite(patch.eatenAt)) updates.createdAt = patch.eatenAt;
+
+  const newQty = patch.quantity;
+  if (
+    newQty != null &&
+    Number.isFinite(newQty) &&
+    newQty > 0 &&
+    row.logMode === 'precise' &&
+    row.quantity > 0 &&
+    newQty !== row.quantity
+  ) {
+    const f = newQty / row.quantity;
+    updates.quantity = newQty;
+    updates.calories = Math.round(row.calories * f * 10) / 10;
+    updates.proteinG = Math.round(row.proteinG * f * 10) / 10;
+    updates.carbsG = Math.round(row.carbsG * f * 10) / 10;
+    updates.fatG = Math.round(row.fatG * f * 10) / 10;
+    updates.fiberG = Math.round(row.fiberG * f * 10) / 10;
+    if (row.micros) {
+      try {
+        const m = JSON.parse(row.micros) as Record<string, number>;
+        const scaled: Record<string, number> = {};
+        for (const [k, v] of Object.entries(m)) {
+          if (typeof v === 'number' && Number.isFinite(v)) scaled[k] = Math.round(v * f * 100) / 100;
+        }
+        updates.micros = JSON.stringify(scaled);
+      } catch {
+        // A malformed micros blob stays as it was rather than being destroyed.
+      }
+    }
+  }
+
+  if (Object.keys(updates).length === 0) return;
+  db.update(foodEntries).set(updates).where(eq(foodEntries.id, id)).run();
+}
+
+/**
+ * Put a deleted entry back exactly as it was — the other half of the Undo
+ * toast. Everything but the row id is restored verbatim.
+ */
+export function restoreFoodEntry(row: FoodEntry): number {
+  const { id: _dropped, ...values } = row;
+  const res = db.insert(foodEntries).values(values).run();
+  return Number(res.lastInsertRowId);
+}
+
+export function getFoodEntry(id: number): FoodEntry | undefined {
+  return db.select().from(foodEntries).where(eq(foodEntries.id, id)).get();
+}
+
 export function foodEntriesForDay(date: string, userId: number = PRIMARY_USER_ID): FoodEntry[] {
   return db
     .select()

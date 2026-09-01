@@ -4,6 +4,9 @@ import {
   addBeverage,
   addHonestFood,
   addPreciseFood,
+  updateFoodEntry,
+  restoreFoodEntry,
+  getFoodEntry,
   dayBeverages,
   dayNutrition,
   deleteBeverage,
@@ -29,6 +32,12 @@ interface NutritionState {
     eatenAt?: number;
   }) => ReturnType<typeof addHonestFood>;
   removeFood: (id: number) => void;
+  /** edit a logged row in place — quantity rescales its totals */
+  editFood: (id: number, patch: { quantity?: number; mealType?: MealType; eatenAt?: number }) => void;
+  /** the other half of delete's Undo: put the captured row back */
+  restoreFood: (row: Parameters<typeof restoreFoodEntry>[0]) => void;
+  /** snapshot a row before deleting it, for the Undo */
+  snapshotFood: (id: number) => ReturnType<typeof getFoodEntry>;
   addDrink: (type: BeverageType, opts?: { volumeMl?: number; caffeineMg?: number }) => void;
   removeDrink: (id: number) => void;
 }
@@ -63,6 +72,15 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     deleteFoodEntry(id);
     get().refresh();
   },
+  editFood: (id, patch) => {
+    updateFoodEntry(id, patch);
+    get().refresh();
+  },
+  restoreFood: (row) => {
+    restoreFoodEntry(row);
+    get().refresh();
+  },
+  snapshotFood: (id) => getFoodEntry(id),
 
   addDrink: (type, opts) => {
     addBeverage(type, { ...opts, date: get().date });

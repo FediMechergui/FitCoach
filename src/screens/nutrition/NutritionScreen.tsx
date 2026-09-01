@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,6 +31,12 @@ import { recentSmokeEvents } from '@/repositories/smokingRepo';
 import { addDays, todayISO } from '@/lib/date';
 import { recommendedFiberG } from '@/lib/calories';
 import { clockOf } from '@/lib/eatenAt';
+import { Sheet } from '@/components/ui/Sheet';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { toast } from '@/components/ui/Toast';
+import type { FoodEntry } from '@/db/schema';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const MEAL_LABELS: Record<MealType, string> = {
@@ -43,7 +49,8 @@ const MEAL_LABELS: Record<MealType, string> = {
 export function NutritionScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
-  const { date, food, beverages, setDate, refresh, removeFood, addDrink, removeDrink } = useNutritionStore();
+  const { date, food, beverages, setDate, refresh, removeFood, addDrink, removeDrink, editFood, restoreFood, snapshotFood } =
+    useNutritionStore();
   const goal = useUserStore((s) => s.goal);
   // Every diary row for the day, flattened, as digestion inputs.
   const digestMeals = useMemo(
@@ -85,6 +92,50 @@ export function NutritionScreen() {
   const water = beverages?.hydrationMl ?? 0;
   const caffeine = beverages?.caffeineMg ?? 0;
   const caffeineLimit = goal?.caffeineSoftLimitMg ?? 400;
+
+  // ── The diary's broken promise, kept at last: entries edit in place. ──
+  const [editing, setEditing] = useState<FoodEntry | null>(null);
+  const [editQty, setEditQty] = useState('1');
+  const [editSlot, setEditSlot] = useState<MealType>('breakfast');
+  const [editTime, setEditTime] = useState('12:00');
+
+  const openEdit = (e: FoodEntry) => {
+    setEditing(e);
+    setEditQty(String(e.quantity ?? 1));
+    setEditSlot(e.mealType as MealType);
+    setEditTime(clockOf(e.createdAt));
+  };
+
+  const saveEdit = () => {
+    if (!editing) return;
+    const qty = parseFloat(editQty.replace(',', '.'));
+    // The time stays anchored to the day being viewed.
+    const m = /^(\d{1,2}):(\d{2})$/.exec(editTime.trim());
+    const eatenAt = m
+      ? new Date(`${date}T${String(Math.min(23, parseInt(m[1], 10))).padStart(2, '0')}:${m[2]}:00`).getTime()
+      : undefined;
+    editFood(editing.id, {
+      quantity: Number.isFinite(qty) && qty > 0 ? qty : undefined,
+      mealType: editSlot,
+      eatenAt: eatenAt && Number.isFinite(eatenAt) ? eatenAt : undefined,
+    });
+    setEditing(null);
+  };
+
+  /** Delete with the door held open — the row is captured whole, and Undo
+      puts it back exactly, id aside. */
+  const undoableRemove = (id: number) => {
+    const snap = snapshotFood(id);
+    removeFood(id);
+    setEditing(null);
+    if (snap) {
+      toast({
+        message: `Removed ${snap.logMode === 'honest' ? (snap.freeTextDescription ?? 'entry') : snap.foodName}`,
+        actionLabel: 'Undo',
+        onAction: () => restoreFood(snap),
+      });
+    }
+  };
 
   const isToday = date === todayISO();
   const dateLabel = isToday
@@ -320,7 +371,8 @@ export function NutritionScreen() {
                   <View key={e.id}>
                     {idx > 0 ? <Divider /> : null}
                     <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
+                      {/* Tap a row to edit it — quantity, meal slot, eaten-at. */}
+                      <Pressable style={{ flex: 1 }} onPress={() => openEdit(e)}>
                         <Row gap={6} style={{ alignItems: 'center' }}>
                           <Text variant="body" numberOfLines={1} style={{ flexShrink: 1 }}>
                             {e.logMode === 'honest' ? e.freeTextDescription : e.foodName}
@@ -334,8 +386,8 @@ export function NutritionScreen() {
                         {date === todayISO() && e.calories >= 20 && (
                           <MealDigestionLine meal={mealsFromEntries([e])[0]} />
                         )}
-                      </View>
-                      <Pressable onPress={() => removeFood(e.id)} hitSlop={8}>
+                      </Pressable>
+                      <Pressable onPress={() => undoableRemove(e.id)} hitSlop={8}>
                         <Icon icon="core.close" size={16} color={theme.colors.textFaint} />
                       </Pressable>
                     </Row>
@@ -381,6 +433,52 @@ export function NutritionScreen() {
           ))}
         </Card>
       )}
+      {/* ── Edit a logged entry ── */}
+      <Sheet visible={editing != null} onClose={() => setEditing(null)}>
+        {editing ? (
+          <View style={{ gap: theme.spacing.md }}>
+            <Text variant="eyebrow" color="textMuted">
+              Edit entry
+            </Text>
+            <Text variant="h3" numberOfLines={2}>
+              {editing.logMode === 'honest' ? (editing.freeTextDescription ?? 'Honest log') : editing.foodName}
+            </Text>
+            {editing.logMode === 'precise' ? (
+              <Input
+                label={`Quantity${editing.servingSize ? ` · servings of ${editing.servingSize}` : ''}`}
+                value={editQty}
+                onChangeText={setEditQty}
+                keyboardType="numeric"
+                helper="Macros and micronutrients rescale with it."
+              />
+            ) : (
+              <Text variant="caption" color="textFaint">
+                An honest-log estimate has no serving to rescale — move it or remove it.
+              </Text>
+            )}
+            <View>
+              <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>
+                Meal
+              </Text>
+              <SegmentedControl
+                options={MEAL_TYPES.map((m) => ({ value: m, label: MEAL_LABELS[m] }))}
+                value={editSlot}
+                onChange={setEditSlot}
+              />
+            </View>
+            <Input
+              label="Eaten at"
+              value={editTime}
+              onChangeText={setEditTime}
+              placeholder="13:30"
+              keyboardType="numbers-and-punctuation"
+              helper="The digestion clock reads this time."
+            />
+            <Button title="Save changes" onPress={saveEdit} />
+            <Button title="Remove entry" variant="ghost" onPress={() => undoableRemove(editing.id)} />
+          </View>
+        ) : null}
+      </Sheet>
     </Screen>
   );
 }

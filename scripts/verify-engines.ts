@@ -3920,5 +3920,28 @@ console.log('\nStats 3.0 - one tab, three depths:');
   check('The Growth and Trends stack routes left cleanly', !fs.existsSync('src/screens/stats/GrowthScreen.tsx') && !fs.existsSync('src/screens/stats/TrendsScreen.tsx') && !/Growth: undefined/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/name="Trends"/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
 }
 
+console.log('\nPrayers 3.0 - every state has a door:');
+{
+  const pr = fs.readFileSync('src/screens/faith/PrayersScreen.tsx', 'utf8');
+  check('Permission is re-read on every focus', /Location\.getForegroundPermissionsAsync\(\)/.test(pr) && /setCanAskAgain\(p\.canAskAgain\)/.test(pr));
+  check('A soft denial explains instead of doing nothing', /if \(perm\.canAskAgain\) \{\s*\n\s*setGpsError\(/.test(pr));
+  check('Permanent denial opens the one door that helps', /deniedForGood/.test(pr) && /Linking\.openSettings\(\)/.test(pr));
+  check('A GPS failure speaks; the silent catch is gone', /catch \{\s*\n\s*setGpsError\(/.test(pr) && !/\/\/ GPS unavailable/.test(pr));
+  check('Typed coordinates exist, validated to the real ranges', /Math\.abs\(lat\) > 90/.test(pr) && /Math\.abs\(lng\) > 180/.test(pr) && /latitude: lat,\s*\n\s*longitude: lng,/.test(pr));
+  check('Picking a method enables the feature once a location exists', /\{ method: m\.key, \.\.\.\(hasLocation \? \{ enabled: true \} : \{\}\) \}/.test(pr));
+  check('The Asr convention is finally askable', /asrFactor: v === '2' \? 2 : 1/.test(pr) && /Hanafi/.test(pr));
+  check('The off switch exists and only touches enabled', /<Switch/.test(pr) && /upsertPrayerSettings\(\{ enabled: v \}\)/.test(pr));
+  check('Absent times carry an honest name for each cause', pr.includes('Prayers are switched off') && pr.includes('No location yet') && !pr.includes("Set a location above to see today's times."));
+  check('The half-null coordinate render is gone', /const hasLocation = settings\?\.latitude != null && settings\?\.longitude != null;/.test(pr) && !/longitude\?\.toFixed/.test(pr));
+
+  // The dead schema column, alive: Hanafi Asr must land later than Standard.
+  const mins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const base = { date: new Date(2026, 5, 21), latitude: 36.8, longitude: 10.18, tzOffsetHours: 1 };
+  const std = computePrayerTimes({ ...base, asrFactor: 1 });
+  const han = computePrayerTimes({ ...base, asrFactor: 2 });
+  check('Hanafi Asr falls after Standard Asr', mins(han.asr) > mins(std.asr), `${std.asr} vs ${han.asr}`);
+  check('...and only Asr moves with the factor', std.dhuhr === han.dhuhr && std.maghrib === han.maghrib && std.fajr === han.fajr);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

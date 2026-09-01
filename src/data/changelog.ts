@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.13',
+    date: '2026-09-01',
+    title: 'Prayers: every state has a door',
+    highlights: [
+      'Denying the location permission used to be a silent dead end — the GPS button just did nothing, forever. Now a soft \'not now\' gets an honest line and a working retry; a permanent system-level denial gets an explanation, an Open-system-settings button, and the reassurance that a city or typed coordinates give exactly the same times. The permission is re-checked every time you return, so granting it in settings is noticed without another tap.',
+      'You can type your coordinates now. The seven preset cities were the only non-GPS path; anywhere else on Earth had no way in. Latitude, longitude, an optional name — validated to the real ranges and saved like any city.',
+      'The Hanafi Asr exists at last. The math has computed both conventions since the feature shipped, but no control ever asked — Standard (Shafiʻi, Maliki, Hanbali) or Hanafi, one segmented choice, with the shadow-length difference explained in a line.',
+      'Prayers can be switched off. The enabled flag was written once as true and never again; a real switch now governs the Home check-in card, prayer challenges and Ramadan timings — location and method are kept either way, and picking a calculation method switches the feature on once a location exists.',
+      '1613 checks in all, up from 1601, including a proof that Hanafi Asr falls after Standard and moves nothing else.',
+    ],
+  },
+  {
     version: '3.0.12',
     date: '2026-09-01',
     title: 'Stats: one tab, three depths',

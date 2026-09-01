@@ -31,13 +31,14 @@ const HOUSE_EASING = Easing.bezier(motion.bezier[0], motion.bezier[1], motion.be
 /**
  * 3.0.1 — the CTA becomes hardware. Md/lg buttons are full pills; the primary
  * sits in its own thin tinted ring (the double-bezel, shared with PageHero) and
- * presses with real physics: scale into Lume-deep on the house curve, never a
- * flat opacity blink. An icon on a primary rides in its own circular well at
- * the trailing edge — a control inside a control, machined flush.
+ * presses with real physics on the house curve. An icon on a primary rides in
+ * its own circular well at the trailing edge.
  *
- * The primary wears Lume with Lume-ink text; white text only when a caller
- * supplies its own colour. `sm` stays rectangular and flat — dense rows are no
- * place for jewellery.
+ * Layout lesson, learned the hard way (3.0.2): the caller's `style` applies to
+ * the OUTERMOST wrapper — `flex: 1` from a caller must size the whole control,
+ * ring included. And the title never takes `flex: 1`: inside a natural-width
+ * button that collapses the text to nothing, which shipped Home a blank mint
+ * blob where "Start Session" used to be. Grow-and-shrink, never bare flex.
  */
 export function Button({
   title,
@@ -77,6 +78,7 @@ export function Button({
   const pill = size !== 'sm';
   const ringed = pill && variant === 'primary' && !disabled;
   const trailingWell = pill && (variant === 'primary' || variant === 'danger') && !!icon;
+  const wellSize = size === 'lg' ? 34 : 30;
 
   const press = (to: number) =>
     Animated.timing(scale, {
@@ -94,59 +96,56 @@ export function Button({
       disabled={disabled || loading}
       onPressIn={() => press(0.97).start()}
       onPressOut={() => press(1).start()}
-      style={({ pressed }) => [
-        {
-          height: heights[size],
-          borderRadius: pill ? theme.radius.pill : theme.radius.sm,
-          backgroundColor: pressed ? (pressedBg[variant] ?? bg[variant]) : bg[variant],
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-          gap: 8,
-          paddingLeft: theme.spacing.lg + (pill ? 4 : 0),
-          paddingRight: trailingWell ? 9 : theme.spacing.lg + (pill ? 4 : 0),
-          opacity: disabled ? 0.45 : 1,
-          borderWidth: variant === 'ghost' ? 1 : 0,
-          borderColor: variant === 'ghost' ? theme.colors.border : 'transparent',
-        },
-        style,
-      ]}
+      style={({ pressed }) => ({
+        height: heights[size],
+        alignSelf: 'stretch',
+        borderRadius: pill ? theme.radius.pill : theme.radius.sm,
+        backgroundColor: pressed ? (pressedBg[variant] ?? bg[variant]) : bg[variant],
+        alignItems: 'center',
+        justifyContent: trailingWell ? 'space-between' : 'center',
+        flexDirection: 'row',
+        gap: 8,
+        paddingLeft: theme.spacing.lg + (pill ? 4 : 0),
+        paddingRight: trailingWell ? 9 : theme.spacing.lg + (pill ? 4 : 0),
+        opacity: disabled ? 0.45 : 1,
+        borderWidth: variant === 'ghost' ? 1 : 0,
+        borderColor: variant === 'ghost' ? theme.colors.border : 'transparent',
+      })}
     >
       {loading ? (
         <ActivityIndicator color={fg[variant]} />
-      ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: trailingWell ? 1 : undefined }}>
-          {icon && !trailingWell ? (
-            <Icon icon={icon} size={size === 'lg' ? 22 : 18} color={fg[variant]} />
-          ) : null}
-          <Text
-            variant={size === 'sm' ? 'label' : 'bodyStrong'}
-            color={fg[variant]}
-            style={trailingWell ? { flex: 1 } : undefined}
-          >
+      ) : trailingWell ? (
+        <>
+          {/* trailingWell implies pill implies md/lg — bodyStrong, always. */}
+          <Text variant="bodyStrong" color={fg[variant]} numberOfLines={1} style={{ flexShrink: 1 }}>
             {title}
           </Text>
-          {trailingWell ? (
-            <View
-              style={{
-                width: size === 'lg' ? 34 : 30,
-                height: size === 'lg' ? 34 : 30,
-                borderRadius: theme.radius.pill,
-                backgroundColor: isBrand ? 'rgba(6,32,25,0.14)' : 'rgba(255,255,255,0.18)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon icon={icon!} size={size === 'lg' ? 18 : 16} color={fg[variant]} />
-            </View>
-          ) : null}
-        </View>
+          <View
+            style={{
+              width: wellSize,
+              height: wellSize,
+              borderRadius: theme.radius.pill,
+              backgroundColor: isBrand ? 'rgba(6,32,25,0.14)' : 'rgba(255,255,255,0.18)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon={icon!} size={size === 'lg' ? 18 : 16} color={fg[variant]} />
+          </View>
+        </>
+      ) : (
+        <>
+          {icon ? <Icon icon={icon} size={size === 'lg' ? 22 : 18} color={fg[variant]} /> : null}
+          <Text variant={size === 'sm' ? 'label' : 'bodyStrong'} color={fg[variant]} numberOfLines={1}>
+            {title}
+          </Text>
+        </>
       )}
     </Pressable>
   );
 
   return (
-    <View style={{ alignSelf: fullWidth ? 'stretch' : 'flex-start', gap: 6 }}>
+    <View style={[{ alignSelf: fullWidth ? 'stretch' : 'flex-start', gap: 6 }, style]}>
       <Animated.View style={{ transform: [{ scale }] }}>
         {ringed ? (
           // The charged ring — the CTA's share of the double-bezel signature.

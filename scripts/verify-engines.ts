@@ -3674,6 +3674,13 @@ console.log('\n3.0.1 - the slick pass keeps its own discipline:');
   check('Md/lg buttons are pills; sm stays flat for dense rows', /const pill = size !== 'sm';/.test(btnSrc));
   check('The primary sits in its charged ring', /const ringed = pill && variant === 'primary'/.test(btnSrc) && /padding: 3/.test(btnSrc));
   check('A primary icon rides in its own trailing well', /trailingWell/.test(btnSrc) && /rgba\(6,32,25,0\.14\)/.test(btnSrc));
+  // The 3.0.1 regression, held down: the title must never take bare flex, and
+  // the caller's layout style must land on the OUTERMOST wrapper — otherwise a
+  // natural-width primary collapses its text and Home shows a blank mint blob
+  // where "Start Session" was.
+  check('The title can shrink but never bare-flexes to zero', /style=\{\{ flexShrink: 1 \}\}/.test(btnSrc) && !/style=\{trailingWell \? \{ flex: 1 \}/.test(btnSrc));
+  check("The caller's layout style sizes the whole control", /style=\{\[\{ alignSelf: fullWidth \? 'stretch' : 'flex-start', gap: 6 \}, style\]\}/.test(btnSrc));
+  check('The core stretches to fill its ring', /alignSelf: 'stretch',/.test(btnSrc));
   check('Presses land on the house curve, never linear', /Easing\.bezier\(motion\.bezier\[0\]/.test(btnSrc) && /toValue: to/.test(btnSrc));
 
   // ── Motion: one curve everywhere it interpolates. ──

@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.2',
+    date: '2026-09-01',
+    title: 'Start Session comes back — the pill that swallowed its own label',
+    highlights: [
+      'Home\'s Start Session button had turned into a blank mint blob. The 3.0.1 pill layout let the title claim flexible width, and inside a button that sizes itself to its content, flexible width resolves to none at all — the text vanished and the icon well was left floating alone. The layout is restructured so the title can shrink but never disappear, and sizing you give the button now sizes the whole control, charged ring included.',
+      'Three new checks hold the regression down, including one that reads exactly like the bug: "the title can shrink but never bare-flexes to zero."',
+      '1500 checks in all, up from 1497.',
+    ],
+  },
+  {
     version: '3.0.1',
     date: '2026-09-01',
     title: 'The slick pass — machined surfaces, athletic type, real motion',

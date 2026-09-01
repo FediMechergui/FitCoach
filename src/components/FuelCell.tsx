@@ -89,7 +89,7 @@ export function FuelCell({
   );
 }
 
-function FuelRail({
+export function FuelRail({
   label,
   value,
   sub,

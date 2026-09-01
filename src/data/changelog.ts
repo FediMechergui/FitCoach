@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.7',
+    date: '2026-09-01',
+    title: 'Nutrition speaks one fuel grammar',
+    highlights: [
+      'The Nutrition dashboard now speaks the same visual language as Home: the day\'s calorie Arc with the honest numeral — kcal left, or \'+n over\' in caution once past target — and Protein, Carbs, Fat and Fibre as four rails beside it. The old screen answered the same question with a donut and four bars in a third visual dialect; every figure shown is unchanged, only the grammar is unified.',
+      'Water and caffeine joined the grammar. Water is a rail with the hot-day surcharge on its sub line; caffeine rides a rail against your soft limit, and past the limit the overflow renders in caution instead of quietly clamping — the same honesty rule every meter in 3.0 obeys.',
+      'Quick-adds for water and the four beverage presets are exactly where they were. Nothing moved but the paint.',
+      '1565 checks in all, up from 1560, and one more hard-coded alpha concat left the codebase — 18 remain of the 20 the ratchet started at.',
+    ],
+  },
+  {
     version: '3.0.6',
     date: '2026-09-01',
     title: 'The diary earns edit',

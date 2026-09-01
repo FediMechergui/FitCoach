@@ -2221,9 +2221,12 @@ console.log('\nFibre — the fourth bar:');
   const nutRepoSrc = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
   check('The day summary sums and rounds fibre', /total\.fiber \+= e\.fiberG/.test(nutRepoSrc) && /fiber: roundGrams\(total\.fiber\)/.test(nutRepoSrc));
   const nutScreenSrc = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
-  check('Nutrition shows a fibre bar beside protein, carbs and fat', /<MacroRow label="Fibre" value=\{food\?\.fiber \?\? 0\} target=\{fiberTarget\}/.test(nutScreenSrc));
+  // Superseded by 3.0.7: the four macro bars became FuelRails in the shared grammar.
+  check('Nutrition shows a fibre rail beside protein, carbs and fat', /<FuelRail label="Fibre"[^\n]*max=\{fiberTarget\}/.test(nutScreenSrc) && ['Protein', 'Carbs', 'Fat'].every((l) => new RegExp(`<FuelRail label="${l}"`).test(nutScreenSrc)));
   check('The fibre target follows the calorie target', /fiberTarget = recommendedFiberG\(calTarget\)/.test(nutScreenSrc));
-  check('The donut receives the day\'s fibre', /<MacroDonut[\s\S]{0,200}fiber=\{food\?\.fiber \?\? 0\}/.test(nutScreenSrc));
+  // Superseded by 3.0.7: the donut left with the remodel; the Arc carries the
+  // calorie verdict and fibre rides its own rail against its own target.
+  check('The calorie Arc wears Home\'s overflow honesty', /kcal over/.test(nutScreenSrc) && /kcal left/.test(nutScreenSrc) && /<Arc value=\{cal\} max=\{calTarget\}/.test(nutScreenSrc));
 
   // The donut slice: fibre is carved OUT of carbs (it is inside the carb
   // grams), at the same 2 kcal/g discount foodMath uses — never added on top.
@@ -2238,9 +2241,9 @@ console.log('\nFibre — the fourth bar:');
   check('Fibre above carbs is capped so the carb slice never goes negative', sOver.carbs === 0 && sOver.fiber === 1);
   const sEmpty = macroEnergyShares({ protein: 0, carbs: 0, fat: 0, fiber: 0 });
   check('An empty day draws nothing, not NaN', sEmpty.protein === 0 && sEmpty.fiber === 0 && !Number.isNaN(sEmpty.fat));
-  const donutSrc = fs.readFileSync('src/components/charts/MacroDonut.tsx', 'utf8');
-  check('The fibre slice sits beside the carb slice', /shares\.carbs, color: theme\.colors\.carbs \},\s*\{ frac: shares\.fiber/.test(donutSrc));
-  check('The donut draws foodMath\'s split, not its own arithmetic', /macroEnergyShares\(\{ protein, carbs, fat, fiber \}\)/.test(donutSrc) && !/\* 9\b/.test(donutSrc));
+  // Superseded by 3.0.7: the donut is gone from the tree entirely (the shares
+  // math above is foodMath's, tested directly, and outlives its first renderer).
+  check('The donut left cleanly - no file, no imports', !fs.existsSync('src/components/charts/MacroDonut.tsx') && !/MacroDonut/.test(nutScreenSrc));
   const homeScreenSrc = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
   // Fibre's tile left Home in the bento collapse (two Metrics + a door);
   // the same target still governs the Nutrition screen's fibre rail.
@@ -3602,7 +3605,7 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
     walk('src');
     let concat = 0;
     for (const f of files) concat += (fs.readFileSync(f, 'utf8').match(/\+ '[0-9A-Fa-f]{2}'/g) ?? []).length;
-    check('Hex-suffix alpha concatenation never grows', concat <= 20, `${concat} sites (ratchet: 20)`);
+    check('Hex-suffix alpha concatenation never grows', concat <= 18, `${concat} sites (ratchet: 18)`);
   }
 
   // ── Shape. Hierarchy through curvature. ──
@@ -3825,6 +3828,18 @@ console.log('\nNutrition 3.0 - the diary earns edit:');
   check('Only precise entries offer the quantity field', /editing\.logMode === 'precise' \? \(\s*\n\s*<Input/.test(scr));
   check('The edited time stays anchored to the day being viewed', scr.includes('new Date(`${date}T${'));
   check('The meal slot moves through a segmented control over all four slots', /SegmentedControl\s*\n\s*options=\{MEAL_TYPES\.map/.test(scr));
+}
+
+console.log('\nNutrition 3.0 - one fuel grammar:');
+{
+  const scr7 = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
+  const cell = fs.readFileSync('src/components/FuelCell.tsx', 'utf8');
+  check('FuelRail is shared vocabulary, exported from the cell', /export function FuelRail\(/.test(cell));
+  check('The dashboard is the Arc plus four macro rails', /<Arc value=\{cal\} max=\{calTarget\} size=\{132\}/.test(scr7) && (scr7.match(/<FuelRail label="(Protein|Carbs|Fat|Fibre)"/g) ?? []).length === 4);
+  check('Water is a rail with the heat surcharge on its sub line', /<FuelRail\s*\n\s*label="Water"/.test(scr7) && /for the heat/.test(scr7));
+  check('Caffeine rides a Rail against the soft limit', /<Rail value=\{caffeine\} max=\{caffeineLimit\}/.test(scr7) && !/<ProgressBar/.test(scr7));
+  check('The legacy grammars have left the screen', !/ProgressRing/.test(scr7) && !/MacroDonut/.test(scr7) && !/function MacroRow/.test(scr7));
+  check('The water quick-add wash is a token, not a concat', /theme\.alpha\.tint22\(theme\.colors\.water\)/.test(scr7) && !/theme\.colors\.water \+ '/.test(scr7));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

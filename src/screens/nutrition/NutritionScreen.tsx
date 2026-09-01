@@ -7,9 +7,8 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
-import { ProgressRing } from '@/components/ui/ProgressRing';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { MacroDonut } from '@/components/charts/MacroDonut';
+import { Arc, Rail } from '@/components/ui/Meter';
+import { FuelRail } from '@/components/FuelCell';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { MEAL_TYPES, type MealType } from '@/db/schema';
@@ -172,22 +171,29 @@ export function NutritionScreen() {
         </Pressable>
       )}
 
-      {/* Calorie + macro dashboard */}
+      {/* The day's fuel — the same Arc-and-rails grammar Home speaks. */}
       <Card>
-        <Row style={{ justifyContent: 'space-around', alignItems: 'center' }}>
-          <MacroDonut
-            protein={food?.protein ?? 0}
-            carbs={food?.carbs ?? 0}
-            fat={food?.fat ?? 0}
-            fiber={food?.fiber ?? 0}
-            centerValue={`${Math.round(cal)}`}
-            centerLabel={`/ ${calTarget}`}
-          />
-          <View style={{ gap: 12, flex: 1, paddingLeft: 16 }}>
-            <MacroRow label="Protein" value={food?.protein ?? 0} target={goal?.proteinG ?? 0} color={theme.colors.protein} />
-            <MacroRow label="Carbs" value={food?.carbs ?? 0} target={goal?.carbsG ?? 0} color={theme.colors.carbs} />
-            <MacroRow label="Fat" value={food?.fat ?? 0} target={goal?.fatG ?? 0} color={theme.colors.fat} />
-            <MacroRow label="Fibre" value={food?.fiber ?? 0} target={fiberTarget} color={theme.colors.fiber} />
+        <Row gap={theme.spacing.lg} style={{ alignItems: 'center' }}>
+          <Arc value={cal} max={calTarget} size={132} strokeWidth={11} color={theme.colors.calories}>
+            <View style={{ alignItems: 'center' }}>
+              <Text
+                variant="numeralM"
+                style={{ fontSize: 30, lineHeight: 34, color: cal > calTarget ? theme.colors.warning : theme.colors.text }}
+              >
+                {cal > calTarget
+                  ? `+${Math.round(cal - calTarget).toLocaleString()}`
+                  : Math.max(0, Math.round(calTarget - cal)).toLocaleString()}
+              </Text>
+              <Text variant="caption" color="textMuted">
+                {cal > calTarget ? 'kcal over' : 'kcal left'}
+              </Text>
+            </View>
+          </Arc>
+          <View style={{ flex: 1, gap: theme.spacing.sm }}>
+            <FuelRail label="Protein" value={`${Math.round(food?.protein ?? 0)} / ${goal?.proteinG ?? 0} g`} progress={food?.protein ?? 0} max={goal?.proteinG ?? 0} color={theme.colors.protein} />
+            <FuelRail label="Carbs" value={`${Math.round(food?.carbs ?? 0)} / ${goal?.carbsG ?? 0} g`} progress={food?.carbs ?? 0} max={goal?.carbsG ?? 0} color={theme.colors.carbs} />
+            <FuelRail label="Fat" value={`${Math.round(food?.fat ?? 0)} / ${goal?.fatG ?? 0} g`} progress={food?.fat ?? 0} max={goal?.fatG ?? 0} color={theme.colors.fat} />
+            <FuelRail label="Fibre" value={`${Math.round(food?.fiber ?? 0)} / ${fiberTarget} g`} progress={food?.fiber ?? 0} max={fiberTarget} color={theme.colors.fiber} />
           </View>
         </Row>
       </Card>
@@ -253,21 +259,20 @@ export function NutritionScreen() {
       {/* Water + caffeine */}
       <Row>
         <Card style={{ flex: 1 }}>
-          <Row gap={8} style={{ alignItems: 'center', marginBottom: 8 }}>
-            <ProgressRing progress={water / waterGoal} size={44} strokeWidth={5} color={theme.colors.water}>
-              <Icon icon="nutrition.water" size={16} color={theme.colors.water} />
-            </ProgressRing>
-            <View>
-              <Text variant="bodyStrong">{(water / 1000).toFixed(2)} L</Text>
-              <Text variant="caption" color="textMuted">
-                of {(waterGoal / 1000).toFixed(1)} L{waterAdj.extraMl > 0 ? ` (+${(waterAdj.extraMl / 1000).toFixed(1)} for the heat)` : ''}
-              </Text>
-            </View>
-          </Row>
+          <View style={{ marginBottom: 10 }}>
+            <FuelRail
+              label="Water"
+              value={`${(water / 1000).toFixed(2)} / ${(waterGoal / 1000).toFixed(1)} L`}
+              sub={waterAdj.extraMl > 0 ? `+${(waterAdj.extraMl / 1000).toFixed(1)} for the heat` : undefined}
+              progress={water}
+              max={waterGoal}
+              color={theme.colors.water}
+            />
+          </View>
           <Row gap={6}>
             {WATER_QUICK_ADD.map((ml) => (
               <Pressable key={ml} onPress={() => addDrink('water', { volumeMl: ml })} style={{ flex: 1 }}>
-                <View style={{ paddingVertical: 8, borderRadius: theme.radius.sm, backgroundColor: theme.colors.water + '22', alignItems: 'center' }}>
+                <View style={{ paddingVertical: 8, borderRadius: theme.radius.sm, backgroundColor: theme.alpha.tint22(theme.colors.water), alignItems: 'center' }}>
                   <Text variant="caption" color={theme.colors.water}>+{ml}</Text>
                 </View>
               </Pressable>
@@ -286,7 +291,7 @@ export function NutritionScreen() {
             {Math.round(caffeine)} / {caffeineLimit} mg
           </Text>
         </Row>
-        <ProgressBar progress={caffeine / caffeineLimit} color={theme.colors.caffeine} />
+        <Rail value={caffeine} max={caffeineLimit} color={theme.colors.caffeine} height={7} />
         <Row gap={6} style={{ marginTop: 10 }}>
           {(['coffee', 'tea', 'energy_drink', 'soda'] as const).map((t) => (
             <Pressable key={t} onPress={() => addDrink(t)} style={{ flex: 1 }}>
@@ -483,16 +488,3 @@ export function NutritionScreen() {
   );
 }
 
-function MacroRow({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {
-  return (
-    <View style={{ gap: 4 }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Text variant="caption" color="textMuted">{label}</Text>
-        <Text variant="caption" color="textMuted">
-          {Math.round(value)}/{target}g
-        </Text>
-      </Row>
-      <ProgressBar progress={target ? value / target : 0} color={color} height={6} />
-    </View>
-  );
-}

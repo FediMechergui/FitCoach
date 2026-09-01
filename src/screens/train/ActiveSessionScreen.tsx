@@ -50,6 +50,7 @@ import {
   type RestPrescription,
 } from '@/lib/restPrescription';
 import { profileFor, effectiveLoadKg, LOAD_FIELD_LABEL } from '@/lib/loadProfile';
+import { toast } from '@/components/ui/Toast';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const REST_PRESETS = [60, 90, 120, 180, 300];
@@ -356,6 +357,32 @@ function RestTimerBanner() {
       <Text variant="caption" color="textFaint">
         Creatine phosphate ~{pcr}% refilled{rx && rx.system === 'phosphagen' ? ' — a heavy set wants 90%+' : ''}.
       </Text>
+      {/* restBeforeStateSec was computed on every prescription and never
+          rendered anywhere — the whole point of measuring the state
+          you arrived in is that you get to SEE what it cost or saved. */}
+      {rx?.restBeforeStateSec != null && rx.restSec !== rx.restBeforeStateSec && (
+        <View
+          style={{
+            alignSelf: 'flex-start',
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: theme.radius.pill,
+            backgroundColor: theme.alpha.tint14(
+              rx.restSec > rx.restBeforeStateSec ? theme.colors.warning : theme.colors.primary
+            ),
+          }}
+        >
+          <Text
+            variant="caption"
+            style={{
+              color: rx.restSec > rx.restBeforeStateSec ? theme.colors.warning : theme.colors.primary,
+              fontVariant: ['tabular-nums'],
+            }}
+          >
+            {`${rx.restSec > rx.restBeforeStateSec ? '+' : '\u2212'}${Math.abs(rx.restSec - rx.restBeforeStateSec)}s for the state you arrived in \u00b7 baseline ${formatRest(rx.restBeforeStateSec)}`}
+          </Text>
+        </View>
+      )}
     </Card>
   );
 }
@@ -660,7 +687,17 @@ function ExerciseLogCard({
                 {s.isPr ? (
                   <Icon icon="core.pr" size={16} color={theme.colors.warning} />
                 ) : (
-                  <Pressable onPress={() => store.removeSet(s.id)} hitSlop={6}>
+                  <Pressable
+                    onPress={() => {
+                      store.removeSet(s.id);
+                      toast({
+                        message: `Removed set ${s.setNumber} — ${describeSet(s)}`,
+                        actionLabel: 'Undo',
+                        onAction: () => store.restoreSet(s),
+                      });
+                    }}
+                    hitSlop={6}
+                  >
                     <Icon icon="core.close" size={14} color={theme.colors.textFaint} />
                   </Pressable>
                 )}
@@ -790,8 +827,9 @@ function ExerciseLogCard({
       )}
       {isLifting && (
         <Row gap={6}>
+          {/* An override changes how long, not the physiology the banner reads. */}
           {REST_PRESETS.map((sec) => (
-            <Pressable key={sec} onPress={() => store.startRest(sec)} style={{ flex: 1 }}>
+            <Pressable key={sec} onPress={() => store.startRest(sec, lastRx ?? undefined)} style={{ flex: 1 }}>
               <View
                 style={{
                   paddingVertical: 6,

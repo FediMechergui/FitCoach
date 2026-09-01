@@ -158,6 +158,18 @@ export function deleteSet(setId: number): void {
   db.delete(setEntries).where(eq(setEntries.id, setId)).run();
 }
 
+export type SetRow = typeof setEntries.$inferSelect;
+
+/**
+ * Put a deleted set back exactly as it was — set number, PR flag,
+ * completion state and all. Only the row id is new.
+ */
+export function restoreSetEntry(row: SetRow): number {
+  const { id: _dropped, ...values } = row;
+  const res = db.insert(setEntries).values(values).run();
+  return Number(res.lastInsertRowId);
+}
+
 export function removeExerciseLog(logId: number): void {
   db.delete(setEntries).where(eq(setEntries.exerciseLogId, logId)).run();
   db.delete(exerciseLogs).where(eq(exerciseLogs.id, logId)).run();

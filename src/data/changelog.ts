@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.9',
+    date: '2026-09-01',
+    title: 'The rest banner earns its numbers',
+    highlights: [
+      'Since 2.63 the app has computed what the state you arrived in — carbon monoxide, a full stomach, short sleep — does to each rest, and then never showed you. The rest banner now wears the delta: “+45s for the state you arrived in · baseline 1:30” when your state cost you, in caution; the saving in green when it worked in your favour. Shown only when the state actually moved the number.',
+      'Tapping a rest preset used to throw the physiology away with the duration — the refill bar silently fell back to textbook oxygen. An override now changes only how long: the creatine-phosphate curve keeps reading your actual blood.',
+      'Deleting a logged set forgives, like every delete in 3.0: it goes at once, and Undo puts the row back exactly — set number, PR flag, completion state and all.',
+      '1576 checks in all, up from 1570.',
+    ],
+  },
+  {
     version: '3.0.8',
     date: '2026-09-01',
     title: 'The You hub finds the light switch',

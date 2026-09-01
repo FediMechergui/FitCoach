@@ -17,6 +17,8 @@ import {
   type FinalizeResult,
   type SessionDetail,
   type SetDraft,
+  type SetRow,
+  restoreSetEntry,
   toggleWarmupDone,
   replaceExerciseLog,
 } from '@/repositories/sessionRepo';
@@ -62,6 +64,8 @@ interface SessionState {
   repeatLastSet: (logId: number, exerciseId: number) => void;
   editSet: (setId: number, patch: SetDraft) => void;
   removeSet: (setId: number) => void;
+  /** the Undo half of removeSet — re-inserts the captured row verbatim */
+  restoreSet: (row: SetRow) => void;
   removeExercise: (logId: number) => void;
   moveExercise: (logId: number, direction: 'up' | 'down') => void;
   /** Replace an exercise with an easier alternative (removes old log, adds new). */
@@ -168,6 +172,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   removeSet: (setId) => {
     deleteSet(setId);
+    get().refresh();
+  },
+
+  restoreSet: (row) => {
+    restoreSetEntry(row);
     get().refresh();
   },
 

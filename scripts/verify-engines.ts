@@ -3853,5 +3853,20 @@ console.log('\nYou hub 3.0 - the light switch exists:');
   check('The avatar wash is a token, not the legacy soft colour', /theme\.alpha\.tint14\(theme\.colors\.primary\)/.test(you) && !/primarySoft/.test(you));
 }
 
+console.log('\nActiveSession 3.0 - the rest banner earns its numbers:');
+{
+  const act9 = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  // restBeforeStateSec was computed on every prescription and rendered nowhere.
+  check('The physiology delta is finally visible, both directions', /rx\?\.restBeforeStateSec != null && rx\.restSec !== rx\.restBeforeStateSec/.test(act9) && /for the state you arrived in/.test(act9) && /baseline \$\{formatRest\(rx\.restBeforeStateSec\)\}/.test(act9));
+  check('...and only when the state actually moved the number', !/rx\?\.restBeforeStateSec != null &&\s*\(/.test(act9));
+  check('A preset overrides the duration, not the physiology', /store\.startRest\(sec, lastRx \?\? undefined\)/.test(act9));
+  check('Deleting a set forgives - Undo restores the captured row', /store\.removeSet\(s\.id\);\s*\n\s*toast\(\{/.test(act9) && /onAction: \(\) => store\.restoreSet\(s\)/.test(act9));
+
+  const sessRepo = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
+  check('restoreSetEntry puts the row back verbatim, id aside', /export function restoreSetEntry\(row: SetRow\)/.test(sessRepo) && /const \{ id: _dropped, \.\.\.values \} = row;\s*\n\s*const res = db\.insert\(setEntries\)/.test(sessRepo));
+  const sessStore = fs.readFileSync('src/stores/sessionStore.ts', 'utf8');
+  check('The store refreshes after a restore, like every other write', /restoreSet: \(row\) => \{\s*\n\s*restoreSetEntry\(row\);\s*\n\s*get\(\)\.refresh\(\);/.test(sessStore));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

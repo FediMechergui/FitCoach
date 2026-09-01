@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.11',
+    date: '2026-09-01',
+    title: 'Sheets scroll, charts breathe',
+    highlights: [
+      'The readiness sheet could run past the bottom of the screen and refuse to scroll — the sheet\'s height cap sat on a wrapper its content ignored, and scrolling was every caller\'s own problem. The bottom sheet now owns both: content taller than the cap scrolls inside the sheet, the scrim sits behind it instead of wrapping it, and a pinned footer keeps the primary action reachable — Start a Session no longer hides below nine type cards.',
+      'The Daily Trend chart stopped crushing a month into one card. Thirty columns squeezed to ten pixels each turned every two-digit number into vertical rubble and every date into \'..\' — columns now have a real minimum width, the chart scrolls sideways when history is wider than the card, and it opens on the most recent days. Every bar chart in the app — sleep, work, alcohol, habits, stats — inherits the fix.',
+      '1591 checks in all, up from 1582.',
+    ],
+  },
+  {
     version: '3.0.10',
     date: '2026-09-01',
     title: 'Starting a session is a moment, not a destination',

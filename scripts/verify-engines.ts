@@ -3871,7 +3871,9 @@ console.log('\nActiveSession 3.0 - the rest banner earns its numbers:');
 console.log('\nSession start 3.0 - a moment, not a destination:');
 {
   const sheet = fs.readFileSync('src/components/SessionTypeSheet.tsx', 'utf8');
-  check('The type picker is a sheet, opened in place', /export function SessionTypeSheet\(\{ visible, onClose \}/.test(sheet) && /<Sheet visible=\{visible\} onClose=\{onClose\}>/.test(sheet));
+  // Superseded by 3.0.11: the Start button rides the Sheet's pinned footer,
+  // so the Sheet call spans lines and Start stays reachable while the grid scrolls.
+  check('The type picker is a sheet, opened in place', /export function SessionTypeSheet\(\{ visible, onClose \}/.test(sheet) && /visible=\{visible\}\s*\n\s*onClose=\{onClose\}/.test(sheet) && /footer=\{\s*\n\s*<Button/.test(sheet));
   check('Start lands directly in the live session and resets the sheet', /setSelected\(null\);\s*\n\s*setMood\(null\);\s*\n\s*onClose\(\);\s*\n\s*navigation\.navigate\('ActiveSession'/.test(sheet));
   check('The mind-body mood check-in rides along', /isMindBody &&/.test(sheet) && /MOOD_EMOJI\.map/.test(sheet));
   check('The active wash is a token, not a concat', /theme\.alpha\.tint14\(m\.color\)/.test(sheet) && !/m\.color \+ '/.test(sheet));
@@ -3880,6 +3882,24 @@ console.log('\nSession start 3.0 - a moment, not a destination:');
   const train10 = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
   check('Home and Train both open it where you stand', [home10, train10].every((src) => /setShowTypePicker\(true\)/.test(src) && /<SessionTypeSheet visible=\{showTypePicker\}/.test(src)));
   check('The old full-screen route left cleanly', !fs.existsSync('src/screens/train/SessionTypePickerScreen.tsx') && !/SessionTypePicker/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/SessionTypePicker/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
+}
+
+console.log('\nField report 3.0.11 - sheets scroll, charts breathe:');
+{
+  const sheet11 = fs.readFileSync('src/components/ui/Sheet.tsx', 'utf8');
+  // The scrim is a sibling BEHIND the sheet, never the sheet's parent.
+  check('The scrim no longer wraps the sheet', /position: 'absolute', top: 0, left: 0, right: 0, bottom: 0/.test(sheet11) && !/<Pressable onPress=\{\(\) => \{\}\}/.test(sheet11));
+  check('The height cap sits on the sheet itself', /maxHeight: height \* maxHeightFraction,\s*\n\s*paddingBottom/.test(sheet11));
+  check('The Sheet owns the scrolling', /<ScrollView\s*\n\s*style=\{\{ flexGrow: 0, flexShrink: 1 \}\}/.test(sheet11) && /keyboardShouldPersistTaps="handled"/.test(sheet11));
+  check('A footer stays pinned below the scroll', /\{footer \? \(/.test(sheet11));
+  // No caller may nest a vertical ScrollView inside the Sheet again.
+  check('ReadinessStrip and SessionTypeSheet shed their inner ScrollViews', !/<ScrollView/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')) && !/<ScrollView/.test(fs.readFileSync('src/components/SessionTypeSheet.tsx', 'utf8')));
+
+  const chart11 = fs.readFileSync('src/components/charts/BarChart.tsx', 'utf8');
+  check('Bar columns have a real minimum width', /minBarWidth = 26/.test(chart11) && /minWidth: minBarWidth/.test(chart11));
+  check('A month of bars scrolls instead of crushing', /horizontal/.test(chart11) && /contentContainerStyle=\{\{ flexGrow: 1 \}\}/.test(chart11));
+  check('The chart lands on its most recent end', /onContentSizeChange=\{\(\) => scroll\.current\?\.scrollToEnd\(\{ animated: false \}\)\}/.test(chart11));
+  check('Value labels never wrap into rubble', /fontSize: 9 \}\} numberOfLines=\{1\}/.test(chart11));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

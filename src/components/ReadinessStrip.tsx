@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
@@ -109,23 +109,22 @@ export function ReadinessStrip({
       </Card>
 
       <Sheet visible={open} onClose={() => setOpen(false)}>
-        <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={false}>
-          <View style={{ gap: theme.spacing.md, paddingBottom: theme.spacing.md }}>
-            <Text variant="eyebrow" color="textMuted">
-              Readiness
-            </Text>
-            <DigestionCard meals={meals} smokes={smokes} smokingEnabled={smokingEnabled} defaultIntensity={intensity} />
-            {after ? (
-              <PostSessionCard
-                endedAt={after.endedAt}
-                strain={after.strain}
-                margins={after.margins}
-                title="After today's session"
-              />
-            ) : null}
-            <WeatherCard />
-          </View>
-        </ScrollView>
+        {/* The Sheet owns the scrolling — no inner ScrollView. */}
+        <View style={{ gap: theme.spacing.md }}>
+          <Text variant="eyebrow" color="textMuted">
+            Readiness
+          </Text>
+          <DigestionCard meals={meals} smokes={smokes} smokingEnabled={smokingEnabled} defaultIntensity={intensity} />
+          {after ? (
+            <PostSessionCard
+              endedAt={after.endedAt}
+              strain={after.strain}
+              margins={after.margins}
+              title="After today's session"
+            />
+          ) : null}
+          <WeatherCard />
+        </View>
       </Sheet>
     </>
   );

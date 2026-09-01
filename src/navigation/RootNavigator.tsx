@@ -40,9 +40,7 @@ import { ProgramPickerScreen } from '@/screens/train/ProgramPickerScreen';
 import { SpecialProgramsScreen } from '@/screens/train/SpecialProgramsScreen';
 import { ChallengeScreen } from '@/screens/train/ChallengeScreen';
 import { SpecialProgramDetailScreen } from '@/screens/train/SpecialProgramDetailScreen';
-import { GrowthScreen } from '@/screens/stats/GrowthScreen';
 import { ChangelogScreen } from '@/screens/profile/ChangelogScreen';
-import { TrendsScreen } from '@/screens/stats/TrendsScreen';
 import { PrayersScreen } from '@/screens/faith/PrayersScreen';
 import { FastingScreen } from '@/screens/faith/FastingScreen';
 import { BodyScreen } from '@/screens/profile/BodyScreen';
@@ -164,9 +162,7 @@ export function RootNavigator() {
           <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: '' }} />
           <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: '' }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: '' }} />
-          <Stack.Screen name="Growth" component={GrowthScreen} options={{ title: '' }} />
           <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: '' }} />
-          <Stack.Screen name="Trends" component={TrendsScreen} options={{ title: '' }} />
           <Stack.Screen name="Prayers" component={PrayersScreen} options={{ title: '' }} />
           <Stack.Screen name="Fasting" component={FastingScreen} options={{ title: '' }} />
         </>

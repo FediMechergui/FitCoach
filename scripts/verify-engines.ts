@@ -3902,5 +3902,23 @@ console.log('\nField report 3.0.11 - sheets scroll, charts breathe:');
   check('Value labels never wrap into rubble', /fontSize: 9 \}\} numberOfLines=\{1\}/.test(chart11));
 }
 
+console.log('\nStats 3.0 - one tab, three depths:');
+{
+  const shell = fs.readFileSync('src/screens/stats/StatsScreen.tsx', 'utf8');
+  check('The Stats tab is segmented Overview / Growth / Trends', ["'overview'", "'growth'", "'trends'"].every((v) => shell.includes(`value: ${v}`)) && /value=\{seg\}/.test(shell));
+  check('Only the active segment mounts - heavy work stays lazy', /\{seg === 'growth' && <GrowthSegment \/>\}/.test(shell) && /\{seg === 'trends' && <TrendsSegment \/>\}/.test(shell) && /\{seg === 'overview' && hasData && \(/.test(shell));
+  check('An empty overview never hides the segmented control', /\{seg === 'overview' && !hasData && \(/.test(shell) && !/if \(!hasData\) \{/.test(shell));
+  check('The tab opens on its eyebrow and display name', /variant="eyebrow"/.test(shell) && /<Text variant="display">Stats<\/Text>/.test(shell));
+  check('The old deep-dive tiles are gone', !/navigate\('Growth'\)/.test(shell) && !/navigate\('Trends'\)/.test(shell));
+
+  const growth = fs.readFileSync('src/screens/stats/GrowthSegment.tsx', 'utf8');
+  const trends = fs.readFileSync('src/screens/stats/TrendsSegment.tsx', 'utf8');
+  check('Segments are bodies, not screens', [growth, trends].every((src) => !/<Screen>/.test(src) && !src.includes("components/ui/Screen")));
+  check('Segment loading is a shape, not a word', [growth, trends].every((src) => !src.includes('Loading…') && /<Skeleton height=\{120\}/.test(src)));
+  check('Growth wears one hero colour in both states', !/theme\.colors\.strength/.test(growth));
+  check('Trends refreshes projections on focus alone, not on every page turn', /reload\(granularity, page\);\s*\n\s*\}, \[reload, granularity, page\]\)/.test(trends) && /setComp\(null\);\s*\n\s*\}\s*\n\s*\}, \[\]\)/.test(trends));
+  check('The Growth and Trends stack routes left cleanly', !fs.existsSync('src/screens/stats/GrowthScreen.tsx') && !fs.existsSync('src/screens/stats/TrendsScreen.tsx') && !/Growth: undefined/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/name="Trends"/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

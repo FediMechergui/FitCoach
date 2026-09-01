@@ -2,13 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
-import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge, EmptyState } from '@/components/ui/misc';
+import { Skeleton } from '@/components/ui/misc3';
 import { PageHero } from '@/components/ui/PageHero';
 import { growthReport, type GrowthReport } from '@/repositories/growthRepo';
 import {
@@ -20,7 +20,11 @@ import {
 import { MUSCLE_LABELS } from '@/data/exercises';
 import { fmtNum } from '@/lib/format';
 
-export function GrowthScreen() {
+/**
+ * The Growth segment of the Stats tab — mounted only while active, so the
+ * four-week per-muscle scoring runs only when someone is actually looking.
+ */
+export function GrowthSegment() {
   const theme = useTheme();
   const [report, setReport] = useState<GrowthReport | null>(null);
 
@@ -30,26 +34,32 @@ export function GrowthScreen() {
     }, [])
   );
 
-  if (!report) return <Screen><Text>Loading…</Text></Screen>;
+  if (!report)
+    return (
+      <View style={{ gap: theme.spacing.lg }}>
+        <Skeleton height={120} />
+        <Skeleton height={220} />
+      </View>
+    );
 
   const trained = report.muscles.filter((m) => m.avgSetsPerWeek4w > 0);
   const { gates } = report;
 
   if (trained.length === 0) {
     return (
-      <Screen>
-        <PageHero icon="stats.muscleMap" color={theme.colors.strength} title="Muscle growth" />
+      <View style={{ gap: theme.spacing.lg }}>
+        <PageHero icon="stats.muscleMap" color={theme.colors.accent} title="Muscle growth" />
         <EmptyState
           icon="stats.muscleMap"
           title="No strength training logged yet"
           message="Log a few lifting sessions and FitCoach will score each muscle's growth conditions."
         />
-      </Screen>
+      </View>
     );
   }
 
   return (
-    <Screen>
+    <View style={{ gap: theme.spacing.lg }}>
       <PageHero icon="stats.muscleMap" color={theme.colors.accent} title="Muscle growth" subtitle="An honest readout: how closely your real logs match the conditions research ties to hypertrophy — volume (10–20 hard sets/muscle/week), progressive overload, recovery, protein and sleep. No invented numbers." />
 
       {/* Growth gates */}
@@ -157,7 +167,7 @@ export function GrowthScreen() {
       <Text variant="caption" color="textFaint" center>
         Visible hypertrophy typically needs 8–12+ weeks of these conditions held consistently.
       </Text>
-    </Screen>
+    </View>
   );
 }
 

@@ -35,6 +35,9 @@ import { metaFor } from '@/constants/sessionTypes';
 import { SESSION_TYPE_COLORS } from '@/theme';
 import { daysAgoISO } from '@/lib/date';
 import { formatWeight, fmtNum } from '@/lib/format';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { GrowthSegment } from './GrowthSegment';
+import { TrendsSegment } from './TrendsSegment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -43,6 +46,7 @@ export function StatsScreen() {
   const navigation = useNavigation<Nav>();
   const unit = useUserStore((s) => s.user?.unitPreference ?? 'metric');
   const [data, setData] = useState(() => loadStats());
+  const [seg, setSeg] = useState<'overview' | 'growth' | 'trends'>('overview');
 
   useFocusEffect(
     useCallback(() => {
@@ -73,36 +77,42 @@ export function StatsScreen() {
   const hasData =
     weekSessions > 0 || weightSeries.length > 0 || calendar.some((d) => d.count > 0) || !!smoking;
 
-  if (!hasData) {
-    return (
-      <Screen>
-        <Text variant="h1">Stats</Text>
-        <EmptyState
-          icon="stats.progression"
-          title="Your insights will appear here"
-          message="Log a few sessions, weigh-ins and meals and FitCoach will chart your progress."
-        />
-      </Screen>
-    );
-  }
-
   const muscleEntries = Object.entries(muscle).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxMuscle = Math.max(1, ...muscleEntries.map((m) => m[1]));
 
   return (
     <Screen>
-      <Text variant="h1">Stats</Text>
+      <Text variant="eyebrow" color="textMuted">
+        Measured
+      </Text>
+      <Text variant="display">Stats</Text>
 
-      {/* Deep-dive views */}
-      <Row>
-        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Growth')}>
-          <StatTile icon="stats.muscleMap" label="Muscle Growth" value="Open" sub="per-muscle readiness" accent={theme.colors.accent} />
-        </Pressable>
-        <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('Trends')}>
-          <StatTile icon="stats.progression" label="Trends" value="12 wk" sub="everything charted" accent={theme.colors.primary} />
-        </Pressable>
-      </Row>
+      {/* One tab, three depths — the deep dives are segments now, not detours.
+          Only the active segment mounts, so Growth's scoring and Trends'
+          projections run when looked at, never on every tab focus. */}
+      <SegmentedControl
+        options={[
+          { value: 'overview', label: 'Overview' },
+          { value: 'growth', label: 'Growth' },
+          { value: 'trends', label: 'Trends' },
+        ]}
+        value={seg}
+        onChange={setSeg}
+      />
 
+      {seg === 'growth' && <GrowthSegment />}
+      {seg === 'trends' && <TrendsSegment />}
+
+      {seg === 'overview' && !hasData && (
+        <EmptyState
+          icon="stats.progression"
+          title="Your insights will appear here"
+          message="Log a few sessions, weigh-ins and meals and FitCoach will chart your progress."
+        />
+      )}
+
+      {seg === 'overview' && hasData && (
+        <>
       {/* This week */}
       <Row>
         <StatTile icon="nav.train" label="Sessions" value={`${weekSessions}`} sub="this week" />
@@ -288,6 +298,8 @@ export function StatsScreen() {
               </View>
             ))}
           </Card>
+        </>
+      )}
         </>
       )}
     </Screen>

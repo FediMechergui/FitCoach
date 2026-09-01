@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.12',
+    date: '2026-09-01',
+    title: 'Stats: one tab, three depths',
+    highlights: [
+      'Muscle Growth and Trends were separate screens you navigated away to; now they are segments of the Stats tab itself — Overview / Growth / Trends, one tap apart, no back button in the middle of reading your own numbers.',
+      'Only the segment you are looking at does its work. Growth\'s four-week per-muscle scoring and Trends\' sixty-day projection used to run whenever their screens opened; now they run when their segment mounts, and Trends stopped recomputing both projections on every page turn and granularity toggle — those refresh on focus alone.',
+      'A fresh install with nothing logged still gets the whole control — an empty Overview invites, it no longer hides Growth and Trends behind the empty state. Segment loading is a skeleton shape, never the word \'Loading\', and Growth wears one hero colour in both of its states.',
+      '1601 checks in all, up from 1591.',
+    ],
+  },
+  {
     version: '3.0.11',
     date: '2026-09-01',
     title: 'Sheets scroll, charts breathe',

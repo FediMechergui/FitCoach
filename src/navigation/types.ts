@@ -67,8 +67,6 @@ export type RootStackParamList = {
   ProfileCard: undefined;
   Achievements: undefined;
   Reports: undefined;
-  Growth: undefined;
-  Trends: undefined;
   Changelog: undefined;
   Prayers: undefined;
   Fasting: undefined;

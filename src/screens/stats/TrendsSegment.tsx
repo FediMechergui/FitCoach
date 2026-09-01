@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
-import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
@@ -10,9 +9,9 @@ import { LineChart } from '@/components/charts/LineChart';
 import { DualLineChart } from '@/components/charts/DualLineChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader } from '@/components/ui/misc';
+import { Skeleton } from '@/components/ui/misc3';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PageHero } from '@/components/ui/PageHero';
-import { Pressable } from 'react-native';
 import {
   trendsData,
   type Granularity,
@@ -29,7 +28,8 @@ import { fmtNum } from '@/lib/format';
  * nutrition, rest, habits and their footprint on the same timeline. Weeks with
  * no logs plot as zero; charts appear once a signal has any data.
  */
-export function TrendsScreen() {
+/** The Trends segment of the Stats tab — mounted only while active. */
+export function TrendsSegment() {
   const theme = useTheme();
   const [granularity, setGranularity] = useState<Granularity>('weekly');
   const [page, setPage] = useState(0);
@@ -42,9 +42,15 @@ export function TrendsScreen() {
     []
   );
 
+  // Data follows granularity and page; the projections depend on neither, so
+  // they refresh on focus alone instead of on every toggle and page turn.
   useFocusEffect(
     useCallback(() => {
       reload(granularity, page);
+    }, [reload, granularity, page])
+  );
+  useFocusEffect(
+    useCallback(() => {
       try {
         setProj(compositionProjection(60));
       } catch {
@@ -55,10 +61,16 @@ export function TrendsScreen() {
       } catch {
         setComp(null);
       }
-    }, [reload, granularity, page])
+    }, [])
   );
 
-  if (!data) return <Screen><Text>Loading…</Text></Screen>;
+  if (!data)
+    return (
+      <View style={{ gap: theme.spacing.lg }}>
+        <Skeleton height={120} />
+        <Skeleton height={220} />
+      </View>
+    );
 
   const has = (pts: WeekPoint[]) => pts.some((p) => p.samples > 0);
   const line = (pts: WeekPoint[]) => pts.map((p, i) => ({ x: i, y: p.value, label: p.label }));
@@ -68,7 +80,7 @@ export function TrendsScreen() {
   const per = granularity === 'daily' ? 'day' : 'week';
 
   return (
-    <Screen>
+    <View style={{ gap: theme.spacing.lg }}>
       <PageHero icon="stats.progression" color={theme.colors.primary} title="Trends" />
 
       {/* Granularity + time navigation */}
@@ -320,7 +332,7 @@ export function TrendsScreen() {
       <Text variant="caption" color="textFaint" center>
         Weeks with nothing logged plot as zero — consistency of logging is itself visible here.
       </Text>
-    </Screen>
+    </View>
   );
 }
 

@@ -9,7 +9,7 @@ import { Row } from '@/components/ui/misc';
 import { DigestionCard } from '@/components/DigestionCard';
 import { PostSessionCard } from '@/components/PostSessionCard';
 import { WeatherCard } from '@/components/WeatherCard';
-import { currentDigestion, formatWait, type MealForDigestion } from '@/lib/digestion';
+import { currentDigestion, formatWait, type MealForDigestion, type TrainingIntensity } from '@/lib/digestion';
 import { currentSmoke, type SmokeEvent } from '@/lib/smokeClock';
 import type { activePostSession } from '@/repositories/postSessionRepo';
 
@@ -29,6 +29,7 @@ export function ReadinessStrip({
   smokingEnabled,
   after,
   weatherLine,
+  intensity = 'moderate',
 }: {
   meals: MealForDigestion[];
   smokes: SmokeEvent[];
@@ -36,13 +37,15 @@ export function ReadinessStrip({
   after: ReturnType<typeof activePostSession>;
   /** one compact line about the day's heat, from weatherAdjustedWaterGoal */
   weatherLine: string | null;
+  /** the intensity the verdict answers for — Train asks about hard sessions */
+  intensity?: TrainingIntensity;
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
 
   const verdict = useMemo(() => {
-    const digestion = currentDigestion(meals, 'moderate');
-    const smoke = smokingEnabled ? currentSmoke(smokes, 'moderate') : null;
+    const digestion = currentDigestion(meals, intensity);
+    const smoke = smokingEnabled ? currentSmoke(smokes, intensity) : null;
     const dWait = digestion?.remainingMin ?? 0;
     const sWait = smoke?.remainingMin ?? 0;
     const wait = Math.max(dWait, sWait);
@@ -59,9 +62,9 @@ export function ReadinessStrip({
     return {
       clear: false,
       title: `Wait ${formatWait(wait)}`,
-      line: `The ${governor} governs — a normal session at ${hh}; fine now for a walk or mobility.`,
+      line: `The ${governor} governs — ${intensity === 'hard' ? 'sprints or heavy lifting' : 'a normal session'} at ${hh}; fine now for a walk or mobility.`,
     };
-  }, [meals, smokes, smokingEnabled]);
+  }, [meals, smokes, smokingEnabled, intensity]);
 
   const tint = verdict.clear ? theme.colors.primary : theme.colors.warning;
 
@@ -111,7 +114,7 @@ export function ReadinessStrip({
             <Text variant="eyebrow" color="textMuted">
               Readiness
             </Text>
-            <DigestionCard meals={meals} smokes={smokes} smokingEnabled={smokingEnabled} />
+            <DigestionCard meals={meals} smokes={smokes} smokingEnabled={smokingEnabled} defaultIntensity={intensity} />
             {after ? (
               <PostSessionCard
                 endedAt={after.endedAt}

@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.0.5',
+    date: '2026-09-01',
+    title: 'Train gets a spine — Start, Browse, History',
+    highlights: [
+      'Seven ways to start a session existed and none of them was presented as a hierarchy. Now the screen reads in order: START — resume or begin, your split, a past log, the readiness verdict and every ground activity on one rail; BROWSE — the daily challenge, the special programmes and the nine categories, each door saying plainly that it browses; HISTORY — your routines and recent sessions. Nothing was removed. Everything was placed.',
+      'The readiness question is asked the way Train means it: at HARD intensity — sprints and heavy lifting — as one verdict strip instead of two stacked cards. The full physiology, intensity control included, is one tap down in the same sheet Home uses; a clear day says "Clear to train" instead of hiding.',
+      'Walks and runs join the other five ground activities on a single rail — hike, trail run, ruck, stairs, ride — rather than living in their own separate row above the fold.',
+      'Deleting a routine now forgives: it goes at once, and the toast holds the door open for six seconds — Undo rebuilds it exactly, name and exercises. The blocking confirmation dialog is gone; your logged sessions were never touched either way.',
+      'Recent sessions wear their session-type colour, and the resume card rides raised elevation — a live session should look like the most important thing on the screen, because it is.',
+      '1546 checks in all, up from 1538.',
+    ],
+  },
+  {
     version: '3.0.4',
     date: '2026-09-01',
     title: 'The first hour — boot, crash and onboarding stop being hostile',

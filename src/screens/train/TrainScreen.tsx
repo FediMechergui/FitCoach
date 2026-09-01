@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Pressable, Alert, ScrollView } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { toast } from '@/components/ui/Toast';
 import { SectionHeader, Row, EmptyState } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { SESSION_TYPE_META } from '@/constants/sessionTypes';
@@ -16,19 +17,31 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { listSessions, sessionExercisePeek, type SessionExercisePeek } from '@/repositories/sessionRepo';
 import { ExercisePeek } from '@/components/ExercisePeek';
 import { OUTDOOR_ACTIVITIES } from '@/lib/outdoorActivities';
-import { deleteRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
+import { deleteRoutine, saveRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
 import { fromISODate, toISODate } from '@/lib/date';
-import { DigestionCard } from '@/components/DigestionCard';
-import { WeatherCard } from '@/components/WeatherCard';
+import { ReadinessStrip } from '@/components/ReadinessStrip';
 import { mealsFromEntries, type MealForDigestion } from '@/lib/digestion';
 import { foodEntriesForDay } from '@/repositories/nutritionRepo';
 import { recentSmokeEvents, isSmokingEnabled } from '@/repositories/smokingRepo';
+import { activePostSession } from '@/repositories/postSessionRepo';
 import type { SmokeEvent } from '@/lib/smokeClock';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+/**
+ * Train 3.0 — seven ways to start a session, finally presented as a spine:
+ *
+ *   START   — the live-session resume or the primary CTA, the split, a past
+ *             log, the readiness verdict (asked at HARD intensity, because
+ *             that's the question here), and every ground activity as one rail.
+ *   BROWSE  — the catalogue world: the daily challenge, the special
+ *             programmes, and the nine categories (each opens its methods).
+ *   HISTORY — saved routines (delete forgives now) and recent sessions.
+ *
+ * Nothing was removed — everything was placed.
+ */
 export function TrainScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
@@ -45,6 +58,7 @@ export function TrainScreen() {
   const [digestMeals, setDigestMeals] = useState<MealForDigestion[]>([]);
   const [smokes, setSmokes] = useState<SmokeEvent[]>([]);
   const [smokingOn, setSmokingOn] = useState(false);
+  const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -56,6 +70,7 @@ export function TrainScreen() {
       // …and a cigarette a minute ago, which is the other thing that should stop you.
       setSmokes(recentSmokeEvents());
       setSmokingOn(isSmokingEnabled());
+      setAfter(activePostSession());
     }, [resume])
   );
 
@@ -65,11 +80,23 @@ export function TrainScreen() {
     navigation.navigate('ActiveSession', { sessionId: id });
   };
 
-  const confirmDeleteRoutine = (r: RoutineView) => {
-    Alert.alert(`Delete “${r.name}”?`, 'The routine template is removed; logged sessions are untouched.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { deleteRoutine(r.id); setRoutines(listRoutines()); } },
-    ]);
+  /**
+   * Delete with forgiveness — the routine goes optimistically and the toast
+   * holds the door open for six seconds. Undo recreates it from the same name
+   * and exercise list; logged sessions were never touched either way.
+   */
+  const removeRoutine = (r: RoutineView) => {
+    const { name, exerciseIds } = r;
+    deleteRoutine(r.id);
+    setRoutines(listRoutines());
+    toast({
+      message: `Deleted “${name}”`,
+      actionLabel: 'Undo',
+      onAction: () => {
+        saveRoutine(name, exerciseIds);
+        setRoutines(listRoutines());
+      },
+    });
   };
 
   // Tapping a category opens its methods/splits/routines rather than blindly
@@ -80,10 +107,15 @@ export function TrainScreen() {
 
   return (
     <Screen>
-      <Text variant="h1">Train</Text>
+      <View>
+        <Text variant="eyebrow" color="textMuted">
+          Start
+        </Text>
+        <Text variant="display">Train</Text>
+      </View>
 
       {activeId ? (
-        <Card accent={theme.colors.accent}>
+        <Card accent={theme.colors.accent} raised>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
               <Icon icon="core.timer" color={theme.colors.accent} />
@@ -125,89 +157,94 @@ export function TrainScreen() {
         onPress={() => navigation.navigate('LogSession')}
       />
 
-      {/*
-        Before you start: is the last meal out of the way, and what is the
-        weather asking of you? Both are the training-side questions these
-        engines exist to answer, so they sit above the session pickers.
-      */}
-      <DigestionCard meals={digestMeals} smokes={smokes} smokingEnabled={smokingOn} defaultIntensity="hard" />
-      <WeatherCard plannedActiveMin={60} />
+      {/* The verdict, asked at hard intensity — the question Train exists to
+          answer. The full physiology (intensity control included) is in the
+          sheet, and "clear" shows instead of hiding. */}
+      <ReadinessStrip
+        meals={digestMeals}
+        smokes={smokes}
+        smokingEnabled={smokingOn}
+        after={after}
+        weatherLine={null}
+        intensity="hard"
+      />
 
-      {/* Spin once a day for a challenge you didn't choose */}
-      <Pressable onPress={() => navigation.navigate('DailyChallenge')}>
-        <Card accent={theme.colors.warning} style={{ gap: 6 }}>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="core.target" size={24} color={theme.colors.warning} />
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyStrong">Daily Challenge</Text>
-                <Text variant="caption" color="textMuted" numberOfLines={1}>
-                  Spin the wheel — one a day, tracked automatically
-                </Text>
-              </View>
-            </Row>
-            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
-          </Row>
-        </Card>
-      </Pressable>
-
-      {/* Themed military / historical / lifestyle programmes */}
-      <Pressable onPress={() => navigation.navigate('SpecialPrograms')}>
-        <Card accent={theme.colors.accent} style={{ gap: 6 }}>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="mindbody.special" size={24} color={theme.colors.accent} />
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyStrong">Special Programmes</Text>
-                <Text variant="caption" color="textMuted" numberOfLines={1}>
-                  Military, Shaolin, Roman, Spartan, Dagestan… + their diets
-                </Text>
-              </View>
-            </Row>
-            <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
-          </Row>
-        </Card>
-      </Pressable>
-
-      <Row>
-        <Button
-          title="Walk"
-          icon="cardio.walk"
-          variant="secondary"
-          onPress={() => navigation.navigate('Walk', { activity: 'walk' })}
-          fullWidth={false}
-          style={{ flex: 1 }}
-        />
-        <Button
-          title="Run"
-          icon="cardio.running"
-          variant="secondary"
-          onPress={() => navigation.navigate('Walk', { activity: 'run' })}
-          fullWidth={false}
-          style={{ flex: 1 }}
-        />
-      </Row>
-
-      {/*
-        Everything else done on the ground launches exactly the way a walk does
-        — one tap into the live tracker with steps, route, pace and a recap,
-        rather than the generic session screen with GPS you had to remember.
-      */}
+      {/* Every ground activity, one rail — walks first, then the rest. */}
       <View style={{ gap: 6 }}>
-        <Text variant="label" color="textMuted">Track outdoors</Text>
+        <Text variant="eyebrow" color="textMuted">
+          Track outdoors
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-          {OUTDOOR_ACTIVITIES.filter((a) => a.key !== 'walk' && a.key !== 'run').map((a) => (
-            <Pressable key={a.key} onPress={() => navigation.navigate('Walk', { activity: a.key })}>
-              <Card accent={theme.colors.outdoor} style={{ paddingVertical: 10, paddingHorizontal: 14, minWidth: 104 }}>
-                <Icon icon={a.icon} size={20} color={theme.colors.outdoor} />
-                <Text variant="bodyStrong" style={{ marginTop: 6 }}>{a.label}</Text>
-              </Card>
-            </Pressable>
+          {OUTDOOR_ACTIVITIES.map((a) => (
+            <Card
+              key={a.key}
+              accent={theme.colors.outdoor}
+              onPress={() => navigation.navigate('Walk', { activity: a.key })}
+              style={{ paddingVertical: 10, paddingHorizontal: 14, minWidth: 104 }}
+            >
+              <Icon icon={a.icon} size={20} color={theme.colors.outdoor} />
+              <Text variant="bodyStrong" style={{ marginTop: 6 }}>{a.label}</Text>
+            </Card>
           ))}
         </ScrollView>
       </View>
 
-      {/* Saved custom routines */}
+      {/* ── Browse ─────────────────────────────────────────────────────────── */}
+      <SectionHeader title="Browse" />
+
+      {/* Spin once a day for a challenge you didn't choose */}
+      <Card accent={theme.colors.warning} style={{ gap: 6 }} onPress={() => navigation.navigate('DailyChallenge')}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+            <Icon icon="core.target" size={24} color={theme.colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong">Daily Challenge</Text>
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                Spin the wheel — one a day, tracked automatically
+              </Text>
+            </View>
+          </Row>
+          <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+        </Row>
+      </Card>
+
+      {/* Themed military / historical / lifestyle programmes */}
+      <Card accent={theme.colors.accent} style={{ gap: 6 }} onPress={() => navigation.navigate('SpecialPrograms')}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+            <Icon icon="mindbody.special" size={24} color={theme.colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong">Special Programmes</Text>
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                Military, Shaolin, Roman, Spartan, Dagestan… + their diets
+              </Text>
+            </View>
+          </Row>
+          <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+        </Row>
+      </Card>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>
+        {SESSION_TYPE_META.map((m) => (
+          <Card
+            key={m.type}
+            accent={m.color}
+            onPress={() => openCategory(m)}
+            style={{ gap: 8, width: '47%', flexGrow: 1 }}
+          >
+            <Icon icon={m.icon} size={26} color={m.color} />
+            <Text variant="h3">{m.label}</Text>
+            <Text variant="caption" color="textMuted">
+              {m.blurb}
+            </Text>
+            <Text variant="caption" color="textFaint">
+              Browse {m.label.toLowerCase()} →
+            </Text>
+          </Card>
+        ))}
+      </View>
+
+      {/* ── History ────────────────────────────────────────────────────────── */}
       {routines.length > 0 && (
         <>
           <SectionHeader title="My Routines" />
@@ -230,7 +267,7 @@ export function TrainScreen() {
                   <Pressable onPress={() => setOpenRoutine(open ? null : r.id)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
                     <Icon icon={open ? 'core.chevronUp' : 'core.list'} size={18} color={theme.colors.primary} />
                   </Pressable>
-                  <Pressable onPress={() => confirmDeleteRoutine(r)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                  <Pressable onPress={() => removeRoutine(r)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
                     <Icon icon="core.delete" size={18} color={theme.colors.textFaint} />
                   </Pressable>
                   <Pressable onPress={() => startRoutine(r)} hitSlop={8} style={{ paddingLeft: 2 }}>
@@ -249,25 +286,6 @@ export function TrainScreen() {
         </>
       )}
 
-      <SectionHeader title="Train by category" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>
-        {SESSION_TYPE_META.map((m) => (
-          <Pressable
-            key={m.type}
-            onPress={() => openCategory(m)}
-            style={{ width: '47%', flexGrow: 1 }}
-          >
-            <Card accent={m.color} style={{ gap: 8 }}>
-              <Icon icon={m.icon} size={26} color={m.color} />
-              <Text variant="h3">{m.label}</Text>
-              <Text variant="caption" color="textMuted">
-                {m.blurb}
-              </Text>
-            </Card>
-          </Pressable>
-        ))}
-      </View>
-
       <SectionHeader
         title="Recent Sessions"
         action={recent.length ? 'All' : undefined}
@@ -282,12 +300,13 @@ export function TrainScreen() {
       ) : (
         recent.map((s) => {
           const open = openSession === s.id;
+          const accent = SESSION_TYPE_META.find((m) => m.type === s.sessionType)?.color ?? theme.colors.primary;
           return (
             <Card key={s.id} style={{ gap: open ? 10 : 0 }}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}>
                   <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                    <Icon icon={sessionTypeIcon(s.sessionType)} size={22} color={theme.colors.primary} />
+                    <Icon icon={sessionTypeIcon(s.sessionType)} size={22} color={accent} />
                     <View style={{ flex: 1 }}>
                       <Text variant="bodyStrong" numberOfLines={1}>
                         {s.label ?? labelFor(s.sessionType)}

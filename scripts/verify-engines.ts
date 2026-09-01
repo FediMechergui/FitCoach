@@ -1240,11 +1240,11 @@ console.log('\nDigestion clock — a stomach load that stacks:');
   // ── Wiring: shown where the decision is made, and only for today ──
   const nutSrcD = fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8');
   check('Nutrition shows the clock only for today', /date === todayISO\(\) && <DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\}/.test(nutSrcD) && /date === todayISO\(\) && e\.calories >= 20/.test(nutSrcD));
-  check('The Train tab asks the question at hard intensity, with the smoke clock', /<DigestionCard meals=\{digestMeals\} smokes=\{smokes\} smokingEnabled=\{smokingOn\} defaultIntensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
+  check('The Train tab asks the question at hard intensity, with the smoke clock', /intensity="hard"/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')) && /<ReadinessStrip/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
   // Superseded by the 3.0 bento: Home shows the readiness VERDICT; the full
   // digestion card (smoke clock included) lives one tap down in the sheet.
   check('Home carries the readiness strip', /<ReadinessStrip/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
-  check('...whose sheet holds the full digestion card', /<DigestionCard meals=\{meals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\} \/>/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')));
+  check('...whose sheet holds the full digestion card', /<DigestionCard meals=\{meals\} smokes=\{smokes\} smokingEnabled=\{smokingEnabled\} defaultIntensity=\{intensity\} \/>/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')));
   check('...and a clear day says so instead of hiding', /Clear to train/.test(fs.readFileSync('src/components/ReadinessStrip.tsx', 'utf8')));
   const cardSrcD = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
   // Two meters, never one merged bar.
@@ -2859,7 +2859,7 @@ console.log('\nOutdoor ground activities launch like a walk:');
   check('…floors the pace MET by activity and scales by the carried pack', /activityMet\(activity, paceMet\)/.test(walkSrcO) && /loadCalorieFactor\(profileFor\(\{ slug: 'rucking' \}\), weightKg, loadKg\)/.test(walkSrcO));
   check('…asks for the pack only where it makes sense, and warns when GPS is the only source', /activity\.carries && \(/.test(walkSrcO) && /gpsOnly && \(/.test(walkSrcO));
   check('…and labels everything by the activity, not "walk"', /title=\{activity\.label\}/.test(walkSrcO) && /: activity\.verb\}/.test(walkSrcO) && /sessionType: activity\.sessionType/.test(walkSrcO));
-  check('Train offers every ground activity one tap away', /OUTDOOR_ACTIVITIES\.filter\(\(a\) => a\.key !== 'walk' && a\.key !== 'run'\)/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
+  check('Train offers every ground activity one tap away', /OUTDOOR_ACTIVITIES\.map\(\(a\) => \(/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
 }
 
 console.log('\nWhy walks read slow — the speed sentinel and the stride:');
@@ -3783,6 +3783,24 @@ console.log("\nThe first hour - boot, crash and onboarding stop being hostile:")
   check('The crash screen wears Night Sea, not stale hex', /darkColors\.bg/.test(eb) && !/#0B1220/.test(eb));
   check('The stack folds behind Details and is selectable', /showDetails/.test(eb) && /selectable/.test(eb));
   check('It says the data is untouched, because it is', /not a data problem/.test(eb));
+}
+
+console.log('\nTrain 3.0 - a spine, not a pile:');
+{
+  const train = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
+  // Start, then Browse, then History - in that order on the screen.
+  const iStart = train.indexOf("Start a Session");
+  const iBrowse = train.indexOf('SectionHeader title="Browse"');
+  const iRoutines = train.indexOf('SectionHeader title="My Routines"');
+  const iRecent = train.indexOf('title="Recent Sessions"');
+  check('The spine reads Start, Browse, History', iStart > 0 && iBrowse > iStart && iRoutines > iBrowse && iRecent > iRoutines);
+  check('The readiness verdict replaces two stacked cards', /<ReadinessStrip/.test(train) && !/<DigestionCard/.test(train) && !/<WeatherCard/.test(train));
+  check('All seven ground activities ride one rail', /OUTDOOR_ACTIVITIES\.map/.test(train));
+  check('Deleting a routine forgives', /toast\(\{\s*\n\s*message: `Deleted/.test(train) && /saveRoutine\(name, exerciseIds\)/.test(train));
+  check('...and the confirm Alert is gone from this screen', !/Alert\.alert/.test(train));
+  check('Category doors say they browse', /Browse \{m\.label\.toLowerCase\(\)\}/.test(train));
+  check('Recent sessions wear their type colour', /SESSION_TYPE_META\.find\(\(m\) => m\.type === s\.sessionType\)\?\.color/.test(train));
+  check('The resume card rides raised elevation', /<Card accent=\{theme\.colors\.accent\} raised>/.test(train));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

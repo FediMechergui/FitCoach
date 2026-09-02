@@ -66,6 +66,10 @@ export function RootNavigator() {
     headerTitleStyle: { fontWeight: '700' as const },
     headerShadowVisible: false,
     contentStyle: { backgroundColor: theme.colors.bg },
+    // Screens sweep in from the right on the house sweep timing instead of
+    // the platform's default; the same curve everywhere.
+    animation: 'slide_from_right' as const,
+    animationDuration: theme.motion.sweep,
   };
 
   return (

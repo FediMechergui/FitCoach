@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
-import { motion } from '@/theme';
+import { spring } from '@/theme/springs';
 
 /**
  * The bottom sheet — 3.0's standard modal surface.
@@ -20,8 +20,6 @@ import { motion } from '@/theme';
  * ScrollView; content taller than the cap scrolls, content shorter than it
  * costs nothing. Callers must not add their own vertical ScrollView.
  */
-
-const HOUSE_EASING = Easing.bezier(motion.bezier[0], motion.bezier[1], motion.bezier[2], motion.bezier[3]);
 
 interface SheetProps {
   visible: boolean;
@@ -41,15 +39,12 @@ export function Sheet({ visible, onClose, children, maxHeightFraction = 0.88, fo
 
   useEffect(() => {
     if (visible) {
+      // A sheet arriving is physical motion — a spring settles it with one
+      // soft landing instead of a tween that stops dead.
       slide.setValue(0);
-      Animated.timing(slide, {
-        toValue: 1,
-        duration: theme.motion.settle,
-        easing: HOUSE_EASING,
-        useNativeDriver: true,
-      }).start();
+      Animated.spring(slide, { toValue: 1, ...spring('settle') }).start();
     }
-  }, [visible, slide, theme.motion.settle]);
+  }, [visible, slide]);
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>

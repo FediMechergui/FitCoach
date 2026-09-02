@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
+import { spring } from '@/theme/springs';
 import { motion } from '@/theme';
 import { Text } from './Text';
 
@@ -43,18 +44,24 @@ export function ToastHost() {
   const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<ToastOptions | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
+  const rise = useRef(new Animated.Value(14)).current;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     listener = (t) => {
       if (timer.current) clearTimeout(timer.current);
       setCurrent(t);
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: theme.motion.swift,
-        easing: HOUSE_EASING,
-        useNativeDriver: true,
-      }).start();
+      // Fade is a tween (opacity is not physical); the rise is a spring.
+      rise.setValue(14);
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: theme.motion.swift,
+          easing: HOUSE_EASING,
+          useNativeDriver: true,
+        }),
+        Animated.spring(rise, { toValue: 0, ...spring('toast') }),
+      ]).start();
       timer.current = setTimeout(() => dismiss(), t.duration ?? 6000);
     };
     if (queued) {
@@ -90,6 +97,7 @@ export function ToastHost() {
         // Above the 64px tab bar, respecting the gesture inset.
         bottom: insets.bottom + 76,
         opacity,
+        transform: [{ translateY: rise }],
       }}
     >
       <View

@@ -31,6 +31,7 @@ import { difficultyBySlug } from '../src/data/exercises';
 import { difficultyOf, skillDifficulty, suitsLevel, levelFit, levelNote, DIFFICULTY_LABELS, type Difficulty } from '../src/lib/exerciseDifficulty';
 import { SPLITS } from '../src/data/splits';
 import { computePrayerTimes, nextPrayer } from '../src/lib/prayers';
+import { SPRING_FEEL, springFromFeel } from '../src/theme/springs';
 import { EXERCISE_VIDEOS } from '../src/data/exerciseVideos';
 import { parseYouTubeId, youtubeThumb, youtubeWatchUrl } from '../src/lib/youtube';
 import { resolveWindow, fastingState } from '../src/lib/fasting';
@@ -3703,9 +3704,10 @@ console.log('\n3.0.1 - the slick pass keeps its own discipline:');
 
   // ── Motion: one curve everywhere it interpolates. ──
   check('The house bezier is a token', motion.bezier.length === 4 && motion.bezier[0] === 0.32 && motion.bezier[3] === 1);
-  for (const f of ['src/components/ui/Sheet.tsx', 'src/components/ui/Toast.tsx']) {
-    check(`${f.split('/').pop()} animates on the house curve`, /easing: HOUSE_EASING/.test(fs.readFileSync(f, 'utf8')));
-  }
+  // Superseded by 3.1.2: the Sheet's slide is a spring now (physical motion);
+  // the Toast keeps the house curve for its fade, which is not.
+  check('Toast.tsx animates its fade on the house curve', /easing: HOUSE_EASING/.test(fs.readFileSync('src/components/ui/Toast.tsx', 'utf8')));
+  check('Sheet.tsx left the tween behind entirely', !/HOUSE_EASING/.test(fs.readFileSync('src/components/ui/Sheet.tsx', 'utf8')));
 
   // ── Both themes are deliberate, not one theme twice. ──
   check('Salt floats on diffused ambient shadow', (lightTheme.elevation.e1.shadowRadius ?? 0) >= 12 && (lightTheme.elevation.e1.shadowOpacity ?? 1) <= 0.06);
@@ -4044,6 +4046,32 @@ console.log('\nHow it is done 3.1 - a video and an anatomy for every exercise:')
   check('Primary fills solid, the rest soft, the pinned target is ringed', /intensity: 1 \}/.test(fig) && /intensity: 2 \}/.test(fig) && /styles: \{ stroke: ring, strokeWidth: 6 \}/.test(fig));
   check('The model is pinned to the binary\'s react-native-svg, never a nested copy', /"react-native-svg": "\$react-native-svg"/.test(fs.readFileSync('package.json', 'utf8')) && !fs.existsSync('node_modules/react-native-body-highlighter/node_modules/react-native-svg'));
   check('The stock reference images never entered the repo', !fs.existsSync('man.png') && !fs.existsSync('women.png'));
+}
+
+console.log('\nMotion 3.1.2 - springs where motion is physical, the icon in the theme:');
+{
+  // Motion's model, exactly: stiffness = (2π/d)², damping = (1−b)·4π/d, mass 1.
+  const ref = springFromFeel({ visualDuration: 0.4, bounce: 0.2 });
+  check('The spring conversion is Motion\'s own mapping', Math.abs(ref.stiffness - (2 * Math.PI / 0.4) ** 2) < 1e-9 && Math.abs(ref.damping - (0.8 * 4 * Math.PI) / 0.4) < 1e-9 && ref.mass === 1);
+  check('A firmer feel is stiffer and better damped, never bouncier', springFromFeel(SPRING_FEEL.press).stiffness > springFromFeel(SPRING_FEEL.settle).stiffness && springFromFeel({ visualDuration: 0.3, bounce: 0 }).damping > springFromFeel({ visualDuration: 0.3, bounce: 0.3 }).damping);
+  check('A serious product does not overshoot - every house feel stays at or under 0.15 bounce', Object.values(SPRING_FEEL).every((f) => f.bounce <= 0.15 && f.visualDuration >= 0.1 && f.visualDuration <= 0.5));
+
+  const btn = fs.readFileSync('src/components/ui/Button.tsx', 'utf8');
+  check('A press is a spring, not a tween', /Animated\.spring\(scale, \{ toValue: to, \.\.\.spring\('press'\) \}\)/.test(btn) && !/Animated\.timing\(scale/.test(btn));
+  const sheet = fs.readFileSync('src/components/ui/Sheet.tsx', 'utf8');
+  check('A sheet settles on a spring', /Animated\.spring\(slide, \{ toValue: 1, \.\.\.spring\('settle'\) \}\)/.test(sheet) && !/Animated\.timing\(slide/.test(sheet));
+  const toast = fs.readFileSync('src/components/ui/Toast.tsx', 'utf8');
+  check('A toast rises on a spring while it fades on a tween', /Animated\.spring\(rise, \{ toValue: 0, \.\.\.spring\('toast'\) \}\)/.test(toast) && /transform: \[\{ translateY: rise \}\]/.test(toast) && /Animated\.timing\(opacity/.test(toast));
+  const act = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The rest banner settles into and out of its place instead of popping', /LayoutAnimation\.configureNext\(LayoutAnimation\.create\(theme\.motion\.settle/.test(act) && /\}, \[showing, theme\.motion\.settle\]\);/.test(act));
+  const nav = fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8');
+  check('Screens sweep in on the house timing', /animation: 'slide_from_right' as const,/.test(nav) && /animationDuration: theme\.motion\.sweep,/.test(nav));
+  check('The challenge wheel keeps its timing curve - no spring on a wheel of fortune', /Animated\.timing\(spin/.test(fs.readFileSync('src/components/ChallengeWheel.tsx', 'utf8')));
+
+  // ── The icon set wears the theme ──
+  const cfg = fs.readFileSync('app.config.ts', 'utf8');
+  check('Splash and adaptive backgrounds are Night Sea', (cfg.match(/backgroundColor: '#070C14'/g) ?? []).length === 2 && !/#0B1220/.test(cfg));
+  check('The icon set is present and freshly rendered', ['assets/icon.png', 'assets/adaptive-icon.png', 'assets/splash.png', 'assets/favicon.png'].every((f) => fs.existsSync(f) && fs.statSync(f).size > 1500));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

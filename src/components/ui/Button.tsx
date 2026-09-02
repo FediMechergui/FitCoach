@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Animated, Easing, Pressable, View, type ViewStyle } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
+import { spring } from '@/theme/springs';
 import { lume, motion } from '@/theme';
 import { Text } from './Text';
 import { Icon } from './Icon';
@@ -80,13 +81,9 @@ export function Button({
   const trailingWell = pill && (variant === 'primary' || variant === 'danger') && !!icon;
   const wellSize = size === 'lg' ? 34 : 30;
 
-  const press = (to: number) =>
-    Animated.timing(scale, {
-      toValue: to,
-      duration: theme.motion.swift,
-      easing: HOUSE_EASING,
-      useNativeDriver: true,
-    });
+  // A press is physical and interruptible (finger lifts mid-way), so it is a
+  // spring, not a tween — firm, no overshoot, picks up its own velocity.
+  const press = (to: number) => Animated.spring(scale, { toValue: to, ...spring('press') });
 
   const core = (
     <Pressable

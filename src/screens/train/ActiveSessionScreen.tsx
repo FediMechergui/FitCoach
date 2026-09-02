@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Pressable, Alert, Switch } from 'react-native';
+import { View, Pressable, Alert, Switch, LayoutAnimation } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -326,7 +326,14 @@ function RestTimerBanner() {
     return () => clearInterval(t);
   }, [restEndsAt, clearRest]);
 
-  if (!restEndsAt || remaining <= 0) return null;
+  const showing = !!restEndsAt && remaining > 0;
+  // The banner used to pop in and vanish between frames; the cards below it
+  // jumped with it. Layout now settles into and out of its place.
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(theme.motion.settle, 'easeInEaseOut', 'opacity'));
+  }, [showing, theme.motion.settle]);
+
+  if (!showing) return null;
   const elapsed = Math.max(0, restDurationS - remaining);
   // Against the tank's ACTUAL refill rate, which slows when oxygen is short.
   const pcr = Math.round(pcrRecovered(elapsed, rx?.physiology?.tauS) * 100);

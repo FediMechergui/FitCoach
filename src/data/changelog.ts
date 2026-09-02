@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.1.2',
+    date: '2026-09-02',
+    title: 'Motion that settles',
+    highlights: [
+      'Physical motion is on springs now, tuned with the Motion team’s own rules: a press, a sheet arriving, a toast rising. A spring can be interrupted mid-flight — lift your finger early and the button picks up from where it is instead of finishing a canned curve. Overshoot is kept near zero on purpose; this is a health tool, not a toy.',
+      'The rest banner no longer pops into existence and vanishes between frames; it settles into its place and the cards beneath it move with it. Screens sweep in on one house timing everywhere instead of the platform default. Fades stay tweens — opacity is not physical — and the challenge wheel keeps its curve.',
+      'A new app icon and splash in the 3.0 theme: the Lume mark — the glow ring and its core — on Night Sea, with a soft glow. The icon is baked into the app binary, so it appears with the next installed build rather than this over-the-air update; the splash background already matches.',
+      '1669 checks in all, up from 1658, including a proof that the spring conversion is Motion’s exact mapping and that no house feel exceeds 0.15 bounce.',
+    ],
+  },
+  {
     version: '3.1.1',
     date: '2026-09-02',
     title: 'A real anatomy model',

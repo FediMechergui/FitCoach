@@ -4032,13 +4032,18 @@ console.log('\nHow it is done 3.1 - a video and an anatomy for every exercise:')
   const act = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
   check('Every exercise card in a live session has the how-to door', /onPress=\{\(\) => setShowHowTo\(true\)\}/.test(act) && /<ExerciseHowToSheet exerciseId=\{lv\.log\.exerciseId\} visible=\{showHowTo\}/.test(act));
 
-  // ── The anatomy figure: every vocabulary word lands on a region ──
+  // ── The anatomy figure: a real model, and every vocabulary word lands on a part ──
+  // Superseded by 3.1.1: the hand-drawn silhouette gave way to the MIT-licensed
+  // react-native-body-highlighter model (male/female, front/back).
   const fig = fs.readFileSync('src/components/MuscleFigure.tsx', 'utf8');
+  check('The figure is the licensed model, both views, sex from the profile', /from 'react-native-body-highlighter'/.test(fig) && /<Body \{\.\.\.bodyProps\} side="front"/.test(fig) && /<Body \{\.\.\.bodyProps\} side="back"/.test(fig) && /const gender: 'male' \| 'female' = sex === 'female' \? 'female' : 'male';/.test(fig));
   const subKeys = Object.keys(SUB_MUSCLE_LABELS);
-  check('Every sub-muscle in the vocabulary maps to a drawn region', subKeys.every((k) => new RegExp(`\\b${k}: '`).test(fig)), `${subKeys.filter((k) => !new RegExp(`\\b${k}: '`).test(fig))}`);
+  check('Every sub-muscle in the vocabulary maps to a model part', subKeys.every((k) => new RegExp(`\\n  ${k}: \\{ slug: '`).test(fig)), `${subKeys.filter((k) => !new RegExp(`\\n  ${k}: \\{ slug: '`).test(fig))}`);
   const groupKeys = Object.keys(MUSCLE_LABELS).filter((k) => !['cardio', 'mobility', 'mind'].includes(k));
-  check('Every muscle group with a body maps to regions', groupKeys.every((k) => new RegExp(`\\n  ${k}: \\[`).test(fig)), `${groupKeys.filter((k) => !new RegExp(`\\n  ${k}: \\[`).test(fig))}`);
-  check('Primary fills solid, the rest half, the pinned target is ringed', /fillOpacity: 0\.92/.test(fig) && /fillOpacity: 0\.42/.test(fig) && /pinned === r \? \{ stroke: ring/.test(fig));
+  check('Every muscle group with a body maps to model parts', groupKeys.every((k) => new RegExp(`\\n  ${k}: \\[`).test(fig)), `${groupKeys.filter((k) => !new RegExp(`\\n  ${k}: \\[`).test(fig))}`);
+  check('Primary fills solid, the rest soft, the pinned target is ringed', /intensity: 1 \}/.test(fig) && /intensity: 2 \}/.test(fig) && /styles: \{ stroke: ring, strokeWidth: 6 \}/.test(fig));
+  check('The model is pinned to the binary\'s react-native-svg, never a nested copy', /"react-native-svg": "\$react-native-svg"/.test(fs.readFileSync('package.json', 'utf8')) && !fs.existsSync('node_modules/react-native-body-highlighter/node_modules/react-native-svg'));
+  check('The stock reference images never entered the repo', !fs.existsSync('man.png') && !fs.existsSync('women.png'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.1.1',
+    date: '2026-09-02',
+    title: 'A real anatomy model',
+    highlights: [
+      'The muscle figure is now a proper muscle-by-muscle model instead of a sketch — a male and a female body, front and back, every muscle its own shape, drawn as vectors so it stays sharp at any size and works fully offline. The body you see follows the sex on your profile.',
+      'Same language as before, on a far better canvas: the primary muscle fills solid in the brand colour, the other groups the exercise works fill soft, and the pinned target — lats, rear delt, gastrocnemius — is ringed. Every muscle group and every sub-muscle in the library maps onto the model, and the suite proves it.',
+      'It sits beside the movement illustration on every exercise page and inside the in-session how-to sheet, exactly where the old figure was.',
+      'The model is an MIT-licensed vector set (react-native-body-highlighter), pinned to the app’s existing SVG engine so nothing native changed — this is an over-the-air update like every 3.x release. 1658 checks in all, up from 1655.',
+    ],
+  },
+  {
     version: '3.1.0',
     date: '2026-09-02',
     title: 'How it is done — a video and an anatomy for every exercise',

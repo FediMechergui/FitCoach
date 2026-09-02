@@ -38,14 +38,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'com.fitcoach.app',
     /**
-     * Bumped for the build that adds the native step-counter module. Android
-     * only accepts an install over an existing app when versionCode is >= the
-     * installed one, so this makes it a clean in-place update that KEEPS all
-     * app data (the SQLite database lives in app storage and is untouched).
+     * 2 → the build that added the native step-counter module.
+     * 3 → the 3.x build: the Lume icon set and splash live in the binary.
+     * Android only accepts an install over an existing app when versionCode is
+     * >= the installed one, so each bump is a clean in-place update that KEEPS
+     * all app data (the SQLite database lives in app storage and is untouched).
      * `version` deliberately stays 2.0.0 so runtimeVersion — and therefore
-     * over-the-air update compatibility — is unchanged.
+     * over-the-air update compatibility — is unchanged: every 3.x OTA update
+     * already published applies to this binary too.
      */
-    versionCode: 2,
+    versionCode: 3,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#070C14',

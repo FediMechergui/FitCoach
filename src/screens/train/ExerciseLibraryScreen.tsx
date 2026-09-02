@@ -13,6 +13,8 @@ import { Row, EmptyState } from '@/components/ui/misc';
 import { ExerciseHero } from '@/components/ExerciseHero';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/navigation/types';
+import { parseYouTubeId, youtubeWatchUrl } from '@/lib/youtube';
+import { videoFor } from '@/components/ExerciseHowTo';
 import { type EquipmentType, type SessionType } from '@/db/schema';
 import {
   listExercises,
@@ -205,9 +207,13 @@ export function ExerciseLibraryScreen() {
                 <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
                   <ExerciseHero iconKey={item.iconKey} sessionType={item.sessionType} />
                   <View style={{ flex: 1 }}>
-                    <Text variant="bodyStrong" numberOfLines={1}>
-                      {item.name}
-                    </Text>
+                    <Row gap={6} style={{ alignItems: 'center' }}>
+                      <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                        {item.name}
+                      </Text>
+                      {/* A tutorial exists — say so before the card is opened. */}
+                      {videoFor(item) ? <Icon icon="core.video" size={13} color={theme.colors.danger} /> : null}
+                    </Row>
                     <Text variant="caption" color="textMuted" numberOfLines={1}>
                       {[
                         (() => {
@@ -313,6 +319,12 @@ function ExerciseFormCard({
   const [equip, setEquip] = useState<EquipmentType | null>(
     (existing?.equipmentType as EquipmentType | null) ?? null
   );
+  const [description, setDescription] = useState(existing?.description ?? '');
+  const [videoLink, setVideoLink] = useState(existing?.videoId ? youtubeWatchUrl(existing.videoId) : '');
+  // A pasted link is accepted in any YouTube shape; a non-empty field that
+  // yields no id is the one thing the form refuses to save silently.
+  const videoId = parseYouTubeId(videoLink);
+  const videoInvalid = videoLink.trim().length > 0 && !videoId;
 
   const isLifting = type === 'strength' || type === 'calisthenics';
 
@@ -329,6 +341,8 @@ function ExerciseFormCard({
         muscleGroups: muscle ? [muscle] : [],
         trackingType: isLifting ? 'reps_weight' : 'duration',
         iconKey: meta?.icon ?? 'core.custom',
+        description: description.trim() || null,
+        videoId,
       });
       onDone(null);
     } else {
@@ -341,6 +355,8 @@ function ExerciseFormCard({
         muscleGroups: muscle ? [muscle] : [],
         trackingType: isLifting ? 'reps_weight' : 'duration',
         iconKey: meta?.icon ?? 'core.custom',
+        description: description.trim() || undefined,
+        videoId,
       });
       onDone(ex);
     }
@@ -350,6 +366,23 @@ function ExerciseFormCard({
     <Card style={{ gap: theme.spacing.sm, maxHeight: 460 }}>
       <Text variant="h3">{existing ? `Edit “${existing.name}”` : 'New custom exercise'}</Text>
       <Input label="Name" value={name} onChangeText={setName} placeholder="e.g. Sled Push" />
+      <Input
+        label="Description (optional)"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="What it is, what to watch for"
+        multiline
+      />
+      <Input
+        label="YouTube link (optional)"
+        value={videoLink}
+        onChangeText={setVideoLink}
+        placeholder="https://youtu.be/..."
+        autoCapitalize="none"
+        keyboardType="url"
+        error={videoInvalid ? 'That is not a YouTube link — paste a watch, youtu.be or Shorts URL.' : undefined}
+        helper={videoId ? 'Video attached — it opens from the exercise and mid-session.' : undefined}
+      />
       <SegmentedControl
         scrollable
         options={SESSION_TYPE_META.map((m) => ({ value: m.type, label: m.label }))}
@@ -420,7 +453,7 @@ function ExerciseFormCard({
           onPress={save}
           style={{ flex: 2 }}
           fullWidth={false}
-          disabled={!name.trim()}
+          disabled={!name.trim() || videoInvalid}
         />
       </Row>
     </Card>

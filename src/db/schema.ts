@@ -261,6 +261,8 @@ export const exercises = sqliteTable('exercises', {
   iconKey: text('icon_key').notNull().default('strength.dumbbell'),
   isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(false),
   metValue: real('met_value'), // metabolic equivalent for calorie estimation
+  /** YouTube video id — seeded for built-ins, user-entered for customs */
+  videoId: text('video_id'),
 });
 
 // ── CustomRoutine (saved, updatable workout templates) ───────────────────────

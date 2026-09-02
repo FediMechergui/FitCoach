@@ -41,3 +41,6 @@ yarn-error.*
 
 # Graphify generated knowledge graph (regenerate with /graphify .)
 graphify-out/
+
+# generated-data caches
+scripts/.cache/

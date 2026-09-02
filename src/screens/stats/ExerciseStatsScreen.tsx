@@ -12,7 +12,7 @@ import { Row, SectionHeader, EmptyState, Divider } from '@/components/ui/misc';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { PageHero } from '@/components/ui/PageHero';
-import { ExerciseIllustration } from '@/components/ExerciseIllustration';
+import { ExerciseHowToBlock } from '@/components/ExerciseHowTo';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS, SUB_MUSCLE_LABELS, WARMUPS_BY_MUSCLE } from '@/data/exercises';
 import type { RootStackParamList } from '@/navigation/types';
 import { exerciseProgression } from '@/repositories/statsRepo';
@@ -107,96 +107,7 @@ export function ExerciseStatsScreen() {
   );
 }
 
-/**
- * Beginner guide block: a movement illustration, what it works, what equipment
- * you need, and step-by-step form cues. Shown above the progression charts.
- */
+/** The shared how-to block — video, both figures, targets, warm-up, cues. */
 function ExerciseGuide({ exercise }: { exercise: ExerciseView }) {
-  const theme = useTheme();
-  return (
-    <>
-      <ExerciseIllustration pattern={exercise.pattern} sessionType={exercise.sessionType} size={170} />
-
-      <Row gap={6} style={{ flexWrap: 'wrap' }}>
-        {exercise.primaryMuscle && (
-          <Chip
-            label={MUSCLE_LABELS[exercise.primaryMuscle] ?? exercise.primaryMuscle}
-            icon="stats.muscleMap"
-            color={theme.colors.primary}
-            small
-          />
-        )}
-        {exercise.subMuscle && (
-          <Chip
-            label={SUB_MUSCLE_LABELS[exercise.subMuscle] ?? exercise.subMuscle}
-            color={theme.colors.calisthenics}
-            small
-          />
-        )}
-        {exercise.equipmentType && (
-          <Chip
-            label={EQUIPMENT_LABELS[exercise.equipmentType] ?? exercise.equipmentType}
-            icon={exercise.iconKey}
-            color={theme.colors.accent}
-            small
-          />
-        )}
-        {exercise.muscleGroups.slice(0, 3).map((m) => (
-          <Chip key={m} label={m} color={theme.colors.textMuted} small />
-        ))}
-      </Row>
-
-      {exercise.description ? (
-        <Text variant="body" color="textMuted">
-          {exercise.description}
-        </Text>
-      ) : null}
-
-      {/* Mandatory warm-up for this muscle (v2 reference) */}
-      {exercise.primaryMuscle && WARMUPS_BY_MUSCLE[exercise.primaryMuscle] && (
-        <Card accent={theme.colors.warning} style={{ gap: 4 }}>
-          <Row gap={8} style={{ alignItems: 'center' }}>
-            <Icon icon="core.timer" size={16} color={theme.colors.warning} />
-            <Text variant="bodyStrong">Warm-up first (mandatory)</Text>
-          </Row>
-          <Text variant="caption" color="textMuted">
-            {WARMUPS_BY_MUSCLE[exercise.primaryMuscle]}
-          </Text>
-        </Card>
-      )}
-
-      {exercise.instructions.length > 0 && (
-        <Card style={{ gap: 10 }} accent={theme.colors.accent}>
-          <Row gap={8} style={{ alignItems: 'center' }}>
-            <Icon icon="core.info" size={18} color={theme.colors.accent} />
-            <Text variant="h3">How to do it</Text>
-          </Row>
-          {exercise.instructions.map((step, i) => (
-            <View key={i}>
-              {i > 0 ? <Divider /> : null}
-              <Row gap={10} style={{ alignItems: 'flex-start' }}>
-                <View
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    backgroundColor: theme.colors.accent + '33',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text variant="caption" color={theme.colors.accent} style={{ fontSize: 10 }}>
-                    {i + 1}
-                  </Text>
-                </View>
-                <Text variant="body" color="textMuted" style={{ flex: 1 }}>
-                  {step}
-                </Text>
-              </Row>
-            </View>
-          ))}
-        </Card>
-      )}
-    </>
-  );
+  return <ExerciseHowToBlock exercise={exercise} />;
 }

@@ -51,6 +51,7 @@ import {
 } from '@/lib/restPrescription';
 import { profileFor, effectiveLoadKg, LOAD_FIELD_LABEL } from '@/lib/loadProfile';
 import { toast } from '@/components/ui/Toast';
+import { ExerciseHowToSheet } from '@/components/ExerciseHowTo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const REST_PRESETS = [60, 90, 120, 180, 300];
@@ -620,6 +621,7 @@ function ExerciseLogCard({
   };
 
   const [showAlts, setShowAlts] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
 
   return (
     <Card accent={accent} style={{ gap: 10 }}>
@@ -651,6 +653,10 @@ function ExerciseLogCard({
         >
           <Icon icon="core.chevronDown" size={18} color={theme.colors.textFaint} />
         </Pressable>
+        {/* How it's done — a sheet over the session, timers untouched. */}
+        <Pressable onPress={() => setShowHowTo(true)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <Icon icon="core.howto" size={18} color={theme.colors.textFaint} />
+        </Pressable>
         <Pressable onPress={() => setShowAlts((v) => !v)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
           <Icon icon="core.swap" size={18} color={showAlts ? accent : theme.colors.textFaint} />
         </Pressable>
@@ -663,6 +669,8 @@ function ExerciseLogCard({
           Started — its place in the running order is fixed now. Anything you have not begun can still be moved.
         </Text>
       )}
+
+      <ExerciseHowToSheet exerciseId={lv.log.exerciseId} visible={showHowTo} onClose={() => setShowHowTo(false)} />
 
       {showAlts && (
         <AlternativePicker

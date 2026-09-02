@@ -53,7 +53,7 @@ import { seedExerciseLibrary } from './seed';
  *                  authored difficulty on every entry. The bump is what makes
  *                  an existing install re-seed and actually receive them.
  */
-const SCHEMA_VERSION = 32;
+const SCHEMA_VERSION = 33;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -126,6 +126,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'sessions', column: 'warmups_done', ddl: 'TEXT' },
   // v31 — where a custom food's numbers came from ('user' | 'ai'); NULL = user
   { table: 'custom_foods', column: 'source', ddl: 'TEXT' },
+  // v33 — one how-to video per exercise (built-ins seeded, customs user-entered)
+  { table: 'exercises', column: 'video_id', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -283,7 +285,8 @@ CREATE TABLE IF NOT EXISTS exercises (
   tracking_type TEXT NOT NULL DEFAULT 'reps_weight',
   icon_key TEXT NOT NULL DEFAULT 'strength.dumbbell',
   is_custom INTEGER NOT NULL DEFAULT 0,
-  met_value REAL
+  met_value REAL,
+  video_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_exercises_type ON exercises(session_type);
 CREATE INDEX IF NOT EXISTS idx_exercises_muscle ON exercises(primary_muscle);

@@ -29,6 +29,9 @@ export const ICONS = {
   },
   core: {
     start: def('Ionicons', 'play-circle'),
+    play: def('Ionicons', 'play'),
+    video: def('Ionicons', 'logo-youtube'),
+    howto: def('Ionicons', 'school-outline'),
     end: def('Ionicons', 'stop-circle'),
     timer: def('Ionicons', 'timer-outline'),
     notifications: def('Ionicons', 'notifications-outline'),

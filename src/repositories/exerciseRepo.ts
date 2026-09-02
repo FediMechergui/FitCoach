@@ -87,6 +87,9 @@ export function createCustomExercise(input: {
   trackingType?: Exercise['trackingType'];
   iconKey?: string;
   metValue?: number;
+  description?: string | null;
+  /** YouTube video id, already parsed */
+  videoId?: string | null;
 }): ExerciseView {
   const payload: NewExercise = {
     slug: `custom-${Date.now()}`,
@@ -102,6 +105,8 @@ export function createCustomExercise(input: {
     iconKey: input.iconKey ?? 'core.custom',
     isCustom: true,
     metValue: input.metValue ?? null,
+    description: input.description ?? null,
+    videoId: input.videoId ?? null,
   };
   const res = db.insert(exercises).values(payload).run();
   return getExercise(Number(res.lastInsertRowId))!;
@@ -120,6 +125,8 @@ export function updateCustomExercise(
     trackingType?: Exercise['trackingType'];
     muscleGroups?: string[];
     iconKey?: string;
+    description?: string | null;
+    videoId?: string | null;
   }
 ): ExerciseView | undefined {
   const { muscleGroups, ...rest } = patch;

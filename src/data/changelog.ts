@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.1.0',
+    date: '2026-09-02',
+    title: 'How it is done — a video and an anatomy for every exercise',
+    highlights: [
+      'Every built-in exercise now carries a YouTube tutorial — 759 of 759 entries, each one searched, scored for name match and instructional wording, and confirmed to be a real public video before it was written. Open any exercise from the library and the tutorial is the first thing on the page; the few without one fall back to a ready-made YouTube search, never a dead end.',
+      'Mid-session, every exercise card has a small how-it\'s-done icon. It opens a sheet over the session — video, anatomy, cues — without leaving the set. The video opens in the YouTube app; your timers are timestamps, so nothing pauses, and coming back lands you exactly where you were.',
+      'A new anatomy figure shows what an exercise actually touches: a front and a back body with the primary muscle solid, the other groups it works at half strength, and the pinned sub-muscle — lats, rear delt, gastrocnemius — ringed. It sits beside the movement illustration on the exercise page and in the session sheet. Drawn, not photographed: offline, themed, sharp at any size.',
+      'Custom exercises grew up: the form now takes a description and a YouTube link in any shape — watch, youtu.be, Shorts or the bare id — and refuses a non-YouTube link with a reason instead of saving junk. Library cards flag every exercise that has a tutorial.',
+      'Schema version 33: one new column, the library re-seeded with its videos, nothing of yours touched. 1655 checks in all, up from 1629.',
+    ],
+  },
+  {
     version: '3.0.15',
     date: '2026-09-01',
     title: 'Nothing lies about why it is absent',

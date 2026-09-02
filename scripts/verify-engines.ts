@@ -31,6 +31,8 @@ import { difficultyBySlug } from '../src/data/exercises';
 import { difficultyOf, skillDifficulty, suitsLevel, levelFit, levelNote, DIFFICULTY_LABELS, type Difficulty } from '../src/lib/exerciseDifficulty';
 import { SPLITS } from '../src/data/splits';
 import { computePrayerTimes, nextPrayer } from '../src/lib/prayers';
+import { EXERCISE_VIDEOS } from '../src/data/exerciseVideos';
+import { parseYouTubeId, youtubeThumb, youtubeWatchUrl } from '../src/lib/youtube';
 import { resolveWindow, fastingState } from '../src/lib/fasting';
 import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
@@ -3571,7 +3573,8 @@ console.log('\nA library big enough to be whole, graded so it can be used:');
   check('...and shows how hard each one is', /DIFFICULTY_LABELS\[d\]/.test(lib));
   check('Both prefill pickers pass difficulty through', /slugsForLevel\(day\.exercises, level, difficultyBySlug\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /difficultyBySlug/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
   // New exercises only reach an existing install when the schema version moves.
-  check('The schema bump is what delivers them', /const SCHEMA_VERSION = 32;/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
+  // Superseded by 3.1.0: v33 adds exercises.video_id and re-seeds the library with its videos.
+  check('The schema bump is what delivers them', /const SCHEMA_VERSION = 33;/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
 }
 
 console.log('\n3.0 "Lume" - the design platform holds its own rules:');
@@ -3983,6 +3986,59 @@ console.log('\nStates doctrine 3.0 - nothing lies about why it is absent:');
 
   const hab = fs.readFileSync('src/screens/health/HabitsScreen.tsx', 'utf8');
   check('An enabled habit never vanishes with its own off switch inside', !/if \(!impact\) return null;/.test(hab) && /No impact math for this habit yet/.test(hab) && /Stop tracking this habit/.test(hab));
+}
+
+console.log('\nHow it is done 3.1 - a video and an anatomy for every exercise:');
+{
+  // ── The link parser accepts every shape a person pastes ──
+  check('parseYouTubeId reads watch URLs', parseYouTubeId('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s') === 'dQw4w9WgXcQ');
+  check('...youtu.be short links', parseYouTubeId('https://youtu.be/dQw4w9WgXcQ?si=abc') === 'dQw4w9WgXcQ');
+  check('...Shorts, embeds and mobile', parseYouTubeId('https://youtube.com/shorts/dQw4w9WgXcQ') === 'dQw4w9WgXcQ' && parseYouTubeId('https://www.youtube.com/embed/dQw4w9WgXcQ') === 'dQw4w9WgXcQ' && parseYouTubeId('https://m.youtube.com/watch?v=dQw4w9WgXcQ') === 'dQw4w9WgXcQ');
+  check('...and the bare id, but never junk', parseYouTubeId('dQw4w9WgXcQ') === 'dQw4w9WgXcQ' && parseYouTubeId('not a link') === null && parseYouTubeId('') === null && parseYouTubeId('https://vimeo.com/123456') === null);
+  check('Watch and thumbnail URLs derive from the id', youtubeWatchUrl('dQw4w9WgXcQ').endsWith('watch?v=dQw4w9WgXcQ') && youtubeThumb('dQw4w9WgXcQ').includes('/vi/dQw4w9WgXcQ/'));
+
+  // ── The generated map: verified ids, every slug real, aliases inherit ──
+  const slugs = new Set(EXERCISE_LIBRARY.map((e) => e.slug));
+  const videoSlugs = Object.keys(EXERCISE_VIDEOS);
+  check('Every video slug is a real exercise', videoSlugs.every((k) => slugs.has(k)), `${videoSlugs.filter((k) => !slugs.has(k)).slice(0, 3)}`);
+  check('Every id has the 11-character YouTube shape', videoSlugs.every((k) => /^[A-Za-z0-9_-]{11}$/.test(EXERCISE_VIDEOS[k].id)));
+  check('Every entry names its title and channel', videoSlugs.every((k) => EXERCISE_VIDEOS[k].title.length > 0 && EXERCISE_VIDEOS[k].channel.length > 0));
+  const coverage = videoSlugs.length / EXERCISE_LIBRARY.length;
+  check('At least 97% of the library has a verified tutorial', coverage >= 0.97, `${videoSlugs.length}/${EXERCISE_LIBRARY.length} = ${Math.round(coverage * 1000) / 10}%`);
+  check('Aliases carry their primary\'s video', EXERCISE_LIBRARY.filter((e) => e.aliasOf && EXERCISE_VIDEOS[e.aliasOf]).every((e) => EXERCISE_VIDEOS[e.slug]?.id === EXERCISE_VIDEOS[e.aliasOf!].id));
+  const gen = fs.readFileSync('src/data/exerciseVideos.ts', 'utf8');
+  check('The map declares itself generated and re-runnable', /GENERATED DATA/.test(gen) && /fetch-exercise-videos/.test(gen));
+
+  // ── Schema v33: the column exists everywhere a column must ──
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('exercises.video_id is in the DDL, the added-columns list and the schema', /video_id TEXT\r?\n\);/.test(boot) && /column: 'video_id'/.test(boot) && /videoId: text\('video_id'\)/.test(fs.readFileSync('src/db/schema.ts', 'utf8')));
+  check('Built-ins are seeded with their verified video', /videoId: EXERCISE_VIDEOS\[e\.slug\]\?\.id \?\? null/.test(fs.readFileSync('src/db/seed.ts', 'utf8')));
+  const repo = fs.readFileSync('src/repositories/exerciseRepo.ts', 'utf8');
+  check('Customs can carry a description and a video, on create and on edit', /description: input\.description \?\? null,\s*\n\s*videoId: input\.videoId \?\? null,/.test(repo) && /description\?: string \| null;\s*videoId\?: string \| null;\s*\}\s*\): ExerciseView \| undefined/.test(repo));
+
+  // ── The form: a pasted link in any shape; junk refused, never saved silently ──
+  const lib = fs.readFileSync('src/screens/train/ExerciseLibraryScreen.tsx', 'utf8');
+  check('The custom form takes a description and a YouTube link', /label="Description \(optional\)"/.test(lib) && /label="YouTube link \(optional\)"/.test(lib) && /const videoId = parseYouTubeId\(videoLink\);/.test(lib));
+  check('A non-YouTube link blocks the save with a reason', /videoInvalid = videoLink\.trim\(\)\.length > 0 && !videoId/.test(lib) && /disabled=\{!name\.trim\(\) \|\| videoInvalid\}/.test(lib) && /not a YouTube link/.test(lib));
+  check('Library cards flag the exercises that have a tutorial', /videoFor\(item\) \? <Icon icon="core\.video"/.test(lib));
+
+  // ── The block and the sheet ──
+  const howto = fs.readFileSync('src/components/ExerciseHowTo.tsx', 'utf8');
+  check('The video opens in YouTube; a missing video falls back to a search, never a dead end', /Linking\.openURL\(video \? youtubeWatchUrl\(video\.id\) : youtubeSearchUrl\(exercise\.name\)\)/.test(howto));
+  check('The row id wins, the catalogue map fills the gap', /exercise\.videoId \?\? \(exercise\.slug \? EXERCISE_VIDEOS\[exercise\.slug\]\?\.id : undefined\)/.test(howto));
+  check('Movement and anatomy sit side by side', /<ExerciseIllustration/.test(howto) && /<MuscleFigure/.test(howto));
+  check('The session sheet loads the exercise only when opened', /useMemo\(\(\) => \(visible \? getExercise\(exerciseId\) : undefined\)/.test(howto));
+  check('The exercise page renders the shared block', /return <ExerciseHowToBlock exercise=\{exercise\} \/>;/.test(fs.readFileSync('src/screens/stats/ExerciseStatsScreen.tsx', 'utf8')));
+  const act = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('Every exercise card in a live session has the how-to door', /onPress=\{\(\) => setShowHowTo\(true\)\}/.test(act) && /<ExerciseHowToSheet exerciseId=\{lv\.log\.exerciseId\} visible=\{showHowTo\}/.test(act));
+
+  // ── The anatomy figure: every vocabulary word lands on a region ──
+  const fig = fs.readFileSync('src/components/MuscleFigure.tsx', 'utf8');
+  const subKeys = Object.keys(SUB_MUSCLE_LABELS);
+  check('Every sub-muscle in the vocabulary maps to a drawn region', subKeys.every((k) => new RegExp(`\\b${k}: '`).test(fig)), `${subKeys.filter((k) => !new RegExp(`\\b${k}: '`).test(fig))}`);
+  const groupKeys = Object.keys(MUSCLE_LABELS).filter((k) => !['cardio', 'mobility', 'mind'].includes(k));
+  check('Every muscle group with a body maps to regions', groupKeys.every((k) => new RegExp(`\\n  ${k}: \\[`).test(fig)), `${groupKeys.filter((k) => !new RegExp(`\\n  ${k}: \\[`).test(fig))}`);
+  check('Primary fills solid, the rest half, the pinned target is ringed', /fillOpacity: 0\.92/.test(fig) && /fillOpacity: 0\.42/.test(fig) && /pinned === r \? \{ stroke: ring/.test(fig));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

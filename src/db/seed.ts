@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from './client';
 import { exercises } from './schema';
 import { EXERCISE_LIBRARY } from '@/data/exercises';
+import { EXERCISE_VIDEOS } from '@/data/exerciseVideos';
 
 /**
  * Seed / refresh the built-in exercise library.
@@ -45,6 +46,7 @@ export function seedExerciseLibrary(): void {
       iconKey: e.icon,
       isCustom: false,
       metValue: e.met ?? null,
+      videoId: EXERCISE_VIDEOS[e.slug]?.id ?? null,
     };
 
     // Match an existing row by slug first, then fall back to name so databases

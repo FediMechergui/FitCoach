@@ -39,6 +39,8 @@ export interface CoachContext {
   stepsToday: number;
   stepGoal: number;
   sessionLoggedToday: boolean;
+  /** the user flagged today as a rest day — no nudges to move or train */
+  restDayToday?: boolean;
 
   // Smoking (opt-in)
   smokingEnabled: boolean;
@@ -78,6 +80,7 @@ export function generateCoachTips(ctx: CoachContext): CoachTipDraft[] {
   // ── Activity: sedentary nudge ──────────────────────────────────────────────
   if (
     !ctx.sessionLoggedToday &&
+    !ctx.restDayToday &&
     ctx.stepGoal > 0 &&
     ctx.stepsToday < ctx.stepGoal * 0.5 &&
     isAfternoon(ctx.today)
@@ -91,7 +94,7 @@ export function generateCoachTips(ctx: CoachContext): CoachTipDraft[] {
   }
 
   // ── Training: no session in a while ────────────────────────────────────────
-  if (ctx.daysSinceLastSession !== null && ctx.daysSinceLastSession >= 4) {
+  if (!ctx.restDayToday && ctx.daysSinceLastSession !== null && ctx.daysSinceLastSession >= 4) {
     tips.push({
       category: 'training',
       title: 'Time to train',

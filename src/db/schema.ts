@@ -880,6 +880,21 @@ export const appKv = sqliteTable('app_kv', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+/**
+ * A day chosen as rest. Streaks carry across it without counting it, the
+ * no-rest warning resets on it, the coach stops asking on it. One per day.
+ */
+export const restDays = sqliteTable('rest_days', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(), // ISO date — one flag per day
+  /** 'manual' (the switch) — room for an auto source later */
+  source: text('source').notNull().default('manual'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const weatherReadings = sqliteTable('weather_readings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -954,5 +969,6 @@ export type FastingProfile = typeof fastingProfiles.$inferSelect;
 export type FastingLog = typeof fastingLogs.$inferSelect;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type DailyChallenge = typeof dailyChallenges.$inferSelect;
+export type RestDay = typeof restDays.$inferSelect;
 export type MealRoutine = typeof mealRoutines.$inferSelect;
 export type WeatherReadingRow = typeof weatherReadings.$inferSelect;

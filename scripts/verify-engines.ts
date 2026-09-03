@@ -31,6 +31,7 @@ import { difficultyBySlug } from '../src/data/exercises';
 import { difficultyOf, skillDifficulty, suitsLevel, levelFit, levelNote, DIFFICULTY_LABELS, type Difficulty } from '../src/lib/exerciseDifficulty';
 import { SPLITS } from '../src/data/splits';
 import { computePrayerTimes, nextPrayer } from '../src/lib/prayers';
+import { bridgedStreak, bestBridgedStreak, onlyRestBetween } from '../src/lib/streaks';
 import { SPRING_FEEL, springFromFeel } from '../src/theme/springs';
 import { EXERCISE_VIDEOS } from '../src/data/exerciseVideos';
 import { parseYouTubeId, youtubeThumb, youtubeWatchUrl } from '../src/lib/youtube';
@@ -3577,7 +3578,7 @@ console.log('\nA library big enough to be whole, graded so it can be used:');
   check('Both prefill pickers pass difficulty through', /slugsForLevel\(day\.exercises, level, difficultyBySlug\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /difficultyBySlug/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
   // New exercises only reach an existing install when the schema version moves.
   // Superseded by 3.1.0: v33 adds exercises.video_id and re-seeds the library with its videos.
-  check('The schema bump is what delivers them', /const SCHEMA_VERSION = 33;/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
+  check('The schema bump is what delivers them', /const SCHEMA_VERSION = 3[4-9];/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
 }
 
 console.log('\n3.0 "Lume" - the design platform holds its own rules:');
@@ -3733,7 +3734,8 @@ console.log('\nHome 3.0 - a briefing in four bands, and reads that stop writing:
   check('The coach offers at most two tips', /MAX_TIPS = 2/.test(home) && /tips\.slice\(0, MAX_TIPS\)/.test(home));
 
   // ── One consistency story instead of two unlabeled streaks.
-  check('The two streaks merged into one card', /<ConsistencyCard usage=\{usage\} trainingStreak=\{streak\}/.test(home));
+  // Superseded by 3.2.0: the card gained rest-day props, so the call spans lines.
+  check('The two streaks merged into one card', /<ConsistencyCard\s*\n\s*usage=\{usage\}\s*\n\s*trainingStreak=\{streak\}/.test(home));
   const cons = fs.readFileSync('src/components/ConsistencyCard.tsx', 'utf8');
   check('...that labels both numbers', /Training/.test(cons) && /Check-in/.test(cons));
   check('...and never threatens loss', /no shame attached/.test(cons));
@@ -4110,6 +4112,38 @@ console.log('\nLibrary 3.1.4 - the gap audit filled in:');
   check('...and a difficulty resolved for each', newSlugs.every((sl) => difficultyBySlug(sl) != null || ['cardio', 'mind', 'mobility'].includes(EXERCISE_LIBRARY.find((x) => x.slug === sl)?.primaryMuscle ?? '')));
   check('The Olympic lifts finally exist', ['power-clean', 'clean-and-jerk', 'barbell-snatch', 'push-jerk'].every((sl) => EXERCISE_LIBRARY.some((e) => e.slug === sl)));
   check('No audited slug collides with an alias or an older entry', new Set(EXERCISE_LIBRARY.map((e) => e.slug)).size === EXERCISE_LIBRARY.length);
+}
+
+console.log('\nRest days 3.2.0 - a decision, not a miss:');
+{
+  // ── The arithmetic, proven without a database ──
+  const T = '2026-09-10';
+  const iso = (n: number) => new Date(Date.parse(T) - n * 86_400_000).toISOString().slice(0, 10);
+  const trained = new Set([iso(0), iso(2), iso(3)]);
+  const rest = new Set([iso(1)]);
+  check('A rest day carries the streak across without counting it', bridgedStreak((d) => trained.has(d), (d) => rest.has(d), 30, T) === 3);
+  check('A miss still breaks it', bridgedStreak((d) => new Set([iso(0), iso(3)]).has(d), (d) => rest.has(d), 30, T) === 1);
+  check('You cannot rest your way to a streak', bridgedStreak(() => false, (d) => rest.has(d) || d === T, 30, T) === 0);
+  check('Today as a rest day keeps yesterday\'s run alive', bridgedStreak((d) => new Set([iso(1), iso(2)]).has(d), (d) => d === T, 30, T) === 2);
+  check('onlyRestBetween is exact', onlyRestBetween(iso(3), iso(1), new Set([iso(2)])) && !onlyRestBetween(iso(3), iso(0), new Set([iso(2)])) && onlyRestBetween(iso(1), iso(0), new Set()));
+  check('The best streak bridges rest days in history too', bestBridgedStreak([iso(5), iso(3), iso(2), iso(0)].sort(), new Set([iso(4), iso(1)])) === 4 && bestBridgedStreak([iso(5), iso(2)].sort(), new Set()) === 1);
+
+  // ── Wiring ──
+  const stats = fs.readFileSync('src/repositories/statsRepo.ts', 'utf8');
+  check('The training streak is bridged; the no-rest count is strict', /return bridgedStreak\(\(d\) => active\.has\(d\), \(d\) => rest\.has\(d\), 366\);/.test(stats) && /return strictTrainingRun\(userId\);/.test(stats) && !/return currentStreak\(userId\);\n\}/.test(stats));
+  const chal = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('The challenge streak bridges rest days, current and best', /const streak = bridgedStreak\(\(d\) => doneDates\.has\(d\), \(d\) => rest\.has\(d\)\);/.test(chal) && /const best = bestBridgedStreak\(sorted, rest\);/.test(chal));
+  check('One source of truth for points, and a windowed reader', !/const POINTS = /.test(chal) && /DIFFICULTY_POINTS\[d\.difficulty\]/.test(chal) && /export function challengePointsSince\(since: string/.test(chal));
+  check('Completions the screen never saw are caught up by date', /export function catchUpChallengeCompletions\(days = 7/.test(chal) && /refreshChallengeCompletion\(date, userId\)/.test(chal));
+  const reco = fs.readFileSync('src/lib/recommendations.ts', 'utf8');
+  check('The coach stops nudging on a rest day', (reco.match(/!ctx\.restDayToday &&/g) ?? []).length === 2 && /restDayToday\?: boolean;/.test(reco));
+  check('...and the context carries the flag', /const restDayToday = isRestDay\(today, userId\);/.test(fs.readFileSync('src/repositories/coachRepo.ts', 'utf8')));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('rest_days is in the DDL with one flag per day', /CREATE TABLE IF NOT EXISTS rest_days \(/.test(boot) && /UNIQUE INDEX IF NOT EXISTS idx_rest_days_user_date/.test(boot) && /const SCHEMA_VERSION = 34;/.test(boot));
+  const cc = fs.readFileSync('src/components/ConsistencyCard.tsx', 'utf8');
+  check('The week shows a rest day as a moon, never a miss', /<Icon icon="sleep\.moon" size=\{11\}/.test(cc) && /Make today a rest day\?/.test(cc));
+  const home = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  check('Home offers the switch and forgives it', /onToggleRest=\{\(\) => \{/.test(home) && /setRestDay\(on\);/.test(home) && /onAction: \(\) => \{\s*\n\s*setRestDay\(!on\);/.test(home));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

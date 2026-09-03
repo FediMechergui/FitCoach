@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { initDatabase } from '@/db/bootstrap';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { loadBrandFonts } from '@/theme/fonts';
+import { catchUpChallengeCompletions } from '@/repositories/challengeRepo';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastHost } from '@/components/ui/Toast';
@@ -100,6 +101,9 @@ export default function App() {
       safe('smoking store', loadSmoking);
       safe('usage streak', recordOpen);
       safe('resume walk', resumeWalk);
+      // Challenges are measured by date, so a day done with the wheel never
+      // opened is stamped here rather than lost at midnight.
+      safe('challenge catch-up', () => catchUpChallengeCompletions());
       if (!cancelled) setReady(true);
 
       registerBackgroundSteps();

@@ -1,3 +1,4 @@
+import { isRestDay } from './restDaysRepo';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { coachTips, type CoachTip } from '@/db/schema';
@@ -51,6 +52,7 @@ export function buildCoachContext(userId: number = PRIMARY_USER_ID): CoachContex
 
   const stepsToday = getDailySteps(today, userId)?.stepCount ?? 0;
   const sessionLoggedToday = listSessions({ since: today, until: today }, userId).length > 0;
+  const restDayToday = isRestDay(today, userId);
 
   const smokingProfile = getSmokingProfile(userId);
   const smokingEnabled = !!smokingProfile?.enabled;
@@ -79,6 +81,7 @@ export function buildCoachContext(userId: number = PRIMARY_USER_ID): CoachContex
     stepsToday,
     stepGoal: DEFAULT_STEP_GOAL,
     sessionLoggedToday,
+    restDayToday,
     smokingEnabled,
     cigsToday: smokingEnabled ? dayCigarettes(today, userId) : 0,
     avgCigsPerDay7d,

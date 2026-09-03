@@ -1,3 +1,5 @@
+import { bridgedStreak } from '@/lib/streaks';
+import { restDaySet } from './restDaysRepo';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
@@ -144,12 +146,22 @@ export function trainingCalendar(days = 84, userId: number = PRIMARY_USER_ID): D
   return out;
 }
 
-/** Current consecutive-day training streak ending today or yesterday. */
+/**
+ * Current training streak ending today or yesterday. A flagged rest day
+ * carries the run across without counting it — a decision, not a miss.
+ */
 export function currentStreak(userId: number = PRIMARY_USER_ID): number {
   const days = trainingCalendar(365, userId);
   const active = new Set(days.filter((d) => d.count > 0).map((d) => d.date));
+  const rest = restDaySet(daysAgoISO(365), userId);
+  return bridgedStreak((d) => active.has(d), (d) => rest.has(d), 366);
+}
+
+/** Consecutive trained days with NO rest between — what the no-rest warning reads. */
+export function strictTrainingRun(userId: number = PRIMARY_USER_ID): number {
+  const days = trainingCalendar(365, userId);
+  const active = new Set(days.filter((d) => d.count > 0).map((d) => d.date));
   let streak = 0;
-  // Allow the streak to still count if the user hasn't trained *today* yet.
   let cursor = active.has(todayISO()) ? 0 : 1;
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -229,9 +241,13 @@ export function daysSinceType(userId: number = PRIMARY_USER_ID): Partial<Record<
   return out;
 }
 
-/** Consecutive training days ending most recently (no rest gap). */
+/**
+ * Consecutive training days ending most recently, with no rest in between.
+ * Deliberately NOT the bridged streak: a flagged rest day must reset this, or
+ * the "schedule a rest day" tip would keep firing across the rest it asked for.
+ */
 export function consecutiveTrainingDays(userId: number = PRIMARY_USER_ID): number {
-  return currentStreak(userId);
+  return strictTrainingRun(userId);
 }
 
 /** Days since the user's most recent session (any type), or null if none. */

@@ -15,7 +15,9 @@ import {
   supplementStack,
   type DailyChallenge,
 } from '@/db/schema';
-import { CHALLENGES, findChallenge, type ChallengeDef, type ChallengeMetric } from '@/data/challenges';
+import { CHALLENGES, DIFFICULTY_POINTS, findChallenge, type ChallengeDef, type ChallengeMetric } from '@/data/challenges';
+import { bestBridgedStreak, bridgedStreak } from '@/lib/streaks';
+import { restDaySet } from './restDaysRepo';
 import { buildDailyWheel, isChallengeComplete, type ChallengeContext, type DailyWheel } from '@/lib/challengeWheel';
 import { hardSetCredit } from '@/lib/effort';
 import { productOrDefault } from '@/data/nicotineProducts';
@@ -400,28 +402,19 @@ export function challengeStats(userId: number = PRIMARY_USER_ID): ChallengeStats
   const done = rows.filter((r) => r.completedAt != null);
   const defs = done.map((r) => findChallenge(r.challengeKey)).filter((d): d is ChallengeDef => !!d);
 
-  const points = defs.reduce((s, d) => s + POINTS[d.difficulty], 0);
+  const points = defs.reduce((s, d) => s + DIFFICULTY_POINTS[d.difficulty], 0);
   const doneDates = new Set(done.map((r) => r.date));
+  // A flagged rest day carries the streak across without counting — the wheel
+  // asks for movement most days, and a rest day is the one you chose not to.
+  const rest = restDaySet(daysAgoISO(400), userId);
 
   // Current streak: today counts if done, otherwise start from yesterday so an
   // unfinished day in progress doesn't look like a broken streak.
-  let streak = 0;
-  const start = doneDates.has(todayISO()) ? 0 : 1;
-  for (let i = start; i < 400; i++) {
-    if (doneDates.has(daysAgoISO(i))) streak++;
-    else break;
-  }
+  const streak = bridgedStreak((d) => doneDates.has(d), (d) => rest.has(d));
 
-  // Best streak over all history.
+  // Best streak over all history, rest days bridging.
   const sorted = [...doneDates].sort();
-  let best = 0;
-  let run = 0;
-  let prev: string | null = null;
-  for (const d of sorted) {
-    run = prev && isNextDay(prev, d) ? run + 1 : 1;
-    if (run > best) best = run;
-    prev = d;
-  }
+  const best = bestBridgedStreak(sorted, rest);
 
   return {
     spun: rows.length,
@@ -435,12 +428,36 @@ export function challengeStats(userId: number = PRIMARY_USER_ID): ChallengeStats
   };
 }
 
-const POINTS = { easy: 10, medium: 20, hard: 35 } as const;
+/** Points earned on or after `since` — the windowed reader the athlete card needs. */
+export function challengePointsSince(since: string, userId: number = PRIMARY_USER_ID): number {
+  const rows = db
+    .select({ key: dailyChallenges.challengeKey, completedAt: dailyChallenges.completedAt })
+    .from(dailyChallenges)
+    .where(and(eq(dailyChallenges.userId, userId), gte(dailyChallenges.date, since)))
+    .all();
+  return rows.reduce((sum, r) => {
+    if (r.completedAt == null) return sum;
+    const def = findChallenge(r.key);
+    return sum + (def ? DIFFICULTY_POINTS[def.difficulty] : 0);
+  }, 0);
+}
 
-function isNextDay(prev: string, next: string): boolean {
-  const a = new Date(prev).getTime();
-  const b = new Date(next).getTime();
-  return Math.round((b - a) / 86_400_000) === 1;
+/**
+ * Stamp completions the screen never saw. Every metric is measured by date, so
+ * a day done and not revisited before midnight is still provably done — walk
+ * the last `days` and stamp what was earned. Called at boot and on the
+ * challenge screen, never from a look at Home.
+ */
+export function catchUpChallengeCompletions(days = 7, userId: number = PRIMARY_USER_ID): number {
+  let stamped = 0;
+  for (let i = days - 1; i >= 0; i--) {
+    const date = daysAgoISO(i);
+    const before = challengeForDate(date, userId);
+    if (!before || before.completedAt) continue;
+    const after = refreshChallengeCompletion(date, userId);
+    if (after?.completedAt) stamped++;
+  }
+  return stamped;
 }
 
 /** Recent challenges with their outcome, for the history list. */

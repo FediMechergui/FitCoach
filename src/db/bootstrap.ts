@@ -52,8 +52,11 @@ import { seedExerciseLibrary } from './seed';
  *                  bodyweight progressions, machines/cables, mobility) and an
  *                  authored difficulty on every entry. The bump is what makes
  *                  an existing install re-seed and actually receive them.
+ *   32 → 33 v3.1.0: exercises.video_id — one verified tutorial per built-in.
+ *   33 → 34 v3.2.0: rest_days — a day chosen as rest, one row per day, so the
+ *                  streaks and the coach can tell a decision from a miss.
  */
-const SCHEMA_VERSION = 33;
+const SCHEMA_VERSION = 34;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -715,6 +718,15 @@ CREATE TABLE IF NOT EXISTS app_kv (
   value TEXT NOT NULL,
   updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
+
+CREATE TABLE IF NOT EXISTS rest_days (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'manual',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rest_days_user_date ON rest_days(user_id, date);
 `;
 
 let initialized = false;

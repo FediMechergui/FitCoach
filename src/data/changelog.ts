@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.2.0',
+    date: '2026-09-03',
+    title: 'Rest is a decision, not a miss',
+    highlights: [
+      'You can flag a day as a rest day — one tap on the Home consistency card, with Undo. The app could never tell a chosen rest from a missed day before: both broke the training streak, both broke the challenge streak, and the coach nagged about either. Now a rest day carries both streaks across without counting itself (it is not a training day), the week shows it as a moon rather than a gap, and the coach stops asking you to move.',
+      'Recovery already knew: the athlete card\'s Recovery attribute and the muscle-growth spacing count every untrained day, so a flagged rest day is credited there as it always was — what changed is that it no longer costs you anywhere else. The “schedule a rest day” warning resets on the rest you took, instead of firing across it.',
+      'Challenge completions are no longer lost to a closed screen. Every challenge is measured by date, so the app now catches up the last week at launch and whenever the wheel opens — a day you did the thing on but never revisited before midnight is stamped done, its points kept, its streak intact.',
+      'Schema 34: one new table, nothing of yours touched. 1700 checks in all, up from 1685, including proofs that a rest day bridges a streak, a miss still breaks it, and rest days alone never make one.',
+    ],
+  },
+  {
     version: '3.1.4',
     date: '2026-09-03',
     title: 'The library fills in',

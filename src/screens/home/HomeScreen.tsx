@@ -34,6 +34,7 @@ import { getDailySteps } from '@/repositories/activityRepo';
 import { DAILY_STEP_GOAL as STEP_GOAL } from '@/lib/pedometer';
 import { activeCoachTips, dismissCoachTip, refreshCoachTips } from '@/repositories/coachRepo';
 import { currentStreak } from '@/repositories/statsRepo';
+import { isRestDay, restDaySet, setRestDay } from '@/repositories/restDaysRepo';
 import { getSelfCare, bumpSelfCare } from '@/repositories/selfCareRepo';
 import { getPrayerSettings, prayersDone, togglePrayer, DAILY_PRAYERS } from '@/repositories/faithRepo';
 import { SELF_CARE_ITEMS } from '@/lib/selfCare';
@@ -106,6 +107,7 @@ export function HomeScreen() {
   const [faithOn, setFaithOn] = useState(false);
   const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
   const [showTypePicker, setShowTypePicker] = useState(false);
+  const [restDays, setRestDays] = useState<Set<string>>(new Set());
 
   // Tips are refreshed ONCE per app open — an intent boundary, not a focus
   // effect. Looking at Home must never write to the database.
@@ -118,6 +120,7 @@ export function HomeScreen() {
     refreshNutrition();
     setSteps(getDailySteps()?.stepCount ?? 0);
     setStreak(currentStreak());
+    setRestDays(restDaySet(todayISO().slice(0, 4) + '-01-01'));
     setTips(activeCoachTips());
     loadSmoking();
     loadSleep();
@@ -224,7 +227,28 @@ export function HomeScreen() {
         />
       </Row>
 
-      {usage && <ConsistencyCard usage={usage} trainingStreak={streak} />}
+      {usage && (
+        <ConsistencyCard
+          usage={usage}
+          trainingStreak={streak}
+          restDays={restDays}
+          onToggleRest={() => {
+            const on = !isRestDay();
+            setRestDay(on);
+            setRestDays(restDaySet(todayISO().slice(0, 4) + '-01-01'));
+            setStreak(currentStreak());
+            toast({
+              message: on ? 'Today is a rest day — your streaks are safe' : 'Rest day cleared',
+              actionLabel: 'Undo',
+              onAction: () => {
+                setRestDay(!on);
+                setRestDays(restDaySet(todayISO().slice(0, 4) + '-01-01'));
+                setStreak(currentStreak());
+              },
+            });
+          }}
+        />
+      )}
 
       {/* ── Readiness ────────────────────────────────────────────────────── */}
       <ReadinessStrip

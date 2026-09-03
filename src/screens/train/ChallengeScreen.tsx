@@ -24,7 +24,7 @@ import {
   challengeHistory,
   challengeStats,
   measureChallenge,
-  refreshChallengeCompletion,
+  catchUpChallengeCompletions,
   spinDailyChallenge,
   wheelForToday,
 } from '@/repositories/challengeRepo';
@@ -49,8 +49,9 @@ export function ChallengeScreen() {
   useFocusEffect(
     useCallback(() => {
       // Completion is checked on arrival, so finishing the challenge out in the
-      // world is enough — nothing has to be ticked off by hand.
-      refreshChallengeCompletion();
+      // world is enough — nothing has to be ticked off by hand. The last week
+      // is walked too: a day done but never revisited is still provably done.
+      catchUpChallengeCompletions();
       bump();
     }, [])
   );

@@ -4100,5 +4100,17 @@ console.log('\nApproachable 3.1.3 - the answer first, three depths for a program
   check('A missing programme is an empty state, not a bare line', /<EmptyState\s*\n\s*icon="mindbody\.special"/.test(sd));
 }
 
+console.log('\nLibrary 3.1.4 - the gap audit filled in:');
+{
+  const exSrc = fs.readFileSync('src/data/exercises.ts', 'utf8');
+  check('The audit block is on file and the library is past 990 entries', /3\.1\.4: the gap audit/.test(exSrc) && EXERCISE_LIBRARY.length >= 990, `${EXERCISE_LIBRARY.length}`);
+  const audit = exSrc.split('3.1.4: the gap audit')[1] ?? '';
+  const newSlugs = Array.from(audit.matchAll(/slug: '([^']+)'/g)).map((m) => m[1]);
+  check('Every audited entry carries a description and cues', newSlugs.length >= 200 && newSlugs.every((sl) => { const e = EXERCISE_LIBRARY.find((x) => x.slug === sl); return !!e && !!e.description && (e.instructions?.length ?? 0) >= 3; }), `${newSlugs.length} new`);
+  check('...and a difficulty resolved for each', newSlugs.every((sl) => difficultyBySlug(sl) != null || ['cardio', 'mind', 'mobility'].includes(EXERCISE_LIBRARY.find((x) => x.slug === sl)?.primaryMuscle ?? '')));
+  check('The Olympic lifts finally exist', ['power-clean', 'clean-and-jerk', 'barbell-snatch', 'push-jerk'].every((sl) => EXERCISE_LIBRARY.some((e) => e.slug === sl)));
+  check('No audited slug collides with an alias or an older entry', new Set(EXERCISE_LIBRARY.map((e) => e.slug)).size === EXERCISE_LIBRARY.length);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.1.4',
+    date: '2026-09-03',
+    title: 'The library fills in',
+    highlights: [
+      '236 exercises the library was still missing, found by auditing each domain against what a well-equipped gym and common programmes actually use: the Olympic lifts and their pulls and jerks, the ring and bar skill progressions, the cardio and outdoor formats people name on their own, the sport and martial-arts drills, and the yoga, mobility, pilates and breathing staples. 995 entries now, every one with a description and cues, a pinned sub-muscle where it has one, and a difficulty.',
+      'Every new entry got a tutorial video the same way the rest did — searched, scored, confirmed real by YouTube before it was written, then reviewed by title — so the library stands at 995 of 995 with a verified how-to. The anatomy figure lights up for the new ones too.',
+      '1685 checks in all, up from 1680.',
+    ],
+  },
+  {
     version: '3.1.3',
     date: '2026-09-02',
     title: 'The answer first',

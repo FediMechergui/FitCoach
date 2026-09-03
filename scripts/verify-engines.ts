@@ -1252,9 +1252,11 @@ console.log('\nDigestion clock — a stomach load that stacks:');
   const cardSrcD = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
   // Two meters, never one merged bar.
   check('The card draws the stomach and the smoke as two separate meters', /<Meter icon="digest\.stomach" title="Stomach"/.test(cardSrcD) && /<Meter icon="smoking\.cigarette" title="Smoke"/.test(cardSrcD));
-  check('…each with its own bar and its own countdown', (cardSrcD.match(/<ProgressBar progress=\{progress\} color=\{color\}/g) ?? []).length === 1 && /progress=\{s \? s\.progress : 1\}/.test(cardSrcD) && /progress=\{k \? k\.progress : 1\}/.test(cardSrcD));
+  // Superseded by 3.1.3: the meters ride the Lume Rail instead of the legacy bar.
+  check('…each with its own rail and its own countdown', (cardSrcD.match(/<Rail value=\{progress\} max=\{1\} color=\{color\}/g) ?? []).length === 1 && /progress=\{s \? s\.progress : 1\}/.test(cardSrcD) && /progress=\{k \? k\.progress : 1\}/.test(cardSrcD));
   check('The smoke meter shows whenever the module is on, even when clear', /const showSmoke = smokingEnabled \|\| smokes\.length > 0;/.test(cardSrcD) && /Nothing smoked in the last day\./.test(cardSrcD));
-  check('The headline names which clock governs', /The smoke clock' : 'The stomach clock'\} governs/.test(cardSrcD));
+  // Superseded by 3.1.3: the governor is the eyebrow over the verdict.
+  check('The headline names which clock governs', /const governor = r\.governor === 'smoke' \? 'smoke clock' : 'stomach clock';/.test(cardSrcD) && /\$\{governor\} governs/.test(cardSrcD));
   check('The card names the stacked load and how many meals are in it', /kcal still digesting/.test(cardSrcD) && /across \$\{s\.mealCount\} meals/.test(cardSrcD));
   check('The card explains that carbs are fast and fat/fibre slow', /carbs fastest, then protein, fat and fibre slowest/.test(cardSrcD));
 }
@@ -3611,7 +3613,7 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
     walk('src');
     let concat = 0;
     for (const f of files) concat += (fs.readFileSync(f, 'utf8').match(/\+ '[0-9A-Fa-f]{2}'/g) ?? []).length;
-    check('Hex-suffix alpha concatenation never grows', concat <= 16, `${concat} sites (ratchet: 16)`);
+    check('Hex-suffix alpha concatenation never grows', concat <= 15, `${concat} sites (ratchet: 15)`);
   }
 
   // ── Shape. Hierarchy through curvature. ──
@@ -4072,6 +4074,30 @@ console.log('\nMotion 3.1.2 - springs where motion is physical, the icon in the 
   const cfg = fs.readFileSync('app.config.ts', 'utf8');
   check('Splash and adaptive backgrounds are Night Sea', (cfg.match(/backgroundColor: '#070C14'/g) ?? []).length === 2 && !/#0B1220/.test(cfg));
   check('The icon set is present and freshly rendered', ['assets/icon.png', 'assets/adaptive-icon.png', 'assets/splash.png', 'assets/favicon.png'].every((f) => fs.existsSync(f) && fs.statSync(f).size > 1500));
+}
+
+console.log('\nApproachable 3.1.3 - the answer first, three depths for a programme:');
+{
+  const dc = fs.readFileSync('src/components/DigestionCard.tsx', 'utf8');
+  const iVerdict = dc.indexOf("{clear ? 'Clear to train' : `Wait ${formatWait(r.remainingMin)}`}");
+  const iQuestion = dc.indexOf('Training how hard?');
+  const iMeters = dc.indexOf('<Meter icon="digest.stomach"');
+  const iWhy = dc.indexOf('How is this worked out?');
+  check('The readiness card reads verdict, question, meters, then why', iVerdict > 0 && iQuestion > iVerdict && iMeters > iQuestion && iWhy > iMeters);
+  check('The verdict is a headline with the clock time it becomes true', /<Text variant="h2" style=\{\{ color: headColor \}\}>/.test(dc) && /variant="numeralM"[^>]*>\s*\n\s*\{clock\(r\.readyAt\)\}/.test(dc));
+  check('The physiology is folded behind a question, not printed under every reading', /\{showWhy && \(/.test(dc) && /setShowWhy\(\(v\) => !v\)/.test(dc));
+  check('The meters ride Rails, not the legacy bar', /<Rail value=\{progress\} max=\{1\}/.test(dc) && !/ProgressBar/.test(dc));
+  check('...and the fine-right-now line names what you can do', /Fine right now for \$\{INTENSITY_LABEL\[r\.readyFor\]\}/.test(dc));
+
+  const sp = fs.readFileSync('src/screens/train/SpecialProgramsScreen.tsx', 'utf8');
+  check('Programmes browse by world on a filter rail', /<SegmentedControl\s*\n\s*scrollable/.test(sp) && /SHORT_LABEL\[c\]/.test(sp) && /value: 'all', label: `All/.test(sp));
+  check('Programme cards are real presses with a token wash', /<Card accent=\{p\.accent\} style=\{\{ gap: 10 \}\} onPress=\{onPress\}>/.test(sp) && /theme\.alpha\.tint14\(p\.accent\)/.test(sp) && !sp.includes("p.accent + '"));
+
+  const sd = fs.readFileSync('src/screens/train/SpecialProgramDetailScreen.tsx', 'utf8');
+  check('A programme has three depths and opens on the actionable one', /type Tab = 'week' \| 'story' \| 'diet';/.test(sd) && /useState<Tab>\('week'\)/.test(sd) && ["tab === 'week'", "tab === 'story'", "tab === 'diet'"].every((t) => sd.includes(t)));
+  check('Days are numbered and each still starts a session', /D\{idx \+ 1\}/.test(sd) && /onPress=\{\(\) => startDay\(day\)\}/.test(sd));
+  check('Logging a meal or a day speaks through the toast, not an Alert', !/Alert\.alert/.test(sd) && (sd.match(/toast\(\{ message: `Logged/g) ?? []).length === 2);
+  check('A missing programme is an empty state, not a bare line', /<EmptyState\s*\n\s*icon="mindbody\.special"/.test(sd));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.1.3',
+    date: '2026-09-02',
+    title: 'The answer first',
+    highlights: [
+      'The can-I-train-yet card on the Nutrition page (and inside the readiness sheet) now leads with the answer: a big Clear to train, or Wait 2 h 54 with the clock time it becomes true right beside it. The one question that changes the answer — training how hard? — sits directly under it, the stomach and smoke meters follow as rails, and the physiology paragraph is folded behind “How is this worked out?” instead of being printed under every reading. When you can already do something lighter, it says so in one line.',
+      'Special programmes have a new interface. The list browses by world on a filter rail — Military, Warriors, Legends, Everyday, Counters, Elite sport, or all of them — with each programme card saying what it costs at a glance: level, days, hours, weeks, and that a diet comes with it. A programme itself opens on the actionable depth, the week, with its days numbered and a Start on each; the story and the diet are one tap to either side.',
+      'Logging a programme meal or a whole day now speaks through the toast instead of a blocking dialog, and a programme that cannot be found is an honest empty state. One more hard-coded alpha wash left the code — 15 remain of the original 20.',
+      '1680 checks in all, up from 1669.',
+    ],
+  },
+  {
     version: '3.1.2',
     date: '2026-09-02',
     title: 'Motion that settles',

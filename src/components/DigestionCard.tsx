@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Rail } from '@/components/ui/Meter';
 import { Row } from '@/components/ui/misc';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import {
@@ -23,7 +23,7 @@ const clock = (ms: number): string => {
 };
 
 /**
- * One meter: a title, its own status at the right, its own bar, one line of
+ * One meter: a title, its own status at the right, its own rail, one line of
  * detail. The stomach and the smoke are two different clocks with two
  * different fixes, so they read as two meters — never merged into one bar.
  */
@@ -51,27 +51,33 @@ function Meter({
           <Icon icon={icon} size={14} color={color} />
           <Text variant="label">{title}</Text>
         </Row>
-        <Text variant="caption" color={color} style={{ fontWeight: '700' }}>{status}</Text>
+        <Text variant="caption" color={color} style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>
+          {status}
+        </Text>
       </Row>
-      <ProgressBar progress={progress} color={color} height={compact ? 4 : 6} />
-      <Text variant="caption" color="textFaint" numberOfLines={compact ? 1 : 3}>{detail}</Text>
+      <Rail value={progress} max={1} color={color} height={compact ? 4 : 6} />
+      <Text variant="caption" color="textFaint" numberOfLines={compact ? 1 : 3}>
+        {detail}
+      </Text>
     </View>
   );
 }
 
 /**
- * "Can I train yet?" — two meters, side by side in one card.
+ * "Can I train yet?" — the answer first, the reasons after.
  *
  * STOMACH: every meal still digesting, stacked into one load that drains at a
  * rate set by its mix — so a snack an hour after lunch pushes the time out
  * rather than starting a fresh short timer. SMOKE: the acute nicotine window
  * after the last use of anything, plus the carbon-monoxide load from what was
  * burned, which also stacks. Each meter has its own countdown and its own
- * bar; the headline is whichever is later, and says which.
+ * rail; the headline is whichever is later, and says which.
  *
- * Re-renders on a one-minute tick so the countdowns move without a manual
- * refresh. Intensity is a control because the honest answer depends on it: a
- * heavy lunch that rules out sprints is fine for a walk.
+ * The 3.0 layout puts the verdict where a glance lands (big, with the clock
+ * time it becomes true), asks the one question that changes the answer — how
+ * hard? — right under it, and folds the physiology behind a "how is this
+ * worked out?" line instead of printing a paragraph under every reading.
+ * Re-renders on a one-minute tick so the countdowns move on their own.
  */
 export function DigestionCard({
   meals,
@@ -89,6 +95,7 @@ export function DigestionCard({
 }) {
   const theme = useTheme();
   const [intensity, setIntensity] = useState<TrainingIntensity>(defaultIntensity);
+  const [showWhy, setShowWhy] = useState(false);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 60_000);
@@ -129,34 +136,57 @@ export function DigestionCard({
       ? `Last one ${formatWait(smokeAny.elapsedMin)} ago — out of the way${smokeAny.coLoad > 0.3 ? ` (CO ~${smokeAny.coLoad.toFixed(1)} cigarettes' worth, fading)` : ''}.`
       : 'Nothing smoked in the last day.';
   const showSmoke = smokingEnabled || smokes.length > 0;
+  const governor = r.governor === 'smoke' ? 'smoke clock' : 'stomach clock';
 
   return (
-    <Card accent={headColor} style={{ gap: 10 }}>
-      <Row gap={10} style={{ alignItems: 'center' }}>
-        <Icon icon={headIcon} size={22} color={headColor} />
+    <Card accent={headColor} style={{ gap: compact ? 10 : 14 }}>
+      {/* The verdict, where a glance lands: what, and the clock time it becomes true. */}
+      <Row gap={12} style={{ alignItems: 'center' }}>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: theme.radius.md,
+            backgroundColor: theme.alpha.tint14(headColor),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={headIcon} size={20} color={headColor} />
+        </View>
         <View style={{ flex: 1 }}>
-          <Text variant="bodyStrong">
+          <Text variant="eyebrow" color="textMuted">
+            {clear ? 'Ready' : `${governor} governs`}
+          </Text>
+          <Text variant="h2" style={{ color: headColor }}>
             {clear ? 'Clear to train' : `Wait ${formatWait(r.remainingMin)}`}
           </Text>
-          <Text variant="caption" color="textMuted">
-            {clear
-              ? `Nothing in the way — good to go for ${INTENSITY_LABEL[intensity]}.`
-              : `${r.governor === 'smoke' ? 'The smoke clock' : 'The stomach clock'} governs — ${INTENSITY_LABEL[intensity]} at ${clock(r.readyAt)}${
-                  r.readyFor ? `; fine now for ${INTENSITY_LABEL[r.readyFor]}` : ''
-                }.`}
-          </Text>
         </View>
-      </Row>
-
-      <View style={{ gap: compact ? 8 : 12 }}>
-        <Meter icon="digest.stomach" title="Stomach" status={stomachStatus} progress={s ? s.progress : 1} color={stomachColor} detail={stomachDetail} compact={compact} />
-        {showSmoke && (
-          <Meter icon="smoking.cigarette" title="Smoke" status={smokeStatusText} progress={k ? k.progress : 1} color={smokeColor} detail={smokeDetail} compact={compact} />
+        {!clear && (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text variant="numeralM" style={{ fontSize: 22, lineHeight: 26 }}>
+              {clock(r.readyAt)}
+            </Text>
+            <Text variant="caption" color="textFaint">
+              for {INTENSITY_LABEL[intensity]}
+            </Text>
+          </View>
         )}
-      </View>
+      </Row>
+      <Text variant="caption" color="textMuted">
+        {clear
+          ? `Nothing in the way — good to go for ${INTENSITY_LABEL[intensity]}.`
+          : r.readyFor
+            ? `Fine right now for ${INTENSITY_LABEL[r.readyFor]} — the wait is only for ${INTENSITY_LABEL[intensity]}.`
+            : `Not yet, even for a walk — the ${governor} says ${clock(r.readyAt)}.`}
+      </Text>
 
+      {/* The one question that changes the answer comes before the reasons. */}
       {!compact && (
-        <>
+        <View style={{ gap: 6 }}>
+          <Text variant="eyebrow" color="textMuted">
+            Training how hard?
+          </Text>
           <SegmentedControl
             options={[
               { value: 'light', label: 'Light' },
@@ -165,15 +195,40 @@ export function DigestionCard({
             ]}
             value={intensity}
             onChange={(v) => setIntensity(v as TrainingIntensity)}
+            accent={headColor}
           />
-          <Text variant="caption" color="textFaint">
-            The stomach clock stacks everything still digesting and drains it at a rate set by the
-            mix — carbs fastest, then protein, fat and fibre slowest; a drink about twice as fast as
-            the same calories as food — so a snack on top of lunch waits for both. The smoke clock counts the acute nicotine window after anything, plus
-            carbon monoxide from what was burned, which stacks too. Estimates from standard
-            figures; your own tolerance is the final word.
-          </Text>
-        </>
+        </View>
+      )}
+
+      <View style={{ gap: compact ? 8 : 12 }}>
+        <Meter icon="digest.stomach" title="Stomach" status={stomachStatus} progress={s ? s.progress : 1} color={stomachColor} detail={stomachDetail} compact={compact} />
+        {showSmoke && (
+          <Meter icon="smoking.cigarette" title="Smoke" status={smokeStatusText} progress={k ? k.progress : 1} color={smokeColor} detail={smokeDetail} compact={compact} />
+        )}
+      </View>
+
+      {/* The physiology, on request — never a paragraph under every reading. */}
+      {!compact && (
+        <View style={{ gap: 6 }}>
+          <Pressable onPress={() => setShowWhy((v) => !v)} hitSlop={6}>
+            <Row gap={6} style={{ alignItems: 'center' }}>
+              <Icon icon="core.info" size={14} color={theme.colors.textFaint} />
+              <Text variant="caption" color="textFaint">
+                {showWhy ? 'Hide how this is worked out' : 'How is this worked out?'}
+              </Text>
+            </Row>
+          </Pressable>
+          {showWhy && (
+            <Text variant="caption" color="textFaint">
+              The stomach clock stacks everything still digesting and drains it at a rate set by the
+              mix — carbs fastest, then protein, fat and fibre slowest; a drink about twice as fast as
+              the same calories as food — so a snack on top of lunch waits for both. The smoke clock
+              counts the acute nicotine window after anything, plus carbon monoxide from what was
+              burned, which stacks too. Estimates from standard figures; your own tolerance is the
+              final word.
+            </Text>
+          )}
+        </View>
       )}
     </Card>
   );

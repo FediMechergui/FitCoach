@@ -32,6 +32,12 @@ export const ICONS = {
     play: def('Ionicons', 'play'),
     video: def('Ionicons', 'logo-youtube'),
     howto: def('Ionicons', 'school-outline'),
+    /** a muscle group (the wheel borrowed the machine cog for it before) */
+    muscles: def('MaterialCommunityIcons', 'arm-flex'),
+    /** something new — a first (the wheel showed a tilted '+' before) */
+    sparkle: def('Ionicons', 'sparkles'),
+    /** a chosen rest day */
+    rest: def('MaterialCommunityIcons', 'weather-night'),
     end: def('Ionicons', 'stop-circle'),
     timer: def('Ionicons', 'timer-outline'),
     notifications: def('Ionicons', 'notifications-outline'),

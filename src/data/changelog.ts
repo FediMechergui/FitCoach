@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.2.1',
+    date: '2026-09-03',
+    title: 'The wheel, fixed and fuller',
+    highlights: [
+      'The wheel’s glyphs stay upright now. A settled wheel rests at a multiple of 45 degrees, which turned the “something new” plus sign into a tilted cross and made the whole ring look wrong; the icons ride their wedge but no longer tilt with it. Two glyphs were also just wrong — muscle-group challenges borrowed the machine cog, novelty borrowed a plus — and have their own now: an arm, a sparkle.',
+      'The pointer tells the truth. Switching a tracker on or off after a spin reshuffled the wheel underneath the day’s challenge, so the pointer could sit on one card while the page described another. A settled wheel now rests on the challenge that was actually given, and if that challenge fell out of the eight it takes the last seat.',
+      '26 new challenges — 70 on the wheel now — with eight new things the app can measure: a rest day taken on purpose, tracked walks, distinct exercises, personal records set, caffeine kept under your limit, nap minutes, a fast completed, and a day with no vitamin or mineral gap. Every one is measured from what you log; a day with nothing logged never reads as a pass.',
+      '1711 checks in all, up from 1700.',
+    ],
+  },
+  {
     version: '3.2.0',
     date: '2026-09-03',
     title: 'Rest is a decision, not a miss',

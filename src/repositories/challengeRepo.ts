@@ -5,6 +5,7 @@ import {
   dailyChallenges,
   exerciseLogs,
   exercises,
+  fastingLogs,
   prayerLogs,
   selfCareLogs,
   sessions,
@@ -15,6 +16,12 @@ import {
   supplementStack,
   type DailyChallenge,
 } from '@/db/schema';
+import { isRestDay } from './restDaysRepo';
+import { listWalkSessions } from './activityRepo';
+import { napsForDate } from './sleepRepo';
+import { dayMicros } from './microsRepo';
+import { microGaps } from '@/lib/micros';
+import { getUser } from './userRepo';
 import { CHALLENGES, DIFFICULTY_POINTS, findChallenge, type ChallengeDef, type ChallengeMetric } from '@/data/challenges';
 import { bestBridgedStreak, bridgedStreak } from '@/lib/streaks';
 import { restDaySet } from './restDaysRepo';
@@ -125,6 +132,7 @@ function setsOn(date: string, userId: number) {
       rpe: setEntries.rpe,
       toFailure: setEntries.toFailure,
       completed: setEntries.completed,
+      isPr: setEntries.isPr,
       muscle: exercises.primaryMuscle,
       exerciseId: exerciseLogs.exerciseId,
       sessionId: exerciseLogs.sessionId,
@@ -229,6 +237,45 @@ export function measureMetric(
         const fromSessions = sessionsOn(date, userId).reduce((s, x) => s + (x.caloriesBurned ?? 0), 0);
         const fromWalks = getDailySteps(date, userId)?.caloriesBurned ?? 0;
         return Math.round(fromSessions + fromWalks);
+      }
+      // ── 3.2.1 ──
+      case 'restDayTaken':
+        return isRestDay(date, userId) ? 1 : 0;
+      case 'walkSessions':
+        return listWalkSessions(500, userId).filter((w) => toDate(w.startTime) === date).length;
+      case 'distinctExercises':
+        return new Set(setsOn(date, userId).map((r) => r.exerciseId)).size;
+      case 'prsToday':
+        return setsOn(date, userId).filter((r) => !!r.isPr).length;
+      case 'caffeineUnderLimit': {
+        // A day with nothing logged is not "under" anything — it is unmeasured.
+        const rows = db
+          .select()
+          .from(beverageEntries)
+          .where(and(eq(beverageEntries.userId, userId), eq(beverageEntries.date, date)))
+          .all();
+        if (!rows.length) return 0;
+        const mg = rows.reduce((s, r) => s + (r.caffeineMg ?? 0), 0);
+        const limit = getNutritionGoal(userId)?.caffeineSoftLimitMg ?? 400;
+        return mg <= limit ? 1 : 0;
+      }
+      case 'napMinutes':
+        return napsForDate(date, userId).reduce((s, n) => s + (n.minutes ?? 0), 0);
+      case 'fastedDay':
+        return db
+          .select()
+          .from(fastingLogs)
+          .where(and(eq(fastingLogs.userId, userId), eq(fastingLogs.date, date)))
+          .all()
+          .some((r) => r.completed)
+          ? 1
+          : 0;
+      case 'microGapsZero': {
+        // Only a day that carried micronutrient data can be gap-free; silence is not health.
+        const m = dayMicros(date, userId);
+        if (m.foodEntriesWithMicros === 0 && m.supplementCount === 0) return 0;
+        const sex = getUser(userId)?.sex ?? 'male';
+        return microGaps(m.totals, sex).length === 0 ? 1 : 0;
       }
       default:
         return 0;

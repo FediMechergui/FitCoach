@@ -1453,7 +1453,7 @@ console.log('\nDaily challenge wheel:');
   const nothingOn = { enabled: {} };
 
   check('Every challenge is measurable and has a positive target', CHALLENGES.every((c) => !!c.metric && c.target > 0));
-  check('The wheel now has 44 challenges to draw from', CHALLENGES.length === 44, `${CHALLENGES.length}`);
+  check('The wheel now has 70 challenges to draw from', CHALLENGES.length === 70, `${CHALLENGES.length}`);
   /*
    * The wiring guard for challenges: a metric named in the data but without a
    * `case` in measureMetric would read as permanent zero — a challenge that can
@@ -4144,6 +4144,27 @@ console.log('\nRest days 3.2.0 - a decision, not a miss:');
   check('The week shows a rest day as a moon, never a miss', /<Icon icon="sleep\.moon" size=\{11\}/.test(cc) && /Make today a rest day\?/.test(cc));
   const home = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
   check('Home offers the switch and forgives it', /onToggleRest=\{\(\) => \{/.test(home) && /setRestDay\(on\);/.test(home) && /onAction: \(\) => \{\s*\n\s*setRestDay\(!on\);/.test(home));
+}
+
+console.log('\nWheel 3.2.1 - glyphs upright, pointer honest, more to draw from:');
+{
+  const wheel = fs.readFileSync('src/components/ChallengeWheel.tsx', 'utf8');
+  check('Wedge glyphs counter-rotate so a settled wheel never tilts a + into an x', /outputRange: \['0deg', '-360deg'\]/.test(wheel) && /transform: \[\{ rotate: counterRotate \}\]/.test(wheel) && /<Animated\.View\s*\n\s*key=\{c\.key\}/.test(wheel));
+  const scr = fs.readFileSync('src/screens/train/ChallengeScreen.tsx', 'utf8');
+  check('A settled wheel rests on the persisted challenge, not a rebuilt shuffle', /wheel\.segments\.findIndex\(\(c\) => c\.key === row\.challengeKey\)/.test(scr) && /segments=\{shown\.segments\}/.test(scr) && /winningIndex=\{shown\.winningIndex\}/.test(scr));
+  check('...and a challenge that fell out of the eight takes the last seat', /const segments = \[\.\.\.wheel\.segments\.slice\(0, -1\), def\];/.test(scr));
+  check('The wheel catches up completions on arrival', /catchUpChallengeCompletions\(\);/.test(scr) && !/refreshChallengeCompletion\(\);/.test(scr));
+  // Muscle groups get an arm, novelty gets a sparkle - not a cog, not a tilted plus.
+  check('Muscle-group challenges wear the muscle glyph', CHALLENGES.filter((c) => c.metric === 'distinctMuscles').every((c) => c.icon === 'core.muscles'));
+  check('New-exercise challenges wear the sparkle', CHALLENGES.filter((c) => c.metric === 'newExerciseTried').every((c) => c.icon === 'core.sparkle'));
+  // The eight new metrics read real tables.
+  const repo = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  const newMetrics = ['restDayTaken', 'walkSessions', 'distinctExercises', 'prsToday', 'caffeineUnderLimit', 'napMinutes', 'fastedDay', 'microGapsZero'];
+  check('Every new metric has a measuring case', newMetrics.every((m) => new RegExp(`case '${m}':`).test(repo)));
+  check('...and every new metric is drawn by at least one challenge', newMetrics.every((m) => CHALLENGES.some((c) => c.metric === m)), newMetrics.filter((m) => !CHALLENGES.some((c) => c.metric === m)).join());
+  check('Silence is not success for caffeine or micros', /if \(!rows\.length\) return 0;/.test(repo) && /if \(m\.foodEntriesWithMicros === 0 && m\.supplementCount === 0\) return 0;/.test(repo));
+  check('A rest day is a challenge you can complete by resting', CHALLENGES.some((c) => c.key === 'rest-day' && c.metric === 'restDayTaken' && c.icon === 'core.rest'));
+  check('No two challenges share a metric and target', new Set(CHALLENGES.map((c) => `${c.metric}:${c.target}`)).size === CHALLENGES.length);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -93,6 +93,19 @@ export function ChallengeScreen() {
   const done = !!row?.completedAt;
   const pct = measure ? challengeProgress(measure.current, measure.target) : 0;
 
+  // A settled wheel must rest on the challenge that was PERSISTED, not on
+  // whatever a wheel rebuilt now would land on. Enabling or disabling a
+  // tracker after the spin reshuffles the segments; if the day's challenge
+  // fell out of the eight, it takes the last seat so the pointer tells the truth.
+  const shown = (() => {
+    if (!row) return { segments: wheel.segments, winningIndex: wheel.winningIndex };
+    const idx = wheel.segments.findIndex((c) => c.key === row.challengeKey);
+    if (idx >= 0) return { segments: wheel.segments, winningIndex: idx };
+    if (!def) return { segments: wheel.segments, winningIndex: wheel.winningIndex };
+    const segments = [...wheel.segments.slice(0, -1), def];
+    return { segments, winningIndex: segments.length - 1 };
+  })();
+
   return (
     <Screen>
       <PageHero
@@ -109,8 +122,8 @@ export function ChallengeScreen() {
           </Text>
         )}
         <ChallengeWheel
-          segments={wheel.segments}
-          winningIndex={wheel.winningIndex}
+          segments={shown.segments}
+          winningIndex={shown.winningIndex}
           settled={settled}
           onPress={() => spinDailyChallenge(ctx, today)}
           onSpinEnd={bump}

@@ -76,6 +76,9 @@ export function ChallengeWheel({ segments, winningIndex, size = 260, settled, on
   };
 
   const rotate = spin.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] });
+  // The glyphs ride the wheel but never tilt with it: a settled wheel rests at
+  // a multiple of 45°, which used to turn every '+' into an '×'.
+  const counterRotate = spin.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '-360deg'] });
 
   if (n === 0) return null;
 
@@ -104,12 +107,12 @@ export function ChallengeWheel({ segments, winningIndex, size = 260, settled, on
             </G>
           </Svg>
 
-          {/* Icons sit above the SVG and rotate with it, one per wedge. */}
+          {/* Icons sit above the SVG, travel with the wedge, and stay upright. */}
           {segments.map((c, i) => {
             const mid = ((i + 0.5) * per - 90) * (Math.PI / 180);
             const rad = r * 0.66;
             return (
-              <View
+              <Animated.View
                 key={c.key}
                 style={{
                   position: 'absolute',
@@ -119,10 +122,11 @@ export function ChallengeWheel({ segments, winningIndex, size = 260, settled, on
                   height: 24,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  transform: [{ rotate: counterRotate }],
                 }}
               >
                 <Icon icon={c.icon} size={18} color="#fff" />
-              </View>
+              </Animated.View>
             );
           })}
         </Animated.View>

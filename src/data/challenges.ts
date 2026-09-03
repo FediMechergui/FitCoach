@@ -37,7 +37,24 @@ export type ChallengeMetric =
   | 'newExerciseTried'
   | 'walkDistanceM'
   | 'sleepHours'
-  | 'burnedKcal';
+  | 'burnedKcal'
+  // ── 3.2.1 ──
+  /** 1 when the day was flagged a rest day */
+  | 'restDayTaken'
+  /** GPS walks / runs finished that day */
+  | 'walkSessions'
+  /** distinct exercises logged that day */
+  | 'distinctExercises'
+  /** personal records set that day */
+  | 'prsToday'
+  /** 1 when the day's caffeine stayed at or under the soft limit */
+  | 'caffeineUnderLimit'
+  /** minutes napped that day */
+  | 'napMinutes'
+  /** 1 when a fast was completed that day */
+  | 'fastedDay'
+  /** 1 when no vitamin or mineral gap remains for the day (needs logged micros) */
+  | 'microGapsZero';
 
 export type ChallengeDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -98,12 +115,12 @@ export const CHALLENGES: ChallengeDef[] = [
   { key: 'sets-12', label: 'Twelve Hard Sets', detail: 'Twelve sets taken close enough to failure to count.', metric: 'hardSets', target: 12, unit: 'sets', difficulty: 'easy', category: 'lift', icon: 'strength.dumbbell', accent: '#FF8A3D' },
   { key: 'sets-20', label: 'Twenty Hard Sets', detail: 'Twenty working sets. A real session, not a visit.', metric: 'hardSets', target: 20, unit: 'sets', difficulty: 'medium', category: 'lift', icon: 'strength.dumbbell', accent: '#FF8A3D' },
   { key: 'failure-3', label: 'Three To Failure', detail: 'Take three sets to genuine failure — no rep left.', metric: 'failureSets', target: 3, unit: 'sets', difficulty: 'medium', category: 'lift', icon: 'strength.barbell', accent: '#FF8A3D' },
-  { key: 'muscles-4', label: 'Four Muscle Groups', detail: 'Hit four different muscle groups in one day.', metric: 'distinctMuscles', target: 4, unit: 'groups', difficulty: 'medium', category: 'lift', icon: 'strength.machine', accent: '#FF8A3D' },
-  { key: 'new-exercise', label: 'Try Something New', detail: 'Log an exercise you have never done before.', metric: 'newExerciseTried', target: 1, unit: '', difficulty: 'easy', category: 'lift', icon: 'core.add', accent: '#FF8A3D' },
+  { key: 'muscles-4', label: 'Four Muscle Groups', detail: 'Hit four different muscle groups in one day.', metric: 'distinctMuscles', target: 4, unit: 'groups', difficulty: 'medium', category: 'lift', icon: 'core.muscles', accent: '#FF8A3D' },
+  { key: 'new-exercise', label: 'Try Something New', detail: 'Log an exercise you have never done before.', metric: 'newExerciseTried', target: 1, unit: '', difficulty: 'easy', category: 'lift', icon: 'core.sparkle', accent: '#FF8A3D' },
   { key: 'sets-25', label: 'Twenty-Five Hard Sets', detail: 'A high-volume day. Bring food and patience.', metric: 'hardSets', target: 25, unit: 'sets', difficulty: 'hard', category: 'lift', icon: 'strength.dumbbell', accent: '#FF8A3D' },
-  { key: 'muscles-3', label: 'Three Muscle Groups', detail: 'Touch three different muscle groups today.', metric: 'distinctMuscles', target: 3, unit: 'groups', difficulty: 'easy', category: 'lift', icon: 'strength.machine', accent: '#FF8A3D' },
+  { key: 'muscles-3', label: 'Three Muscle Groups', detail: 'Touch three different muscle groups today.', metric: 'distinctMuscles', target: 3, unit: 'groups', difficulty: 'easy', category: 'lift', icon: 'core.muscles', accent: '#FF8A3D' },
   { key: 'failure-5', label: 'Five To Failure', detail: 'Five sets to the true end. Save them for the last set of each exercise.', metric: 'failureSets', target: 5, unit: 'sets', difficulty: 'hard', category: 'lift', icon: 'strength.barbell', accent: '#FF8A3D' },
-  { key: 'new-exercise-2', label: 'Two New Moves', detail: 'Two exercises you have never logged. The library has hundreds you have not tried.', metric: 'newExerciseTried', target: 2, unit: '', difficulty: 'medium', category: 'lift', icon: 'core.add', accent: '#FF8A3D' },
+  { key: 'new-exercise-2', label: 'Two New Moves', detail: 'Two exercises you have never logged. The library has hundreds you have not tried.', metric: 'newExerciseTried', target: 2, unit: '', difficulty: 'medium', category: 'lift', icon: 'core.sparkle', accent: '#FF8A3D' },
 
   // ── Fuel ──
   { key: 'water-goal', label: 'Hit Your Water', detail: 'Reach your daily hydration goal.', metric: 'waterMl', target: 2500, unit: 'ml', difficulty: 'easy', category: 'fuel', icon: 'nutrition.water', accent: '#4FC3F7' },
@@ -132,6 +149,34 @@ export const CHALLENGES: ChallengeDef[] = [
   { key: 'selfcare-3', label: 'Three Acts of Care', detail: 'Three self-care check-ins — the small things that add up.', metric: 'selfCareDone', target: 3, unit: '', difficulty: 'easy', category: 'care', icon: 'mindbody.spa', accent: '#4DB6AC' },
   { key: 'selfcare-5', label: 'Five Acts of Care', detail: 'Five self-care check-ins in one day. Look after the machine.', metric: 'selfCareDone', target: 5, unit: '', difficulty: 'medium', category: 'care', icon: 'mindbody.spa', accent: '#4DB6AC' },
   { key: 'smoke-free', label: 'A Clean Day', detail: 'Get through the day without smoking anything.', metric: 'smokeFreeDay', target: 1, unit: '', difficulty: 'hard', category: 'care', icon: 'smoking.quit', accent: '#66BB6A', requires: 'smoking' },
+
+  // ── 3.2.1: twenty-six more, including rest, walks, records, caffeine, naps and micros ──
+  { key: 'walks-1', label: 'One Tracked Walk', detail: 'Start the GPS, walk, stop it. Any distance counts, as long as it is tracked.', metric: 'walkSessions', target: 1, unit: 'walk', difficulty: 'easy', category: 'move', icon: 'cardio.gps', accent: '#33D9A6' },
+  { key: 'walks-2', label: 'Two Walks', detail: 'Two separate tracked walks or runs. Before work and after is the easy split.', metric: 'walkSessions', target: 2, unit: 'walks', difficulty: 'medium', category: 'move', icon: 'cardio.gps', accent: '#33D9A6' },
+  { key: 'walks-3', label: 'Three Walks', detail: 'Three tracked walks in one day — morning, lunch, evening. Short is fine; separate is the point.', metric: 'walkSessions', target: 3, unit: 'walks', difficulty: 'hard', category: 'move', icon: 'cardio.gps', accent: '#33D9A6' },
+  { key: 'walk-3k', label: 'Three Kilometres', detail: 'Three kilometres on foot, tracked. Half an hour at an ordinary pace.', metric: 'walkDistanceM', target: 3000, unit: 'm', difficulty: 'easy', category: 'move', icon: 'cardio.walk', accent: '#33D9A6' },
+  { key: 'steps-15k', label: '15,000 Steps', detail: 'Fifteen thousand. Take the long way there and the long way back.', metric: 'steps', target: 15000, unit: 'steps', difficulty: 'hard', category: 'move', icon: 'cardio.steps', accent: '#33D9A6' },
+  { key: 'move-60', label: 'One Hour', detail: 'Sixty minutes of training logged today, in one session or two.', metric: 'sessionMinutes', target: 60, unit: 'min', difficulty: 'medium', category: 'move', icon: 'nav.train', accent: '#4F8CFF' },
+  { key: 'exercises-6', label: 'Six Exercises', detail: 'Six different exercises logged today. A full session, not just your favourites.', metric: 'distinctExercises', target: 6, unit: 'exercises', difficulty: 'easy', category: 'lift', icon: 'core.list', accent: '#FF8A3D' },
+  { key: 'exercises-10', label: 'Ten Exercises', detail: 'Ten distinct exercises in a day. Cover the whole body; two sets each is allowed.', metric: 'distinctExercises', target: 10, unit: 'exercises', difficulty: 'hard', category: 'lift', icon: 'core.list', accent: '#FF8A3D' },
+  { key: 'pr-1', label: 'Set A Record', detail: 'Beat a personal best on any exercise — one more rep or one more kilo is enough.', metric: 'prsToday', target: 1, unit: 'PR', difficulty: 'medium', category: 'lift', icon: 'core.pr', accent: '#FF8A3D' },
+  { key: 'pr-3', label: 'Three Records', detail: 'Three personal bests in one session. Pick lifts you have not pushed in a while.', metric: 'prsToday', target: 3, unit: 'PRs', difficulty: 'hard', category: 'lift', icon: 'core.pr', accent: '#FF8A3D' },
+  { key: 'sets-16', label: 'Sixteen Hard Sets', detail: 'Sixteen working sets. Longer than a quick one, shorter than a grind.', metric: 'hardSets', target: 16, unit: 'sets', difficulty: 'medium', category: 'lift', icon: 'strength.dumbbell', accent: '#FF8A3D' },
+  { key: 'water-2l', label: 'Two Litres', detail: 'Two litres of water. A bottle on the desk does most of the work.', metric: 'waterMl', target: 2000, unit: 'ml', difficulty: 'easy', category: 'fuel', icon: 'nutrition.water', accent: '#4FC3F7' },
+  { key: 'protein-100', label: 'A Hundred Grams', detail: 'One hundred grams of protein, spread across the meals rather than saved for dinner.', metric: 'proteinG', target: 100, unit: 'g', difficulty: 'easy', category: 'fuel', icon: 'nutrition.protein', accent: '#FF6B6B', requires: 'nutrition' },
+  { key: 'fibre-20', label: 'Twenty Grams of Fibre', detail: 'Twenty grams. Oats in the morning and one real portion of vegetables gets you there.', metric: 'fibreG', target: 20, unit: 'g', difficulty: 'easy', category: 'fuel', icon: 'nutrition.veg', accent: '#8BC34A', requires: 'nutrition' },
+  { key: 'fasted-day', label: 'Finish The Fast', detail: 'Keep your fasting window to its end and log the fast as completed.', metric: 'fastedDay', target: 1, unit: '', difficulty: 'medium', category: 'fuel', icon: 'faith.fasting', accent: '#FFB454' },
+  { key: 'micro-gaps-zero', label: 'No Gaps', detail: 'End the day with no vitamin or mineral gap — food first, the stack for what is left.', metric: 'microGapsZero', target: 1, unit: '', difficulty: 'hard', category: 'fuel', icon: 'micro.vitamins', accent: '#B39DDB', requires: 'nutrition' },
+  { key: 'meditate-5', label: 'Five Minutes Still', detail: 'Five minutes of meditation. Long enough to notice you want to stop.', metric: 'meditationMinutes', target: 5, unit: 'min', difficulty: 'easy', category: 'mind', icon: 'mindbody.meditation', accent: '#B39DDB' },
+  { key: 'meditate-20', label: 'Twenty Minutes Still', detail: 'Twenty minutes in one sit. Set the timer and do not check it.', metric: 'meditationMinutes', target: 20, unit: 'min', difficulty: 'medium', category: 'mind', icon: 'mindbody.meditation', accent: '#B39DDB' },
+  { key: 'mobility-10', label: 'Ten Minutes of Mobility', detail: 'Ten minutes of stretching on the floor before bed. Hips and shoulders first.', metric: 'mindbodyMinutes', target: 10, unit: 'min', difficulty: 'easy', category: 'mind', icon: 'mindbody.stretch', accent: '#B39DDB' },
+  { key: 'mobility-45', label: 'Forty-Five Minutes of Mobility', detail: 'A full class worth of yoga, stretching or mobility work. Log it as a session.', metric: 'mindbodyMinutes', target: 45, unit: 'min', difficulty: 'hard', category: 'mind', icon: 'mindbody.yoga', accent: '#B39DDB' },
+  { key: 'sleep-9', label: 'Nine Hours', detail: 'Nine hours logged. A recovery night — in bed early enough that it is possible.', metric: 'sleepHours', target: 9, unit: 'h', difficulty: 'hard', category: 'mind', icon: 'mindbody.sleep', accent: '#7986CB', requires: 'sleep' },
+  { key: 'rest-day', label: 'Rest On Purpose', detail: 'Flag today as a rest day and take it. No session, no guilt.', metric: 'restDayTaken', target: 1, unit: '', difficulty: 'easy', category: 'care', icon: 'core.rest', accent: '#4DB6AC' },
+  { key: 'prayers-3', label: 'Three Prayers', detail: 'Three of the five today. Start with the ones you usually miss.', metric: 'prayersDone', target: 3, unit: '', difficulty: 'easy', category: 'care', icon: 'faith.prayer', accent: '#4DB6AC', requires: 'prayer' },
+  { key: 'nap-20', label: 'Twenty-Minute Nap', detail: 'Lie down before three, alarm set for twenty minutes. You wake clear-headed.', metric: 'napMinutes', target: 20, unit: 'min', difficulty: 'medium', category: 'care', icon: 'sleep.debt', accent: '#7986CB', requires: 'sleep' },
+  { key: 'nap-90', label: 'A Full Cycle', detail: 'A ninety-minute nap, finished before three in the afternoon. Best after a short night.', metric: 'napMinutes', target: 90, unit: 'min', difficulty: 'hard', category: 'care', icon: 'sleep.quality', accent: '#7986CB', requires: 'sleep' },
+  { key: 'caffeine-limit', label: 'Caffeine In Check', detail: 'Finish the day at or under your caffeine limit. The afternoon cup is the one that counts.', metric: 'caffeineUnderLimit', target: 1, unit: '', difficulty: 'medium', category: 'care', icon: 'nutrition.coffee', accent: '#C69368' },
 ];
 
 export const findChallenge = (key: string): ChallengeDef | undefined =>

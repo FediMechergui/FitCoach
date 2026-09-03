@@ -19,6 +19,8 @@ export interface RatingInputs {
   loggingDaysPerWeek: number; // nutrition logged days
   cigarettesPerDay: number;
   alcoholGramsPerWeek: number;
+  /** challenge points earned in the last 28 days — measured completions, never claims */
+  challengePoints28d: number;
 }
 
 export interface AttributeSet {
@@ -65,11 +67,13 @@ export function computeRating(i: RatingInputs): CardRating {
     25 + sleepScore + Math.min(18, i.restDaysPerWeek * 8) - Math.min(25, i.alcoholGramsPerWeek / 8)
   );
 
-  // Discipline: logging + low smoking/alcohol + consistency.
+  // Discipline: logging + low smoking/alcohol + consistency + challenges kept.
+  // Points are windowed (28 days) and capped: ~200 in a month fills the slot.
   const DIS = A(
     35 +
       Math.min(20, i.loggingDaysPerWeek * 3) +
-      Math.min(15, i.avgSessionsPerWeek * 3) -
+      Math.min(15, i.avgSessionsPerWeek * 3) +
+      Math.min(20, i.challengePoints28d / 10) -
       Math.min(25, i.cigarettesPerDay * 3) -
       Math.min(15, i.alcoholGramsPerWeek / 12)
   );

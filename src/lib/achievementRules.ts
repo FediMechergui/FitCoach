@@ -137,6 +137,28 @@ const RULES: Record<number, Rule> = {
   128: (s) => ({ current: s.challengeHardCompleted, target: 10 }),
   129: (s) => ({ current: s.challengeCategories, target: 5 }),
   130: (s) => ({ current: s.challengePoints, target: 500 }),
+  // 14. Rest & Rhythm
+  131: (s) => ({ current: s.restDaysTaken, target: 1 }),
+  132: (s) => ({ current: s.restDaysTaken, target: 10 }),
+  133: (s) => ({ current: s.restDaysTaken, target: 50 }),
+  134: (s) => ({ current: s.restDaysLast30, target: 4 }),
+  135: (s) => ({ current: s.restBridgedStreakBest, target: 7 }),
+  136: (s) => ({ current: s.restBridgedStreakBest, target: 14 }),
+  137: (s) => ({ current: s.walkCount, target: 10 }),
+  138: (s) => ({ current: s.walkCount, target: 100 }),
+  139: (s) => ({ current: s.sessionCount, target: 100 }),
+  140: (s) => ({ current: s.sessionCount, target: 500 }),
+  // 15. Points & Grit
+  141: (s) => ({ current: s.challengePoints, target: 100 }),
+  142: (s) => ({ current: s.challengePoints, target: 250 }),
+  143: (s) => ({ current: s.challengePoints, target: 1000 }),
+  144: (s) => ({ current: s.challengePoints, target: 2500 }),
+  145: (s) => ({ current: s.challengePoints, target: 5000 }),
+  146: (s) => ({ current: s.challengePointsBestMonth, target: 200 }),
+  147: (s) => ({ current: s.distinctChallenges, target: 20 }),
+  148: (s) => ({ current: s.distinctChallenges, target: 40 }),
+  149: (s) => ({ current: s.challengeHardCompleted, target: 25 }),
+  150: (s) => ({ current: s.challengeStreakCurrent, target: 14 }),
 };
 
 export function evaluateAchievement(def: AchievementDef, s: AchievementStats): AchievementProgress {

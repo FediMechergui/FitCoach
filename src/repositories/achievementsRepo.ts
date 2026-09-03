@@ -18,7 +18,11 @@ import { dayNutrition, dailyIntakeSince } from './nutritionRepo';
 import { getNutritionGoal, getUser, latestWeight, weighInHistory, PRIMARY_USER_ID } from './userRepo';
 import { growthReport } from './growthRepo';
 import { computeCardRating } from './cardRepo';
-import { challengeStats } from './challengeRepo';
+import { challengeHistory, challengeStats } from './challengeRepo';
+import { DIFFICULTY_POINTS } from '@/data/challenges';
+import { restDayCount, restDaySet } from './restDaysRepo';
+import { bestBridgedStreak } from '@/lib/streaks';
+import { trainingCalendar } from './statsRepo';
 import { MICRO_KEYS, percentRdi } from '@/lib/micros';
 import { SUPPLEMENTS } from '@/data/supplements';
 import { daysAgoISO, lastNDates, todayISO, toISODate } from '@/lib/date';
@@ -108,6 +112,15 @@ export interface AchievementStats {
   challengeCategories: number;
   challengePoints: number;
   distinctSessionTypes: number;
+  // ── Rest & Rhythm / Points & Grit (3.2.2) ──
+  restDaysTaken: number;
+  restDaysLast30: number;
+  /** the best training streak a rest day carried across */
+  restBridgedStreakBest: number;
+  walkCount: number;
+  challengePointsBestMonth: number;
+  challengeStreakCurrent: number;
+  distinctChallenges: number;
 }
 
 /** Longest run of consecutive true days ending at the most recent (today, else yesterday). */
@@ -301,6 +314,24 @@ function computeAchievementStats(userId: number): AchievementStats {
     hardCompleted: 0, distinctCategories: 0, distinctChallenges: 0,
   });
 
+  // ── rest & rhythm ──
+  const restDaysTaken = safe(() => restDayCount(null, userId), 0);
+  const restDaysLast30 = safe(() => restDayCount(30, userId), 0);
+  const restBridgedStreakBest = safe(() => {
+    const trained = trainingCalendar(365, userId).filter((d) => d.count > 0).map((d) => d.date).sort();
+    return bestBridgedStreak(trained, restDaySet(daysAgoISO(365), userId));
+  }, 0);
+  const walkCount = safe(() => listWalkSessions(5000, userId).length, 0);
+  const challengePointsBestMonth = safe(() => {
+    const byMonth = new Map<string, number>();
+    for (const { row, def } of challengeHistory(5000, userId)) {
+      if (row.completedAt == null) continue;
+      const m = row.date.slice(0, 7);
+      byMonth.set(m, (byMonth.get(m) ?? 0) + DIFFICULTY_POINTS[def.difficulty]);
+    }
+    return maxOf([...byMonth.values()], 0);
+  }, 0);
+
   // ── naps ──
   const napCount = safe(() => db.select().from(napLogs).where(eq(napLogs.userId, userId)).all().length, 0);
 
@@ -422,6 +453,13 @@ function computeAchievementStats(userId: number): AchievementStats {
     challengeCategories: chal.distinctCategories,
     challengePoints: chal.points,
     distinctSessionTypes,
+    restDaysTaken,
+    restDaysLast30,
+    restBridgedStreakBest,
+    walkCount,
+    challengePointsBestMonth,
+    challengeStreakCurrent: chal.streak,
+    distinctChallenges: chal.distinctChallenges,
   };
 }
 
@@ -442,6 +480,8 @@ const ZERO_STATS: AchievementStats = {
   specialSessionCount: 0, distinctSpecialPrograms: 0, distinctSessionTypes: 0,
   challengesSpun: 0, challengesCompleted: 0, challengeStreakBest: 0,
   challengeHardCompleted: 0, challengeCategories: 0, challengePoints: 0,
+  restDaysTaken: 0, restDaysLast30: 0, restBridgedStreakBest: 0, walkCount: 0,
+  challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
 };
 
 /** Public entry — never throws; a failure yields zeroed stats, not a white screen. */

@@ -35,6 +35,9 @@ import { DAILY_STEP_GOAL as STEP_GOAL } from '@/lib/pedometer';
 import { activeCoachTips, dismissCoachTip, refreshCoachTips } from '@/repositories/coachRepo';
 import { currentStreak } from '@/repositories/statsRepo';
 import { isRestDay, restDaySet, setRestDay } from '@/repositories/restDaysRepo';
+import { challengeForDate, challengePointsSince, challengeStats, measureChallenge } from '@/repositories/challengeRepo';
+import { findChallenge } from '@/data/challenges';
+import { Rail } from '@/components/ui/Meter';
 import { getSelfCare, bumpSelfCare } from '@/repositories/selfCareRepo';
 import { getPrayerSettings, prayersDone, togglePrayer, DAILY_PRAYERS } from '@/repositories/faithRepo';
 import { SELF_CARE_ITEMS } from '@/lib/selfCare';
@@ -108,6 +111,12 @@ export function HomeScreen() {
   const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [restDays, setRestDays] = useState<Set<string>>(new Set());
+  const [chal, setChal] = useState<{
+    points: number;
+    month: number;
+    streak: number;
+    today: { label: string; current: number; target: number; unit: string; done: boolean } | null;
+  } | null>(null);
 
   // Tips are refreshed ONCE per app open — an intent boundary, not a focus
   // effect. Looking at Home must never write to the database.
@@ -121,6 +130,22 @@ export function HomeScreen() {
     setSteps(getDailySteps()?.stepCount ?? 0);
     setStreak(currentStreak());
     setRestDays(restDaySet(todayISO().slice(0, 4) + '-01-01'));
+    // Points and today's challenge are READ here; completion is stamped at
+    // boot and on the wheel, never by looking at Home.
+    try {
+      const st = challengeStats();
+      const row = challengeForDate();
+      const def = row ? findChallenge(row.challengeKey) : undefined;
+      const m = def ? measureChallenge(def) : null;
+      setChal({
+        points: st.points,
+        month: challengePointsSince(todayISO().slice(0, 8) + '01'),
+        streak: st.streak,
+        today: def && m ? { label: def.label, current: m.current, target: m.target, unit: def.unit, done: !!row?.completedAt || m.complete } : null,
+      });
+    } catch {
+      setChal(null);
+    }
     setTips(activeCoachTips());
     loadSmoking();
     loadSleep();
@@ -248,6 +273,56 @@ export function HomeScreen() {
             });
           }}
         />
+      )}
+
+      {/* ── Points — what the challenges have earned, and today's one ── */}
+      {chal && (
+        <Card accent={theme.colors.accent} onPress={() => navigation.navigate('DailyChallenge')}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text variant="eyebrow" color="textMuted">
+                Challenge points
+              </Text>
+              <Row gap={6} style={{ alignItems: 'baseline' }}>
+                <Text variant="numeralM" style={{ fontSize: 28, lineHeight: 32, color: theme.colors.accent }}>
+                  {chal.points.toLocaleString()}
+                </Text>
+                <Text variant="caption" color="textMuted">
+                  all time · {chal.month} this month
+                </Text>
+              </Row>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 2 }}>
+              <Row gap={4} style={{ alignItems: 'center' }}>
+                <Icon icon="core.streak" size={13} color={chal.streak > 0 ? theme.colors.warning : theme.colors.textFaint} />
+                <Text variant="label" color="textMuted">
+                  {chal.streak} day{chal.streak === 1 ? '' : 's'}
+                </Text>
+              </Row>
+              <Text variant="caption" color="textFaint">
+                feeds your card
+              </Text>
+            </View>
+          </Row>
+          {chal.today ? (
+            <View style={{ gap: 4 }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <Text variant="label" numberOfLines={1} style={{ flex: 1 }}>
+                  {chal.today.done ? '✓ ' : ''}
+                  {chal.today.label}
+                </Text>
+                <Text variant="caption" color={chal.today.done ? 'success' : 'textMuted'} style={{ fontVariant: ['tabular-nums'] }}>
+                  {chal.today.done ? 'done' : `${Math.round(chal.today.current)} / ${chal.today.target} ${chal.today.unit}`.trim()}
+                </Text>
+              </Row>
+              <Rail value={chal.today.current} max={chal.today.target} color={chal.today.done ? theme.colors.success : theme.colors.accent} height={5} />
+            </View>
+          ) : (
+            <Text variant="caption" color="textFaint">
+              No spin yet today — the wheel is one tap away.
+            </Text>
+          )}
+        </Card>
       )}
 
       {/* ── Readiness ────────────────────────────────────────────────────── */}

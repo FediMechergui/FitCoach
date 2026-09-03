@@ -11,6 +11,7 @@ import { weeklyStepAverage } from './coachRepo';
 import { avgRestHours } from './sleepRepo';
 import { avgCigarettesPerDay, getSmokingProfile } from './smokingRepo';
 import { avgAlcoholGramsPerWeek } from './alcoholRepo';
+import { challengePointsSince } from './challengeRepo';
 
 /** Sum of the user's best estimated 1RM across their top 3 lifts. */
 function topLiftsBest1RM(userId: number): number {
@@ -75,6 +76,13 @@ export function buildRatingInputs(userId: number = PRIMARY_USER_ID): RatingInput
     loggingDaysPerWeek: intake.length,
     cigarettesPerDay: getSmokingProfile(userId)?.enabled ? avgCigarettesPerDay(7, userId) : 0,
     alcoholGramsPerWeek: avgAlcoholGramsPerWeek(userId),
+    challengePoints28d: (() => {
+      try {
+        return challengePointsSince(since28, userId);
+      } catch {
+        return 0;
+      }
+    })(),
   };
 }
 

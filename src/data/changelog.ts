@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.2.2',
+    date: '2026-09-03',
+    title: 'Points that count',
+    highlights: [
+      'Home has a points section now: everything the challenges have earned, this month\'s share, the challenge streak, and today\'s challenge with its progress rail — one tap opens the wheel. It only reads; a completion is stamped when you finish the thing, not when you look.',
+      'Points reach the athlete card. Discipline now credits the challenge points of the last 28 days — about two hundred in a month fills the slot — so a month of kept challenges shows on the card and fades if you stop. Windowed and capped on purpose: an all-time total would only ever go up.',
+      'Twenty new achievements in two new categories. Rest & Rhythm rewards rest taken on purpose, streaks a rest day carried across, walks and lifetime sessions; Points & Grit ladders the points — a hundred to five thousand — a big month, distinct challenges kept, hard ones, and a two-week challenge streak. 150 badges across 15 categories, every new one auto-tracked from your data.',
+      '1725 checks in all, up from 1711, including a proof that points move Discipline and that the cap holds.',
+    ],
+  },
+  {
     version: '3.2.1',
     date: '2026-09-03',
     title: 'The wheel, fixed and fuller',

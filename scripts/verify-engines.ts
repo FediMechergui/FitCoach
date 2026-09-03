@@ -255,7 +255,7 @@ console.log('\nAthlete rating:');
 const rating = computeRating({
   avgSessionsPerWeek: 4, streakDays: 12, relativeStrength: 2.2, weeklyCardioMinutes: 120, avgStepsPerDay: 9000,
   calorieAdherence: 0.9, proteinAdherence: 0.95, avgSleepHours: 7.5, restDaysPerWeek: 2, loggingDaysPerWeek: 6,
-  cigarettesPerDay: 0, alcoholGramsPerWeek: 20,
+  cigarettesPerDay: 0, alcoholGramsPerWeek: 20, challengePoints28d: 120,
 });
 check('Overall in 1..99', rating.overall >= 1 && rating.overall <= 99, `${rating.overall}`);
 check('All attributes in range', Object.values(rating.attributes).every((v) => v >= 1 && v <= 99));
@@ -726,6 +726,8 @@ const zeroStats: AchievementStats = {
   specialSessionCount: 0, distinctSpecialPrograms: 0, distinctSessionTypes: 0,
   challengesSpun: 0, challengesCompleted: 0, challengeStreakBest: 0,
   challengeHardCompleted: 0, challengeCategories: 0, challengePoints: 0,
+  restDaysTaken: 0, restDaysLast30: 0, restBridgedStreakBest: 0, walkCount: 0,
+  challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
 };
 const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
 check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
@@ -4165,6 +4167,38 @@ console.log('\nWheel 3.2.1 - glyphs upright, pointer honest, more to draw from:'
   check('Silence is not success for caffeine or micros', /if \(!rows\.length\) return 0;/.test(repo) && /if \(m\.foodEntriesWithMicros === 0 && m\.supplementCount === 0\) return 0;/.test(repo));
   check('A rest day is a challenge you can complete by resting', CHALLENGES.some((c) => c.key === 'rest-day' && c.metric === 'restDayTaken' && c.icon === 'core.rest'));
   check('No two challenges share a metric and target', new Set(CHALLENGES.map((c) => `${c.metric}:${c.target}`)).size === CHALLENGES.length);
+}
+
+console.log('\nPoints 3.2.2 - twenty more badges, points on Home, points on the card:');
+{
+  check('Fifteen categories, one hundred and fifty badges', ACHIEVEMENT_CATEGORIES.length === 15 && ACHIEVEMENTS.length === 150);
+  const rest = ACHIEVEMENTS.filter((a) => a.category === 14);
+  const grit = ACHIEVEMENTS.filter((a) => a.category === 15);
+  check('Rest & Rhythm and Points & Grit each hold ten, all auto-tracked', rest.length === 10 && grit.length === 10 && [...rest, ...grit].every((a) => evaluateAchievement(a, zeroStats).tracked));
+  check('...and none unlocks on an empty account', [...rest, ...grit].every((a) => !evaluateAchievement(a, zeroStats).unlocked));
+  check('The first rest day earns its badge', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 131)!, { ...zeroStats, restDaysTaken: 1 }).unlocked);
+  check('A bridged streak has a badge that reads restBridgedStreakBest', rest.some((a) => /restBridgedStreakBest/.test(String(evaluateAchievement(a, { ...zeroStats, restBridgedStreakBest: 99 }).unlocked))) || rest.some((a) => evaluateAchievement(a, { ...zeroStats, restBridgedStreakBest: 99 }).unlocked));
+  check('A hundred points is the first grit badge', grit.some((a) => evaluateAchievement(a, { ...zeroStats, challengePoints: 100 }).unlocked) && !grit.some((a) => evaluateAchievement(a, { ...zeroStats, challengePoints: 99 }).unlocked && a.id === 141));
+  const rulesSrc = fs.readFileSync('src/lib/achievementRules.ts', 'utf8');
+  check('Rules for 131-150 exist', Array.from({ length: 20 }, (_, i) => 131 + i).every((id) => new RegExp(`\\n  ${id}: \\(s\\) =>`).test(rulesSrc)));
+  const ar = fs.readFileSync('src/repositories/achievementsRepo.ts', 'utf8');
+  check('The new stats are computed from real tables, safely', /restDayCount\(null, userId\)/.test(ar) && /restDayCount\(30, userId\)/.test(ar) && /bestBridgedStreak\(trained, restDaySet/.test(ar) && /listWalkSessions\(5000, userId\)\.length/.test(ar) && /byMonth\.set\(m, \(byMonth\.get\(m\) \?\? 0\) \+ DIFFICULTY_POINTS\[def\.difficulty\]\)/.test(ar));
+
+  // ── The card ──
+  const ratingSrc = fs.readFileSync('src/lib/rating.ts', 'utf8');
+  check('Discipline credits challenge points, windowed and capped', /Math\.min\(20, i\.challengePoints28d \/ 10\)/.test(ratingSrc));
+  const base = { avgSessionsPerWeek: 3, streakDays: 5, relativeStrength: 1.2, weeklyCardioMinutes: 60, avgStepsPerDay: 7000, calorieAdherence: 0.8, proteinAdherence: 0.8, avgSleepHours: 7, restDaysPerWeek: 2, loggingDaysPerWeek: 5, cigarettesPerDay: 0, alcoholGramsPerWeek: 0 };
+  const dis0 = computeRating({ ...base, challengePoints28d: 0 }).attributes.DIS;
+  const dis200 = computeRating({ ...base, challengePoints28d: 200 }).attributes.DIS;
+  const dis900 = computeRating({ ...base, challengePoints28d: 900 }).attributes.DIS;
+  check('Points move Discipline, and the cap holds', dis200 > dis0 && dis900 === dis200 && dis200 - dis0 <= 20);
+  check('The card reads points through the 28-day window, never all-time', /challengePointsSince\(since28, userId\)/.test(fs.readFileSync('src/repositories/cardRepo.ts', 'utf8')));
+
+  // ── Home ──
+  const home = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  check('Home shows challenge points and today\'s challenge, and opens the wheel', /Challenge points/.test(home) && /navigation\.navigate\('DailyChallenge'\)/.test(home) && /challengePointsSince\(todayISO\(\)\.slice\(0, 8\) \+ '01'\)/.test(home));
+  check('Looking at Home never stamps a completion', !/refreshChallengeCompletion/.test(home) && !/catchUpChallengeCompletions/.test(home));
+  check('The points card is not a Metric (the two-Metric rule holds)', (home.match(/<Metric\b/g) ?? []).length === 2);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

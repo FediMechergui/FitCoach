@@ -895,6 +895,25 @@ export const restDays = sqliteTable('rest_days', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+/**
+ * Every spin of the wheel, including the ones that replaced a challenge.
+ * `daily_challenges` keeps the day's CURRENT challenge; this is the ledger
+ * behind it — how many spins the day used and what each one cost — so the
+ * free-spin allowance and the points balance are read, never remembered.
+ */
+export const challengeSpins = sqliteTable('challenge_spins', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  date: text('date').notNull(), // ISO date
+  challengeKey: text('challenge_key').notNull(),
+  /** points paid for this spin — 0 for the free ones */
+  cost: integer('cost').notNull().default(0),
+  spunAt: integer('spun_at').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const weatherReadings = sqliteTable('weather_readings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -970,5 +989,6 @@ export type FastingLog = typeof fastingLogs.$inferSelect;
 export type CustomFood = typeof customFoods.$inferSelect;
 export type DailyChallenge = typeof dailyChallenges.$inferSelect;
 export type RestDay = typeof restDays.$inferSelect;
+export type ChallengeSpin = typeof challengeSpins.$inferSelect;
 export type MealRoutine = typeof mealRoutines.$inferSelect;
 export type WeatherReadingRow = typeof weatherReadings.$inferSelect;

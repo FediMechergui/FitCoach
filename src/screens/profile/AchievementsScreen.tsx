@@ -99,9 +99,30 @@ function AchievementRow({ def, p }: { def: AchievementDef; p: AchievementProgres
       style={{ gap: 8, opacity: p.unlocked ? 1 : 0.96 }}
     >
       <Row gap={12} style={{ alignItems: 'center' }}>
-        {/* Badge art (pre-rendered PNG) — full colour when unlocked, dimmed when locked */}
-        <View style={{ opacity: p.unlocked ? 1 : 0.35 }}>
-          <BadgeSvg id={def.id} svg={def.svg} size={48} />
+        {/* The medal (pre-rendered PNG): full colour once earned; dimmed, with a lock, until then */}
+        <View style={{ width: 56, height: 56 }}>
+          <View style={{ opacity: p.unlocked ? 1 : 0.3 }}>
+            <BadgeSvg id={def.id} svg={def.svg} size={56} />
+          </View>
+          {!p.unlocked && (
+            <View
+              style={{
+                position: 'absolute',
+                right: -2,
+                bottom: -2,
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                backgroundColor: theme.colors.surfaceAlt,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon icon="core.lock" size={11} color={theme.colors.textFaint} />
+            </View>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <Row gap={6} style={{ alignItems: 'center' }}>

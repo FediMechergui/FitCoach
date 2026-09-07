@@ -55,8 +55,11 @@ import { seedExerciseLibrary } from './seed';
  *   32 → 33 v3.1.0: exercises.video_id — one verified tutorial per built-in.
  *   33 → 34 v3.2.0: rest_days — a day chosen as rest, one row per day, so the
  *                  streaks and the coach can tell a decision from a miss.
+ *   34 → 35 v3.2.3: challenge_spins — the wheel's ledger: every spin of a day
+ *                  and what it cost, so free spins and the points balance
+ *                  are read, never remembered.
  */
-const SCHEMA_VERSION = 34;
+const SCHEMA_VERSION = 35;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -727,6 +730,17 @@ CREATE TABLE IF NOT EXISTS rest_days (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_rest_days_user_date ON rest_days(user_id, date);
+
+CREATE TABLE IF NOT EXISTS challenge_spins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  challenge_key TEXT NOT NULL,
+  cost INTEGER NOT NULL DEFAULT 0,
+  spun_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_challenge_spins_user_date ON challenge_spins(user_id, date);
 `;
 
 let initialized = false;

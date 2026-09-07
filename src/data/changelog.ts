@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.2.3',
+    date: '2026-09-07',
+    title: 'The wheel lands, and a spin has a price',
+    highlights: [
+      'The wheel lands on the centre of a wedge now. It used to stop on the seam between two: the maths rotated back by the leading edge of the winning wedge, so the pointer sat on a boundary and the challenge shown was the one clockwise of it. Every spin, and every settled wheel, now rests dead centre.',
+      'Two spins a day are free. If the first is not the one, spin once more; every spin after that costs ten points from what the challenges have earned, so a re-spin is a decision with a price rather than a reflex. A completed challenge is banked and cannot be spun away, a re-spin never lands where it was, and every spin goes into a ledger (schema 35) so the allowance and the balance are read, never remembered. Home and the wheel show the balance; the badges and the athlete card keep reading what was earned.',
+      'In a session the exercise name has a line of its own — up to two lines, with the muscle and the equipment beneath it. Seven controls used to share its row, and on a phone that left \'Dumbb…\', or nothing at all.',
+      'The 150 badges are minted, not flat: each glyph now sits in a medal with a bevelled rim, a lit disc, a glass sheen and a shadow, rendered at 144 px and palette-quantised so the whole set stays small. A badge not yet earned wears a lock.',
+      '1767 checks in all, up from 1725, including proofs that every wedge of eight lands by its centre, that a third spin with nine points is refused and with ten allowed, and that a banked challenge is never spun away.',
+    ],
+  },
+  {
     version: '3.2.2',
     date: '2026-09-03',
     title: 'Points that count',

@@ -310,7 +310,7 @@ function computeAchievementStats(userId: number): AchievementStats {
   // `safe` because the table only exists from v22; an older database must not
   // take the whole achievements screen down.
   const chal = safe(() => challengeStats(userId), {
-    spun: 0, completed: 0, points: 0, streak: 0, bestStreak: 0,
+    spun: 0, completed: 0, points: 0, spent: 0, balance: 0, streak: 0, bestStreak: 0,
     hardCompleted: 0, distinctCategories: 0, distinctChallenges: 0,
   });
 

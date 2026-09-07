@@ -14,7 +14,7 @@ import { Row, Divider, EmptyState, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSessionStore } from '@/stores/sessionStore';
 import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
-import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS, SUB_MUSCLE_LABELS } from '@/data/exercises';
+import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS, SUB_MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
 import { formatDuration } from '@/lib/format';
 import { warmupsDoneOf, type ExerciseLogView } from '@/repositories/sessionRepo';
 import { getExercise, listExercises } from '@/repositories/exerciseRepo';
@@ -632,14 +632,15 @@ function ExerciseLogCard({
 
   return (
     <Card accent={accent} style={{ gap: 10 }}>
+      {/*
+        The toolbar row: place in the order, the running-order arrows, how-to,
+        swap, remove. The name is NOT here — seven controls used to share its
+        row, and on a phone that left it "Dumbb…", or nothing at all.
+      */}
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Row gap={8} style={{ alignItems: 'center', flex: 1 }}>
-          <Text variant="caption" color={upNext ? accent : 'textFaint'} style={{ fontVariant: ['tabular-nums'], fontWeight: '700' }}>
+          <Text variant="eyebrow" color={upNext ? accent : 'textFaint'} style={{ fontVariant: ['tabular-nums'] }}>
             {position}/{total}
-          </Text>
-          <Icon icon={lv.iconKey} size={20} color={accent} />
-          <Text variant="h3" numberOfLines={1} style={{ flex: 1 }}>
-            {lv.exerciseName}
           </Text>
           {upNext && <Badge label="Up next" color={accent} />}
         </Row>
@@ -670,6 +671,37 @@ function ExerciseLogCard({
         <Pressable onPress={() => store.removeExercise(lv.log.id)} hitSlop={8}>
           <Icon icon="core.delete" size={18} color={theme.colors.textFaint} />
         </Pressable>
+      </Row>
+
+      {/* The exercise itself: full name, up to two lines, with what it works and what it needs. */}
+      <Row gap={10} style={{ alignItems: 'center' }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: theme.radius.sm,
+            backgroundColor: theme.alpha.tint14(accent),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon icon={lv.iconKey} size={20} color={accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="h3" numberOfLines={2}>
+            {lv.exerciseName}
+          </Text>
+          {(lv.primaryMuscle || lv.equipmentType) && (
+            <Text variant="caption" color="textMuted" numberOfLines={1}>
+              {[
+                lv.primaryMuscle ? MUSCLE_LABELS[lv.primaryMuscle] ?? lv.primaryMuscle : null,
+                lv.equipmentType ? EQUIPMENT_LABELS[lv.equipmentType] ?? lv.equipmentType : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          )}
+        </View>
       </Row>
       {started && (
         <Text variant="caption" color="textFaint">

@@ -138,7 +138,7 @@ export function HomeScreen() {
       const def = row ? findChallenge(row.challengeKey) : undefined;
       const m = def ? measureChallenge(def) : null;
       setChal({
-        points: st.points,
+        points: st.balance,
         month: challengePointsSince(todayISO().slice(0, 8) + '01'),
         streak: st.streak,
         today: def && m ? { label: def.label, current: m.current, target: m.target, unit: def.unit, done: !!row?.completedAt || m.complete } : null,
@@ -288,7 +288,7 @@ export function HomeScreen() {
                   {chal.points.toLocaleString()}
                 </Text>
                 <Text variant="caption" color="textMuted">
-                  all time · {chal.month} this month
+                  to spend · {chal.month} earned this month
                 </Text>
               </Row>
             </View>

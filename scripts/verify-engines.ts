@@ -103,6 +103,12 @@ import {
   buildDailyWheel,
   eligibleChallenges,
   wheelRotationDeg,
+  nextWheelStopDeg,
+  spinCost,
+  spinVerdict,
+  respinIndex,
+  FREE_SPINS_PER_DAY,
+  RESPIN_COST,
   challengeProgress,
   isChallengeComplete,
   WHEEL_SIZE,
@@ -1508,8 +1514,10 @@ console.log('\nDaily challenge wheel:');
   check('Repeating beats an empty wheel', everythingRecent.segments.length === WHEEL_SIZE);
 
   // Rotation geometry — the wedge must land under the pointer at the top.
-  check('A winner at slot 0 needs no offset', wheelRotationDeg(0, 8) % 360 === 0);
-  check('Slot 2 of 8 rotates back by 90°', wheelRotationDeg(2, 8) % 360 === 270, `${wheelRotationDeg(2, 8) % 360}`);
+  // Superseded by 3.2.3: the wheel is rotated back by the wedge's CENTRE, not
+  // its leading edge — the edge parked the pointer on the seam between two wedges.
+  check('A winner at slot 0 rests half a wedge back, on its centre', wheelRotationDeg(0, 8) % 360 === 337.5, `${wheelRotationDeg(0, 8) % 360}`);
+  check('Slot 2 of 8 rotates back by 112.5° — its centre', wheelRotationDeg(2, 8) % 360 === 247.5, `${wheelRotationDeg(2, 8) % 360}`);
   check('The spin always turns forward, never backward', [0, 1, 4, 7].every((i) => wheelRotationDeg(i, 8) > 0));
   check('A zero-segment wheel cannot divide by zero', wheelRotationDeg(0, 0) === 0);
 
@@ -1536,7 +1544,9 @@ console.log('\nDaily challenge wheel:');
   check('Schema version is at or past the challenge table', sv3 >= 22, `${sv3}`);
   // Re-spinning for an easier challenge must be impossible.
   const chalRepo = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
-  check('A day already spun is never re-spun', /const existing = challengeForDate\(date, userId\);\s*\n\s*if \(existing\) return existing;/.test(chalRepo));
+  // Superseded by 3.2.3: two spins a day are free and a third costs points, so a
+  // day CAN be spun again — but a completed challenge is banked and never can be.
+  check('A completed challenge is never spun away', /const existing = refreshChallengeCompletion\(date, userId\);/.test(chalRepo) && /if \(completed\) return \{ ok: false, reason: 'completed', cost \};/.test(fs.readFileSync('src/lib/challengeWheel.ts', 'utf8')));
   check('Completion is measured, never self-declared', /if \(!m\.complete\) return row;/.test(chalRepo));
   check('A completed challenge is never un-completed', /if \(!row \|\| row\.completedAt\) return row;/.test(chalRepo));
 }
@@ -4141,7 +4151,7 @@ console.log('\nRest days 3.2.0 - a decision, not a miss:');
   check('The coach stops nudging on a rest day', (reco.match(/!ctx\.restDayToday &&/g) ?? []).length === 2 && /restDayToday\?: boolean;/.test(reco));
   check('...and the context carries the flag', /const restDayToday = isRestDay\(today, userId\);/.test(fs.readFileSync('src/repositories/coachRepo.ts', 'utf8')));
   const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
-  check('rest_days is in the DDL with one flag per day', /CREATE TABLE IF NOT EXISTS rest_days \(/.test(boot) && /UNIQUE INDEX IF NOT EXISTS idx_rest_days_user_date/.test(boot) && /const SCHEMA_VERSION = 34;/.test(boot));
+  check('rest_days is in the DDL with one flag per day', /CREATE TABLE IF NOT EXISTS rest_days \(/.test(boot) && /UNIQUE INDEX IF NOT EXISTS idx_rest_days_user_date/.test(boot) && /const SCHEMA_VERSION = (3[4-9]|[4-9]\d);/.test(boot));
   const cc = fs.readFileSync('src/components/ConsistencyCard.tsx', 'utf8');
   check('The week shows a rest day as a moon, never a miss', /<Icon icon="sleep\.moon" size=\{11\}/.test(cc) && /Make today a rest day\?/.test(cc));
   const home = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
@@ -4199,6 +4209,83 @@ console.log('\nPoints 3.2.2 - twenty more badges, points on Home, points on the 
   check('Home shows challenge points and today\'s challenge, and opens the wheel', /Challenge points/.test(home) && /navigation\.navigate\('DailyChallenge'\)/.test(home) && /challengePointsSince\(todayISO\(\)\.slice\(0, 8\) \+ '01'\)/.test(home));
   check('Looking at Home never stamps a completion', !/refreshChallengeCompletion/.test(home) && !/catchUpChallengeCompletions/.test(home));
   check('The points card is not a Metric (the two-Metric rule holds)', (home.match(/<Metric\b/g) ?? []).length === 2);
+}
+
+console.log('\nWheel 3.2.3 - the pointer lands on the centre; two free spins, then ten points:');
+{
+  // ── Geometry: the wedge under the pointer is the one the screen describes ──
+  const per = 45;
+  const eight = [0, 1, 2, 3, 4, 5, 6, 7];
+  const landing = (deg: number) => (((360 - (deg % 360)) % 360) + 360) % 360;
+  check('Every wedge of eight is brought to the pointer by its CENTRE', eight.every((i) => landing(wheelRotationDeg(i, 8)) === (i + 0.5) * per));
+  check('...never by its seam (the 3.2.2 bug)', eight.every((i) => landing(wheelRotationDeg(i, 8)) !== i * per));
+  check('A settled wheel (zero turns) rests on the same centre', wheelRotationDeg(3, 8, 0) === -(3.5 * per));
+  const from = wheelRotationDeg(3, 8, 0);
+  const to = nextWheelStopDeg(from, 5, 8);
+  check('The next spin turns forward at least four full turns', to - from >= 4 * 360, `${to - from}`);
+  check('...and stops on the centre of the new wedge', landing(to) === 5.5 * per, `${to % 360}`);
+  const to2 = nextWheelStopDeg(to, 1, 8);
+  check('A third spin keeps turning the same way from where it stopped', to2 > to && landing(to2) === 1.5 * per);
+  check('A negative resting angle still spins forward', nextWheelStopDeg(-300, 0, 8) > 0);
+
+  // ── The economy, as pure arithmetic ──
+  check('Two spins a day are free, the third costs ten', FREE_SPINS_PER_DAY === 2 && RESPIN_COST === 10 && spinCost(0) === 0 && spinCost(1) === 0 && spinCost(2) === 10 && spinCost(7) === 10);
+  check('A first and a second spin are allowed with no points at all', spinVerdict(0, 0, false).ok && spinVerdict(1, 0, false).ok);
+  const third = spinVerdict(2, 9, false);
+  check('A third spin with nine points is refused, for points', !third.ok && third.reason === 'points' && third.cost === 10);
+  const ten = spinVerdict(2, 10, false);
+  check('...and allowed with exactly ten, and it is not free', ten.ok && ten.free === false && ten.cost === 10);
+  const banked = spinVerdict(1, 500, true);
+  check('A completed challenge is banked: no re-spin at any price', !banked.ok && banked.reason === 'completed');
+  const idx1 = respinIndex('2026-09-07', 1, 8, 3);
+  check('A re-spin is deterministic for the date and the spin number', idx1 === respinIndex('2026-09-07', 1, 8, 3) && idx1 >= 0 && idx1 < 8);
+  check('...never lands on the wedge it left', eight.every((cur) => Array.from({ length: 20 }, (_, k) => respinIndex('2026-09-07', k + 1, 8, cur)).every((i) => i !== cur)));
+  check('...and differs by spin number', new Set(Array.from({ length: 12 }, (_, k) => respinIndex('2026-09-07', k + 1, 8, 0))).size > 1);
+  check('A one-wedge wheel cannot loop forever', respinIndex('2026-09-07', 1, 1, 0) === 0);
+
+  // ── Wiring ──
+  const repo = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('Every spin is written to the ledger with its cost', /db\.insert\(challengeSpins\)\.values\(\{ userId, date, challengeKey, cost: verdict\.cost, spunAt: now \}\)\.run\(\);/.test(repo));
+  check('A re-spin replaces the day\'s challenge and clears its completion', /\.set\(\{ challengeKey, spunAt: now, completedAt: null, finalValue: null \}\)/.test(repo));
+  check('A spin that is not allowed writes nothing', /if \(!verdict\.ok\) return undefined;/.test(repo) && repo.indexOf('if (!verdict.ok) return undefined;') < repo.indexOf('db.insert(challengeSpins)'));
+  check('Completion is stamped before the verdict, so a challenge earned is never spun away', /const existing = refreshChallengeCompletion\(date, userId\);/.test(repo));
+  check('A day spun before the ledger existed counts as one spin', /return Math\.max\(ledger, challengeForDate\(date, userId\) \? 1 : 0\);/.test(repo));
+  check('The balance is earned minus spent; earned itself is never reduced', /balance: points - spent,/.test(repo) && /const spent = pointsSpent\(userId\);/.test(repo));
+  check('Badges and the card read EARNED points, not the balance', /challengePoints: chal\.points,/.test(fs.readFileSync('src/repositories/achievementsRepo.ts', 'utf8')) && /challengePointsSince\(since28, userId\)/.test(fs.readFileSync('src/repositories/cardRepo.ts', 'utf8')));
+  check('Home shows the balance - what a spin can draw on', /points: st\.balance,/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('challenge_spins is in the DDL, schema 35', /CREATE TABLE IF NOT EXISTS challenge_spins \(/.test(boot) && /idx_challenge_spins_user_date/.test(boot) && /const SCHEMA_VERSION = 35;/.test(boot));
+  check('...and in the drizzle schema', /export const challengeSpins = sqliteTable\('challenge_spins'/.test(fs.readFileSync('src/db/schema.ts', 'utf8')));
+  const wheel = fs.readFileSync('src/components/ChallengeWheel.tsx', 'utf8');
+  check('The wheel spins on from where it rests, never from zero', /const to = nextWheelStopDeg\(angle\.current, target, n\);/.test(wheel) && /angle\.current = to;/.test(wheel));
+  check('...and a settled snap never interrupts a spin', /if \(!settled \|\| spinning\.current\) return;/.test(wheel));
+  const scr = fs.readFileSync('src/screens/train/ChallengeScreen.tsx', 'utf8');
+  check('The screen commits the spin and hands the wheel its wedge', /const r = spinDailyChallenge\(ctx, today\);\s*\n\s*if \(!r\) return null;/.test(scr));
+  check('The spin button says the price, and why it is off', /label: 'Spin again', sub: `\$\{RESPIN_COST\} points · you have \$\{status\.balance\}`/.test(scr) && /hint: `You have \$\{status\.balance\}\./.test(scr));
+  check('A completed day has no spin button', /if \(status\.reason === 'completed'\) return null;/.test(scr));
+}
+
+console.log('\nSession 3.2.3 - the exercise name has a line of its own:');
+{
+  const act = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
+  check('The name sits on its own row, two lines allowed', /<Text variant="h3" numberOfLines=\{2\}>\s*\n\s*\{lv\.exerciseName\}/.test(act));
+  check('...not squeezed into the toolbar', !/<Text variant="h3" numberOfLines=\{1\} style=\{\{ flex: 1 \}\}>\s*\n\s*\{lv\.exerciseName\}/.test(act));
+  check('The place in the order is an eyebrow, still position/total', /<Text variant="eyebrow" color=\{upNext \? accent : 'textFaint'\}/.test(act) && /\{position\}\/\{total\}/.test(act));
+  check('Muscle and equipment are named under the exercise', /MUSCLE_LABELS\[lv\.primaryMuscle\] \?\? lv\.primaryMuscle/.test(act) && /EQUIPMENT_LABELS\[lv\.equipmentType\] \?\? lv\.equipmentType/.test(act));
+}
+
+console.log('\nBadges 3.2.3 - minted, not flat:');
+{
+  const rb = fs.readFileSync('scripts/render-badges.js', 'utf8');
+  check('The render script mints a medal around the catalogue glyph', /function medal\(/.test(rb) && /id="rim"/.test(rb) && /id="disc"/.test(rb) && /id="sheen"/.test(rb) && /feDropShadow/.test(rb));
+  check('...keeping the glyph and the palette of the catalogue art', /function dissect\(/.test(rb) && /const glyph = svg/.test(rb));
+  check('...and quantises the PNGs so 150 medals stay a small bundle', /palette: true/.test(rb));
+  const art = fs.readFileSync('src/data/badgeImages.ts', 'utf8');
+  check('The rendered art says it is minted, at a stated size', /minted into a medal/.test(art) && /rasterised at \d+px/.test(art));
+  check('The badge bundle stays under 1.5 MB', art.length < 1_500_000, `${Math.round(art.length / 1024)} KB`);
+  const ach = fs.readFileSync('src/screens/profile/AchievementsScreen.tsx', 'utf8');
+  check('Locked badges wear a lock, not just a dim', /<Icon icon="core\.lock" size=\{11\}/.test(ach) && /size=\{56\}/.test(ach));
+  check('The lock glyph exists', !!(ICONS as Record<string, Record<string, unknown>>).core?.lock);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

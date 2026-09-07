@@ -108,15 +108,69 @@ export function buildDailyWheel(dateISO: string, ctx: ChallengeContext): DailyWh
  * Where the wheel must stop, in degrees, for `winningIndex` to sit under a
  * pointer at the top. Includes whole extra turns so the spin looks like a spin.
  *
- * Segments are laid out clockwise from the top, so segment i is centred at
- * i × (360 / n); rotating the wheel by the negative of that brings it up to
- * the pointer.
+ * Segments are laid out clockwise from the top: segment i spans
+ * [i, i + 1] × (360 / n), so its CENTRE is (i + ½) × (360 / n). Rotating back
+ * by the leading edge instead — which this did until 3.2.3 — parked the
+ * pointer exactly on the seam between two wedges, and the challenge shown
+ * beneath was the one clockwise of it. The pointer now lands dead centre.
  */
 export function wheelRotationDeg(winningIndex: number, segmentCount: number, turns = 5): number {
   if (segmentCount <= 0) return 0;
   const per = 360 / segmentCount;
-  const centre = winningIndex * per;
+  const centre = (winningIndex + 0.5) * per;
   return turns * 360 - centre;
+}
+
+/**
+ * Where the NEXT spin must stop, given where the wheel is now: at least four
+ * full turns on, and on the centre of the winning wedge. The wheel's angle
+ * only ever grows, so a second spin of the day keeps turning the same way
+ * from where it rests instead of snapping back to zero first.
+ */
+export function nextWheelStopDeg(currentDeg: number, winningIndex: number, segmentCount: number, turns = 5): number {
+  const base = Math.ceil(Math.max(0, currentDeg) / 360) * 360;
+  return base + wheelRotationDeg(winningIndex, segmentCount, turns);
+}
+
+// ── The spin economy ──────────────────────────────────────────────────────────
+
+/** Two spins a day cost nothing; every spin after that is bought with points. */
+export const FREE_SPINS_PER_DAY = 2;
+export const RESPIN_COST = 10;
+
+/** What the next spin costs, given how many the day has already used. */
+export function spinCost(spinsSoFar: number): number {
+  return spinsSoFar < FREE_SPINS_PER_DAY ? 0 : RESPIN_COST;
+}
+
+export type SpinVerdict =
+  | { ok: true; cost: number; free: boolean }
+  | { ok: false; reason: 'completed' | 'points'; cost: number };
+
+/**
+ * May the wheel turn again? Never once the day's challenge is complete — a
+ * finished challenge is banked, not gambled — and a paid spin needs the
+ * points in hand. The balance is earned minus spent, so a spin can never be
+ * bought with points that were already spent on one.
+ */
+export function spinVerdict(spinsSoFar: number, balance: number, completed: boolean): SpinVerdict {
+  const cost = spinCost(spinsSoFar);
+  if (completed) return { ok: false, reason: 'completed', cost };
+  if (cost > balance) return { ok: false, reason: 'points', cost };
+  return { ok: true, cost, free: cost === 0 };
+}
+
+/**
+ * Which wedge a re-spin lands on. Seeded by the date AND the spin number, so
+ * the second spin of a given day gives the same answer on every device —
+ * the wheel reveals, it does not gamble — and it never lands on the wedge
+ * you just left: a re-spin that changes nothing is a spin paid for nothing.
+ */
+export function respinIndex(dateISO: string, spinNumber: number, segmentCount: number, currentIndex: number): number {
+  if (segmentCount <= 1) return 0;
+  const rand = seededRandom(hashSeed(`${dateISO}:pick:${spinNumber}`));
+  const candidates = Array.from({ length: segmentCount }, (_, i) => i).filter((i) => i !== currentIndex);
+  return candidates[Math.floor(rand() * candidates.length) % candidates.length];
 }
 
 /** Progress toward a challenge, as a fraction 0..1. */

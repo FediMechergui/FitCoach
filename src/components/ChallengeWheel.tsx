@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing, Pressable } from 'react-native';
+import { View, Animated, Easing } from 'react-native';
 import Svg, { Path, Circle, G } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
-import { wheelRotationDeg } from '@/lib/challengeWheel';
+import { Button } from '@/components/ui/Button';
+import { nextWheelStopDeg, wheelRotationDeg } from '@/lib/challengeWheel';
 import { DIFFICULTY_COLOR, type ChallengeDef } from '@/data/challenges';
 
 /**
@@ -15,20 +16,33 @@ import { DIFFICULTY_COLOR, type ChallengeDef } from '@/data/challenges';
  * with the built-in Animated API, so nothing new had to be added to the build
  * and the whole thing ships over the air.
  *
- * The landing position is decided before the animation starts: `wheelRotationDeg`
- * returns the exact angle that puts the winning wedge under the pointer, and
- * the spin is just a long ease into it. The wheel reveals the day's challenge;
- * it does not choose it.
+ * The landing position is decided before the animation starts: the screen
+ * commits the spin and tells the wheel which wedge won, and the spin is a long
+ * ease onto the CENTRE of that wedge. The wheel reveals the day's challenge;
+ * it does not choose it. Its angle only ever grows, so a second spin of the
+ * day keeps turning the same way from where it rests instead of snapping back.
  */
+
+export interface WheelAction {
+  label: string;
+  /** the allowance or the price, under the label */
+  sub?: string;
+  disabled?: boolean;
+  /** why it is disabled, said out loud */
+  hint?: string;
+}
 
 interface Props {
   segments: ChallengeDef[];
   winningIndex: number;
   size?: number;
-  /** true once the day's challenge is locked in — the wheel stops interactive */
+  /** true once the day has a challenge — the wheel rests on it when not turning */
   settled: boolean;
+  /** the spin button; null when the wheel may not turn (a completed challenge is banked) */
+  action: WheelAction | null;
+  /** commit the spin and return the wedge to land on — or null, and nothing moves */
+  onSpin: () => number | null;
   onSpinEnd: () => void;
-  onPress: () => void;
 }
 
 /** SVG path for one wedge of a circle, starting at 12 o'clock and going clockwise. */
@@ -44,32 +58,41 @@ function wedgePath(cx: number, cy: number, r: number, startDeg: number, endDeg: 
   return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
 }
 
-export function ChallengeWheel({ segments, winningIndex, size = 260, settled, onSpinEnd, onPress }: Props) {
+export function ChallengeWheel({ segments, winningIndex, size = 260, settled, action, onSpin, onSpinEnd }: Props) {
   const theme = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
+  /** where the wheel is, in degrees — a native-driven Animated.Value has no sync read */
+  const angle = useRef(0);
   const spinning = useRef(false);
 
   const n = segments.length;
   const per = n > 0 ? 360 / n : 360;
   const r = size / 2;
 
-  // An already-settled day shows the result immediately, no animation — the
-  // wheel is a record of what you were given, not a thing to re-watch.
+  // A settled day shows the result immediately, no animation — the wheel is a
+  // record of what you were given, not a thing to re-watch. Never while it is
+  // turning: the screen re-reads when the spin ends, not before.
   useEffect(() => {
-    if (settled) spin.setValue(wheelRotationDeg(winningIndex, n, 0));
+    if (!settled || spinning.current) return;
+    const rest = wheelRotationDeg(winningIndex, n, 0);
+    spin.setValue(rest);
+    angle.current = rest;
   }, [settled, winningIndex, n, spin]);
 
   const startSpin = () => {
-    if (spinning.current || settled || n === 0) return;
+    if (spinning.current || n === 0 || !action || action.disabled) return;
+    const target = onSpin();
+    if (target == null || target < 0 || target >= n) return;
     spinning.current = true;
-    onPress();
+    const to = nextWheelStopDeg(angle.current, target, n);
     Animated.timing(spin, {
-      toValue: wheelRotationDeg(winningIndex, n),
-      duration: 3600,
+      toValue: to,
+      duration: theme.motion.wheel,
       // Decelerate hard at the end so it looks like friction, not a stop.
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
+      angle.current = to;
       spinning.current = false;
       onSpinEnd();
     });
@@ -132,19 +155,23 @@ export function ChallengeWheel({ segments, winningIndex, size = 260, settled, on
         </Animated.View>
       </View>
 
-      {!settled && (
-        <Pressable onPress={startSpin}>
-          <View
-            style={{
-              paddingHorizontal: 28,
-              paddingVertical: 12,
-              borderRadius: theme.radius.pill ?? 999,
-              backgroundColor: theme.colors.primary,
-            }}
-          >
-            <Text variant="bodyStrong" color="#fff">SPIN</Text>
-          </View>
-        </Pressable>
+      {action && (
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <Button
+            title={action.label}
+            icon="core.target"
+            onPress={startSpin}
+            disabled={action.disabled}
+            hint={action.disabled ? action.hint : undefined}
+            fullWidth={false}
+            style={{ paddingHorizontal: 28 }}
+          />
+          {action.sub ? (
+            <Text variant="caption" color="textMuted">
+              {action.sub}
+            </Text>
+          ) : null}
+        </View>
       )}
     </View>
   );

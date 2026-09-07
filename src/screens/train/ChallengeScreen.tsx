@@ -10,7 +10,7 @@ import { Row, SectionHeader, Divider, Badge, EmptyState } from '@/components/ui/
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StatTile } from '@/components/ui/StatTile';
 import { PageHero } from '@/components/ui/PageHero';
-import { ChallengeWheel } from '@/components/ChallengeWheel';
+import { ChallengeWheel, type WheelAction } from '@/components/ChallengeWheel';
 import {
   DIFFICULTY_COLOR,
   DIFFICULTY_LABEL,
@@ -18,7 +18,7 @@ import {
   CATEGORY_LABEL,
   findChallenge,
 } from '@/data/challenges';
-import { challengeProgress } from '@/lib/challengeWheel';
+import { challengeProgress, FREE_SPINS_PER_DAY, RESPIN_COST } from '@/lib/challengeWheel';
 import {
   challengeForDate,
   challengeHistory,
@@ -26,6 +26,7 @@ import {
   measureChallenge,
   catchUpChallengeCompletions,
   spinDailyChallenge,
+  spinStatus,
   wheelForToday,
 } from '@/repositories/challengeRepo';
 import { isSmokingEnabled } from '@/repositories/smokingRepo';
@@ -34,7 +35,13 @@ import { getPrayerSettings } from '@/repositories/faithRepo';
 import { todayISO } from '@/lib/date';
 
 /**
- * Spin once a day for a challenge you did not choose.
+ * Spin for a challenge you did not choose.
+ *
+ * Two spins a day are free — the first for the challenge, the second for the
+ * one time it is genuinely not the day for it. Every spin after that is
+ * bought with ten points from what the challenges have earned, so a re-spin
+ * is a decision with a price rather than a reflex. A completed challenge is
+ * banked and cannot be spun away.
  *
  * The wheel only shows challenges you can actually attempt — the smoke-free day
  * never appears if you don't track smoking, the prayer challenge never appears
@@ -44,6 +51,7 @@ import { todayISO } from '@/lib/date';
 export function ChallengeScreen() {
   const theme = useTheme();
   const [tick, setTick] = useState(0);
+  const [spinning, setSpinning] = useState(false);
   const bump = () => setTick((n) => n + 1);
 
   useFocusEffect(
@@ -72,6 +80,7 @@ export function ChallengeScreen() {
   const today = todayISO();
   const row = useMemo(() => challengeForDate(today), [tick, today]);
   const wheel = useMemo(() => wheelForToday(ctx, today), [ctx, today, tick]);
+  const status = useMemo(() => spinStatus(today), [tick, today]);
   const def = row ? findChallenge(row.challengeKey) : null;
   const measure = useMemo(() => (def ? measureChallenge(def, today) : null), [def, today, tick]);
   const stats = useMemo(() => challengeStats(), [tick]);
@@ -106,31 +115,91 @@ export function ChallengeScreen() {
     return { segments, winningIndex: segments.length - 1 };
   })();
 
+  // ── The spin button: what the next spin costs, or why there is none ──
+  const freeWord = status.freeLeft === 1 ? 'spin' : 'spins';
+  const action: WheelAction | null = (() => {
+    if (spinning) return null;
+    if (!settled) return { label: 'Spin the wheel', sub: `${FREE_SPINS_PER_DAY} free spins today` };
+    if (!status.ok) {
+      if (status.reason === 'completed') return null;
+      return {
+        label: 'Spin again',
+        sub: `${RESPIN_COST} points a spin`,
+        disabled: true,
+        hint: `You have ${status.balance}. Complete this challenge and the points come with it.`,
+      };
+    }
+    if (status.free) return { label: 'Spin again', sub: `free · ${status.freeLeft} free ${freeWord} left today` };
+    return { label: 'Spin again', sub: `${RESPIN_COST} points · you have ${status.balance}` };
+  })();
+
+  const spinCopy = (() => {
+    if (spinning) return 'Turning…';
+    if (!settled)
+      return `Two spins a day cost nothing. If the first is not the one, spin once more; a third costs ${RESPIN_COST} points from what the challenges have earned.`;
+    if (done) return 'Done and banked. The wheel rests until tomorrow.';
+    if (status.ok && status.free) return `Not the one? One more spin is free today. After that, each costs ${RESPIN_COST} points.`;
+    if (status.ok) return `The free spins are used. Another costs ${RESPIN_COST} points, and what it lands on replaces this one.`;
+    return `The free spins are used and a paid spin needs ${RESPIN_COST} points. Finish this one instead — it pays ${def ? DIFFICULTY_POINTS[def.difficulty] : RESPIN_COST}.`;
+  })();
+
+  const usedFree = Math.min(status.used, FREE_SPINS_PER_DAY);
+  const paid = Math.max(0, status.used - FREE_SPINS_PER_DAY);
+
   return (
     <Screen>
       <PageHero
         icon="core.target"
         color={theme.colors.accent}
         title="Daily challenge"
-        subtitle="One spin a day. Every challenge is measured from what you actually log — never just ticked."
+        subtitle={`Two spins a day, free; a third costs ${RESPIN_COST} points. Every challenge is measured from what you actually log — never just ticked.`}
       />
       <Card style={{ gap: 12, alignItems: 'center' }}>
         <Text variant="h3">{settled ? "Today's challenge" : 'Spin for today'}</Text>
-        {!settled && (
-          <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
-            One spin a day. Whatever it lands on is yours until midnight — that is rather the point.
-          </Text>
-        )}
+        <Text variant="caption" color="textMuted" style={{ textAlign: 'center' }}>
+          {spinCopy}
+        </Text>
         <ChallengeWheel
           segments={shown.segments}
           winningIndex={shown.winningIndex}
           settled={settled}
-          onPress={() => spinDailyChallenge(ctx, today)}
-          onSpinEnd={bump}
+          action={action}
+          onSpin={() => {
+            const r = spinDailyChallenge(ctx, today);
+            if (!r) return null;
+            setSpinning(true);
+            // Land on the wedge the screen is showing for that key; the repo's
+            // index is the fallback for a wheel rebuilt in between.
+            const idx = shown.segments.findIndex((c) => c.key === r.row.challengeKey);
+            return idx >= 0 ? idx : r.index;
+          }}
+          onSpinEnd={() => {
+            setSpinning(false);
+            bump();
+          }}
         />
+        {/* The day's spin ledger: the free ones as pips, then the price. */}
+        <Row gap={6} style={{ alignItems: 'center' }}>
+          {Array.from({ length: FREE_SPINS_PER_DAY }, (_, i) => (
+            <View
+              key={i}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: i < usedFree ? theme.colors.textFaint : theme.colors.accent,
+              }}
+            />
+          ))}
+          <Text variant="caption" color="textFaint">
+            {usedFree === 0 ? `${FREE_SPINS_PER_DAY} free spins` : `${usedFree} of ${FREE_SPINS_PER_DAY} free spins used`}
+            {paid > 0 ? ` · ${paid} paid` : ''}
+            {` · then ${RESPIN_COST} pts each`}
+          </Text>
+        </Row>
       </Card>
 
-      {def && measure && (
+      {def && measure && !spinning && (
         <Card accent={done ? theme.colors.success : DIFFICULTY_COLOR[def.difficulty]} style={{ gap: 10 }}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
@@ -168,9 +237,15 @@ export function ChallengeScreen() {
 
       <SectionHeader title="Your record" />
       <Row style={{ justifyContent: 'space-between' }}>
-        <StatTile icon="core.target" label="Completed" value={`${stats.completed}`} sub={`of ${stats.spun}`} accent={theme.colors.primary} />
+        <StatTile icon="core.target" label="Completed" value={`${stats.completed}`} sub={`of ${stats.spun} days`} accent={theme.colors.primary} />
         <StatTile icon="core.streak" label="Streak" value={`${stats.streak}`} sub={`best ${stats.bestStreak}`} accent={theme.colors.warning} />
-        <StatTile icon="core.pr" label="Points" value={`${stats.points}`} sub="earned" accent={theme.colors.accent} />
+        <StatTile
+          icon="core.pr"
+          label="Points"
+          value={`${stats.balance}`}
+          sub={stats.spent > 0 ? `${stats.spent} spent on spins` : 'to spend'}
+          accent={theme.colors.accent}
+        />
       </Row>
 
       {history.length > 0 && (

@@ -38,6 +38,8 @@ export const ICONS = {
     sparkle: def('Ionicons', 'sparkles'),
     /** a chosen rest day */
     rest: def('MaterialCommunityIcons', 'weather-night'),
+    /** a badge not yet earned */
+    lock: def('Ionicons', 'lock-closed'),
     end: def('Ionicons', 'stop-circle'),
     timer: def('Ionicons', 'timer-outline'),
     notifications: def('Ionicons', 'notifications-outline'),

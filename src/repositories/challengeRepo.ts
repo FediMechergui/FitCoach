@@ -2,6 +2,7 @@ import { and, desc, eq, gte, lt } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   beverageEntries,
+  challengeSpins,
   dailyChallenges,
   exerciseLogs,
   exercises,
@@ -25,7 +26,16 @@ import { getUser } from './userRepo';
 import { CHALLENGES, DIFFICULTY_POINTS, findChallenge, type ChallengeDef, type ChallengeMetric } from '@/data/challenges';
 import { bestBridgedStreak, bridgedStreak } from '@/lib/streaks';
 import { restDaySet } from './restDaysRepo';
-import { buildDailyWheel, isChallengeComplete, type ChallengeContext, type DailyWheel } from '@/lib/challengeWheel';
+import {
+  buildDailyWheel,
+  FREE_SPINS_PER_DAY,
+  isChallengeComplete,
+  respinIndex,
+  spinVerdict,
+  type ChallengeContext,
+  type DailyWheel,
+  type SpinVerdict,
+} from '@/lib/challengeWheel';
 import { hardSetCredit } from '@/lib/effort';
 import { productOrDefault } from '@/data/nicotineProducts';
 import { daysAgoISO, todayISO } from '@/lib/date';
@@ -82,26 +92,103 @@ export function wheelForToday(
   return buildDailyWheel(date, { ...ctx, recentKeys: recentKeys(userId, date) });
 }
 
+// ── The ledger ────────────────────────────────────────────────────────────────
+
 /**
- * Record the spin. Idempotent on purpose: if today already has a challenge the
- * existing row is returned untouched, so re-spinning for an easier one is not
- * possible — which is what makes finishing one mean anything.
+ * Spins the day has used. Read from the ledger — or, for a day spun before
+ * the ledger existed, from the fact that a challenge row is there at all:
+ * that was one spin.
+ */
+export function spinsUsed(date: string = todayISO(), userId: number = PRIMARY_USER_ID): number {
+  const ledger = db
+    .select({ id: challengeSpins.id })
+    .from(challengeSpins)
+    .where(and(eq(challengeSpins.userId, userId), eq(challengeSpins.date, date)))
+    .all().length;
+  return Math.max(ledger, challengeForDate(date, userId) ? 1 : 0);
+}
+
+/** Points paid for extra spins, all time. */
+export function pointsSpent(userId: number = PRIMARY_USER_ID): number {
+  return db
+    .select({ cost: challengeSpins.cost })
+    .from(challengeSpins)
+    .where(eq(challengeSpins.userId, userId))
+    .all()
+    .reduce((s, r) => s + (r.cost ?? 0), 0);
+}
+
+export type SpinStatus = SpinVerdict & {
+  /** spins the day has used, free and paid */
+  used: number;
+  freeLeft: number;
+  /** earned minus spent — what a paid spin draws on */
+  balance: number;
+};
+
+/** What the next spin would cost right now, and whether it is allowed. */
+export function spinStatus(date: string = todayISO(), userId: number = PRIMARY_USER_ID): SpinStatus {
+  const used = spinsUsed(date, userId);
+  const row = challengeForDate(date, userId);
+  const balance = challengeStats(userId).balance;
+  return {
+    ...spinVerdict(used, balance, !!row?.completedAt),
+    used,
+    freeLeft: Math.max(0, FREE_SPINS_PER_DAY - used),
+    balance,
+  };
+}
+
+export interface SpinResult {
+  row: DailyChallenge;
+  /** index of the challenge in the day's wheel */
+  index: number;
+  /** points this spin cost — 0 for a free one */
+  cost: number;
+}
+
+/**
+ * Spin — or spin again. The first two spins of a day are free; each one after
+ * that is bought with ten points from the balance the challenges earned, so
+ * a re-spin is a decision with a price rather than a reflex. A completed
+ * challenge is banked and cannot be spun away, and a re-spin always lands
+ * somewhere new. Every spin is written to the ledger; the day's row keeps
+ * only the current challenge, its completion cleared for the new one.
+ *
+ * Returns undefined when the spin is not allowed — nothing is written then.
  */
 export function spinDailyChallenge(
   ctx: Omit<ChallengeContext, 'recentKeys'>,
   date: string = todayISO(),
   userId: number = PRIMARY_USER_ID
-): DailyChallenge | undefined {
-  const existing = challengeForDate(date, userId);
-  if (existing) return existing;
+): SpinResult | undefined {
+  // Stamp a completion the screen may not have seen yet, so a challenge
+  // already earned is never spun away by accident.
+  const existing = refreshChallengeCompletion(date, userId);
+  const used = spinsUsed(date, userId);
+  const verdict = spinVerdict(used, challengeStats(userId).balance, !!existing?.completedAt);
+  if (!verdict.ok) return undefined;
 
   const wheel = wheelForToday(ctx, date, userId);
   if (!wheel) return undefined;
 
-  db.insert(dailyChallenges)
-    .values({ userId, date, challengeKey: wheel.challenge.key, spunAt: Date.now() })
-    .run();
-  return challengeForDate(date, userId);
+  const currentIndex = existing ? wheel.segments.findIndex((c) => c.key === existing.challengeKey) : -1;
+  const index = existing ? respinIndex(date, used, wheel.segments.length, currentIndex) : wheel.winningIndex;
+  const challengeKey = wheel.segments[index].key;
+  const now = Date.now();
+
+  if (existing) {
+    db.update(dailyChallenges)
+      .set({ challengeKey, spunAt: now, completedAt: null, finalValue: null })
+      .where(eq(dailyChallenges.id, existing.id))
+      .run();
+  } else {
+    db.insert(dailyChallenges).values({ userId, date, challengeKey, spunAt: now }).run();
+  }
+  db.insert(challengeSpins).values({ userId, date, challengeKey, cost: verdict.cost, spunAt: now }).run();
+
+  const row = challengeForDate(date, userId);
+  return row ? { row, index, cost: verdict.cost } : undefined;
 }
 
 // ── Measuring ────────────────────────────────────────────────────────────────
@@ -427,9 +514,15 @@ export function refreshChallengeCompletion(
 // ── Stats (for the screen and the achievements) ──────────────────────────────
 
 export interface ChallengeStats {
+  /** days spun */
   spun: number;
   completed: number;
+  /** points EARNED, all time — what the badges and the card read; never reduced */
   points: number;
+  /** points paid for extra spins */
+  spent: number;
+  /** earned minus spent — what a paid spin draws on, and what Home shows */
+  balance: number;
   /** consecutive days ending today (or yesterday) with a completed challenge */
   streak: number;
   bestStreak: number;
@@ -450,6 +543,7 @@ export function challengeStats(userId: number = PRIMARY_USER_ID): ChallengeStats
   const defs = done.map((r) => findChallenge(r.challengeKey)).filter((d): d is ChallengeDef => !!d);
 
   const points = defs.reduce((s, d) => s + DIFFICULTY_POINTS[d.difficulty], 0);
+  const spent = pointsSpent(userId);
   const doneDates = new Set(done.map((r) => r.date));
   // A flagged rest day carries the streak across without counting — the wheel
   // asks for movement most days, and a rest day is the one you chose not to.
@@ -467,6 +561,8 @@ export function challengeStats(userId: number = PRIMARY_USER_ID): ChallengeStats
     spun: rows.length,
     completed: done.length,
     points,
+    spent,
+    balance: points - spent,
     streak,
     bestStreak: best,
     hardCompleted: defs.filter((d) => d.difficulty === 'hard').length,

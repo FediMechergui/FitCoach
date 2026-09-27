@@ -77,6 +77,14 @@ import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
 import {
+  RANK_TIERS, RANKED_LIFTS, STANDARDS, PILLARS, placeScore, scoreLift, oneRmForScore, scaledRatio, scoreFromRatio,
+  ratioForScore, anchorsFor, overallRank, muscleScores, pillarScores, type LiftScore,
+} from '../src/lib/ranks';
+import {
+  xpBreakdown, totalXp, xpForLevel, levelFromXp, TITLES, earnedTitles, wornTitle, sanitizeShowcase, SHOWCASE_SLOTS, XP_RULES,
+  type XpInputs, type TitleFacts,
+} from '../src/lib/progression';
+import {
   heatIndexC, windChillC, feelsLikeC, heatBand, extraWaterMl, calorieCostMultiplier,
   pacePenaltyPct, weatherAdvice, isReadingFresh, HEAT_BAND_LABEL, HEAT_BAND_COLOR,
   humiditySweatFactor,
@@ -734,11 +742,13 @@ const zeroStats: AchievementStats = {
   challengeHardCompleted: 0, challengeCategories: 0, challengePoints: 0,
   restDaysTaken: 0, restDaysLast30: 0, restBridgedStreakBest: 0, walkCount: 0,
   challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
+  cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0,
 };
-const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
+const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, bestExportedOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
 check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
 check('The Spark unlocks at a 3-day streak', evaluateAchievement(ACHIEVEMENTS[0], maxed).unlocked === true);
-check('Untracked badge (Scouted #7) reports tracked=false', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 7)!, zeroStats).tracked === false);
+// Superseded by 3.3.0: an export is stamped now, so Scouted is tracked. #11 (warm-ups) still has no rule.
+check('A badge with no rule reports tracked=false (#11)', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 11)!, zeroStats).tracked === false);
 check('Heavy Metal (#20) needs 10,000kg', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 20)!, { ...zeroStats, maxVolumeKg: 10500 }).unlocked === true);
 // New categories 11 & 12 are tracked and read real data.
 check('Hygiene badge (#101) tracks tooth-brushing', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 101)!, { ...zeroStats, brushBestDay: 3 }).unlocked === true && evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 101)!, zeroStats).tracked === true);
@@ -3873,7 +3883,8 @@ console.log('\nYou hub 3.0 - the light switch exists:');
   check('Each choice explains itself in one line', /Follows your phone/.test(you) && /home palette/.test(you) && /unmistakably FitCoach/.test(you));
   check('Loading is a shape, not a word', !you.includes('Loading…') && /<Skeleton height=\{64\}/.test(you));
   check('The hub opens on its eyebrow', /variant="eyebrow"/.test(you));
-  check('The avatar wash is a token, not the legacy soft colour', /theme\.alpha\.tint14\(theme\.colors\.primary\)/.test(you) && !/primarySoft/.test(you));
+  // Superseded by 3.3.0: the avatar moved into IdentityHeader, where the crest replaces it once a lift is ranked.
+  check('The avatar wash is a token, not the legacy soft colour', /theme\.alpha\.tint14\(theme\.colors\.primary\)/.test(fs.readFileSync('src/components/IdentityHeader.tsx', 'utf8')) && !/primarySoft/.test(you));
 }
 
 console.log('\nActiveSession 3.0 - the rest banner earns its numbers:');
@@ -4286,6 +4297,110 @@ console.log('\nBadges 3.2.3 - minted, not flat:');
   const ach = fs.readFileSync('src/screens/profile/AchievementsScreen.tsx', 'utf8');
   check('Locked badges wear a lock, not just a dim', /<Icon icon="core\.lock" size=\{11\}/.test(ach) && /size=\{56\}/.test(ach));
   check('The lock glyph exists', !!(ICONS as Record<string, Record<string, unknown>>).core?.lock);
+}
+
+console.log('\nRanks 3.3.0 - the Carthage ladder:');
+{
+  // ── The ladder ──
+  check('Eight rungs, floors rising from zero', RANK_TIERS.length === 8 && RANK_TIERS[0].floor === 0 && RANK_TIERS.every((t, i) => i === 0 || t.floor > RANK_TIERS[i - 1].floor));
+  check('Every rung has its own name, its derja word, a colour and a reason', RANK_TIERS.every((t) => t.name.length > 2 && t.local.length > 2 && /^#[0-9A-F]{6}$/i.test(t.color) && /^#[0-9A-F]{6}$/i.test(t.shade) && t.origin.length > 20) && new Set(RANK_TIERS.map((t) => t.key)).size === 8);
+  check('The ladder is our own: none of the borrowed names', RANK_TIERS.every((t) => !/^(wood|bronze|silver|gold|platinum|diamond|champion|titan|olympian)$/i.test(t.name)));
+  check('Zero is Sand III, one hundred is Hannibal I', placeScore(0).label === 'Sand III' && placeScore(100).label === 'Hannibal I' && placeScore(100).nextAt === null && placeScore(100).nextLabel === null);
+  check('A floor is where a rung begins', RANK_TIERS.every((t) => placeScore(t.floor).tier.key === t.key && placeScore(t.floor).division === 3));
+  check('...and just under it is the top division of the rung below', RANK_TIERS.slice(1).every((t, i) => placeScore(t.floor - 0.01).tier.key === RANK_TIERS[i].key && placeScore(t.floor - 0.01).division === 1));
+  check('The next division is named, and the last division points at the next rung', placeScore(40).nextLabel === 'Olive II' && placeScore(52.9).nextLabel === 'Coral III');
+  check('Progress through a division stays inside 0..1', [0, 7, 13.99, 14, 50, 66, 90.9, 99.9, 100].every((v) => { const p = placeScore(v).progress; return p >= 0 && p <= 1; }));
+  check('Nonsense scores cannot break the ladder', placeScore(NaN).label === 'Sand III' && placeScore(-5).score === 0 && placeScore(999).score === 100);
+
+  // ── The standards ──
+  const exSlugs = new Set(EXLIB.filter((e) => !e.aliasOf).map((e) => e.slug));
+  const missing = Object.keys(RANKED_LIFTS).filter((k) => !exSlugs.has(k));
+  check('Every ranked lift is a real, primary exercise in the library', missing.length === 0, missing.join());
+  check('Every ranked lift is logged with reps', Object.keys(RANKED_LIFTS).every((k) => { const e = EXLIB.find((x) => x.slug === k)!; return e.trackingType === 'reps_weight' || e.trackingType === 'reps_only'; }));
+  check('Every ranked lift points at a standard, with a sane factor', Object.values(RANKED_LIFTS).every((l) => !!STANDARDS[l.standard] && l.factor > 0.2 && l.factor < 1.4));
+  check('Every standard rises, anchor by anchor', Object.values(STANDARDS).every((st) => st.male.every((v, i) => i === 0 || v > st.male[i - 1]) && st.femaleFactor > 0.5 && st.femaleFactor < 1));
+  check('Every pillar has a standard, every standard a pillar', PILLARS.every((p) => Object.values(STANDARDS).some((st) => st.pillar === p)));
+  check('Every standard speaks for a muscle the bodygraph can draw', Object.values(STANDARDS).every((st) => st.muscles.length > 0 && st.muscles.every((m) => ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes'].includes(m))));
+
+  // ── The arithmetic ──
+  const b = (kg: number, bw: number, sex: 'male' | 'female' = 'male') => scoreLift('bench-press-barbell', kg, bw, sex)!;
+  check('A bodyweight bench at the reference weight is exactly the second anchor', Math.abs(b(80, 80) - 40) < 1e-9);
+  check('The same bar is worth more on a lighter lifter, less on a heavier one', b(100, 60) > b(100, 80) && b(100, 80) > b(100, 110));
+  check('...but not in proportion: the scaling is the cube root of mass', Math.abs(scaledRatio(100, 100, 'male') - (100 / 100) * Math.cbrt(100 / 80)) < 1e-9);
+  check('The same lift ranks higher for a woman than a man of equal weight', b(60, 65, 'female') > b(60, 65, 'male'));
+  check('More weight never scores less', [20, 40, 60, 80, 100, 120, 160, 200, 260].every((kg, i, a) => i === 0 || b(kg, 80) >= b(a[i - 1], 80)));
+  check('The score is capped at one hundred and floored at zero', b(400, 80) === 100 && b(5, 80) === 0);
+  check('An unranked exercise has no score, and neither does a missing bodyweight', scoreLift('lateral-raise', 20, 80, 'male') === null && scoreLift('bench-press-barbell', 100, 0, 'male') === null);
+  check('A variation is read through its factor: an incline is worth more than the same flat bench', scoreLift('bench-press-incline-barbell', 100, 80, 'male')! > b(100, 80));
+  const back = oneRmForScore('back-squat', 60, 80, 'male')!;
+  check('Score to kilograms and back again agree', Math.abs(scoreLift('back-squat', back, 80, 'male')! - 60) < 1e-6);
+  check('ratioForScore inverts scoreFromRatio across the range', [5, 20, 33, 60, 88, 100].every((sc) => Math.abs(scoreFromRatio(ratioForScore(sc, anchorsFor('deadlift', 'male')), anchorsFor('deadlift', 'male')) - sc) < 1e-6));
+  check('The kilograms for the next division are more than the lift has', (() => { const sc = b(90, 80); const p = placeScore(sc); return oneRmForScore('bench-press-barbell', p.nextAt!, 80, 'male')! > 90; })());
+
+  // ── Rolling up ──
+  const L = (slug: string, score: number): LiftScore => ({ slug, standard: RANKED_LIFTS[slug].standard, score, oneRmKg: 100 });
+  const four = overallRank([L('bench-press-barbell', 50), L('barbell-row', 40), L('back-squat', 60), L('deadlift', 70)])!;
+  check('The overall rank is the mean of the four pillars', four.score === 55 && four.provisional === false && four.missing.length === 0);
+  check('A pillar takes its best lift, not its average', pillarScores([L('bench-press-barbell', 50), L('overhead-press', 20)]).push === 50);
+  const two = overallRank([L('bench-press-barbell', 50), L('barbell-row', 40)])!;
+  check('Two pillars is a sketch: ranked on what exists, and told so', two.score === 45 && two.provisional === true && two.missing.join() === 'legs,hinge');
+  check('No lifts, no rank', overallRank([]) === null);
+  const ms = muscleScores([L('bench-press-barbell', 50), L('dip', 62), L('deadlift', 70)]);
+  check('A muscle wears the best lift that trains it', ms.triceps === 62 && ms.chest === 62 && ms.hamstrings === 70 && ms.quads === undefined);
+
+  // ── Wiring ──
+  const repo = fs.readFileSync('src/repositories/ranksRepo.ts', 'utf8');
+  check('Form is the last 120 days; the peak is kept beside it', /export const FORM_WINDOW_DAYS = 120;/.test(repo) && /if \(r\.startTime >= since && oneRm > cur\.form\) cur\.form = oneRm;/.test(repo) && /if \(oneRm > cur\.peak\) cur\.peak = oneRm;/.test(repo));
+  check('Pull-ups and dips are ranked on the kilograms really moved', /effectiveLoadKg\(profile, bodyweightKg, r\.weightKg\)/.test(repo));
+  check('Reps past the cap are endurance, not strength', /Math\.min\(r\.reps, RANK_REP_CAP\)/.test(repo));
+  check('No weigh-in, no rank - and the screen says so', /if \(!weighIn \|\| !\(bodyweightKg > 0\)\) return empty;/.test(repo) && /A rank needs your weight/.test(fs.readFileSync('src/screens/ranks/RanksScreen.tsx', 'utf8')));
+  const scr = fs.readFileSync('src/screens/ranks/RanksScreen.tsx', 'utf8');
+  check('The screen says where the standards come from', /a yardstick, not a census/.test(scr));
+  check('The screen has all four states: failed, loading, no weight, no lifts', /Ranks could not be read/.test(scr) && /<Skeleton height=\{170\} \/>/.test(scr) && /No ranked lift yet/.test(scr));
+  check('The crest is drawn declaratively, never through SvgXml', /khatim/.test(fs.readFileSync('src/components/RankCrest.tsx', 'utf8')) && !/SvgXml/.test(fs.readFileSync('src/components/RankCrest.tsx', 'utf8')));
+  check('The athlete card wears the crest', /<RankCrest tier=\{rank\.placement\.tier\}/.test(fs.readFileSync('src/screens/profile/ProfileCardScreen.tsx', 'utf8')));
+}
+
+console.log('\nProgression 3.3.0 - level, titles, pins, and badges that can finally unlock:');
+{
+  const none: XpInputs = { sessions: 0, sessionMinutes: 0, prs: 0, walks: 0, challengePoints: 0, badges: 0, restDays: 0, pathStages: 0, checkInDays: 0 };
+  check('An empty record is level 1 with no experience', totalXp(none) === 0 && levelFromXp(0).level === 1 && levelFromXp(0).progress === 0);
+  check('One session is worth its flat rate plus its minutes', totalXp({ ...none, sessions: 1, sessionMinutes: 60 }) === XP_RULES.session + 6 * XP_RULES.perTenMinutes);
+  check('A session left running overnight cannot farm minutes', totalXp({ ...none, sessions: 1, sessionMinutes: 100000 }) === XP_RULES.session + (XP_RULES.minutesCapPerSession / 10) * XP_RULES.perTenMinutes);
+  check('Every line names its source and sums to the total', xpBreakdown({ ...none, sessions: 3, prs: 2, badges: 4, challengePoints: 70 }).reduce((a, l) => a + l.xp, 0) === totalXp({ ...none, sessions: 3, prs: 2, badges: 4, challengePoints: 70 }) && xpBreakdown(none).every((l) => l.label.length > 5));
+  check('Garbage in the record is counted as nothing', totalXp({ ...none, sessions: -3, prs: NaN, badges: Infinity }) === 0);
+  check('Each level costs a hundred more than the last', xpForLevel(1) === 0 && xpForLevel(2) === 100 && xpForLevel(3) === 300 && xpForLevel(4) === 600 && xpForLevel(10) === 4500);
+  check('A level begins exactly at its threshold', [2, 3, 7, 20, 50].every((n) => levelFromXp(xpForLevel(n)).level === n && levelFromXp(xpForLevel(n) - 1).level === n - 1));
+  check('Levels never decrease as experience grows', Array.from({ length: 400 }, (_, i) => i * 137).every((x, i, a) => i === 0 || levelFromXp(x).level >= levelFromXp(a[i - 1]).level));
+  check('The last level has no next', levelFromXp(10_000_000).level === 99 && levelFromXp(10_000_000).next === null && levelFromXp(10_000_000).toNext === null);
+
+  const facts: TitleFacts = { level: 1, sessions: 0, bestTrainingStreak: 0, challengesCompleted: 0, hardChallengesCompleted: 0, badges: 0, overallTier: -1, bestLiftTier: -1, walks: 0, pathStages: 0, tunisianShare7d: 0, restDays: 0 };
+  check('A new account has exactly one title: Newcomer', earnedTitles(facts).map((t) => t.key).join() === 'newcomer' && wornTitle(null, facts).key === 'newcomer');
+  check('Title keys are unique and each says how it is earned', new Set(TITLES.map((t) => t.key)).size === TITLES.length && TITLES.every((t) => t.how.length > 10));
+  check('Every title said in derja carries its meaning', ['mel-houma', 'batal', 'maalem', 'rayes'].every((k) => (TITLES.find((t) => t.key === k)?.meaning ?? '').length > 4));
+  check('A chosen title is worn only while it is earned', wornTitle('hannibal', facts).key === 'newcomer' && wornTitle('regular', { ...facts, sessions: 12 }).key === 'regular');
+  check('Hannibal is the title of the top rung', earnedTitles({ ...facts, overallTier: 7 }).some((t) => t.key === 'hannibal') && !earnedTitles({ ...facts, overallTier: 6 }).some((t) => t.key === 'hannibal'));
+  check('Three pins, unlocked ones only, no repeats', SHOWCASE_SLOTS === 3 && sanitizeShowcase([1, 1, 2, 99, 3, 4], new Set([1, 2, 3, 4])).join() === '1,2,3' && sanitizeShowcase('nope', new Set([1])).length === 0);
+
+  // ── Badges that could never unlock ──
+  const A = (id: number) => ACHIEVEMENTS.find((a) => a.id === id)!;
+  check('Scouted unlocks on a card that was actually exported', evaluateAchievement(A(7), zeroStats).tracked && !evaluateAchievement(A(7), zeroStats).unlocked && evaluateAchievement(A(7), { ...zeroStats, cardExports: 1 }).unlocked);
+  check('Draft Pick needs the EXPORT to carry 70+, not just the rating', !evaluateAchievement(A(8), { ...zeroStats, cardOverall: 90 }).unlocked && evaluateAchievement(A(8), { ...zeroStats, bestExportedOverall: 70 }).unlocked);
+  check('The two report badges unlock on a generated report', evaluateAchievement(A(9), { ...zeroStats, coachReports: 1 }).unlocked && evaluateAchievement(A(10), { ...zeroStats, nutritionReports: 1 }).unlocked && !evaluateAchievement(A(9), { ...zeroStats, nutritionReports: 1 }).unlocked);
+  const card = fs.readFileSync('src/screens/profile/ProfileCardScreen.tsx', 'utf8');
+  check('An export is stamped only once a file exists', /if \(r\.saved \|\| r\.shared\) recordCardExport\(rating\?\.overall \?\? 0\);/.test(card));
+  check('A report is stamped after it is generated, never before', /await exportReport\(audience\);\s*\n\s*recordReport\(audience\);/.test(fs.readFileSync('src/screens/profile/ReportsScreen.tsx', 'utf8')));
+  const ach = fs.readFileSync('src/screens/profile/AchievementsScreen.tsx', 'utf8');
+  check('The badge list no longer promises what it cannot do', !/unlock when you do them/.test(ach) && /the app cannot see this one/.test(ach));
+  check('An earned badge can be pinned from the list', /toggleShowcase\(id, unlockedIds\)/.test(ach) && /label=\{pinned \? 'Pinned' : 'Pin'\}/.test(ach));
+
+  // ── The profile ──
+  const prof = fs.readFileSync('src/screens/profile/ProfileScreen.tsx', 'utf8');
+  check('The profile opens on the identity header', /<IdentityHeader/.test(prof) && /identity=\{identity\}/.test(prof) && /navigation\.navigate\('Ranks'\)/.test(prof) && /navigation\.navigate\('Identity'\)/.test(prof));
+  check('A failed identity never takes the profile down', /console\.warn\('\[profile\] identity failed:', e\);\s*\n\s*setIdentity\(null\);/.test(prof));
+  const pr = fs.readFileSync('src/repositories/progressionRepo.ts', 'utf8');
+  check('Experience counts points EARNED, so spending never lowers a level', /challengePoints: chal\?\.points \?\? 0,/.test(pr) && !/challengePoints: chal\?\.balance/.test(pr));
+  check('The level is computed, never stored', !/kvSet\([^)]*xp/i.test(pr) && !/kvSet\([^)]*level/i.test(pr));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Row, SectionHeader } from '@/components/ui/misc';
 import { PageHero } from '@/components/ui/PageHero';
 import { exportReport } from '@/services/pdfReport';
+import { recordReport } from '@/repositories/eventsRepo';
 
 export function ReportsScreen() {
   const theme = useTheme();
@@ -18,6 +19,7 @@ export function ReportsScreen() {
     try {
       setBusy(audience);
       await exportReport(audience);
+      recordReport(audience);
     } catch (e) {
       Alert.alert('Could not generate report', String(e instanceof Error ? e.message : e));
     } finally {

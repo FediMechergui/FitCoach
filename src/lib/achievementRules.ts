@@ -29,7 +29,11 @@ const RULES: Record<number, Rule> = {
   4: (s) => ({ current: s.appStreakBest, target: 30 }),
   5: (s) => ({ current: s.appStreakBest, target: 100 }),
   6: (s) => ({ current: s.appStreakBest, target: 365 }),
-  8: (s) => ({ current: s.cardOverall, target: 70 }),
+  7: (s) => ({ current: s.cardExports, target: 1 }),
+  // The badge says EXPORT a card rated 70+; it used to unlock on the rating alone.
+  8: (s) => ({ current: s.bestExportedOverall, target: 70 }),
+  9: (s) => ({ current: s.coachReports, target: 1 }),
+  10: (s) => ({ current: s.nutritionReports, target: 1 }),
 
   // 2. Strength & Muscle Growth
   12: (s) => ({ current: s.routineCount, target: 1 }),

@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.3.0',
+    date: '2026-09-27',
+    title: 'The Carthage ladder',
+    highlights: [
+      'Strength ranks. Every ranked lift becomes an estimated one-rep max, then a multiple of your bodyweight, scaled for how heavy you are and read against a standard for that lift and your sex. The result is a score out of 100 on a ladder of eight rungs, three divisions each, named for what Tunisia is made of: Sand, Clay, Copper, Olive, Coral, Marble, Carthage, Hannibal. Sixty-four lifts are ranked, including pull-ups and dips on the kilograms really moved.',
+      'One crest for you, one per lift, and the body shaded by what each muscle has earned. The overall rank is the mean of your best lift in each of four pillars (push, pull, legs, hinge); with fewer than three it is shown as provisional and tells you which lift is missing. Each lift says how many kilograms the next division would take.',
+      'Form and peak are kept apart: the ladder shows the best of your last 120 days, with the best you ever logged beside it, so a lay-off reads as a lay-off. The standards are FitCoach\'s own table, set from published strength standards, and the screen says so: a yardstick, not a census.',
+      'The profile opens on who you are: crest, name, the title you wear, level, and three pinned badges. Experience is computed from your record every time it is read (sessions, minutes, records, challenge points, badges, rest days) and never handed out for a tap; the page shows its working line by line. Spending points never lowers a level.',
+      'Sixteen titles, earned by the record and worn by choice. A few are said the way they are said at a Tunisian gym door (Mel Houma, Batal, Maalem, Rayes) and each carries its meaning.',
+      'Three badges could never unlock, because nothing recorded an exported card or a generated report. They are stamped now, once a file actually exists. Draft Pick asked for an exported card rated 70 or more and used to unlock on the rating alone; it now needs the export. The badge list no longer promises what it cannot measure.',
+      '1832 checks in all, up from 1767, including proofs that the same bar is worth more on a lighter lifter, that score and kilograms invert each other, and that a level begins exactly at its threshold.',
+    ],
+  },
+  {
     version: '3.2.3',
     date: '2026-09-07',
     title: 'The wheel lands, and a spin has a price',

@@ -44,6 +44,8 @@ import { PrayersScreen } from '@/screens/faith/PrayersScreen';
 import { FastingScreen } from '@/screens/faith/FastingScreen';
 import { BodyScreen } from '@/screens/profile/BodyScreen';
 import { ProfileCardScreen } from '@/screens/profile/ProfileCardScreen';
+import { RanksScreen } from '@/screens/ranks/RanksScreen';
+import { IdentityScreen } from '@/screens/profile/IdentityScreen';
 import { AchievementsScreen } from '@/screens/profile/AchievementsScreen';
 import { ReportsScreen } from '@/screens/profile/ReportsScreen';
 
@@ -158,6 +160,8 @@ export function RootNavigator() {
           <Stack.Screen name="Hormones" component={HormonesScreen} options={{ title: '' }} />
           <Stack.Screen name="Body" component={BodyScreen} options={{ title: '' }} />
           <Stack.Screen name="ProfileCard" component={ProfileCardScreen} options={{ title: '' }} />
+          <Stack.Screen name="Ranks" component={RanksScreen} options={{ title: '' }} />
+          <Stack.Screen name="Identity" component={IdentityScreen} options={{ title: '' }} />
           <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: '' }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: '' }} />
           <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: '' }} />

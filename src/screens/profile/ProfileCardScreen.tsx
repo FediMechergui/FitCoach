@@ -14,6 +14,9 @@ import { useUserStore } from '@/stores/userStore';
 import { computeCardRating } from '@/repositories/cardRepo';
 import { currentMonthKey, getProfilePhoto, setProfilePhoto } from '@/repositories/userRepo';
 import { exportCardPng, persistProfilePhoto, photoStillExists } from '@/services/cardExport';
+import { recordCardExport } from '@/repositories/eventsRepo';
+import { overallPlacement } from '@/repositories/ranksRepo';
+import { RankCrest } from '@/components/RankCrest';
 import { ATTRIBUTE_LABELS, type CardRating, type AttributeSet } from '@/lib/rating';
 import { ageFromBirthdate } from '@/lib/date';
 
@@ -33,10 +36,12 @@ export function ProfileCardScreen() {
   const [rating, setRating] = useState<CardRating | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [busy, setBusy] = useState<'share' | 'save' | null>(null);
+  const [rank, setRank] = useState<ReturnType<typeof overallPlacement>>(null);
   const month = currentMonthKey();
 
   const refresh = useCallback(() => {
     setRating(computeCardRating());
+    setRank(overallPlacement());
     const stored = getProfilePhoto(month)?.uri ?? null;
     setPhotoUri(stored);
     // A photo whose file has gone (cache cleared) would render as a blank
@@ -70,8 +75,10 @@ export function ProfileCardScreen() {
       if (!r.ok) {
         if (r.reason === 'permission-denied') Alert.alert('Photos permission needed', 'Allow FitCoach to add to your photos to save the card, or use Share instead.');
         else if (r.reason === 'error') Alert.alert('Could not export the card', r.message ?? 'Unknown error');
-      } else if (mode === 'save' && r.saved) {
-        Alert.alert('Saved to Photos', 'Your athlete card is in your photo library.');
+      } else {
+        // A file exists: the export happened. Stamp it, with the rating it carried.
+        if (r.saved || r.shared) recordCardExport(rating?.overall ?? 0);
+        if (mode === 'save' && r.saved) Alert.alert('Saved to Photos', 'Your athlete card is in your photo library.');
       }
     } finally {
       setBusy(null);
@@ -132,7 +139,14 @@ export function ProfileCardScreen() {
                 <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>{rating.tier.toUpperCase()}</Text>
               </View>
             </View>
-            <Icon icon="card.star" size={30} color="#ffffffcc" />
+            {rank ? (
+              <View style={{ alignItems: 'center' }}>
+                <RankCrest tier={rank.placement.tier} division={rank.placement.division} size={54} />
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffffdd', letterSpacing: 1 }}>{rank.placement.tier.name.toUpperCase()}</Text>
+              </View>
+            ) : (
+              <Icon icon="card.star" size={30} color="#ffffffcc" />
+            )}
           </View>
 
           {/* Photo */}

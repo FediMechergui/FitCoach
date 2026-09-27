@@ -22,6 +22,7 @@ import { challengeHistory, challengeStats } from './challengeRepo';
 import { DIFFICULTY_POINTS } from '@/data/challenges';
 import { restDayCount, restDaySet } from './restDaysRepo';
 import { bestBridgedStreak } from '@/lib/streaks';
+import { profileEvents } from './eventsRepo';
 import { trainingCalendar } from './statsRepo';
 import { MICRO_KEYS, percentRdi } from '@/lib/micros';
 import { SUPPLEMENTS } from '@/data/supplements';
@@ -121,6 +122,11 @@ export interface AchievementStats {
   challengePointsBestMonth: number;
   challengeStreakCurrent: number;
   distinctChallenges: number;
+  // —— Events the record cannot otherwise show (3.3.0) ——
+  cardExports: number;
+  bestExportedOverall: number;
+  coachReports: number;
+  nutritionReports: number;
 }
 
 /** Longest run of consecutive true days ending at the most recent (today, else yesterday). */
@@ -460,6 +466,7 @@ function computeAchievementStats(userId: number): AchievementStats {
     challengePointsBestMonth,
     challengeStreakCurrent: chal.streak,
     distinctChallenges: chal.distinctChallenges,
+    ...safe(() => profileEvents(), { cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0 }),
   };
 }
 
@@ -482,6 +489,7 @@ const ZERO_STATS: AchievementStats = {
   challengeHardCompleted: 0, challengeCategories: 0, challengePoints: 0,
   restDaysTaken: 0, restDaysLast30: 0, restBridgedStreakBest: 0, walkCount: 0,
   challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
+  cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0,
 };
 
 /** Public entry — never throws; a failure yields zeroed stats, not a white screen. */

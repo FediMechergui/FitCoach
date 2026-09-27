@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -13,6 +13,10 @@ import { BadgeSvg } from '@/components/BadgeSvg';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, type AchievementDef } from '@/data/achievements';
 import { achievementStats, type AchievementStats } from '@/repositories/achievementsRepo';
 import { evaluateAchievement, type AchievementProgress } from '@/lib/achievementRules';
+import { kvGet } from '@/repositories/kvRepo';
+import { KV_SHOWCASE, toggleShowcase } from '@/repositories/progressionRepo';
+import { sanitizeShowcase, SHOWCASE_SLOTS } from '@/lib/progression';
+import { toast } from '@/components/ui/Toast';
 
 export function AchievementsScreen() {
   const theme = useTheme();
@@ -20,6 +24,7 @@ export function AchievementsScreen() {
   // Categories are collapsible so we never mount every badge image at once
   // (first category open by default).
   const [open, setOpen] = useState<Record<number, boolean>>({ 1: true });
+  const [pinned, setPinned] = useState<number[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,6 +46,20 @@ export function AchievementsScreen() {
   }, [stats]);
 
   const unlockedCount = evaluated.filter((e) => e.p.unlocked).length;
+  const unlockedIds = useMemo(() => evaluated.filter((e) => e.p.unlocked).map((e) => e.def.id), [evaluated]);
+
+  // The pins are a choice, kept in the key-value store and re-checked against
+  // what is actually unlocked every time they are read.
+  useEffect(() => {
+    setPinned(sanitizeShowcase(kvGet<unknown>(KV_SHOWCASE), new Set(unlockedIds)));
+  }, [unlockedIds]);
+
+  const togglePin = (id: number, name: string) => {
+    const was = pinned.includes(id);
+    const next = toggleShowcase(id, unlockedIds);
+    setPinned(next);
+    toast({ message: was ? `Unpinned "${name}"` : `Pinned "${name}" to your profile` });
+  };
 
   return (
     <Screen>
@@ -54,8 +73,8 @@ export function AchievementsScreen() {
         </Row>
         <ProgressBar progress={unlockedCount / ACHIEVEMENTS.length} color={theme.colors.warning} />
         <Text variant="caption" color="textFaint">
-          Progress toward badges is read from your own data. A few event-based badges (like
-          exporting your card) unlock when you do them.
+          Progress toward badges is read from your own data. Tap the pin on a badge you have earned to
+          show it on your profile — up to {SHOWCASE_SLOTS}.
         </Text>
       </Card>
 
@@ -75,7 +94,10 @@ export function AchievementsScreen() {
                 <Icon icon={isOpen ? 'core.back' : 'core.forward'} size={16} color={theme.colors.textFaint} />
               </Row>
             </Pressable>
-            {isOpen && items.map(({ def, p }) => <AchievementRow key={def.id} def={def} p={p} />)}
+            {isOpen &&
+              items.map(({ def, p }) => (
+                <AchievementRow key={def.id} def={def} p={p} pinned={pinned.includes(def.id)} onPin={() => togglePin(def.id, def.name)} />
+              ))}
           </View>
         );
       })}
@@ -88,7 +110,7 @@ export function AchievementsScreen() {
   );
 }
 
-function AchievementRow({ def, p }: { def: AchievementDef; p: AchievementProgress }) {
+function AchievementRow({ def, p, pinned, onPin }: { def: AchievementDef; p: AchievementProgress; pinned: boolean; onPin: () => void }) {
   const theme = useTheme();
   const pct = p.target > 0 ? Math.min(1, p.current / p.target) : 0;
   const nice = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -132,7 +154,9 @@ function AchievementRow({ def, p }: { def: AchievementDef; p: AchievementProgres
           <Text variant="caption" color="textMuted">{def.criteria}</Text>
         </View>
         {p.unlocked ? (
-          <Badge label="Unlocked" color={theme.colors.success} />
+          <Pressable onPress={onPin} hitSlop={10} accessibilityRole="button" accessibilityLabel={pinned ? 'Unpin from profile' : 'Pin to profile'}>
+            <Badge label={pinned ? 'Pinned' : 'Pin'} color={pinned ? theme.colors.warning : theme.colors.success} />
+          </Pressable>
         ) : p.tracked ? (
           <Text variant="caption" color="textMuted" style={{ fontVariant: ['tabular-nums'] }}>
             {nice(p.current)}/{nice(p.target)}
@@ -144,7 +168,7 @@ function AchievementRow({ def, p }: { def: AchievementDef; p: AchievementProgres
       {/* Progress bar only for tracked, not-yet-unlocked badges */}
       {!p.unlocked && p.tracked && <ProgressBar progress={pct} color={theme.colors.warning} height={5} />}
       {!p.unlocked && !p.tracked && (
-        <Text variant="caption" color="textFaint">Unlocks when you do it — not auto-tracked yet.</Text>
+        <Text variant="caption" color="textFaint">Not measured yet — the app cannot see this one, so it stays locked for now.</Text>
       )}
     </Card>
   );

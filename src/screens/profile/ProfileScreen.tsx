@@ -22,6 +22,8 @@ import { BODY_TYPE_LABELS } from '@/lib/bodyType';
 import { GOAL_LABELS, ACTIVITY_LABELS } from '@/lib/calories';
 import { ageFromBirthdate } from '@/lib/date';
 import { formatWeight, kgToLb, lbToKg } from '@/lib/format';
+import { IdentityHeader } from '@/components/IdentityHeader';
+import { profileIdentity, type ProfileIdentity } from '@/repositories/progressionRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -32,12 +34,21 @@ export function ProfileScreen() {
   const smokingEnabled = useSmokingStore((s) => s.enabled);
   const loadSmoking = useSmokingStore((s) => s.load);
   const [weighInput, setWeighInput] = useState('');
+  const [identity, setIdentity] = useState<ProfileIdentity | null>(null);
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'uptodate' | 'available' | 'unavailable'>('idle');
 
   useFocusEffect(
     useCallback(() => {
       load();
       loadSmoking();
+      // The identity is read from the record; if that fails the header still
+      // shows the name, and the rest of the page is untouched.
+      try {
+        setIdentity(profileIdentity());
+      } catch (e) {
+        console.warn('[profile] identity failed:', e);
+        setIdentity(null);
+      }
     }, [load, loadSmoking])
   );
 
@@ -101,30 +112,16 @@ export function ProfileScreen() {
       <Text variant="eyebrow" color="textMuted">
         You
       </Text>
-      <Row gap={14} style={{ alignItems: 'center' }}>
-        <View
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 20,
-            backgroundColor: theme.alpha.tint14(theme.colors.primary),
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon icon="nav.profile" size={38} color={theme.colors.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text variant="h1">{user.name}</Text>
-          <Text variant="caption" color="textMuted">
-            {ageFromBirthdate(user.birthdate)} yrs · {user.heightCm ?? '—'} cm ·{' '}
-            {user.bodyType ? BODY_TYPE_LABELS[user.bodyType] : 'Body type —'}
-          </Text>
-        </View>
-        <Pressable onPress={() => navigation.navigate('EditProfile')} hitSlop={8}>
-          <Icon icon="core.edit" size={22} color={theme.colors.textMuted} />
-        </Pressable>
-      </Row>
+      <IdentityHeader
+        name={user.name}
+        detail={`${ageFromBirthdate(user.birthdate)} yrs · ${user.heightCm ?? '—'} cm · ${user.bodyType ? BODY_TYPE_LABELS[user.bodyType] : 'Body type —'}`}
+        identity={identity}
+        onEdit={() => navigation.navigate('EditProfile')}
+        onRank={() => navigation.navigate('Ranks')}
+        onLevel={() => navigation.navigate('Identity')}
+        onPoints={() => navigation.navigate('DailyChallenge')}
+        onBadges={() => navigation.navigate('Achievements')}
+      />
 
       {/* Weight */}
       <Card>
@@ -203,6 +200,10 @@ export function ProfileScreen() {
       {/* Athlete card & reports */}
       <SectionHeader title="Card & Reports" />
       <Card style={{ gap: 0 }}>
+        <LinkRow icon="card.star" label="Strength ranks" onPress={() => navigation.navigate('Ranks')} />
+        <Divider />
+        <LinkRow icon="card.trophy" label="Level and titles" onPress={() => navigation.navigate('Identity')} />
+        <Divider />
         <LinkRow icon="card.trophy" label="Athlete card" onPress={() => navigation.navigate('ProfileCard')} />
         <Divider />
         <LinkRow icon="card.star" label="Achievements" onPress={() => navigation.navigate('Achievements')} />

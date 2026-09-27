@@ -64,6 +64,8 @@ export type RootStackParamList = {
   Hormones: undefined;
   Body: undefined;
   ProfileCard: undefined;
+  Ranks: undefined;
+  Identity: undefined;
   Achievements: undefined;
   Reports: undefined;
   Changelog: undefined;

@@ -1,6 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Easing } from 'react-native';
-import Svg, { Path, Circle, G } from 'react-native-svg';
+import Svg, {
+  Defs,
+  LinearGradient,
+  RadialGradient,
+  Stop,
+  Path,
+  Circle,
+  G,
+  Line,
+} from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
@@ -11,17 +20,54 @@ import { DIFFICULTY_COLOR, type ChallengeDef } from '@/data/challenges';
 /**
  * The spin wheel.
  *
- * Drawn with declarative react-native-svg paths (the same approach the charts
- * use — it's only `SvgXml` on the badge art that misbehaves natively) and spun
- * with the built-in Animated API, so nothing new had to be added to the build
- * and the whole thing ships over the air.
- *
- * The landing position is decided before the animation starts: the screen
- * commits the spin and tells the wheel which wedge won, and the spin is a long
- * ease onto the CENTRE of that wedge. The wheel reveals the day's challenge;
- * it does not choose it. Its angle only ever grows, so a second spin of the
- * day keeps turning the same way from where it rests instead of snapping back.
+ * Drawn with declarative react-native-svg paths and spun with Animated API.
+ * Remodeled with an artistic sculpted jewel arrow pointer, engraved
+ * metallic perimeter ring with studs, and a minted concentric center hub.
  */
+
+/** Sculpted jewel arrow pointer at 12 o'clock */
+function WheelPointerSvg({ color }: { color: string }) {
+  return (
+    <Svg width={32} height={34} viewBox="0 0 32 34">
+      <Defs>
+        <LinearGradient id="ptr-edge-l" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.9} />
+          <Stop offset="100%" stopColor="#D4AF37" stopOpacity={0.8} />
+        </LinearGradient>
+        <LinearGradient id="ptr-edge-r" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0%" stopColor="#997A15" stopOpacity={0.9} />
+          <Stop offset="100%" stopColor="#554005" stopOpacity={0.95} />
+        </LinearGradient>
+        <RadialGradient id="ptr-gem" cx="45%" cy="40%" r="55%">
+          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.9} />
+          <Stop offset="35%" stopColor={color} stopOpacity={0.95} />
+          <Stop offset="100%" stopColor="#0B3026" stopOpacity={1} />
+        </RadialGradient>
+      </Defs>
+
+      <G>
+        {/* Drop shadow */}
+        <Path d="M 16 32 L 6 8 L 26 8 Z" fill="#000000" opacity={0.35} />
+
+        {/* Chiseled Arrow Left Flange (highlighted) */}
+        <Path d="M 16 30 L 7 7 L 16 9 Z" fill="url(#ptr-edge-l)" />
+
+        {/* Chiseled Arrow Right Flange (shaded) */}
+        <Path d="M 16 30 L 16 9 L 25 7 Z" fill="url(#ptr-edge-r)" />
+
+        {/* Center needle rib */}
+        <Line x1="16" y1="7" x2="16" y2="29" stroke="#FFFFFF" strokeOpacity={0.6} strokeWidth={1} />
+
+        {/* Top Mount Bezel */}
+        <Circle cx="16" cy="7" r="6" fill="#1A1C1E" stroke="#D4AF37" strokeWidth={1.5} />
+
+        {/* Embedded Jewel Gem */}
+        <Circle cx="16" cy="7" r="4.2" fill="url(#ptr-gem)" />
+        <Circle cx="15" cy="5.8" r="1.2" fill="#FFFFFF" opacity={0.85} />
+      </G>
+    </Svg>
+  );
+}
 
 export interface WheelAction {
   label: string;
@@ -107,26 +153,89 @@ export function ChallengeWheel({ segments, winningIndex, size = 260, settled, ac
 
   return (
     <View style={{ alignItems: 'center', gap: 12 }}>
-      <View style={{ width: size, height: size + 16, alignItems: 'center' }}>
-        {/* Pointer, fixed at the top */}
-        <View style={{ position: 'absolute', top: 0, zIndex: 2 }}>
-          <Icon icon="core.chevronDown" size={26} color={theme.colors.text} />
+      <View style={{ width: size, height: size + 20, alignItems: 'center' }}>
+        {/* Artistic Jewel Pointer, fixed at 12 o'clock */}
+        <View style={{ position: 'absolute', top: -4, zIndex: 10 }}>
+          <WheelPointerSvg color={theme.colors.primary} />
         </View>
 
         <Animated.View style={{ marginTop: 14, transform: [{ rotate }] }}>
           <Svg width={size} height={size}>
+            <Defs>
+              <RadialGradient id="hub-grad" cx="50%" cy="40%" r="50%">
+                <Stop offset="0%" stopColor={theme.colors.surface3} />
+                <Stop offset="70%" stopColor={theme.colors.surface} />
+                <Stop offset="100%" stopColor={theme.colors.bg} />
+              </RadialGradient>
+              <LinearGradient id="rim-bevel" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.4} />
+                <Stop offset="50%" stopColor="#888888" stopOpacity={0.2} />
+                <Stop offset="100%" stopColor="#000000" stopOpacity={0.5} />
+              </LinearGradient>
+            </Defs>
+
             <G>
+              {/* Outer chassis base */}
+              <Circle cx={r} cy={r} r={r - 1} fill={theme.colors.surfaceAlt} />
+
+              {/* Wedges */}
               {segments.map((c, i) => (
                 <Path
                   key={c.key}
-                  d={wedgePath(r, r, r - 2, i * per, (i + 1) * per)}
+                  d={wedgePath(r, r, r - 3, i * per, (i + 1) * per)}
                   fill={DIFFICULTY_COLOR[c.difficulty]}
-                  opacity={i % 2 === 0 ? 0.85 : 0.6}
+                  opacity={i % 2 === 0 ? 0.88 : 0.68}
                   stroke={theme.colors.bg}
                   strokeWidth={2}
                 />
               ))}
-              <Circle cx={r} cy={r} r={r * 0.3} fill={theme.colors.surface} stroke={theme.colors.border} strokeWidth={2} />
+
+              {/* Outer decorative rim with rivets */}
+              <Circle
+                cx={r}
+                cy={r}
+                r={r - 3}
+                fill="none"
+                stroke="url(#rim-bevel)"
+                strokeWidth={3}
+              />
+              <Circle
+                cx={r}
+                cy={r}
+                r={r - 5}
+                fill="none"
+                stroke="#FFFFFF"
+                strokeOpacity={0.2}
+                strokeWidth={1}
+                strokeDasharray="2, 6"
+              />
+
+              {/* Sculpted Center Hub */}
+              <Circle
+                cx={r}
+                cy={r}
+                r={r * 0.3}
+                fill="url(#hub-grad)"
+                stroke={theme.colors.border}
+                strokeWidth={2.5}
+              />
+              <Circle
+                cx={r}
+                cy={r}
+                r={r * 0.23}
+                fill="none"
+                stroke={theme.colors.primary}
+                strokeOpacity={0.4}
+                strokeWidth={1.2}
+                strokeDasharray="3, 3"
+              />
+              <Circle
+                cx={r}
+                cy={r}
+                r={r * 0.12}
+                fill={theme.colors.primary}
+                opacity={0.8}
+              />
             </G>
           </Svg>
 
@@ -176,3 +285,4 @@ export function ChallengeWheel({ segments, winningIndex, size = 260, settled, ac
     </View>
   );
 }
+

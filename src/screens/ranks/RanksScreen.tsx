@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -19,6 +20,7 @@ import { rankSnapshot, FORM_WINDOW_DAYS, type RankSnapshot, type RankedLift } fr
 import { PILLARS, PILLAR_LABEL, RANK_TIERS, placeScore, DIVISION_LABEL } from '@/lib/ranks';
 import { MUSCLE_LABELS } from '@/data/exercises';
 import type { RootStackParamList } from '@/navigation/types';
+
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Tab = 'lifts' | 'body' | 'ladder';
@@ -118,8 +120,20 @@ export function RanksScreen() {
       {hero}
 
       {overall && (
-        <Card raised style={{ gap: 14 }}>
-          <Row gap={16} style={{ alignItems: 'center' }}>
+        <Card raised style={{ gap: 14, overflow: 'hidden' }}>
+          {/* Gradual opacity radial glow behind the 96px Rank Crest */}
+          <Svg width="100%" height="100%" style={{ position: 'absolute' }}>
+            <Defs>
+              <RadialGradient id="overall-crest-glow" cx="18%" cy="28%" r="48%">
+                <Stop offset="0%" stopColor={overall.placement.tier.color} stopOpacity={0.32} />
+                <Stop offset="55%" stopColor={overall.placement.tier.color} stopOpacity={0.08} />
+                <Stop offset="100%" stopColor="transparent" stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#overall-crest-glow)" />
+          </Svg>
+
+          <Row gap={16} style={{ alignItems: 'center', zIndex: 1 }}>
             <RankCrest tier={overall.placement.tier} division={overall.placement.division} size={96} muted={onPeak} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="eyebrow" color="textMuted">
@@ -133,7 +147,7 @@ export function RanksScreen() {
           </Row>
 
           {overall.placement.nextLabel ? (
-            <View style={{ gap: 5 }}>
+            <View style={{ gap: 5, zIndex: 1 }}>
               <Rail value={overall.placement.progress} max={1} color={overall.placement.tier.color} height={6} />
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text variant="caption" color="textMuted">
@@ -145,12 +159,12 @@ export function RanksScreen() {
               </Row>
             </View>
           ) : (
-            <Text variant="caption" color="textMuted">
+            <Text variant="caption" color="textMuted" style={{ zIndex: 1 }}>
               The top of the ladder. There is nothing above this.
             </Text>
           )}
 
-          <Row gap={8}>
+          <Row gap={8} style={{ zIndex: 1 }}>
             {PILLARS.map((p) => {
               const s = overall.pillars[p];
               const place = s != null ? placeScore(s) : null;
@@ -164,6 +178,9 @@ export function RanksScreen() {
                     paddingVertical: 8,
                     borderRadius: theme.radius.sm,
                     backgroundColor: place ? theme.alpha.tint14(place.tier.color) : theme.colors.surfaceAlt,
+                    borderWidth: 1,
+                    borderColor: place ? theme.alpha.tint22(place.tier.color) : theme.colors.border,
+                    borderTopColor: place ? theme.alpha.tint22('#FFFFFF') : theme.colors.border,
                   }}
                 >
                   <Text variant="eyebrow" color="textMuted" style={{ letterSpacing: 1.2 }}>
@@ -177,7 +194,8 @@ export function RanksScreen() {
             })}
           </Row>
 
-          <Text variant="caption" color="textFaint">
+          <Text variant="caption" color="textFaint" style={{ zIndex: 1 }}>
+
             {onPeak
               ? `Nothing ranked in the last ${FORM_WINDOW_DAYS} days, so this is the best you ever logged. Lift again and the ladder shows your form.`
               : overall.provisional
@@ -240,7 +258,7 @@ function LiftRow({ lift, onPress }: { lift: RankedLift; onPress: () => void }) {
   const theme = useTheme();
   const p = lift.placement;
   return (
-    <Card onPress={onPress} style={{ gap: 10 }}>
+    <Card accent={p.tier.color} onPress={onPress} style={{ gap: 10 }}>
       <Row gap={12} style={{ alignItems: 'center' }}>
         <RankCrest tier={p.tier} division={p.division} size={52} muted={!lift.inForm} />
         <View style={{ flex: 1 }}>
@@ -258,6 +276,7 @@ function LiftRow({ lift, onPress }: { lift: RankedLift; onPress: () => void }) {
           </Text>
         </View>
       </Row>
+
       <Rail value={p.progress} max={1} color={p.tier.color} height={5} />
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="caption" color="textMuted" style={{ flex: 1 }}>

@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.3.2',
+    date: '2026-09-27',
+    title: 'Minted surfaces',
+    highlights: [
+      'The drawn surfaces were redressed: the rank crest is cut with facets and a domed centre, the wheel has a jewelled pointer, a riveted rim and a sculpted hub, the streak meter and the progress ring carry a gradient and a soft glow, and the route map, the exercise hero, the athlete card, the souk and the identity header were polished to match.',
+      'The map of your places is drawn as a chart: a grid, a compass, and a line joining the seats that sit by the sea. That line is a guide for the eye and says so; it joins towns, it is not a surveyed coastline. Two of its anchors were names that are not governorates and were silently skipped; it now uses real ones only.',
+      'A regression caught before it shipped: the redressed card wrapped its contents in an inner box, which would have dropped the spacing, rows and alignment that cards all over the app rely on. Cards render their contents directly again, the surface and hairline come from the elevation tokens as before, and only a card with a picture clips its contents.',
+      'Labels on the redrawn surfaces are back on the 11 px floor.',
+      '1967 checks in all, up from 1959, and the Android bundle was built end to end before release.',
+    ],
+  },
+  {
     version: '3.3.1',
     date: '2026-09-27',
     title: 'Paths, places, quests and the souk',

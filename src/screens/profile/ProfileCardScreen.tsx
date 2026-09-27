@@ -124,82 +124,212 @@ export function ProfileCardScreen() {
         <View
           ref={cardRef}
           collapsable={false}
-          style={{ width: 300, height: 460, borderRadius: 24, overflow: 'hidden' }}
+          style={{
+            width: 300,
+            height: 460,
+            borderRadius: 24,
+            overflow: 'hidden',
+            backgroundColor: skin.bottom,
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 16,
+          }}
         >
+          {/* Full-bleed Athlete Photo */}
+          {photoUri ? (
+            <Image
+              source={{ uri: photoUri }}
+              style={{ position: 'absolute', width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+          ) : null}
+
+          {/* Gradual Opacity Gradient Scrim & Minted Card Frame */}
           <Svg width="100%" height="100%" style={{ position: 'absolute' }}>
             <Defs>
               <LinearGradient id="cardbg" x1="0" y1="0" x2="0.6" y2="1">
-                <Stop offset="0" stopColor={top} stopOpacity={1} />
+                <Stop offset="0" stopColor={top} stopOpacity={photoUri ? 0.55 : 1} />
+                <Stop offset="0.25" stopColor={top} stopOpacity={photoUri ? 0.18 : 0.9} />
+                <Stop offset="0.55" stopColor={skin.bottom} stopOpacity={photoUri ? 0.78 : 0.96} />
                 <Stop offset="1" stopColor={skin.bottom} stopOpacity={1} />
               </LinearGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill="url(#cardbg)" />
+            {/* Outer minted frame */}
             <Rect x="0" y="0" width="100%" height="100%" fill="none" stroke={frame} strokeWidth="4" rx="24" />
+            {/* Inner fine highlight hairline */}
+            <Rect x="2" y="2" width="296" height="456" fill="none" stroke="#FFFFFF" strokeOpacity={0.28} strokeWidth="1" rx="22" />
           </Svg>
 
           {/* Header: overall + position + tier */}
-          <View style={{ flexDirection: 'row', padding: 18, justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', padding: 18, justifyContent: 'space-between', zIndex: 2 }}>
             <View>
-              <Text style={{ fontSize: 46, fontWeight: '900', color: '#fff', lineHeight: 48 }}>
+              <Text
+                style={{
+                  fontSize: 48,
+                  fontWeight: '900',
+                  color: '#fff',
+                  lineHeight: 50,
+                  textShadowColor: 'rgba(0,0,0,0.6)',
+                  textShadowOffset: { width: 0, height: 2 },
+                  textShadowRadius: 4,
+                }}
+              >
                 {rating.overall}
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: 1 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '800',
+                  color: '#fff',
+                  letterSpacing: 1.2,
+                  textShadowColor: 'rgba(0,0,0,0.6)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 3,
+                }}
+              >
                 {position.toUpperCase()}
               </Text>
-              <View style={{ marginTop: 4, backgroundColor: '#00000033', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>{rating.tier.toUpperCase()}</Text>
+              <View
+                style={{
+                  marginTop: 4,
+                  backgroundColor: 'rgba(0,0,0,0.4)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.18)',
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>
+                  {rating.tier.toUpperCase()}
+                </Text>
               </View>
             </View>
             {rank ? (
               <View style={{ alignItems: 'center' }}>
-                <RankCrest tier={rank.placement.tier} division={rank.placement.division} size={54} />
-                <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffffdd', letterSpacing: 1 }}>{rank.placement.tier.name.toUpperCase()}</Text>
+                <RankCrest tier={rank.placement.tier} division={rank.placement.division} size={58} />
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '800',
+                    color: '#ffffffdd',
+                    letterSpacing: 1.2,
+                    marginTop: 2,
+                    textShadowColor: 'rgba(0,0,0,0.6)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 2,
+                  }}
+                >
+                  {rank.placement.tier.name.toUpperCase()}
+                </Text>
               </View>
             ) : (
               <Icon icon="card.star" size={30} color="#ffffffcc" />
             )}
           </View>
 
-          {/* Photo */}
-          <View style={{ alignItems: 'center', marginTop: -6 }}>
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={{ width: 150, height: 150, borderRadius: 12, borderWidth: 3, borderColor: '#ffffff55' }} />
-            ) : (
-              <View style={{ width: 150, height: 150, borderRadius: 12, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon icon="nav.profile" size={70} color="#ffffffaa" />
+          {/* Photo Placeholder / Avatar Center when no photo is uploaded */}
+          {!photoUri ? (
+            <View style={{ alignItems: 'center', marginTop: 10, zIndex: 2 }}>
+              <View
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: 'rgba(255,255,255,0.12)',
+                  borderWidth: 2,
+                  borderColor: 'rgba(255,255,255,0.25)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon icon="nav.profile" size={72} color="#ffffffaa" />
               </View>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View style={{ height: 150 }} />
+          )}
 
-          {/* Name */}
-          <View style={{ alignItems: 'center', marginTop: 8 }}>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', letterSpacing: 0.5 }}>
+          {/* Name & Season Tag */}
+          <View style={{ alignItems: 'center', marginTop: photoUri ? 8 : 12, zIndex: 2 }}>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: '900',
+                color: '#fff',
+                letterSpacing: 0.8,
+                textShadowColor: 'rgba(0,0,0,0.7)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 4,
+              }}
+            >
               {user.name.toUpperCase()}
             </Text>
-            <Text style={{ fontSize: 11, color: '#ffffffaa' }}>
+            <Text
+              style={{
+                fontSize: 11,
+                color: '#ffffffcc',
+                fontWeight: '600',
+                textShadowColor: 'rgba(0,0,0,0.6)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2,
+              }}
+            >
               {ageFromBirthdate(user.birthdate)} yrs · {monthLabel}
             </Text>
           </View>
 
-          {/* Attributes */}
-          <View style={{ flexDirection: 'row', paddingHorizontal: 28, paddingTop: 14, justifyContent: 'space-between' }}>
-            {[['STR', 'END', 'CON'], ['NUT', 'REC', 'DIS']].map((col, ci) => (
-              <View key={ci} style={{ gap: 6 }}>
-                {(col as Array<keyof AttributeSet>).map((k) => (
-                  <Row key={k} gap={8} style={{ alignItems: 'center' }}>
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff', width: 26 }}>{attrs[k]}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffffcc' }}>{k}</Text>
-                  </Row>
-                ))}
-              </View>
-            ))}
+          {/* Attributes Frosted Glass Plate */}
+          <View style={{ paddingHorizontal: 22, paddingTop: 14, zIndex: 2 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.16)',
+                borderRadius: 14,
+                paddingVertical: 10,
+                paddingHorizontal: 18,
+              }}
+            >
+              {[['STR', 'END', 'CON'], ['NUT', 'REC', 'DIS']].map((col, ci) => (
+                <View key={ci} style={{ gap: 6 }}>
+                  {(col as Array<keyof AttributeSet>).map((k) => (
+                    <Row key={k} gap={8} style={{ alignItems: 'center' }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: '900',
+                          color: '#fff',
+                          width: 26,
+                          fontVariant: ['tabular-nums'],
+                        }}
+                      >
+                        {attrs[k]}
+                      </Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffffcc' }}>
+                        {k}
+                      </Text>
+                    </Row>
+                  ))}
+                </View>
+              ))}
+            </View>
           </View>
 
-          <View style={{ position: 'absolute', bottom: 12, width: '100%', alignItems: 'center' }}>
-            <Text style={{ fontSize: 10, color: '#ffffff88', fontWeight: '700', letterSpacing: 2 }}>FITCOACH</Text>
+          {/* Watermark Branding */}
+          <View style={{ position: 'absolute', bottom: 12, width: '100%', alignItems: 'center', zIndex: 2 }}>
+            <Text style={{ fontSize: 10, color: '#ffffff88', fontWeight: '800', letterSpacing: 2.5 }}>
+              FITCOACH
+            </Text>
           </View>
         </View>
       </View>
+
 
       {/* Legend */}
       <Row style={{ flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>

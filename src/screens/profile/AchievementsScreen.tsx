@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -11,6 +12,7 @@ import { Row, Badge } from '@/components/ui/misc';
 import { PageHero } from '@/components/ui/PageHero';
 import { BadgeSvg } from '@/components/BadgeSvg';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, type AchievementDef } from '@/data/achievements';
+
 import { achievementStats, type AchievementStats } from '@/repositories/achievementsRepo';
 import { evaluateAchievement, type AchievementProgress } from '@/lib/achievementRules';
 import { kvGet } from '@/repositories/kvRepo';
@@ -114,16 +116,44 @@ function AchievementRow({ def, p, pinned, onPin }: { def: AchievementDef; p: Ach
   const theme = useTheme();
   const pct = p.target > 0 ? Math.min(1, p.current / p.target) : 0;
   const nice = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  const auraId = `badge-aura-${def.id}`;
 
   return (
     <Card
       accent={p.unlocked ? theme.colors.success : undefined}
-      style={{ gap: 8, opacity: p.unlocked ? 1 : 0.96 }}
+      style={{
+        gap: 8,
+        opacity: p.unlocked ? 1 : 0.88,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: p.unlocked ? theme.alpha.tint22(theme.colors.success) : theme.colors.border,
+      }}
     >
-      <Row gap={12} style={{ alignItems: 'center' }}>
+      {p.unlocked && (
+        <Svg width="100%" height="100%" style={{ position: 'absolute' }}>
+          <Defs>
+            <RadialGradient id={auraId} cx="12%" cy="30%" r="45%">
+              <Stop offset="0%" stopColor={theme.colors.success} stopOpacity={0.25} />
+              <Stop offset="60%" stopColor={theme.colors.success} stopOpacity={0.04} />
+              <Stop offset="100%" stopColor="transparent" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${auraId})`} />
+        </Svg>
+      )}
+
+      <Row gap={12} style={{ alignItems: 'center', zIndex: 1 }}>
         {/* The medal (pre-rendered PNG): full colour once earned; dimmed, with a lock, until then */}
-        <View style={{ width: 56, height: 56 }}>
-          <View style={{ opacity: p.unlocked ? 1 : 0.3 }}>
+        <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
+          <View
+            style={{
+              opacity: p.unlocked ? 1 : 0.28,
+              shadowColor: p.unlocked ? '#000000' : 'transparent',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.35,
+              shadowRadius: 5,
+            }}
+          >
             <BadgeSvg id={def.id} svg={def.svg} size={56} />
           </View>
           {!p.unlocked && (
@@ -173,3 +203,4 @@ function AchievementRow({ def, p, pinned, onPin }: { def: AchievementDef; p: Ach
     </Card>
   );
 }
+

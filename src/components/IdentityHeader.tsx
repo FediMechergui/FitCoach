@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
@@ -17,7 +18,8 @@ import type { ProfileIdentity } from '@/repositories/progressionRepo';
  * the title you chose to wear, the level and how far the next one is, the
  * three numbers that matter, and the badges you pinned.
  *
- * Every figure is read from the record. Nothing on this header is a setting.
+ * Remodeled with a gradual opacity radial crest aura, frosted glass
+ * stat tiles, and minted badge seats.
  */
 
 interface Props {
@@ -36,10 +38,23 @@ export function IdentityHeader({ name, detail, identity, onEdit, onRank, onLevel
   const rank = identity?.rank ?? null;
   const level = identity?.level ?? null;
   const tint = rank ? rank.placement.tier.color : theme.colors.primary;
+  const glowId = 'identity-crest-glow';
 
   return (
-    <Card raised style={{ gap: 16 }}>
-      <Row gap={14} style={{ alignItems: 'center' }}>
+    <Card raised style={{ gap: 16, overflow: 'hidden' }}>
+      {/* Gradual opacity radial aura behind the Rank Crest */}
+      <Svg width="100%" height="100%" style={{ position: 'absolute' }}>
+        <Defs>
+          <RadialGradient id={glowId} cx="16%" cy="24%" r="45%">
+            <Stop offset="0%" stopColor={tint} stopOpacity={0.28} />
+            <Stop offset="55%" stopColor={tint} stopOpacity={0.06} />
+            <Stop offset="100%" stopColor="transparent" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill={`url(#${glowId})`} />
+      </Svg>
+
+      <Row gap={14} style={{ alignItems: 'center', zIndex: 1 }}>
         <Pressable onPress={onRank} accessibilityRole="button" accessibilityLabel="Strength ranks">
           {rank ? (
             <RankCrest tier={rank.placement.tier} division={rank.placement.division} size={76} muted={rank.peakOnly} />
@@ -52,6 +67,8 @@ export function IdentityHeader({ name, detail, identity, onEdit, onRank, onLevel
                 backgroundColor: theme.alpha.tint14(theme.colors.primary),
                 alignItems: 'center',
                 justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: theme.alpha.tint22(theme.colors.primary),
               }}
             >
               <Icon icon="nav.profile" size={42} color={theme.colors.primary} />
@@ -71,6 +88,8 @@ export function IdentityHeader({ name, detail, identity, onEdit, onRank, onLevel
                     paddingVertical: 2,
                     borderRadius: theme.radius.pill,
                     backgroundColor: theme.alpha.tint14(tint),
+                    borderWidth: 1,
+                    borderColor: theme.alpha.tint22(tint),
                   }}
                 >
                   <Text variant="eyebrow" style={{ color: theme.colors.text, letterSpacing: 1.4 }}>
@@ -95,7 +114,7 @@ export function IdentityHeader({ name, detail, identity, onEdit, onRank, onLevel
       </Row>
 
       {level ? (
-        <Pressable onPress={onLevel} accessibilityRole="button" accessibilityLabel="Level and titles">
+        <Pressable onPress={onLevel} accessibilityRole="button" accessibilityLabel="Level and titles" style={{ zIndex: 1 }}>
           <View style={{ gap: 5 }}>
             <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
               <Row gap={6} style={{ alignItems: 'baseline' }}>
@@ -113,19 +132,29 @@ export function IdentityHeader({ name, detail, identity, onEdit, onRank, onLevel
         </Pressable>
       ) : null}
 
-      <Row gap={8}>
+      <Row gap={8} style={{ zIndex: 1 }}>
         <Tile label="Rank" value={rank ? rank.placement.label : 'Unranked'} sub={rank ? (rank.peakOnly ? 'your peak' : rank.provisional ? 'provisional' : `score ${rank.placement.score.toFixed(0)}`) : 'log a lift'} tint={tint} onPress={onRank} />
         <Tile label="Experience" value={level ? level.xp.toLocaleString() : '0'} sub="from your record" tint={theme.colors.primary} onPress={onLevel} />
         <Tile label="Points" value={identity ? identity.balance.toLocaleString() : '0'} sub="to spend" tint={theme.colors.warning} onPress={onPoints} />
       </Row>
 
-      <Pressable onPress={onBadges} accessibilityRole="button" accessibilityLabel="Achievements">
+      <Pressable onPress={onBadges} accessibilityRole="button" accessibilityLabel="Achievements" style={{ zIndex: 1 }}>
         <Row gap={10} style={{ alignItems: 'center' }}>
           {Array.from({ length: SHOWCASE_SLOTS }, (_, i) => {
             const id = identity?.showcase[i];
             const def = id != null ? ACHIEVEMENTS.find((a) => a.id === id) : undefined;
             return def ? (
-              <BadgeSvg key={i} id={def.id} svg={def.svg} size={44} />
+              <View
+                key={i}
+                style={{
+                  shadowColor: '#000000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 4,
+                }}
+              >
+                <BadgeSvg id={def.id} svg={def.svg} size={44} />
+              </View>
             ) : (
               <View
                 key={i}
@@ -136,6 +165,7 @@ export function IdentityHeader({ name, detail, identity, onEdit, onRank, onLevel
                   borderWidth: 1,
                   borderStyle: 'dashed',
                   borderColor: theme.colors.borderStrong,
+                  backgroundColor: theme.alpha.tint04(theme.colors.surfaceAlt),
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -172,6 +202,9 @@ function Tile({ label, value, sub, tint, onPress }: { label: string; value: stri
         paddingHorizontal: 10,
         borderRadius: theme.radius.md,
         backgroundColor: theme.alpha.tint08(tint),
+        borderWidth: 1,
+        borderColor: theme.alpha.tint14(tint),
+        borderTopColor: theme.alpha.tint22('#FFFFFF'),
         opacity: pressed ? 0.85 : 1,
       })}
     >
@@ -187,3 +220,4 @@ function Tile({ label, value, sub, tint, onPress }: { label: string; value: stri
     </Pressable>
   );
 }
+

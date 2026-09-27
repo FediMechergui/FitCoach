@@ -4642,5 +4642,23 @@ console.log('\nLeftovers 3.3.1:');
   check('The old specification says which version it describes', /This document describes v2\.64/.test(spec) && /docs\/ANALYSIS-3\.3\.md/.test(spec));
 }
 
+console.log('\nPolish 3.3.2 - dressing that must not move the furniture:');
+{
+  const card = fs.readFileSync('src/components/ui/Card.tsx', 'utf8').replace(/\r\n/g, '\n');
+  // Cards everywhere pass gap, flexDirection and alignItems in `style`; those reach direct children only.
+  check('A card renders its children directly, never inside a wrapper', /\n      \{children\}\n/.test(card) && !/<View style=\{\{ zIndex: 1, flex: 1 \}\}>\{children\}<\/View>/.test(card));
+  check('The elevation tokens still own a card surface', /\.\.\.\(raised \? theme\.elevation\.e2 : theme\.elevation\.e1\)/.test(card) && !/backgroundColor: translucent\s*\? theme\.alpha/.test(card));
+  check('Only a card with an image clips its contents', /imageUri \? \{ overflow: 'hidden' as const \} : \{\}/.test(card));
+  const map = fs.readFileSync('src/components/PlacesMap.tsx', 'utf8');
+  const keys = (map.match(/const COAST_KEYS = \[([^\]]*)\]/)?.[1] ?? '').split(',').map((k) => k.trim().replace(/'/g, '')).filter(Boolean);
+  check('Every seat on the coast line is a real governorate', keys.length >= 8 && keys.every((k) => GOVERNORATES.some((g) => g.key === k)), keys.filter((k) => !GOVERNORATES.some((g) => g.key === k)).join());
+  check('The line through the seats does not claim to be a coastline', /not a surveyed coastline/.test(map));
+  const drawn = ['src/components/PlacesMap.tsx', 'src/components/StreakMeter.tsx', 'src/components/RankCrest.tsx', 'src/components/ChallengeWheel.tsx', 'src/components/IdentityHeader.tsx', 'src/screens/profile/SoukScreen.tsx', 'src/screens/ranks/RanksScreen.tsx'];
+  const small = drawn.filter((f) => /fontSize(: |=\{)([0-9]|10)(\.\d+)?\b/.test(fs.readFileSync(f, 'utf8')));
+  check('No redrawn surface sets text below the 11px floor', small.length === 0, small.join());
+  check('The crest and the wheel are still drawn declaratively', drawn.every((f) => !/SvgXml/.test(fs.readFileSync(f, 'utf8'))));
+  check('The wheel still eases onto the centre of a wedge', /nextWheelStopDeg\(angle\.current, target, n\)/.test(fs.readFileSync('src/components/ChallengeWheel.tsx', 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

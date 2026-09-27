@@ -1,6 +1,14 @@
 import React from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, {
+  Defs,
+  LinearGradient,
+  RadialGradient,
+  Stop,
+  Circle,
+  Path,
+  G,
+} from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from './ui/Text';
 import { normalizeRoute, type LatLng } from '@/lib/geo';
@@ -14,9 +22,8 @@ interface RouteMapProps {
 }
 
 /**
- * Draws a GPS route as a "circuit" line — an offline, tile-free path shape (the
- * outline of where you ran), like the map thumbnails in running apps. No map
- * tiles are fetched, keeping FitCoach fully offline & private.
+ * Draws a GPS route as an artistic neon "circuit" line — an offline, tile-free
+ * path shape with luminous multi-pass glow, radiant start beacon, and finish jewel.
  */
 export function RouteMap({ route, height = 200, color, markers = true }: RouteMapProps) {
   const theme = useTheme();
@@ -34,7 +41,7 @@ export function RouteMap({ route, height = 200, color, markers = true }: RouteMa
     );
   }
 
-  const pad = 16;
+  const pad = 18;
   const w = Math.max(0, width - pad * 2);
   const h = height - pad * 2;
   const px = (x: number) => pad + x * w;
@@ -46,21 +53,110 @@ export function RouteMap({ route, height = 200, color, markers = true }: RouteMa
   const start = norm.points[0];
   const end = norm.points[norm.points.length - 1];
 
+  const uid = React.useId().replace(/:/g, '');
+  const gradId = `route-grad-${uid}`;
+
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ height }}>
       {width > 0 && (
         <Svg width={width} height={height}>
-          {/* soft shadow line under the main path */}
-          <Path d={d} stroke={stroke + '33'} strokeWidth={9} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-          <Path d={d} stroke={stroke} strokeWidth={3.5} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-          {markers && (
-            <>
-              <Circle cx={px(start.x)} cy={py(start.y)} r={6} fill={theme.colors.success} stroke="#fff" strokeWidth={2} />
-              <Circle cx={px(end.x)} cy={py(end.y)} r={6} fill={theme.colors.danger} stroke="#fff" strokeWidth={2} />
-            </>
-          )}
+          <Defs>
+            <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0%" stopColor={theme.colors.success} />
+              <Stop offset="60%" stopColor={stroke} />
+              <Stop offset="100%" stopColor={theme.colors.warning} />
+            </LinearGradient>
+            <RadialGradient id="beacon-pulse" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor={theme.colors.success} stopOpacity={0.6} />
+              <Stop offset="100%" stopColor={theme.colors.success} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+
+          <G>
+            {/* Pass 1: Broad ambient neon aura */}
+            <Path
+              d={d}
+              stroke={stroke}
+              strokeOpacity={0.12}
+              strokeWidth={14}
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+
+            {/* Pass 2: Medium soft luminescence */}
+            <Path
+              d={d}
+              stroke={`url(#${gradId})`}
+              strokeOpacity={0.35}
+              strokeWidth={7}
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+
+            {/* Pass 3: Crisp high-contrast core vector line */}
+            <Path
+              d={d}
+              stroke={`url(#${gradId})`}
+              strokeWidth={3.5}
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+
+            {markers && (
+              <>
+                {/* Start Marker: Luminous green beacon */}
+                <Circle
+                  cx={px(start.x)}
+                  cy={py(start.y)}
+                  r={12}
+                  fill="url(#beacon-pulse)"
+                />
+                <Circle
+                  cx={px(start.x)}
+                  cy={py(start.y)}
+                  r={8}
+                  fill="none"
+                  stroke={theme.colors.success}
+                  strokeWidth={1}
+                  strokeOpacity={0.5}
+                  strokeDasharray="2, 2"
+                />
+                <Circle
+                  cx={px(start.x)}
+                  cy={py(start.y)}
+                  r={5}
+                  fill={theme.colors.success}
+                  stroke="#FFFFFF"
+                  strokeWidth={1.8}
+                />
+
+                {/* End Marker: Glowing crimson/warning destination pin */}
+                <Circle
+                  cx={px(end.x)}
+                  cy={py(end.y)}
+                  r={8}
+                  fill="none"
+                  stroke={theme.colors.danger}
+                  strokeWidth={1}
+                  strokeOpacity={0.4}
+                />
+                <Circle
+                  cx={px(end.x)}
+                  cy={py(end.y)}
+                  r={5}
+                  fill={theme.colors.danger}
+                  stroke="#FFFFFF"
+                  strokeWidth={1.8}
+                />
+              </>
+            )}
+          </G>
         </Svg>
       )}
     </View>
   );
 }
+

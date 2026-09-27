@@ -97,7 +97,12 @@ export function PathsScreen() {
         <View key={d} style={{ gap: theme.spacing.md }}>
           <SectionHeader title={DISCIPLINE_LABEL[d]} />
           {TRAINING_PATHS.filter((p) => p.discipline === d).map((p) => (
-            <Card key={p.key} onPress={() => navigation.navigate('PathDetail', { pathKey: p.key })} style={{ gap: 8 }}>
+            <Card
+              key={p.key}
+              accent={p.accent}
+              onPress={() => navigation.navigate('PathDetail', { pathKey: p.key })}
+              style={{ gap: 8 }}
+            >
               <Row gap={12} style={{ alignItems: 'center' }}>
                 <Tile path={p} />
                 <View style={{ flex: 1 }}>
@@ -132,18 +137,25 @@ function Tile({ path }: { path: TrainingPath }) {
   return (
     <View
       style={{
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
         borderRadius: theme.radius.md,
         backgroundColor: theme.alpha.tint14(path.accent),
+        borderWidth: 1.5,
+        borderColor: theme.alpha.tint22(path.accent),
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: path.accent,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.28,
+        shadowRadius: 5,
       }}
     >
-      <Icon icon={path.icon} size={24} color={path.accent} />
+      <Icon icon={path.icon} size={25} color={path.accent} />
     </View>
   );
 }
+
 
 function Chip({ label, tint }: { label: string; tint?: string }) {
   const theme = useTheme();

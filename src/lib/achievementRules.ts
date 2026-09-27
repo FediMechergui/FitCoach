@@ -163,6 +163,18 @@ const RULES: Record<number, Rule> = {
   148: (s) => ({ current: s.distinctChallenges, target: 40 }),
   149: (s) => ({ current: s.challengeHardCompleted, target: 25 }),
   150: (s) => ({ current: s.challengeStreakCurrent, target: 14 }),
+  // 16. Ladder, Paths & Places
+  151: (s) => ({ current: s.rankedLifts, target: 1 }),
+  152: (s) => ({ current: s.rankedPillars, target: 4 }),
+  // Rungs are counted from one so that an unranked lifter reads 0 of 2, not -1.
+  153: (s) => ({ current: s.overallRung, target: 2 }),
+  154: (s) => ({ current: s.overallRung, target: 3 }),
+  155: (s) => ({ current: s.overallRung, target: 4 }),
+  156: (s) => ({ current: s.pathStages, target: 1 }),
+  157: (s) => ({ current: s.pathsCompleted, target: 1 }),
+  158: (s) => ({ current: s.placesMarked, target: 3 }),
+  159: (s) => ({ current: s.questsBestWeek, target: 3 }),
+  160: (s) => ({ current: s.skinsBought, target: 1 }),
 };
 
 export function evaluateAchievement(def: AchievementDef, s: AchievementStats): AchievementProgress {

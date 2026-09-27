@@ -119,7 +119,7 @@ export function ProfileScreen() {
         onEdit={() => navigation.navigate('EditProfile')}
         onRank={() => navigation.navigate('Ranks')}
         onLevel={() => navigation.navigate('Identity')}
-        onPoints={() => navigation.navigate('DailyChallenge')}
+        onPoints={() => navigation.navigate('Souk')}
         onBadges={() => navigation.navigate('Achievements')}
       />
 
@@ -203,6 +203,12 @@ export function ProfileScreen() {
         <LinkRow icon="card.star" label="Strength ranks" onPress={() => navigation.navigate('Ranks')} />
         <Divider />
         <LinkRow icon="card.trophy" label="Level and titles" onPress={() => navigation.navigate('Identity')} />
+        <Divider />
+        <LinkRow icon="cardio.elevation" label="Paths" onPress={() => navigation.navigate('Paths')} />
+        <Divider />
+        <LinkRow icon="cardio.gps" label="Your places" onPress={() => navigation.navigate('Places')} />
+        <Divider />
+        <LinkRow icon="card.trophy" label="The souk" onPress={() => navigation.navigate('Souk')} />
         <Divider />
         <LinkRow icon="card.trophy" label="Athlete card" onPress={() => navigation.navigate('ProfileCard')} />
         <Divider />

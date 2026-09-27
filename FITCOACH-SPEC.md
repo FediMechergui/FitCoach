@@ -1,5 +1,10 @@
 # FitCoach — Complete Application Specification
 
+> **This document describes v2.64.** The app is at 3.3.1. For what changed since
+> — ranks, progression, quests, the souk, paths, places, 1281 exercises, schema 36 —
+> read `docs/ANALYSIS-3.3.md`, and `docs/SOCIAL-PLAN.md` for the network that is
+> planned and not built. The in-app changelog is the release-by-release record.
+
 **Version 2.64 · documented from source, not from memory.**
 
 This describes every screen, feature, engine and table of FitCoach exactly as it

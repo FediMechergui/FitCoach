@@ -179,6 +179,8 @@ export const sessions = sqliteTable('sessions', {
    * not un-tick them. NULL reads as none.
    */
   warmupsDone: text('warmups_done'),
+  /** where it happened — a row of `places`, or null */
+  placeId: integer('place_id'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -914,6 +916,119 @@ export const challengeSpins = sqliteTable('challenge_spins', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+/**
+ * Points spent in the souk. Spins have their own ledger (challenge_spins);
+ * together they are everything a balance has ever been reduced by.
+ */
+export const pointPurchases = sqliteTable('point_purchases', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  itemKey: text('item_key').notNull(),
+  cost: integer('cost').notNull(),
+  purchasedAt: integer('purchased_at').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+/**
+ * The week's quests. A row is written when a quest is COMPLETED — measured
+ * over the week from the same tables the daily challenge reads — and the
+ * points it paid are read back from here.
+ */
+export const weeklyQuests = sqliteTable('weekly_quests', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  /** ISO date of the Monday the week began */
+  week: text('week').notNull(),
+  questKey: text('quest_key').notNull(),
+  points: integer('points').notNull(),
+  completedAt: integer('completed_at').notNull(),
+  finalValue: real('final_value'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+/** A path someone is walking: which one, and which stage they are in. One row per path. */
+export const pathEnrolments = sqliteTable('path_enrolments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  pathKey: text('path_key').notNull(),
+  stageIndex: integer('stage_index').notNull().default(0),
+  enrolledAt: integer('enrolled_at').notNull(),
+  stageStartedAt: integer('stage_started_at').notNull(),
+  /** every stage graduated */
+  completedAt: integer('completed_at'),
+  /** set when the path is left; enrolling again picks the stage back up */
+  pausedAt: integer('paused_at'),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+/** Every stage graduated, with what it took. Never deleted: it is the record. */
+export const pathGraduations = sqliteTable('path_graduations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  pathKey: text('path_key').notNull(),
+  stageKey: text('stage_key').notNull(),
+  sessions: integer('sessions').notNull(),
+  graduatedAt: integer('graduated_at').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+/**
+ * A place to train, marked by the user: a gym, a stadium, a calisthenics park,
+ * a dojo, a wall, a riding club. Private to this phone. `visibility` and
+ * `remoteId` exist so that, the day there is an account, a place can be
+ * shared without a migration — until then nothing reads them and nothing
+ * leaves the device.
+ */
+export const places = sqliteTable('places', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  name: text('name').notNull(),
+  /** see PLACE_KINDS in src/data/placeKinds.ts */
+  kind: text('kind').notNull(),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  governorate: text('governorate'),
+  city: text('city'),
+  address: text('address'),
+  notes: text('notes'),
+  /** free | paid | members */
+  access: text('access'),
+  priceNote: text('price_note'),
+  /** comma-separated activity keys this place is good for */
+  activities: text('activities'),
+  /** my own rating, 1-5 */
+  rating: integer('rating'),
+  isHome: integer('is_home', { mode: 'boolean' }).notNull().default(false),
+  /** private today; 'shared' waits for the account */
+  visibility: text('visibility').notNull().default('private'),
+  remoteId: text('remote_id'),
+  updatedAt: integer('updated_at').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+/** A session or a walk that happened at a place. */
+export const placeVisits = sqliteTable('place_visits', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  placeId: integer('place_id').notNull(),
+  sessionId: integer('session_id'),
+  walkId: integer('walk_id'),
+  visitedAt: integer('visited_at').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export const weatherReadings = sqliteTable('weather_readings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
@@ -990,5 +1105,11 @@ export type CustomFood = typeof customFoods.$inferSelect;
 export type DailyChallenge = typeof dailyChallenges.$inferSelect;
 export type RestDay = typeof restDays.$inferSelect;
 export type ChallengeSpin = typeof challengeSpins.$inferSelect;
+export type PointPurchase = typeof pointPurchases.$inferSelect;
+export type WeeklyQuest = typeof weeklyQuests.$inferSelect;
+export type PathEnrolment = typeof pathEnrolments.$inferSelect;
+export type PathGraduation = typeof pathGraduations.$inferSelect;
+export type Place = typeof places.$inferSelect;
+export type PlaceVisit = typeof placeVisits.$inferSelect;
 export type MealRoutine = typeof mealRoutines.$inferSelect;
 export type WeatherReadingRow = typeof weatherReadings.$inferSelect;

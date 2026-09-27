@@ -29,6 +29,7 @@ import { formatDurationLong, formatDistance, formatPace, formatDuration } from '
 import type { SetEntry } from '@/db/schema';
 import { useUserStore } from '@/stores/userStore';
 import { PostSessionCard } from '@/components/PostSessionCard';
+import { SessionPlaceCard } from '@/components/SessionPlaceCard';
 import { postSessionFor } from '@/repositories/postSessionRepo';
 import { saveRoutine, sessionExerciseIds, findRoutineByName } from '@/repositories/routinesRepo';
 
@@ -277,6 +278,8 @@ export function SessionDetailScreen() {
 
       {/* Any session with exercises can be saved as a reusable routine — the
           only place routines are born, so it survives the recap's death. */}
+      <SessionPlaceCard sessionId={session.id} sessionType={session.sessionType} />
+
       {logs.length > 0 && <SaveAsRoutine sessionId={session.id} defaultName={session.label} />}
 
       {justFinished && <Button title="Done" icon="core.check" onPress={() => navigation.navigate('Main')} />}

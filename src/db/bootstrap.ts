@@ -58,8 +58,12 @@ import { seedExerciseLibrary } from './seed';
  *   34 → 35 v3.2.3: challenge_spins — the wheel's ledger: every spin of a day
  *                  and what it cost, so free spins and the points balance
  *                  are read, never remembered.
+ *   35 → 36 v3.3.1: +286 exercises (the disciplines in depth) — the bump is what
+ *                  re-seeds them. With it, the structure for what follows:
+ *                  point_purchases, weekly_quests, path_enrolments,
+ *                  path_graduations, places, place_visits, sessions.place_id.
  */
-const SCHEMA_VERSION = 35;
+const SCHEMA_VERSION = 36;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -130,6 +134,7 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'custom_foods', column: 'form', ddl: 'TEXT' },
   { table: 'users', column: 'experience_level', ddl: 'TEXT' },
   { table: 'sessions', column: 'warmups_done', ddl: 'TEXT' },
+  { table: 'sessions', column: 'place_id', ddl: 'INTEGER' },
   // v31 — where a custom food's numbers came from ('user' | 'ai'); NULL = user
   { table: 'custom_foods', column: 'source', ddl: 'TEXT' },
   // v33 — one how-to video per exercise (built-ins seeded, customs user-entered)
@@ -245,6 +250,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   mood_after INTEGER,
   notes TEXT,
   warmups_done TEXT,
+  place_id INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user_time ON sessions(user_id, start_time);
@@ -741,6 +747,86 @@ CREATE TABLE IF NOT EXISTS challenge_spins (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_challenge_spins_user_date ON challenge_spins(user_id, date);
+
+CREATE TABLE IF NOT EXISTS point_purchases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  item_key TEXT NOT NULL,
+  cost INTEGER NOT NULL,
+  purchased_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_point_purchases_user_item ON point_purchases(user_id, item_key);
+
+CREATE TABLE IF NOT EXISTS weekly_quests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  week TEXT NOT NULL,
+  quest_key TEXT NOT NULL,
+  points INTEGER NOT NULL,
+  completed_at INTEGER NOT NULL,
+  final_value REAL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_quests_user_week_key ON weekly_quests(user_id, week, quest_key);
+
+CREATE TABLE IF NOT EXISTS path_enrolments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  path_key TEXT NOT NULL,
+  stage_index INTEGER NOT NULL DEFAULT 0,
+  enrolled_at INTEGER NOT NULL,
+  stage_started_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  paused_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_path_enrolments_user_path ON path_enrolments(user_id, path_key);
+
+CREATE TABLE IF NOT EXISTS path_graduations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  path_key TEXT NOT NULL,
+  stage_key TEXT NOT NULL,
+  sessions INTEGER NOT NULL,
+  graduated_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_path_graduations_user_stage ON path_graduations(user_id, path_key, stage_key);
+
+CREATE TABLE IF NOT EXISTS places (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  latitude REAL,
+  longitude REAL,
+  governorate TEXT,
+  city TEXT,
+  address TEXT,
+  notes TEXT,
+  access TEXT,
+  price_note TEXT,
+  activities TEXT,
+  rating INTEGER,
+  is_home INTEGER NOT NULL DEFAULT 0,
+  visibility TEXT NOT NULL DEFAULT 'private',
+  remote_id TEXT,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_places_user_kind ON places(user_id, kind);
+
+CREATE TABLE IF NOT EXISTS place_visits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  place_id INTEGER NOT NULL,
+  session_id INTEGER,
+  walk_id INTEGER,
+  visited_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS idx_place_visits_user_place ON place_visits(user_id, place_id);
 `;
 
 let initialized = false;

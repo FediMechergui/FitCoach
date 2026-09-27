@@ -15,6 +15,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BarChart } from '@/components/charts/BarChart';
 import { Row, SectionHeader, Divider, Badge } from '@/components/ui/misc';
 import { PageHero } from '@/components/ui/PageHero';
+import { Skeleton } from '@/components/ui/misc3';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSmokingStore } from '@/stores/smokingStore';
 import { NICOTINE_GROUPS, findNicotineProduct } from '@/data/nicotineProducts';
@@ -148,7 +149,17 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
   const [correlation] = useState(() => smokingCorrelation(30));
   const [series] = useState(() => dailySeries(21));
 
-  if (!impact || !profile) return null;
+  // The store fills both on focus. Until it has, this is a page still loading,
+  // and a page still loading has a shape — it used to render nothing at all.
+  if (!impact || !profile)
+    return (
+      <Screen>
+        <PageHero icon="smoking.cigarette" color={theme.colors.warning} title="Smoking" />
+        <Skeleton height={120} />
+        <Skeleton height={90} />
+        <Skeleton height={200} />
+      </Screen>
+    );
   const cur = impact.currency;
   const target = impact.dailyTarget;
   const overTarget = target != null && today > target;

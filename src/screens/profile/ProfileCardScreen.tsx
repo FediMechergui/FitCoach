@@ -17,6 +17,8 @@ import { exportCardPng, persistProfilePhoto, photoStillExists } from '@/services
 import { recordCardExport } from '@/repositories/eventsRepo';
 import { overallPlacement } from '@/repositories/ranksRepo';
 import { RankCrest } from '@/components/RankCrest';
+import { wornSkin } from '@/repositories/soukRepo';
+import { findSkin, type CardSkin } from '@/data/souk';
 import { ATTRIBUTE_LABELS, type CardRating, type AttributeSet } from '@/lib/rating';
 import { ageFromBirthdate } from '@/lib/date';
 
@@ -37,11 +39,17 @@ export function ProfileCardScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [busy, setBusy] = useState<'share' | 'save' | null>(null);
   const [rank, setRank] = useState<ReturnType<typeof overallPlacement>>(null);
+  const [skin, setSkin] = useState<CardSkin>(findSkin(null));
   const month = currentMonthKey();
 
   const refresh = useCallback(() => {
     setRating(computeCardRating());
     setRank(overallPlacement());
+    try {
+      setSkin(wornSkin());
+    } catch {
+      setSkin(findSkin(null));
+    }
     const stored = getProfilePhoto(month)?.uri ?? null;
     setPhotoUri(stored);
     // A photo whose file has gone (cache cleared) would render as a blank
@@ -102,6 +110,9 @@ export function ProfileCardScreen() {
   const topAttr = (Object.keys(attrs) as Array<keyof AttributeSet>).sort((a, b) => attrs[b] - attrs[a])[0];
   const position = ARCHETYPE[topAttr];
   const tier = rating.tierColor;
+  // The default skin keeps the tier's colour at the top, as the card always has.
+  const top = skin.tierTinted ? tier : skin.top;
+  const frame = skin.tierTinted ? tier : skin.frame;
   const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
   return (
@@ -118,12 +129,12 @@ export function ProfileCardScreen() {
           <Svg width="100%" height="100%" style={{ position: 'absolute' }}>
             <Defs>
               <LinearGradient id="cardbg" x1="0" y1="0" x2="0.6" y2="1">
-                <Stop offset="0" stopColor={tier} stopOpacity={1} />
-                <Stop offset="1" stopColor="#0B1220" stopOpacity={1} />
+                <Stop offset="0" stopColor={top} stopOpacity={1} />
+                <Stop offset="1" stopColor={skin.bottom} stopOpacity={1} />
               </LinearGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill="url(#cardbg)" />
-            <Rect x="0" y="0" width="100%" height="100%" fill="none" stroke={tier} strokeWidth="4" rx="24" />
+            <Rect x="0" y="0" width="100%" height="100%" fill="none" stroke={frame} strokeWidth="4" rx="24" />
           </Svg>
 
           {/* Header: overall + position + tier */}

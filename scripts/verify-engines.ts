@@ -76,6 +76,13 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
+import { TRAINING_PATHS, DISCIPLINE_ORDER, findPath, pathWeeks } from '../src/data/paths';
+import { pathStyleTag, parsePathStyle, gateStatus, nextDayKey, pathProgress } from '../src/lib/paths';
+import { validCoords, parseCoord, distanceKm, formatDistance as fmtPlaceDistance, sortByDistance, projectToMap, geoUrl, TUNISIA_BOX } from '../src/lib/places';
+import { QUESTS, QUEST_POINTS, WEIGHTS, questsForWeek, questProgress, findQuest } from '../src/lib/quests';
+import { CARD_SKINS, DEFAULT_SKIN, findSkin, purchaseVerdict } from '../src/data/souk';
+import { GOVERNORATES, REGION_ORDER, suggestGovernorate, insideTunisia, findGovernorate } from '../src/data/governorates';
+import { PLACE_KINDS, findPlaceKind } from '../src/data/placeKinds';
 import {
   RANK_TIERS, RANKED_LIFTS, STANDARDS, PILLARS, placeScore, scoreLift, oneRmForScore, scaledRatio, scoreFromRatio,
   ratioForScore, anchorsFor, overallRank, muscleScores, pillarScores, type LiftScore,
@@ -743,6 +750,7 @@ const zeroStats: AchievementStats = {
   restDaysTaken: 0, restDaysLast30: 0, restBridgedStreakBest: 0, walkCount: 0,
   challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
   cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0,
+  rankedLifts: 0, rankedPillars: 0, overallRung: 0, pathStages: 0, pathsCompleted: 0, placesMarked: 0, questsBestWeek: 0, skinsBought: 0,
 };
 const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, bestExportedOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
 check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
@@ -4192,7 +4200,8 @@ console.log('\nWheel 3.2.1 - glyphs upright, pointer honest, more to draw from:'
 
 console.log('\nPoints 3.2.2 - twenty more badges, points on Home, points on the card:');
 {
-  check('Fifteen categories, one hundred and fifty badges', ACHIEVEMENT_CATEGORIES.length === 15 && ACHIEVEMENTS.length === 150);
+  // Superseded by 3.3.1: a sixteenth category joined. Ten per category still holds.
+  check('Ten badges in every category, ids in step', ACHIEVEMENTS.length === ACHIEVEMENT_CATEGORIES.length * 10 && ACHIEVEMENTS.every((a, i) => a.id === i + 1 && a.category === Math.ceil(a.id / 10)));
   const rest = ACHIEVEMENTS.filter((a) => a.category === 14);
   const grit = ACHIEVEMENTS.filter((a) => a.category === 15);
   check('Rest & Rhythm and Points & Grit each hold ten, all auto-tracked', rest.length === 10 && grit.length === 10 && [...rest, ...grit].every((a) => evaluateAchievement(a, zeroStats).tracked));
@@ -4265,7 +4274,8 @@ console.log('\nWheel 3.2.3 - the pointer lands on the centre; two free spins, th
   check('Badges and the card read EARNED points, not the balance', /challengePoints: chal\.points,/.test(fs.readFileSync('src/repositories/achievementsRepo.ts', 'utf8')) && /challengePointsSince\(since28, userId\)/.test(fs.readFileSync('src/repositories/cardRepo.ts', 'utf8')));
   check('Home shows the balance - what a spin can draw on', /points: st\.balance,/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
   const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
-  check('challenge_spins is in the DDL, schema 35', /CREATE TABLE IF NOT EXISTS challenge_spins \(/.test(boot) && /idx_challenge_spins_user_date/.test(boot) && /const SCHEMA_VERSION = 35;/.test(boot));
+  // Superseded by 3.3.1: the version moved on; the table is what matters.
+  check('challenge_spins is in the DDL, schema 35 or later', /CREATE TABLE IF NOT EXISTS challenge_spins \(/.test(boot) && /idx_challenge_spins_user_date/.test(boot) && /const SCHEMA_VERSION = (3[5-9]|[4-9]\d);/.test(boot));
   check('...and in the drizzle schema', /export const challengeSpins = sqliteTable\('challenge_spins'/.test(fs.readFileSync('src/db/schema.ts', 'utf8')));
   const wheel = fs.readFileSync('src/components/ChallengeWheel.tsx', 'utf8');
   check('The wheel spins on from where it rests, never from zero', /const to = nextWheelStopDeg\(angle\.current, target, n\);/.test(wheel) && /angle\.current = to;/.test(wheel));
@@ -4401,6 +4411,235 @@ console.log('\nProgression 3.3.0 - level, titles, pins, and badges that can fina
   const pr = fs.readFileSync('src/repositories/progressionRepo.ts', 'utf8');
   check('Experience counts points EARNED, so spending never lowers a level', /challengePoints: chal\?\.points \?\? 0,/.test(pr) && !/challengePoints: chal\?\.balance/.test(pr));
   check('The level is computed, never stored', !/kvSet\([^)]*xp/i.test(pr) && !/kvSet\([^)]*level/i.test(pr));
+}
+
+console.log('\nLibrary 3.3.1 - the disciplines in depth:');
+{
+  const exSrc = fs.readFileSync('src/data/exercises.ts', 'utf8');
+  check('The block is on file and the library is past 1,270 entries', /3\.3\.1: disciplines in depth/.test(exSrc) && EXERCISE_LIBRARY.length >= 1270, `${EXERCISE_LIBRARY.length}`);
+  const has = (slugs: string[]) => slugs.filter((k) => !EXLIB.some((e) => e.slug === k));
+  check('Boxing is taught punch by punch', has(['boxing-jab', 'boxing-cross', 'boxing-lead-hook', 'boxing-rear-uppercut', 'boxing-liver-shot', 'boxing-slip-rope', 'boxing-shoulder-roll', 'boxing-pivot-drill', 'boxing-cutting-off-the-ring']).length === 0, has(['boxing-jab', 'boxing-cross', 'boxing-lead-hook', 'boxing-rear-uppercut', 'boxing-liver-shot', 'boxing-slip-rope', 'boxing-shoulder-roll', 'boxing-pivot-drill', 'boxing-cutting-off-the-ring']).join());
+  check('Handball has its own skills, not one generic entry', has(['handball-jump-shot', 'handball-7m-throws', 'handball-fast-break', 'handball-pivot-work', 'handball-wing-shooting', 'handball-defensive-system', 'handball-match']).length === 0);
+  check('Football is broken into what a player trains', has(['football-rondo', 'football-first-touch-wall', 'football-1v1-defending', 'football-crossing-finishing', 'football-gk-shot-stopping', 'football-pressing-drill', 'fifa-11-plus-warm-up']).length === 0);
+  check('Athletics has its events', has(['athletics-block-starts', 'athletics-hurdle-runs', 'athletics-long-jump', 'athletics-high-jump', 'athletics-shot-put', 'athletics-javelin-throw', 'athletics-relay-baton-exchange']).length === 0);
+  check('Climbing, riding and water each have depth', has(['climbing-top-rope', 'climbing-lead', 'climbing-fall-practice', 'equestrian-rising-trot', 'equestrian-show-jumping', 'equestrian-stable-work', 'swim-kick-set', 'swim-css-threshold-set', 'sea-swim-along-shore']).length === 0);
+  check('Tunisian outdoor life is in the library', has(['desert-dune-hike', 'camel-trekking', 'olive-harvest-work', 'equestrian-fantasia-tbourida', 'coastal-cliff-walk']).length === 0);
+  const risky = ['climbing-lead', 'climbing-fall-practice', 'freediving-pool', 'swim-underwater-dolphin-kick', 'spearfishing-breath-hold', 'athletics-pole-vault', 'rugby-tackle-technique', 'bjj-leg-lock-entries', 'football-heading'];
+  const cue = /never|always|only|stop|helmet|buddy|instructor|qualified|tap|alone|supervis|spotter|limit|cap|safe/i;
+  check('The risky ones carry a safety cue', risky.every((k) => cue.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))), risky.filter((k) => !cue.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))).join());
+  // Stable work is done on the ground, so it is not asked for a helmet.
+  check('Every riding entry says helmet', EXLIB.filter((e) => e.slug.startsWith('equestrian-') && e.slug !== 'equestrian-stable-work').every((e) => /helmet/i.test((e.instructions ?? []).join(' ') + (e.description ?? ''))), EXLIB.filter((e) => e.slug.startsWith('equestrian-') && e.slug !== 'equestrian-stable-work' && !/helmet/i.test((e.instructions ?? []).join(' ') + (e.description ?? ''))).map((e) => e.slug).join());
+  check('No two exercises share a name', new Set(EXLIB.filter((e) => !e.aliasOf).map((e) => e.name.toLowerCase())).size === EXLIB.filter((e) => !e.aliasOf).length);
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('The schema bump is what delivers them', /const SCHEMA_VERSION = (3[6-9]|[4-9]\d);/.test(boot));
+}
+
+console.log('\nStructure 3.3.1 - tables for what follows:');
+{
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  const tables = ['point_purchases', 'weekly_quests', 'path_enrolments', 'path_graduations', 'places', 'place_visits'];
+  check('Six new tables are in the DDL', tables.every((t) => new RegExp(`CREATE TABLE IF NOT EXISTS ${t} \\(`).test(boot)), tables.filter((t) => !new RegExp(`CREATE TABLE IF NOT EXISTS ${t} \\(`).test(boot)).join());
+  check('A thing bought, a quest met and a stage graduated can each exist only once', /UNIQUE INDEX IF NOT EXISTS idx_point_purchases_user_item/.test(boot) && /UNIQUE INDEX IF NOT EXISTS idx_weekly_quests_user_week_key/.test(boot) && /UNIQUE INDEX IF NOT EXISTS idx_path_graduations_user_stage/.test(boot) && /UNIQUE INDEX IF NOT EXISTS idx_path_enrolments_user_path/.test(boot));
+  check('A session can say where it happened, on fresh installs and upgrades', /place_id INTEGER,/.test(boot) && /\{ table: 'sessions', column: 'place_id', ddl: 'INTEGER' \}/.test(boot));
+  check('A place is private by default and ready to be shared later', /visibility TEXT NOT NULL DEFAULT 'private'/.test(boot) && /remote_id TEXT/.test(boot));
+}
+
+console.log('\nQuests 3.3.1 - three a week, measured:');
+{
+  const allOn = { smoking: true, prayer: true, supplements: true, sleep: true, nutrition: true };
+  const bare = { smoking: false, prayer: false, supplements: false, sleep: false, nutrition: false };
+  check('Quest keys are unique and every quest says what to do', new Set(QUESTS.map((q) => q.key)).size === QUESTS.length && QUESTS.every((q) => q.detail.length > 15 && q.target > 0));
+  check('Every weight has quests that need no optional tracker', WEIGHTS.every((w) => QUESTS.filter((q) => q.weight === w && !q.requires).length >= 3));
+  check('A days-quest names its daily bar and never asks for more than seven', QUESTS.filter((q) => q.mode === 'days').every((q) => (q.dayTarget ?? 0) > 0 && q.target <= 7));
+  check('Heavier pays more', QUEST_POINTS.light < QUEST_POINTS.solid && QUEST_POINTS.solid < QUEST_POINTS.heavy);
+  const w1 = questsForWeek('2026-09-21', allOn);
+  check('A week holds three quests, one of each weight', w1.length === 3 && w1.map((q) => q.weight).join() === 'light,solid,heavy');
+  check('The week decides them: same week, same quests', questsForWeek('2026-09-21', allOn).map((q) => q.key).join() === w1.map((q) => q.key).join());
+  check('...and another week draws differently, sooner or later', ['2026-09-28', '2026-10-05', '2026-10-12', '2026-10-19'].some((w) => questsForWeek(w, allOn).map((q) => q.key).join() !== w1.map((q) => q.key).join()));
+  const weeks = Array.from({ length: 40 }, (_, i) => `w${i}`);
+  check('No week asks for the same metric twice', weeks.every((w) => { const q = questsForWeek(w, allOn); return new Set(q.map((x) => x.metric)).size === q.length; }));
+  check('With every tracker off, nothing gated is ever asked', weeks.every((w) => questsForWeek(w, bare).every((q) => !q.requires) && questsForWeek(w, bare).length === 3));
+  const sum = findQuest('q-steps-40k')!;
+  check('A sum quest adds the week up', questProgress(sum, [10000, 12000, 8000]).current === 30000 && !questProgress(sum, [10000, 12000, 8000]).complete && questProgress(sum, [10000, 12000, 8000, 10000]).complete);
+  const days = findQuest('q-water-4')!;
+  check('A days quest counts the days that cleared the bar', questProgress(days, [2000, 1999, 2500, 3000, 0, 2100]).current === 4 && questProgress(days, [2000, 1999, 2500, 3000, 0, 2100]).complete && questProgress(days, [9000, 0, 0]).current === 1);
+  check('Garbage in a day counts as nothing', questProgress(sum, [NaN, -5, Infinity, 40000]).current === 40000);
+  const qr = fs.readFileSync('src/repositories/questRepo.ts', 'utf8');
+  check('A quest is stamped once, with what it paid', /db\.insert\(weeklyQuests\)\s*\n\s*\.values\(\{ userId, week: state\.week, questKey: q\.def\.key, points: q\.points, completedAt: Date\.now\(\), finalValue: q\.current \}\)/.test(qr) && /if \(!q\.ready\) continue;/.test(qr));
+  check('Only days that have happened are measured', /if \(d > upTo\) break;/.test(qr));
+  check('Last week is caught up at launch', /safe\('quest catch-up', \(\) => catchUpQuests\(enabledTrackers\(\)\)\);/.test(fs.readFileSync('App.tsx', 'utf8')) && /const lastSunday = addDays\(startOfWeek\(today\), -1\);/.test(qr));
+  check('Looking at Home still stamps nothing', !/refreshQuestCompletions|catchUpQuests/.test(fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8')));
+  const chal = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('Quest points are points: earned, windowed, and part of the balance', /const points = dailyPoints \+ questPoints;/.test(chal) && /return daily \+ questPointsEarned\(userId, startOfDayMs\(since\)\);/.test(chal));
+}
+
+console.log('\nSouk 3.3.1 - points buy things to look at, nothing else:');
+{
+  check('Skin keys are unique; exactly one is free, and it is the default', new Set(CARD_SKINS.map((s) => s.key)).size === CARD_SKINS.length && CARD_SKINS.filter((s) => s.cost === 0).map((s) => s.key).join() === DEFAULT_SKIN);
+  check('Every skin is a place with a story and real colours', CARD_SKINS.every((s) => s.place.length > 2 && s.story.length > 30 && [s.top, s.bottom, s.frame, s.ink].every((c) => /^#[0-9A-F]{6}$/i.test(c))));
+  const lum = (h: string) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  const contrast = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  check('White text is readable on every paid skin, top to bottom', CARD_SKINS.filter((s) => !s.tierTinted).every((s) => contrast(s.ink, s.top) >= 2.4 && contrast(s.ink, s.bottom) >= 4.5), CARD_SKINS.filter((s) => !s.tierTinted && !(contrast(s.ink, s.top) >= 2.4 && contrast(s.ink, s.bottom) >= 4.5)).map((s) => `${s.key}:${contrast(s.ink, s.top).toFixed(1)}`).join());
+  check('An unknown skin falls back to the default', findSkin('nope').key === DEFAULT_SKIN && findSkin(null).key === DEFAULT_SKIN);
+  const v1 = purchaseVerdict('carthage', new Set(['lume']), 299);
+  check('One point short is refused, for points', !v1.ok && v1.reason === 'points' && v1.cost === 300);
+  check('...and the exact price buys it', purchaseVerdict('carthage', new Set(['lume']), 300).ok === true);
+  const v2 = purchaseVerdict('medina', new Set(['lume', 'medina']), 9999);
+  check('A skin is bought once', !v2.ok && v2.reason === 'owned');
+  check('The free skin cannot be bought, and nonsense cannot either', !purchaseVerdict('lume', new Set(), 9999).ok && purchaseVerdict('nope', new Set(), 9999).ok === false);
+  const sr = fs.readFileSync('src/repositories/soukRepo.ts', 'utf8');
+  check('The verdict is taken from the ledger at the moment of purchase', /const verdict = purchaseVerdict\(key, ownedSkins\(userId\), challengeStats\(userId\)\.balance\);\s*\n\s*if \(!verdict\.ok\) return verdict;/.test(sr));
+  check('A skin never bought can never be worn', /return ownedSkins\(userId\)\.has\(chosen\) \? findSkin\(chosen\) : findSkin\(DEFAULT_SKIN\);/.test(sr) && /if \(!ownedSkins\(userId\)\.has\(key\)\) return false;/.test(sr));
+  const chal = fs.readFileSync('src/repositories/challengeRepo.ts', 'utf8');
+  check('The balance is reduced by spins AND the souk', /return pointsSpentOnSpins\(userId\) \+ pointsSpentInSouk\(userId\);/.test(chal));
+  const card = fs.readFileSync('src/screens/profile/ProfileCardScreen.tsx', 'utf8');
+  check('The athlete card wears the skin, and the default keeps the tier colour', /const top = skin\.tierTinted \? tier : skin\.top;/.test(card) && /stopColor=\{skin\.bottom\}/.test(card));
+  check('Nothing in the souk is a shortcut', CARD_SKINS.length >= 8 && /nothing here is a shortcut/.test(fs.readFileSync('src/screens/profile/SoukScreen.tsx', 'utf8')));
+}
+
+console.log('\nTunisia 3.3.1 - governorates and the kinds of place:');
+{
+  check('Twenty-four governorates, unique, each inside the country', GOVERNORATES.length === 24 && new Set(GOVERNORATES.map((g) => g.key)).size === 24 && GOVERNORATES.every((g) => insideTunisia(g.at)));
+  check('Each carries its name in Arabic and a region', GOVERNORATES.every((g) => /[؀-ۿ]/.test(g.ar) && REGION_ORDER.includes(g.region)) && REGION_ORDER.every((r) => GOVERNORATES.some((g) => g.region === r)));
+  check('A fix at a seat suggests that governorate', GOVERNORATES.every((g) => suggestGovernorate(g.at)?.governorate.key === g.key));
+  check('The suggestion says how far it judged from', (suggestGovernorate([36.8, 10.18])?.km ?? 99) < 5);
+  check('A fix outside Tunisia gets no suggestion', suggestGovernorate([48.85, 2.35]) === null && suggestGovernorate([21.42, 39.82]) === null);
+  check('findGovernorate is exact', findGovernorate('sfax')?.name === 'Sfax' && findGovernorate('nope') === undefined);
+  const iconOk = (k: string) => { const [g, n] = k.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; };
+  check('Place kinds are unique, named as on the door, with icons that resolve', new Set(PLACE_KINDS.map((k) => k.key)).size === PLACE_KINDS.length && PLACE_KINDS.every((k) => k.local.length > 3 && k.hint.length > 15 && iconOk(k.icon)), PLACE_KINDS.filter((k) => !iconOk(k.icon)).map((k) => k.icon).join());
+  check('The kinds asked for are all there', ['gym', 'stadium', 'calisthenics_park', 'dojo', 'climbing', 'riding_club', 'pool', 'boxing_gym', 'sports_hall'].every((k) => PLACE_KINDS.some((p) => p.key === k)));
+  check('An unknown kind reads as "somewhere else"', findPlaceKind('nope').key === 'other');
+  check('Quest icons resolve', QUESTS.every((q) => iconOk(q.icon)), QUESTS.filter((q) => !iconOk(q.icon)).map((q) => q.icon).join());
+}
+
+console.log('\nPaths 3.3.1 - the long road to becoming something:');
+{
+  const slugType = new Map(EXLIB.map((e) => [e.slug, e.sessionType]));
+  check('Eighteen paths, keys unique, five stages each', TRAINING_PATHS.length === 18 && new Set(TRAINING_PATHS.map((p) => p.key)).size === 18 && TRAINING_PATHS.every((p) => p.stages.length === 5 && p.stages.every((st, i) => st.key === `s${i + 1}`)));
+  check('The paths asked for are all there', ['path-boxer', 'path-footballer', 'path-handballer', 'path-runner', 'path-swimmer', 'path-climber', 'path-rider', 'path-powerlifter', 'path-calisthenics', 'path-grappler'].every((k) => !!findPath(k)));
+  const missing: string[] = [];
+  for (const p of TRAINING_PATHS) for (const st of p.stages) for (const d of st.days) for (const e of d.exercises) if (!slugType.has(e)) missing.push(`${p.key}/${st.key}/${d.key}:${e}`);
+  check('Every exercise on every path exists in the library', missing.length === 0, missing.slice(0, 5).join());
+  check('Every day has three to seven exercises, a prescription and a length', TRAINING_PATHS.every((p) => p.stages.every((st) => st.days.every((d) => d.exercises.length >= 3 && d.exercises.length <= 7 && d.prescription.length > 30 && d.minutes >= 20 && d.minutes <= 120))));
+  check('Day keys are unique inside a stage and safe inside a tag', TRAINING_PATHS.every((p) => p.stages.every((st) => new Set(st.days.map((d) => d.key)).size === st.days.length && st.days.every((d) => /^[a-z0-9-]+$/.test(d.key)))));
+  check('A week never asks for more sessions than it has days', TRAINING_PATHS.every((p) => p.stages.every((st) => st.sessionsPerWeek >= 2 && st.sessionsPerWeek <= st.days.length)));
+  check('Every gate can be met inside its stage', TRAINING_PATHS.every((p) => p.stages.every((st) => st.gate.sessions > 0 && st.gate.weeks >= 2 && st.gate.weeks <= st.weeks && st.gate.sessions <= st.weeks * st.sessionsPerWeek)));
+  check('A rank gate never asks a first stage, and never asks for more than Coral', TRAINING_PATHS.every((p) => p.stages[0].gate.overallTier == null && p.stages.every((st) => st.gate.overallTier == null || (st.gate.overallTier >= 0 && st.gate.overallTier <= 4))));
+  check('The runner is gated on runs actually run, rising to the marathon build', (() => { const r = findPath('path-runner')!; const km = r.stages.map((st) => st.gate.longestRunKm ?? 0); return km[0] === 5 && km.every((v, i) => i === 0 || v >= km[i - 1]) && km[4] >= 30; })());
+  check('Every path says what the app cannot teach, and how to train it safely', TRAINING_PATHS.every((p) => p.honesty.length >= 100 && p.safety.length >= 80 && /coach|club|instructor|partner|school|gym|federation/i.test(p.honesty)));
+  check('Every stage has an aim, benchmarks and the one thing that matters', TRAINING_PATHS.every((p) => p.stages.every((st) => st.aim.length >= 60 && st.benchmarks.length >= 2 && st.coachNote.length >= 60)));
+  check('Accents are distinct, icons resolve, disciplines are known', new Set(TRAINING_PATHS.map((p) => p.accent.toUpperCase())).size === 18 && TRAINING_PATHS.every((p) => { const [g, n] = p.icon.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n] && DISCIPLINE_ORDER.includes(p.discipline); }));
+  check('Sparring waits: no open sparring in the first two stages of a combat path', TRAINING_PATHS.filter((p) => p.discipline === 'combat' && p.key !== 'path-mma').every((p) => p.stages.slice(0, 2).every((st) => st.days.every((d) => !d.exercises.some((e) => /^ma-sparring-round$|shark-tank|mma-light-sparring/.test(e))))));
+  check('A path is a long road', TRAINING_PATHS.every((p) => pathWeeks(p) >= 24));
+
+  // ── The arithmetic ──
+  check('A tag round-trips', (() => { const t = parsePathStyle(pathStyleTag('path-boxer', 's2', 'bag-day')); return !!t && t.pathKey === 'path-boxer' && t.stageKey === 's2' && t.dayKey === 'bag-day'; })());
+  check('Other styles are not path tags', parsePathStyle('special:mil-seal-prep:swim') === null && parsePathStyle(null) === null && parsePathStyle('path:only') === null);
+  const g = { sessions: 14, weeks: 4 };
+  check('A gate needs the sessions AND the weeks', !gateStatus(g, { sessions: 14, daysIn: 27, longestRunKm: 0, overallTier: -1 }).met && !gateStatus(g, { sessions: 13, daysIn: 60, longestRunKm: 0, overallTier: -1 }).met && gateStatus(g, { sessions: 14, daysIn: 28, longestRunKm: 0, overallTier: -1 }).met);
+  check('A run gate needs the run', !gateStatus({ ...g, longestRunKm: 10 }, { sessions: 20, daysIn: 60, longestRunKm: 9.9, overallTier: -1 }).met && gateStatus({ ...g, longestRunKm: 10 }, { sessions: 20, daysIn: 60, longestRunKm: 10, overallTier: -1 }).met);
+  check('A rank gate needs the rank, and an unranked lifter has none', !gateStatus({ ...g, overallTier: 2 }, { sessions: 20, daysIn: 60, longestRunKm: 0, overallTier: -1 }).met && !gateStatus({ ...g, overallTier: 2 }, { sessions: 20, daysIn: 60, longestRunKm: 0, overallTier: 1 }).met && gateStatus({ ...g, overallTier: 2 }, { sessions: 20, daysIn: 60, longestRunKm: 0, overallTier: 2 }).met);
+  check('Gate progress stays inside 0..1 and doing more never shows less', (() => { const a = gateStatus(g, { sessions: 3, daysIn: 7, longestRunKm: 0, overallTier: -1 }).progress; const b = gateStatus(g, { sessions: 999, daysIn: 999, longestRunKm: 0, overallTier: -1 }).progress; return a > 0 && a < 1 && b === 1; })());
+  const st0 = findPath('path-boxer')!.stages[0];
+  check('The next day is the one logged least', nextDayKey(st0, {}) === st0.days[0].key && nextDayKey(st0, { [st0.days[0].key]: 2, [st0.days[1].key]: 1 }) === (st0.days[2]?.key ?? st0.days[1].key));
+  check('Path progress counts stages done plus the share of this one', pathProgress(findPath('path-boxer')!, 2, 0.5, false) === 0.5 && pathProgress(findPath('path-boxer')!, 0, 0, false) === 0 && pathProgress(findPath('path-boxer')!, 4, 0.2, true) === 1);
+
+  // ── Wiring ──
+  const repo = fs.readFileSync('src/repositories/pathsRepo.ts', 'utf8');
+  check('Progress is counted from finished sessions that carry the stage tag, since the stage began', /isNotNull\(sessions\.endTime\), gte\(sessions\.startTime, e\.stageStartedAt\)/.test(repo) && /tag\.pathKey !== e\.pathKey \|\| tag\.stageKey !== stage\.key/.test(repo));
+  check('Graduating reads the gate again, from the record', /if \(!s\.gate\.met\) return \{ ok: false, reason: 'gate' \};/.test(repo) && repo.indexOf("if (!s.gate.met)") < repo.indexOf('db.insert(pathGraduations)'));
+  check('The last stage completes the path; the others begin the next', /last \? \{ completedAt: now \} : \{ stageIndex: s\.stageIndex \+ 1, stageStartedAt: now \}/.test(repo));
+  check('Graduated stages feed experience', /import \{ graduatedStageCount \} from '\.\/pathsRepo';/.test(fs.readFileSync('src/repositories/progressionRepo.ts', 'utf8')));
+  const det = fs.readFileSync('src/screens/train/PathDetailScreen.tsx', 'utf8');
+  check('A path session is tagged with its path, stage and day', /style: pathStyleTag\(path\.key, stage\.key, day\.key\)/.test(det) && /prefillSlugs: day\.exercises/.test(det));
+  check('The screen says what it cannot measure', /The app cannot see a skill, so it does not pretend to measure one/.test(det));
+  check('A missing path is an explained empty state, not a blank', /This path is not on the map/.test(det));
+  check('Pausing is forgiven', /actionLabel: 'Undo', onAction: \(\) => \{ enrol\(path\.key\); reload\(\); \}/.test(det));
+}
+
+console.log('\nPlaces 3.3.1 - marked by you, kept on the phone:');
+{
+  check('Coordinates are checked before they are trusted', validCoords(36.8, 10.18) && !validCoords(91, 10) && !validCoords(36, 181) && !validCoords(0, 0) && !validCoords(NaN, 10) && !validCoords(null, undefined) && !validCoords('36.8', 10));
+  check('Typed coordinates parse, comma or point; nonsense does not', parseCoord('36.8065', 90) === 36.8065 && parseCoord(' 10,1815 ', 180) === 10.1815 && parseCoord('-12.5', 90) === -12.5 && parseCoord('abc', 90) === null && parseCoord('95', 90) === null && parseCoord('', 180) === null && parseCoord('1e5', 180) === null);
+  const tunis: [number, number] = [36.8065, 10.1815];
+  const d = distanceKm(tunis, 35.8256, 10.6369)!;
+  check('Tunis to Sousse is about 117 km as the crow flies', d > 105 && d < 130, `${d.toFixed(1)}`);
+  check('No position, or no coordinates, is no distance', distanceKm(null, 35, 10) === null && distanceKm(tunis, null, 10) === null);
+  check('Distances read the way people say them', fmtPlaceDistance(0.34) === '340 m' && fmtPlaceDistance(2.345) === '2.3 km' && fmtPlaceDistance(117.2) === '117 km' && fmtPlaceDistance(null) === '');
+  const sorted = sortByDistance([{ n: 'far', latitude: 33.88, longitude: 10.1 }, { n: 'none', latitude: null, longitude: null }, { n: 'near', latitude: 36.81, longitude: 10.18 }], tunis);
+  check('Nearest first, and a place with no coordinates goes last', sorted.map((p) => p.n).join() === 'near,far,none' && sorted[2].km === null);
+  check('Without a position the saved order is kept', sortByDistance([{ n: 'a', latitude: 33, longitude: 10 }, { n: 'b', latitude: 36, longitude: 10 }], null).map((p) => p.n).join() === 'a,b');
+  const north = projectToMap(37.27, 9.87, 300, 300)!;
+  const south = projectToMap(32.93, 10.45, 300, 300)!;
+  check('North is up on the map', north.y < south.y);
+  const west = projectToMap(34.425, 8.78, 300, 300)!;
+  const east = projectToMap(34.74, 10.76, 300, 300)!;
+  check('West is left of east', west.x < east.x);
+  check('Every seat lands inside the frame', GOVERNORATES.every((g) => { const p = projectToMap(g.at[0], g.at[1], 320, 300); return !!p && p.x >= 0 && p.x <= 320 && p.y >= 0 && p.y <= 300; }));
+  check('A place outside the box is not drawn', projectToMap(48.85, 2.35, 300, 300) === null && TUNISIA_BOX.north > TUNISIA_BOX.south);
+  check('Directions are a geo: link with a label, never a web address', /^geo:36\.806500,10\.181500\?q=36\.806500,10\.181500\(/.test(geoUrl(36.8065, 10.1815, 'Salle (Centre)')) && !/http/.test(geoUrl(36.8, 10.1, 'x')) && !/[()]/.test(decodeURIComponent(geoUrl(36.8, 10.1, 'a(b)c').split('(')[1].slice(0, -1))));
+
+  const repo = fs.readFileSync('src/repositories/placesRepo.ts', 'utf8');
+  check('Only one place is home', /if \(v\.isHome\) clearHome\(userId, id\);/.test(repo));
+  check('Deleting a place hands back what is needed to restore it', /return \{ place, sessionIds \};/.test(repo) && /export function restorePlace/.test(repo));
+  check('A session can be attached to a place, and detached', /db\.update\(sessions\)\.set\(\{ placeId \}\)/.test(repo) && /if \(placeId != null\) \{/.test(repo));
+  const list = fs.readFileSync('src/screens/places/PlacesScreen.tsx', 'utf8');
+  check('Opening the list never asks for location', /getForegroundPermissionsAsync\(\)/.test(list) && !/requestForegroundPermissionsAsync/.test(list));
+  check('The list has its states: failed, empty and inviting, full', /Your places could not be read/.test(list) && /Mark your first place/.test(list));
+  const edit = fs.readFileSync('src/screens/places/PlaceEditScreen.tsx', 'utf8');
+  check('Only the name is required; coordinates are optional and validated', /A place needs a name/.test(edit) && /Without coordinates the place is still saved/.test(edit) && /Latitude is between -90 and 90/.test(edit));
+  check('A refused permission says what to do instead', /You can type the coordinates instead/.test(edit) && /Linking\.openSettings\(\)/.test(edit));
+  check('A suggested governorate is shown with how it was judged, and never overwrites a choice', /if \(suggestion && !governorate\) setGovernorate/.test(edit) && /Near a border this can be wrong/.test(edit));
+  check('Removing a place is forgiven', /actionLabel: 'Undo', onAction: \(\) => restorePlace\(snap\)/.test(edit));
+  const all = [list, edit, repo, fs.readFileSync('src/components/PlacesMap.tsx', 'utf8'), fs.readFileSync('src/components/SessionPlaceCard.tsx', 'utf8'), fs.readFileSync('src/lib/places.ts', 'utf8')].join('\n');
+  check('Nothing about a place touches the network', !/fetch\(|XMLHttpRequest|WebSocket|https?:\/\//.test(all));
+  check('The map is drawn without tiles', !/react-native-maps|MapView/.test(all) && /projectToMap/.test(fs.readFileSync('src/components/PlacesMap.tsx', 'utf8')));
+  check('The session page says where it happened', /<SessionPlaceCard sessionId=\{session\.id\} sessionType=\{session\.sessionType\} \/>/.test(fs.readFileSync('src/screens/train/SessionDetailScreen.tsx', 'utf8')));
+}
+
+console.log('\nBadges 3.3.1 - the sixteenth category:');
+{
+  const cat = ACHIEVEMENTS.filter((a) => a.category === 16);
+  check('Ladder, Paths & Places holds ten, all measured', ACHIEVEMENT_CATEGORIES[15] === 'Ladder, Paths & Places' && cat.length === 10 && cat.every((a) => evaluateAchievement(a, zeroStats).tracked));
+  check('...and none unlocks on an empty account', cat.every((a) => !evaluateAchievement(a, zeroStats).unlocked));
+  const A = (id: number) => ACHIEVEMENTS.find((a) => a.id === id)!;
+  check('An unranked lifter reads zero rungs, not minus one', evaluateAchievement(A(153), zeroStats).current === 0 && evaluateAchievement(A(153), { ...zeroStats, overallRung: 2 }).unlocked && !evaluateAchievement(A(154), { ...zeroStats, overallRung: 2 }).unlocked);
+  check('A whole road needs a whole path', evaluateAchievement(A(157), { ...zeroStats, pathsCompleted: 1 }).unlocked && !evaluateAchievement(A(157), { ...zeroStats, pathStages: 4 }).unlocked);
+  check('A week well spent needs all three in one week', evaluateAchievement(A(159), { ...zeroStats, questsBestWeek: 3 }).unlocked && !evaluateAchievement(A(159), { ...zeroStats, questsBestWeek: 2 }).unlocked);
+  check('No badge path has a sign adrift from its digits', ACHIEVEMENTS.every((a) => !/\d-\s+\d/.test(a.svg)));
+}
+
+console.log('\nNetwork 3.3.1 - planned, not switched on:');
+{
+  const raw = fs.readFileSync('src/social/contracts.ts', 'utf8');
+  // Comments explain what must never be carried; only the code is judged.
+  const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  check('The network is off', /export const SOCIAL_ENABLED = false;/.test(code));
+  check('The contracts are types: no request, no address, no storage', !/fetch\(|XMLHttpRequest|WebSocket|https?:\/\/|AsyncStorage|supabase|firebase/i.test(code) && !/\bfunction\b|=>/.test(code));
+  const forbidden = /\b(weightKg|weight|bodyFat|waist|calories|kcal|protein|carbs|meal|food|supplement|sleep|nap|smok|cigarette|nicotine|alcohol|drink|cycle|period|hormone|condition|prayer|fasting|mood|notes|birthdate|age|heightCm)\w*\??\s*:/i;
+  const fields = code.split('\n').filter((l) => forbidden.test(l));
+  check('No contract can carry health data', fields.length === 0, fields.map((l) => l.trim()).join(' | '));
+  check('Bodyweight travels as a band, never a number', /bodyweightBandKg: number;/.test(code));
+  check('A visit and a post are dated to the day, never the moment', /export type Day = string;/.test(code) && /day: Day;/.test(code) && !/timestamp|postedAt|visitedAt/.test(code));
+  const srcFiles = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? srcFiles(`${dir}/${d.name}`) : /\.(ts|tsx)$/.test(d.name) ? [`${dir}/${d.name}`] : []));
+  const importers = srcFiles('src').filter((f) => !f.startsWith('src/social') && /from '@\/social\//.test(fs.readFileSync(f, 'utf8')));
+  check('Nothing in the app imports the network yet', importers.length === 0, importers.join());
+  const calls = srcFiles('src').filter((f) => /\bfetch\(/.test(fs.readFileSync(f, 'utf8')));
+  check('The app still makes network calls from two files only', calls.length === 2 && calls.every((f) => /weatherFetch|foodVision/.test(f)), calls.join());
+  const plan = fs.readFileSync('docs/SOCIAL-PLAN.md', 'utf8');
+  check('The plan says it is a plan, lists what never leaves the phone, and what is yours to decide', /Nothing in this document is switched on/.test(plan) && /Never leaves the phone/.test(plan) && /Decisions that are yours to make/.test(plan) && /with a lawyer in Tunisia/.test(plan));
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  check('No account, map or cloud library entered the build', !Object.keys(pkg.dependencies).some((d) => /supabase|firebase|react-native-maps|auth0|amplify|clerk/i.test(d)));
+}
+
+console.log('\nLeftovers 3.3.1:');
+{
+  const sm = fs.readFileSync('src/screens/smoking/SmokingScreen.tsx', 'utf8');
+  check('The smoking page never renders nothing while it loads', !/if \(!impact \|\| !profile\) return null;/.test(sm) && /<Skeleton height=\{120\} \/>/.test(sm));
+  const hm = fs.readFileSync('src/screens/home/HomeScreen.tsx', 'utf8');
+  check('Home shows the path being walked, and only reads it', /myPaths\(\)\.find\(\(x\) => !x\.completed && !x\.paused\)/.test(hm) && !/graduate\(|enrol\(/.test(hm) && (hm.match(/<Metric\b/g) ?? []).length === 2);
+  const spec = fs.readFileSync('FITCOACH-SPEC.md', 'utf8');
+  check('The old specification says which version it describes', /This document describes v2\.64/.test(spec) && /docs\/ANALYSIS-3\.3\.md/.test(spec));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

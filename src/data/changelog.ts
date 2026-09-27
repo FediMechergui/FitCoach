@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.3.1',
+    date: '2026-09-27',
+    title: 'Paths, places, quests and the souk',
+    highlights: [
+      'Paths: the long road to becoming something. Eighteen of them (boxer, Muay Thai fighter, grappler, mixed martial artist, footballer, handball player, basketball player, padel and tennis player, distance runner, sprinter, swimmer, hybrid athlete, powerlifter, physique athlete, strongman, calisthenics athlete, climber, horse rider), each in five stages. A stage is a training week walked until its gate is met: sessions actually logged, weeks actually spent, and for a few paths a run actually run or a rank actually held. Every path says plainly what the app cannot teach and where a coach, a club or a partner is needed. The path you are walking shows on Home.',
+      '286 new exercises, so a plan can say what to actually train: boxing punch by punch, with its defence, footwork and bag work; Muay Thai, wrestling, judo and jiu-jitsu techniques; football, handball, basketball, volleyball, tennis and padel skills; athletics events; climbing, riding, swimming sets; strongman; and Tunisian outdoor life, from dune hikes to the olive harvest. The library stands at 1281, each with a how-to video checked for the right subject.',
+      'Your places. Mark the gym, the pitch, the bars in the park, the dojo, the wall, the riding club, from where you stand or by typing it in. Nineteen kinds of place, each named as it is written on the door; the 24 governorates, suggested from the coordinates and always yours to change. A session can say where it happened. The map is drawn on the phone from coordinates alone, so it works without signal. Places are private: nothing about one is sent anywhere.',
+      'Weekly quests. Three a week, one light, one solid, one heavy, decided by the week itself so they cannot be re-rolled. Measured Monday to Sunday from what you log, and paid once, when met.',
+      'The souk. Points buy skins for the athlete card and nothing else: Jasmin, Sidi Bou Said, Djerba, Medina, Sahara, El Jem, Kairouan, Carthage. Each is a place, in the colours of that place. Nothing in the souk is a shortcut, and spending there costs you neither level nor badge.',
+      'A sixteenth badge category, Ladder, Paths and Places, all ten measured. 160 badges in all. The smoking page no longer renders nothing while it loads.',
+      'A plan for a Tunisian training network is written down (docs/SOCIAL-PLAN.md) and nothing in it is switched on: no account, no server. What shipped is the structure it will stand on. The rule that health data never leaves the phone is checked by machine.',
+      '1959 checks in all, up from 1832. Schema 36.',
+    ],
+  },
+  {
     version: '3.3.0',
     date: '2026-09-27',
     title: 'The Carthage ladder',

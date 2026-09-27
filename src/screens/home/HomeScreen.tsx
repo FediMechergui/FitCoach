@@ -38,6 +38,7 @@ import { isRestDay, restDaySet, setRestDay } from '@/repositories/restDaysRepo';
 import { challengeForDate, challengePointsSince, challengeStats, measureChallenge } from '@/repositories/challengeRepo';
 import { findChallenge } from '@/data/challenges';
 import { Rail } from '@/components/ui/Meter';
+import { myPaths, type PathState } from '@/repositories/pathsRepo';
 import { getSelfCare, bumpSelfCare } from '@/repositories/selfCareRepo';
 import { getPrayerSettings, prayersDone, togglePrayer, DAILY_PRAYERS } from '@/repositories/faithRepo';
 import { SELF_CARE_ITEMS } from '@/lib/selfCare';
@@ -111,6 +112,7 @@ export function HomeScreen() {
   const [after, setAfter] = useState<ReturnType<typeof activePostSession>>(null);
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [restDays, setRestDays] = useState<Set<string>>(new Set());
+  const [walking, setWalking] = useState<PathState | null>(null);
   const [chal, setChal] = useState<{
     points: number;
     month: number;
@@ -145,6 +147,12 @@ export function HomeScreen() {
       });
     } catch {
       setChal(null);
+    }
+    // The path being walked, if there is one. Read only: a stage is graduated on its own page.
+    try {
+      setWalking(myPaths().find((x) => !x.completed && !x.paused) ?? null);
+    } catch {
+      setWalking(null);
     }
     setTips(activeCoachTips());
     loadSmoking();
@@ -322,6 +330,30 @@ export function HomeScreen() {
               No spin yet today — the wheel is one tap away.
             </Text>
           )}
+        </Card>
+      )}
+
+      {/* ── The path being walked ── */}
+      {walking && (
+        <Card accent={walking.path.accent} onPress={() => navigation.navigate('PathDetail', { pathKey: walking.path.key })}>
+          <Row gap={12} style={{ alignItems: 'center' }}>
+            <Icon icon={walking.path.icon} size={22} color={walking.path.accent} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text variant="eyebrow" color="textMuted">
+                {walking.path.become} · stage {walking.stageIndex + 1} of {walking.path.stages.length}
+              </Text>
+              <Text variant="bodyStrong" numberOfLines={1}>
+                {walking.stage.name}
+              </Text>
+            </View>
+            <Text variant="caption" color={walking.gate.met ? 'success' : 'textFaint'} style={{ fontVariant: ['tabular-nums'] }}>
+              {walking.gate.met ? 'gate met' : `${walking.sessions} / ${walking.stage.gate.sessions}`}
+            </Text>
+          </Row>
+          <Rail value={walking.gate.progress} max={1} color={walking.gate.met ? theme.colors.success : walking.path.accent} height={5} />
+          <Text variant="caption" color="textFaint" numberOfLines={1}>
+            Next: {walking.stage.days.find((d) => d.key === walking.nextDay)?.label ?? walking.stage.days[0].label}
+          </Text>
         </Card>
       )}
 

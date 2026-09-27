@@ -4,6 +4,8 @@ import {
   beverageEntries,
   challengeSpins,
   dailyChallenges,
+  pointPurchases,
+  weeklyQuests,
   exerciseLogs,
   exercises,
   fastingLogs,
@@ -38,7 +40,7 @@ import {
 } from '@/lib/challengeWheel';
 import { hardSetCredit } from '@/lib/effort';
 import { productOrDefault } from '@/data/nicotineProducts';
-import { daysAgoISO, todayISO } from '@/lib/date';
+import { daysAgoISO, startOfDayMs, todayISO } from '@/lib/date';
 import { dayNutrition } from './nutritionRepo';
 import { getDailySteps } from './activityRepo';
 import { getNutritionGoal, PRIMARY_USER_ID } from './userRepo';
@@ -109,13 +111,46 @@ export function spinsUsed(date: string = todayISO(), userId: number = PRIMARY_US
 }
 
 /** Points paid for extra spins, all time. */
-export function pointsSpent(userId: number = PRIMARY_USER_ID): number {
+export function pointsSpentOnSpins(userId: number = PRIMARY_USER_ID): number {
   return db
     .select({ cost: challengeSpins.cost })
     .from(challengeSpins)
     .where(eq(challengeSpins.userId, userId))
     .all()
     .reduce((s, r) => s + (r.cost ?? 0), 0);
+}
+
+/** Points paid in the souk, all time. A table that is not there yet reads as nothing spent. */
+export function pointsSpentInSouk(userId: number = PRIMARY_USER_ID): number {
+  try {
+    return db
+      .select({ cost: pointPurchases.cost })
+      .from(pointPurchases)
+      .where(eq(pointPurchases.userId, userId))
+      .all()
+      .reduce((s, r) => s + (r.cost ?? 0), 0);
+  } catch {
+    return 0;
+  }
+}
+
+/** Everything the balance has ever been reduced by: spins and the souk. */
+export function pointsSpent(userId: number = PRIMARY_USER_ID): number {
+  return pointsSpentOnSpins(userId) + pointsSpentInSouk(userId);
+}
+
+/** Points paid by weekly quests, optionally only those completed at or after `sinceMs`. */
+export function questPointsEarned(userId: number = PRIMARY_USER_ID, sinceMs = 0): number {
+  try {
+    return db
+      .select({ points: weeklyQuests.points, completedAt: weeklyQuests.completedAt })
+      .from(weeklyQuests)
+      .where(eq(weeklyQuests.userId, userId))
+      .all()
+      .reduce((s, r) => s + (r.completedAt >= sinceMs ? (r.points ?? 0) : 0), 0);
+  } catch {
+    return 0;
+  }
 }
 
 export type SpinStatus = SpinVerdict & {
@@ -519,7 +554,9 @@ export interface ChallengeStats {
   completed: number;
   /** points EARNED, all time — what the badges and the card read; never reduced */
   points: number;
-  /** points paid for extra spins */
+  /** of `points`, what the weekly quests paid */
+  questPoints: number;
+  /** points paid for extra spins and in the souk */
   spent: number;
   /** earned minus spent — what a paid spin draws on, and what Home shows */
   balance: number;
@@ -542,7 +579,9 @@ export function challengeStats(userId: number = PRIMARY_USER_ID): ChallengeStats
   const done = rows.filter((r) => r.completedAt != null);
   const defs = done.map((r) => findChallenge(r.challengeKey)).filter((d): d is ChallengeDef => !!d);
 
-  const points = defs.reduce((s, d) => s + DIFFICULTY_POINTS[d.difficulty], 0);
+  const dailyPoints = defs.reduce((s, d) => s + DIFFICULTY_POINTS[d.difficulty], 0);
+  const questPoints = questPointsEarned(userId);
+  const points = dailyPoints + questPoints;
   const spent = pointsSpent(userId);
   const doneDates = new Set(done.map((r) => r.date));
   // A flagged rest day carries the streak across without counting — the wheel
@@ -561,6 +600,7 @@ export function challengeStats(userId: number = PRIMARY_USER_ID): ChallengeStats
     spun: rows.length,
     completed: done.length,
     points,
+    questPoints,
     spent,
     balance: points - spent,
     streak,
@@ -578,11 +618,13 @@ export function challengePointsSince(since: string, userId: number = PRIMARY_USE
     .from(dailyChallenges)
     .where(and(eq(dailyChallenges.userId, userId), gte(dailyChallenges.date, since)))
     .all();
-  return rows.reduce((sum, r) => {
+  const daily = rows.reduce((sum, r) => {
     if (r.completedAt == null) return sum;
     const def = findChallenge(r.key);
     return sum + (def ? DIFFICULTY_POINTS[def.difficulty] : 0);
   }, 0);
+  // Quests pay on the day they are met, so they are windowed by that moment.
+  return daily + questPointsEarned(userId, startOfDayMs(since));
 }
 
 /**

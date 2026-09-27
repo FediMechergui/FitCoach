@@ -9,6 +9,8 @@ import { initDatabase } from '@/db/bootstrap';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { loadBrandFonts } from '@/theme/fonts';
 import { catchUpChallengeCompletions } from '@/repositories/challengeRepo';
+import { catchUpQuests } from '@/repositories/questRepo';
+import { enabledTrackers } from '@/repositories/challengeContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastHost } from '@/components/ui/Toast';
@@ -104,6 +106,8 @@ export default function App() {
       // Challenges are measured by date, so a day done with the wheel never
       // opened is stamped here rather than lost at midnight.
       safe('challenge catch-up', () => catchUpChallengeCompletions());
+      // A quest met on Sunday night and never looked at is still met.
+      safe('quest catch-up', () => catchUpQuests(enabledTrackers()));
       if (!cancelled) setReady(true);
 
       registerBackgroundSteps();

@@ -33,6 +33,11 @@ import { isSmokingEnabled } from '@/repositories/smokingRepo';
 import { getStack } from '@/repositories/supplementsRepo';
 import { getPrayerSettings } from '@/repositories/faithRepo';
 import { todayISO } from '@/lib/date';
+import { Rail } from '@/components/ui/Meter';
+import { toast } from '@/components/ui/Toast';
+import { refreshQuestCompletions, weekQuests } from '@/repositories/questRepo';
+import { enabledTrackers } from '@/repositories/challengeContext';
+import { QUEST_WEIGHT_LABEL } from '@/lib/quests';
 
 /**
  * Spin for a challenge you did not choose.
@@ -60,6 +65,14 @@ export function ChallengeScreen() {
       // world is enough — nothing has to be ticked off by hand. The last week
       // is walked too: a day done but never revisited is still provably done.
       catchUpChallengeCompletions();
+      // Quests are stamped here and at launch. A quest met since the last
+      // visit says so, once.
+      try {
+        const met = refreshQuestCompletions(enabledTrackers());
+        if (met.length) toast({ message: met.length === 1 ? `Quest met: ${met[0].label}` : `${met.length} quests met this week` });
+      } catch {
+        // the wheel must open even if the quests cannot be read
+      }
       bump();
     }, [])
   );
@@ -85,6 +98,13 @@ export function ChallengeScreen() {
   const measure = useMemo(() => (def ? measureChallenge(def, today) : null), [def, today, tick]);
   const stats = useMemo(() => challengeStats(), [tick]);
   const history = useMemo(() => challengeHistory(20), [tick]);
+  const week = useMemo(() => {
+    try {
+      return weekQuests(ctx.enabled, today);
+    } catch {
+      return null;
+    }
+  }, [ctx, today, tick]);
 
   if (!wheel) {
     return (
@@ -235,6 +255,53 @@ export function ChallengeScreen() {
         </Card>
       )}
 
+      {week && week.quests.length > 0 && (
+        <>
+          <SectionHeader title="This week's quests" />
+          <Card style={{ gap: 14 }}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text variant="caption" color="textMuted">
+                {week.daysLeft === 0 ? 'Ends tonight' : `${week.daysLeft} day${week.daysLeft === 1 ? '' : 's'} left`} · Monday to Sunday
+              </Text>
+              <Text variant="caption" color="textFaint" style={{ fontVariant: ['tabular-nums'] }}>
+                {week.earned} of {week.available} pts
+              </Text>
+            </Row>
+            {week.quests.map((q) => {
+              const met = q.done || q.ready;
+              return (
+                <View key={q.def.key} style={{ gap: 5 }}>
+                  <Row gap={10} style={{ alignItems: 'center' }}>
+                    <Icon icon={met ? 'core.check' : q.def.icon} size={20} color={met ? theme.colors.success : theme.colors.accent} />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyStrong">{q.def.label}</Text>
+                      <Text variant="caption" color="textMuted">
+                        {q.def.detail}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text variant="label" color={met ? 'success' : 'text'} style={{ fontVariant: ['tabular-nums'] }}>
+                        {met ? `+${q.points}` : `${q.points} pts`}
+                      </Text>
+                      <Text variant="caption" color="textFaint">
+                        {QUEST_WEIGHT_LABEL[q.def.weight]}
+                      </Text>
+                    </View>
+                  </Row>
+                  <Rail value={q.current} max={q.target} color={met ? theme.colors.success : theme.colors.accent} height={5} />
+                  <Text variant="caption" color="textFaint" style={{ fontVariant: ['tabular-nums'] }}>
+                    {fmt(Math.min(q.current, q.target))} of {fmt(q.target)} {q.def.unit}
+                  </Text>
+                </View>
+              );
+            })}
+            <Text variant="caption" color="textFaint">
+              The same three for everyone who can attempt them, decided by the week. Measured from what you log; a quest pays once, when it is met.
+            </Text>
+          </Card>
+        </>
+      )}
+
       <SectionHeader title="Your record" />
       <Row style={{ justifyContent: 'space-between' }}>
         <StatTile icon="core.target" label="Completed" value={`${stats.completed}`} sub={`of ${stats.spun} days`} accent={theme.colors.primary} />
@@ -243,7 +310,7 @@ export function ChallengeScreen() {
           icon="core.pr"
           label="Points"
           value={`${stats.balance}`}
-          sub={stats.spent > 0 ? `${stats.spent} spent on spins` : 'to spend'}
+          sub={stats.spent > 0 ? `${stats.spent} spent` : 'to spend'}
           accent={theme.colors.accent}
         />
       </Row>

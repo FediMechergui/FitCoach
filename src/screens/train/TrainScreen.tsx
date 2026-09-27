@@ -210,6 +210,38 @@ export function TrainScreen() {
         </Row>
       </Card>
 
+      {/* Paths — the long road to becoming something */}
+      <Card accent={theme.colors.primary} style={{ gap: 6 }} onPress={() => navigation.navigate('Paths')}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+            <Icon icon="cardio.elevation" size={24} color={theme.colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong">Paths</Text>
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                Become a boxer, a footballer, a runner, a climber… stage by stage
+              </Text>
+            </View>
+          </Row>
+          <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+        </Row>
+      </Card>
+
+      {/* Places — where you train, marked by you */}
+      <Card accent={theme.colors.primary} style={{ gap: 6 }} onPress={() => navigation.navigate('Places')}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+            <Icon icon="cardio.gps" size={24} color={theme.colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong">Your places</Text>
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                Gyms, pitches, parks, dojos, walls, clubs — on your own map
+              </Text>
+            </View>
+          </Row>
+          <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+        </Row>
+      </Card>
+
       {/* Themed military / historical / lifestyle programmes */}
       <Card accent={theme.colors.accent} style={{ gap: 6 }} onPress={() => navigation.navigate('SpecialPrograms')}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>

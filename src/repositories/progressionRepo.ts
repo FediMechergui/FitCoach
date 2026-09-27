@@ -23,6 +23,7 @@ import type { RankPlacement } from '@/lib/ranks';
 import { achievementStats } from './achievementsRepo';
 import { challengeStats } from './challengeRepo';
 import { kvGet, kvSet } from './kvRepo';
+import { graduatedStageCount } from './pathsRepo';
 import { rankSnapshot } from './ranksRepo';
 import { listSessions } from './sessionRepo';
 import { PRIMARY_USER_ID } from './userRepo';
@@ -136,18 +137,4 @@ export function toggleShowcase(id: number, unlocked: number[]): number[] {
   else next = [...current, id].slice(-3);
   kvSet(KV_SHOWCASE, next);
   return next;
-}
-
-// ── Paths hook ───────────────────────────────────────────────────────────────
-
-/**
- * Stages graduated across every path. Paths keep their own table; until one
- * is enrolled in this reads zero, and a missing table reads zero too.
- */
-let stageCounter: ((userId: number) => number) | null = null;
-export function registerStageCounter(fn: (userId: number) => number): void {
-  stageCounter = fn;
-}
-function graduatedStageCount(userId: number): number {
-  return stageCounter ? stageCounter(userId) : 0;
 }

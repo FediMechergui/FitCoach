@@ -23,6 +23,11 @@ import { DIFFICULTY_POINTS } from '@/data/challenges';
 import { restDayCount, restDaySet } from './restDaysRepo';
 import { bestBridgedStreak } from '@/lib/streaks';
 import { profileEvents } from './eventsRepo';
+import { rankSnapshot } from './ranksRepo';
+import { completedPathCount, graduatedStageCount } from './pathsRepo';
+import { listPlaces } from './placesRepo';
+import { PILLARS } from '@/lib/ranks';
+import { pointPurchases, weeklyQuests } from '@/db/schema';
 import { trainingCalendar } from './statsRepo';
 import { MICRO_KEYS, percentRdi } from '@/lib/micros';
 import { SUPPLEMENTS } from '@/data/supplements';
@@ -127,6 +132,17 @@ export interface AchievementStats {
   bestExportedOverall: number;
   coachReports: number;
   nutritionReports: number;
+  // —— Ladder, Paths & Places (3.3.1) ——
+  rankedLifts: number;
+  rankedPillars: number;
+  /** the overall rung counted from one; 0 when unranked */
+  overallRung: number;
+  pathStages: number;
+  pathsCompleted: number;
+  placesMarked: number;
+  /** the most quests met in any single week */
+  questsBestWeek: number;
+  skinsBought: number;
 }
 
 /** Longest run of consecutive true days ending at the most recent (today, else yesterday). */
@@ -316,7 +332,7 @@ function computeAchievementStats(userId: number): AchievementStats {
   // `safe` because the table only exists from v22; an older database must not
   // take the whole achievements screen down.
   const chal = safe(() => challengeStats(userId), {
-    spun: 0, completed: 0, points: 0, spent: 0, balance: 0, streak: 0, bestStreak: 0,
+    spun: 0, completed: 0, points: 0, questPoints: 0, spent: 0, balance: 0, streak: 0, bestStreak: 0,
     hardCompleted: 0, distinctCategories: 0, distinctChallenges: 0,
   });
 
@@ -467,6 +483,26 @@ function computeAchievementStats(userId: number): AchievementStats {
     challengeStreakCurrent: chal.streak,
     distinctChallenges: chal.distinctChallenges,
     ...safe(() => profileEvents(), { cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0 }),
+    ...safe(() => {
+      const snap = rankSnapshot(userId);
+      const o = snap.overall ?? snap.peak;
+      return {
+        rankedLifts: snap.lifts.length,
+        rankedPillars: o ? PILLARS.filter((p) => o.pillars[p] != null).length : 0,
+        overallRung: o ? o.placement.tierIndex + 1 : 0,
+      };
+    }, { rankedLifts: 0, rankedPillars: 0, overallRung: 0 }),
+    pathStages: safe(() => graduatedStageCount(userId), 0),
+    pathsCompleted: safe(() => completedPathCount(userId), 0),
+    placesMarked: safe(() => listPlaces(userId).length, 0),
+    questsBestWeek: safe(() => {
+      const byWeek = new Map<string, number>();
+      for (const r of db.select({ week: weeklyQuests.week }).from(weeklyQuests).where(eq(weeklyQuests.userId, userId)).all()) {
+        byWeek.set(r.week, (byWeek.get(r.week) ?? 0) + 1);
+      }
+      return maxOf([...byWeek.values()], 0);
+    }, 0),
+    skinsBought: safe(() => db.select({ id: pointPurchases.id }).from(pointPurchases).where(eq(pointPurchases.userId, userId)).all().length, 0),
   };
 }
 
@@ -490,6 +526,7 @@ const ZERO_STATS: AchievementStats = {
   restDaysTaken: 0, restDaysLast30: 0, restBridgedStreakBest: 0, walkCount: 0,
   challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
   cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0,
+  rankedLifts: 0, rankedPillars: 0, overallRung: 0, pathStages: 0, pathsCompleted: 0, placesMarked: 0, questsBestWeek: 0, skinsBought: 0,
 };
 
 /** Public entry — never throws; a failure yields zeroed stats, not a white screen. */

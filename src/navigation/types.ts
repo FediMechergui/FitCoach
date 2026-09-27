@@ -66,6 +66,11 @@ export type RootStackParamList = {
   ProfileCard: undefined;
   Ranks: undefined;
   Identity: undefined;
+  Souk: undefined;
+  Paths: undefined;
+  Places: undefined;
+  PlaceEdit: { placeId?: number } | undefined;
+  PathDetail: { pathKey: string };
   Achievements: undefined;
   Reports: undefined;
   Changelog: undefined;

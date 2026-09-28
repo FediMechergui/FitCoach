@@ -183,7 +183,7 @@ export function ActiveSessionScreen() {
       <Card accent={meta.color}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row gap={10} style={{ alignItems: 'center' }}>
-            <Icon icon={meta.icon} size={24} color={meta.color} />
+            <Icon artistic="minted" icon={meta.icon} size={24} color={meta.color} />
             <View>
               <Text variant="h3">{meta.label}</Text>
               <Text variant="caption" color="textMuted">
@@ -207,7 +207,7 @@ export function ActiveSessionScreen() {
         <Card accent={gpsOn ? theme.colors.outdoor : undefined} style={{ gap: 10 }}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="cardio.gps" size={20} color={gpsOn ? theme.colors.outdoor : theme.colors.textFaint} />
+              <Icon artistic="glow" icon="cardio.gps" size={20} color={gpsOn ? theme.colors.outdoor : theme.colors.textFaint} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyStrong">{gpsOn ? 'Measuring with GPS' : 'Measure distance with GPS'}</Text>
                 <Text variant="caption" color="textMuted">
@@ -685,7 +685,7 @@ function ExerciseLogCard({
             justifyContent: 'center',
           }}
         >
-          <Icon icon={lv.iconKey} size={20} color={accent} />
+          <Icon artistic="glass" icon={lv.iconKey} size={20} color={accent} />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="h3" numberOfLines={2}>

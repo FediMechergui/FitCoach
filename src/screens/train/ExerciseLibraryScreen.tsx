@@ -212,7 +212,7 @@ export function ExerciseLibraryScreen() {
                         {item.name}
                       </Text>
                       {/* A tutorial exists — say so before the card is opened. */}
-                      {videoFor(item) ? <Icon icon="core.video" size={13} color={theme.colors.danger} /> : null}
+                      {videoFor(item) ? <Icon icon="core.video" artistic="glow" size={13} color={theme.colors.danger} /> : null}
                     </Row>
                     <Text variant="caption" color="textMuted" numberOfLines={1}>
                       {[
@@ -249,16 +249,16 @@ export function ExerciseLibraryScreen() {
                 {/* In pick mode, still let the user open the how-to guide. */}
                 {pick && (
                   <Pressable onPress={() => openDetail(item)} hitSlop={10} style={{ paddingHorizontal: 6 }}>
-                    <Icon icon="core.info" size={20} color={theme.colors.textFaint} />
+                    <Icon artistic="minted" icon="core.info" size={20} color={theme.colors.textFaint} />
                   </Pressable>
                 )}
                 {/* Custom exercises are editable. */}
                 {item.isCustom && (
                   <Pressable onPress={() => setEditing(item)} hitSlop={10} style={{ paddingHorizontal: 6 }}>
-                    <Icon icon="core.edit" size={18} color={theme.colors.accent} />
+                    <Icon artistic="minted" icon="core.edit" size={18} color={theme.colors.accent} />
                   </Pressable>
                 )}
-                <Icon icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.primary} />
+                <Icon artistic="glass" icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.primary} />
               </Row>
             </Card>
           </Pressable>

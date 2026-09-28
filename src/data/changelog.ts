@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.3.3',
+    date: '2026-09-28',
+    title: 'The route draws again',
+    highlights: [
+      'A walk or a run no longer dies when its route starts to draw. The route map ran one of its steps only once there was a line to show, so the screen failed at the very moment the second GPS fix arrived. This came in with 3.3.2. Waiting and drawing now share one view, and every step runs every time.',
+      'A route keeps its true shape. It used to be fitted to the width and the height of the card separately, so a square block walked on a wide card came out as a flat rectangle. One scale is used for both directions now, and the route is centred.',
+      'A perfectly straight street is painted. The colour of the line was measured against the box around the route, and a straight east to west or north to south walk has a box with no height, so nothing was drawn.',
+      'Icons can be dressed three ways: a glow, a minted tile, a glass tile, used across Home, Train, Nutrition, the session and the library. The glass tile follows the theme, so it is no longer a dark slab on Salt.',
+      '1980 checks in all, up from 1967, including one that fails if any step of the route map is ever placed after a return again.',
+    ],
+  },
+  {
     version: '3.3.2',
     date: '2026-09-27',
     title: 'Minted surfaces',

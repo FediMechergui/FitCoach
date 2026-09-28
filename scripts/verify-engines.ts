@@ -76,6 +76,7 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
+import { fitRoute } from '../src/lib/geo';
 import { TRAINING_PATHS, DISCIPLINE_ORDER, findPath, pathWeeks } from '../src/data/paths';
 import { pathStyleTag, parsePathStyle, gateStatus, nextDayKey, pathProgress } from '../src/lib/paths';
 import { validCoords, parseCoord, distanceKm, formatDistance as fmtPlaceDistance, sortByDistance, projectToMap, geoUrl, TUNISIA_BOX } from '../src/lib/places';
@@ -4658,6 +4659,40 @@ console.log('\nPolish 3.3.2 - dressing that must not move the furniture:');
   check('No redrawn surface sets text below the 11px floor', small.length === 0, small.join());
   check('The crest and the wheel are still drawn declaratively', drawn.every((f) => !/SvgXml/.test(fs.readFileSync(f, 'utf8'))));
   check('The wheel still eases onto the centre of a wedge', /nextWheelStopDeg\(angle\.current, target, n\)/.test(fs.readFileSync('src/components/ChallengeWheel.tsx', 'utf8')));
+}
+
+console.log('\nRoute 3.3.3 - the line a walk draws:');
+{
+  const src = fs.readFileSync('src/components/RouteMap.tsx', 'utf8').replace(/\r\n/g, '\n');
+  const body = src.slice(src.indexOf('export function RouteMap('), src.indexOf('function RoutePaths('));
+  const firstReturn = body.indexOf('\n  return (');
+  const hooks = [...body.matchAll(/\b(?:React\.)?use[A-Z]\w*\(/g)].map((m) => m.index ?? 0);
+  check('Every hook in the route map runs before its only return', hooks.length >= 4 && firstReturn > 0 && hooks.every((i) => i < firstReturn) && (body.match(/\n  return /g) ?? []).length === 1 && !/\n  if \([^)]*\)\s*\{?\s*\n?\s*return/.test(body));
+  check('Waiting and drawing share one measured view', /onLayout=\{\(e\) => setWidth\(e\.nativeEvent\.layout\.width\)\}/.test(body) && /\{!pts \? \(/.test(body));
+  check('The gradient is measured in user space, so a straight street is still painted', /gradientUnits="userSpaceOnUse" x1=\{0\} y1=\{0\} x2=\{width\} y2=\{height\}/.test(src));
+  check('A plain-colour pass sits under the gradient', /stroke=\{stroke\} strokeOpacity=\{0\.14\}/.test(src));
+  check('Gradient ids are unique to each map', /const gradId = `route-grad-\$\{uid\}`;/.test(src) && /const beaconId = `route-beacon-\$\{uid\}`;/.test(src) && !/id="beacon-pulse"/.test(src));
+
+  // ── The fit: one scale, centred ──
+  const sq = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+  const f = fitRoute(sq, 360, 200, 18);
+  const wpx = f[1].x - f[0].x;
+  const hpx = f[2].y - f[1].y;
+  check('A square walked stays a square on a wide card', Math.abs(wpx - hpx) < 1e-9 && wpx === 164, `${wpx} x ${hpx}`);
+  check('...and is centred in it', Math.abs((f[0].x + f[1].x) / 2 - 180) < 1e-9 && Math.abs((f[0].y + f[2].y) / 2 - 100) < 1e-9);
+  const tall = fitRoute(sq, 200, 400, 10);
+  check('The same holds on a tall card', Math.abs((tall[1].x - tall[0].x) - (tall[2].y - tall[1].y)) < 1e-9 && tall[1].x - tall[0].x === 180);
+  check('Every point lands inside the padding', [...f, ...tall].every((p) => p.x >= 10 && p.y >= 10) && f.every((p) => p.x <= 342 && p.y <= 182));
+  check('A card narrower than its padding cannot produce a negative size', fitRoute(sq, 20, 200, 18).every((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && p.x === 18));
+  const real = normalizeRoute([[36.8, 10.18], [36.8, 10.19], [36.81, 10.19]])!;
+  const fr = fitRoute(real.points, 360, 200, 18);
+  const east = Math.hypot(fr[1].x - fr[0].x, fr[1].y - fr[0].y);
+  const north = Math.hypot(fr[2].x - fr[1].x, fr[2].y - fr[1].y);
+  // 0.01 deg of longitude at 36.8 N is ~891 m; 0.01 deg of latitude is ~1113 m.
+  check('A real route keeps its proportions: east leg to north leg as 891 m to 1113 m', Math.abs(east / north - Math.cos((36.805 * Math.PI) / 180)) < 0.002, `${(east / north).toFixed(4)}`);
+  check('North is still up after the fit', fr[2].y < fr[1].y);
+  const icon = fs.readFileSync('src/components/ui/Icon.tsx', 'utf8');
+  check('The glass tile follows the theme', /theme\.dark \? 'rgba\(20, 26, 38, 0\.55\)' : theme\.alpha\.tint08\(finalColor\)/.test(icon));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -302,7 +302,7 @@ export function HomeScreen() {
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
               <Row gap={4} style={{ alignItems: 'center' }}>
-                <Icon icon="core.streak" size={13} color={chal.streak > 0 ? theme.colors.warning : theme.colors.textFaint} />
+                <Icon artistic="glow" icon="core.streak" size={13} color={chal.streak > 0 ? theme.colors.warning : theme.colors.textFaint} />
                 <Text variant="label" color="textMuted">
                   {chal.streak} day{chal.streak === 1 ? '' : 's'}
                 </Text>
@@ -337,7 +337,7 @@ export function HomeScreen() {
       {walking && (
         <Card accent={walking.path.accent} onPress={() => navigation.navigate('PathDetail', { pathKey: walking.path.key })}>
           <Row gap={12} style={{ alignItems: 'center' }}>
-            <Icon icon={walking.path.icon} size={22} color={walking.path.accent} />
+            <Icon artistic="minted" icon={walking.path.icon} size={22} color={walking.path.accent} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="eyebrow" color="textMuted">
                 {walking.path.become} · stage {walking.stageIndex + 1} of {walking.path.stages.length}
@@ -423,7 +423,7 @@ export function HomeScreen() {
                     borderColor: count > 0 ? color : theme.colors.border,
                   }}
                 >
-                  <Icon icon={item.icon} size={26} color={done ? '#fff' : color} />
+                  <Icon artistic="glass" icon={item.icon} size={26} color={done ? '#fff' : color} />
                 </View>
                 <Text variant="caption" color={count > 0 ? 'text' : 'textFaint'} style={{ textAlign: 'center' }}>
                   {item.label}

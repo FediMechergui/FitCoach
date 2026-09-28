@@ -67,6 +67,28 @@ export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y:
   return { points };
 }
 
+/**
+ * Place a normalised route (0..1, as `normalizeRoute` returns it) inside a
+ * drawing area of any shape, WITHOUT stretching it. `normalizeRoute` keeps the
+ * route's true proportions inside a unit square; mapping x to the width and y
+ * to the height separately would undo that on every canvas that is not square
+ * — a square block walked on a wide card came out as a flat rectangle. One
+ * scale is used for both axes, and the square is centred in the area.
+ */
+export function fitRoute(
+  points: Array<{ x: number; y: number }>,
+  width: number,
+  height: number,
+  pad = 0
+): Array<{ x: number; y: number }> {
+  const w = Math.max(0, width - pad * 2);
+  const h = Math.max(0, height - pad * 2);
+  const side = Math.min(w, h);
+  const offX = pad + (w - side) / 2;
+  const offY = pad + (h - side) / 2;
+  return points.map((p) => ({ x: offX + p.x * side, y: offY + p.y * side }));
+}
+
 export function parseRoute(json: string | null | undefined): LatLng[] {
   if (!json) return [];
   try {

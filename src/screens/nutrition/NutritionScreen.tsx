@@ -159,7 +159,7 @@ export function NutritionScreen() {
         <Pressable onPress={() => navigation.navigate('Fasting')}>
           <Card accent={fasting.fasting ? theme.colors.warning : theme.colors.success}>
             <Row gap={10} style={{ alignItems: 'center' }}>
-              <Icon icon="faith.fasting" size={20} color={fasting.fasting ? theme.colors.warning : theme.colors.success} />
+              <Icon artistic="minted" icon="faith.fasting" size={20} color={fasting.fasting ? theme.colors.warning : theme.colors.success} />
               <Text variant="bodyStrong" style={{ flex: 1 }}>
                 {fasting.fasting
                   ? `Fasting — ${fasting.nextLabel.toLowerCase()} at ${fasting.nextTime}`
@@ -203,7 +203,7 @@ export function NutritionScreen() {
         <Card accent={theme.colors.calories}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="nutrition.calories" size={20} color={theme.colors.calories} />
+              <Icon artistic="minted" icon="nutrition.calories" size={20} color={theme.colors.calories} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyStrong">Diet plan</Text>
                 <Text variant="caption" color="textMuted">
@@ -221,7 +221,7 @@ export function NutritionScreen() {
         <Card accent={theme.colors.accent}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="mindbody.special" size={20} color={theme.colors.accent} />
+              <Icon artistic="minted" icon="mindbody.special" size={20} color={theme.colors.accent} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyStrong">Programme meals</Text>
                 <Text variant="caption" color="textMuted">
@@ -239,7 +239,7 @@ export function NutritionScreen() {
         <Card accent={theme.colors.accent}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="micro.vitamins" size={20} color={theme.colors.accent} />
+              <Icon artistic="minted" icon="micro.vitamins" size={20} color={theme.colors.accent} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyStrong">Micronutrients & supplements</Text>
                 <Text variant="caption" color="textMuted">
@@ -284,7 +284,7 @@ export function NutritionScreen() {
       <Card>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <Row gap={8} style={{ alignItems: 'center' }}>
-            <Icon icon="nutrition.caffeine" size={18} color={theme.colors.caffeine} />
+            <Icon artistic="minted" icon="nutrition.caffeine" size={18} color={theme.colors.caffeine} />
             <Text variant="bodyStrong">Caffeine</Text>
           </Row>
           <Text variant="body" color={caffeine > caffeineLimit ? 'warning' : 'textMuted'}>
@@ -296,7 +296,7 @@ export function NutritionScreen() {
           {(['coffee', 'tea', 'energy_drink', 'soda'] as const).map((t) => (
             <Pressable key={t} onPress={() => addDrink(t)} style={{ flex: 1 }}>
               <View style={{ paddingVertical: 8, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt, alignItems: 'center', gap: 2 }}>
-                <Icon icon={BEVERAGE_PRESETS[t].icon} size={18} color={theme.colors.caffeine} />
+                <Icon artistic="glow" icon={BEVERAGE_PRESETS[t].icon} size={18} color={theme.colors.caffeine} />
                 <Text variant="caption" color="textFaint" style={{ fontSize: 9 }}>{BEVERAGE_PRESETS[t].label}</Text>
               </View>
             </Pressable>
@@ -310,7 +310,7 @@ export function NutritionScreen() {
           <Card accent={theme.colors.warning}>
             <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-                <Icon icon="smoking.cigarette" size={20} color={theme.colors.warning} />
+                <Icon artistic="minted" icon="smoking.cigarette" size={20} color={theme.colors.warning} />
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyStrong">
                     {smokingToday} cigarette{smokingToday === 1 ? '' : 's'} today
@@ -365,7 +365,7 @@ export function NutritionScreen() {
               <Pressable onPress={() => navigation.navigate('AddFood', { meal })}>
                 <Card style={{ borderStyle: 'dashed' }}>
                   <Row gap={10} style={{ alignItems: 'center' }}>
-                    <Icon icon={mealIcon(meal)} size={20} color={theme.colors.textFaint} />
+                    <Icon artistic="glass" icon={mealIcon(meal)} size={20} color={theme.colors.textFaint} />
                     <Text variant="body" color="textFaint">Log {MEAL_LABELS[meal].toLowerCase()}</Text>
                   </Row>
                 </Card>

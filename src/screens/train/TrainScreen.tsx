@@ -120,7 +120,7 @@ export function TrainScreen() {
         <Card accent={theme.colors.accent} raised>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon icon="core.timer" color={theme.colors.accent} />
+              <Icon artistic="glow" icon="core.timer" color={theme.colors.accent} />
               <View>
                 <Text variant="bodyStrong">Session in progress</Text>
                 <Text variant="caption" color="textMuted">
@@ -184,7 +184,7 @@ export function TrainScreen() {
               onPress={() => navigation.navigate('Walk', { activity: a.key })}
               style={{ paddingVertical: 10, paddingHorizontal: 14, minWidth: 104 }}
             >
-              <Icon icon={a.icon} size={20} color={theme.colors.outdoor} />
+              <Icon artistic="glass" icon={a.icon} size={20} color={theme.colors.outdoor} />
               <Text variant="bodyStrong" style={{ marginTop: 6 }}>{a.label}</Text>
             </Card>
           ))}
@@ -198,7 +198,7 @@ export function TrainScreen() {
       <Card accent={theme.colors.warning} style={{ gap: 6 }} onPress={() => navigation.navigate('DailyChallenge')}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-            <Icon icon="core.target" size={24} color={theme.colors.warning} />
+            <Icon artistic="minted" icon="core.target" size={24} color={theme.colors.warning} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Daily Challenge</Text>
               <Text variant="caption" color="textMuted" numberOfLines={1}>
@@ -214,7 +214,7 @@ export function TrainScreen() {
       <Card accent={theme.colors.primary} style={{ gap: 6 }} onPress={() => navigation.navigate('Paths')}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-            <Icon icon="cardio.elevation" size={24} color={theme.colors.primary} />
+            <Icon artistic="minted" icon="cardio.elevation" size={24} color={theme.colors.primary} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Paths</Text>
               <Text variant="caption" color="textMuted" numberOfLines={1}>
@@ -230,7 +230,7 @@ export function TrainScreen() {
       <Card accent={theme.colors.primary} style={{ gap: 6 }} onPress={() => navigation.navigate('Places')}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-            <Icon icon="cardio.gps" size={24} color={theme.colors.primary} />
+            <Icon artistic="minted" icon="cardio.gps" size={24} color={theme.colors.primary} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Your places</Text>
               <Text variant="caption" color="textMuted" numberOfLines={1}>
@@ -246,7 +246,7 @@ export function TrainScreen() {
       <Card accent={theme.colors.accent} style={{ gap: 6 }} onPress={() => navigation.navigate('SpecialPrograms')}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-            <Icon icon="mindbody.special" size={24} color={theme.colors.accent} />
+            <Icon artistic="minted" icon="mindbody.special" size={24} color={theme.colors.accent} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyStrong">Special Programmes</Text>
               <Text variant="caption" color="textMuted" numberOfLines={1}>
@@ -266,7 +266,7 @@ export function TrainScreen() {
             onPress={() => openCategory(m)}
             style={{ gap: 8, width: '47%', flexGrow: 1 }}
           >
-            <Icon icon={m.icon} size={26} color={m.color} />
+            <Icon artistic="minted" icon={m.icon} size={26} color={m.color} />
             <Text variant="h3">{m.label}</Text>
             <Text variant="caption" color="textMuted">
               {m.blurb}
@@ -289,7 +289,7 @@ export function TrainScreen() {
                 <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <Pressable style={{ flex: 1 }} onPress={() => setOpenRoutine(open ? null : r.id)}>
                     <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                      <Icon icon="core.custom" size={20} color={theme.colors.primary} />
+                      <Icon artistic="glass" icon="core.custom" size={20} color={theme.colors.primary} />
                       <View style={{ flex: 1 }}>
                         <Text variant="bodyStrong" numberOfLines={1}>{r.name}</Text>
                         <Text variant="caption" color="textMuted" numberOfLines={1}>
@@ -340,7 +340,7 @@ export function TrainScreen() {
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('SessionDetail', { sessionId: s.id })}>
                   <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
-                    <Icon icon={sessionTypeIcon(s.sessionType)} size={22} color={accent} />
+                    <Icon artistic="glass" icon={sessionTypeIcon(s.sessionType)} size={22} color={accent} />
                     <View style={{ flex: 1 }}>
                       <Text variant="bodyStrong" numberOfLines={1}>
                         {s.label ?? labelFor(s.sessionType)}

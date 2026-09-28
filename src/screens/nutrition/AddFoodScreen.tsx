@@ -41,7 +41,7 @@ export function AddFoodScreen() {
           {fasting && (
             <Card accent={fasting.fasting ? theme.colors.warning : theme.colors.success}>
               <Row gap={10} style={{ alignItems: 'center' }}>
-                <Icon icon="faith.fasting" size={18} color={fasting.fasting ? theme.colors.warning : theme.colors.success} />
+                <Icon artistic="minted" icon="faith.fasting" size={18} color={fasting.fasting ? theme.colors.warning : theme.colors.success} />
                 <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
                   {fasting.fasting
                     ? `You're fasting — eating window opens at ${fasting.nextTime} (${minutesToHM(fasting.minutesUntilNext)}). Log now only if you're breaking your fast.`

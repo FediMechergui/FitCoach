@@ -48,6 +48,7 @@ import { ProfileCardScreen } from '@/screens/profile/ProfileCardScreen';
 import { RanksScreen } from '@/screens/ranks/RanksScreen';
 import { IdentityScreen } from '@/screens/profile/IdentityScreen';
 import { SoukScreen } from '@/screens/profile/SoukScreen';
+import { PictureCreditsScreen } from '@/screens/profile/PictureCreditsScreen';
 import { PathsScreen } from '@/screens/train/PathsScreen';
 import { PlacesScreen } from '@/screens/places/PlacesScreen';
 import { PlaceEditScreen } from '@/screens/places/PlaceEditScreen';
@@ -170,6 +171,7 @@ export function RootNavigator() {
           <Stack.Screen name="Ranks" component={RanksScreen} options={{ title: '' }} />
           <Stack.Screen name="Identity" component={IdentityScreen} options={{ title: '' }} />
           <Stack.Screen name="Souk" component={SoukScreen} options={{ title: '' }} />
+          <Stack.Screen name="PictureCredits" component={PictureCreditsScreen} options={{ title: '' }} />
           <Stack.Screen name="Paths" component={PathsScreen} options={{ title: '' }} />
           <Stack.Screen name="Places" component={PlacesScreen} options={{ title: '' }} />
           <Stack.Screen name="PlaceEdit" component={PlaceEditScreen} options={{ title: '' }} />

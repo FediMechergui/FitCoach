@@ -1,3 +1,8 @@
+import { FoodImage } from '@/components/FoodImage';
+import { FOOD_DB, type FoodItem } from '@/data/foods';
+import { customFoodsAsItems } from '@/repositories/customFoodRepo';
+import { foodNameKey } from '@/lib/foodTile';
+import { FOOD_IMAGES } from '@/data/foodImages';
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -375,7 +380,8 @@ export function NutritionScreen() {
                 {entries.map((e, idx) => (
                   <View key={e.id}>
                     {idx > 0 ? <Divider /> : null}
-                    <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Row gap={10} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                      <DiaryPicture name={e.logMode === 'honest' ? null : e.foodName} liquid={e.form === 'liquid'} />
                       {/* Tap a row to edit it — quantity, meal slot, eaten-at. */}
                       <Pressable style={{ flex: 1 }} onPress={() => openEdit(e)}>
                         <Row gap={6} style={{ alignItems: 'center' }}>
@@ -488,3 +494,47 @@ export function NutritionScreen() {
   );
 }
 
+/**
+ * The picture beside a diary row. A diary row keeps the NAME of what was eaten,
+ * not a link to the food, so the picture is found by that name: your own foods
+ * first, then the catalogue. A row whose food was since renamed or deleted, or
+ * that was written in words, shows a plain tile.
+ */
+let pictureIndex: Map<string, FoodItem> | null = null;
+let pictureIndexAt = 0;
+function pictureFor(name: string | null): FoodItem | undefined {
+  if (!name) return undefined;
+  // Rebuilt at most every few seconds: cheap to read on every row, and a food
+  // added a moment ago still gets its picture.
+  if (!pictureIndex || Date.now() - pictureIndexAt > 4000) {
+    pictureIndex = new Map();
+    // A few foods are listed twice under one name (a general entry and a Tunisian
+    // one). The one that has a photograph is kept, so a row never shows a tile
+    // while its twin has a picture.
+    for (const f of FOOD_DB) {
+      const k = foodNameKey(f.name);
+      const held = pictureIndex.get(k);
+      if (!held || (FOOD_IMAGES[held.id] == null && FOOD_IMAGES[f.id] != null)) pictureIndex.set(k, f);
+    }
+    try {
+      for (const f of customFoodsAsItems()) pictureIndex.set(foodNameKey(f.name), f);
+    } catch {
+      // the catalogue alone is still an index
+    }
+    pictureIndexAt = Date.now();
+  }
+  return pictureIndex.get(foodNameKey(name));
+}
+
+function DiaryPicture({ name, liquid }: { name: string | null; liquid: boolean }) {
+  const food = pictureFor(name);
+  return (
+    <FoodImage
+      foodId={food && !food.isCustom ? food.id : null}
+      imageUri={food?.imageUri}
+      category={food?.category}
+      form={liquid ? 'liquid' : 'solid'}
+      size={38}
+    />
+  );
+}

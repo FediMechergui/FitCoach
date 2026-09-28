@@ -816,6 +816,8 @@ export const customFoods = sqliteTable('custom_foods', {
    * what lets a product looked up once be found again with no network.
    */
   barcode: text('barcode'),
+  /** a picture of the food, as a file in the app's own storage */
+  imageUri: text('image_uri'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

@@ -126,6 +126,8 @@ export interface OffProduct {
   ingredients: string | null;
   /** countries where it is recorded as sold, as plain names */
   countries: string[];
+  /** the front of the pack, on Open Food Facts' image server; null when there is none */
+  imageUrl: string | null;
   /** what the record does not have — named, so the screen can say so */
   missing: Array<'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'>;
 }
@@ -169,6 +171,8 @@ export const OFF_FIELDS = [
   'ingredients_text',
   'ingredients_text_fr',
   'countries_tags',
+  'image_front_small_url',
+  'image_front_url',
 ].join(',');
 
 /**
@@ -266,6 +270,7 @@ export function parseOffProduct(raw: unknown, fallbackCode = ''): ParseResult {
       allergens: tags(p.allergens_tags),
       ingredients: (str(p.ingredients_text_fr) ?? str(p.ingredients_text))?.slice(0, 600) ?? null,
       countries: tags(p.countries_tags),
+      imageUrl: str(p.image_front_small_url) ?? str(p.image_front_url),
       missing,
     },
   };

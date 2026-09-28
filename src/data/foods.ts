@@ -45,6 +45,8 @@ export interface FoodItem {
   aiSourced?: boolean;
   /** read from a pack's label through Open Food Facts */
   fromLabel?: boolean;
+  /** a picture in the app's own storage: yours, or a product's kept from Open Food Facts */
+  imageUri?: string;
   /**
    * How the stomach treats it — the digestion clock runs liquids about twice
    * as fast and settles them in a quarter of the time. Every catalogue food

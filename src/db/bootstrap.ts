@@ -64,8 +64,11 @@ import { seedExerciseLibrary } from './seed';
  *                  path_graduations, places, place_visits, sessions.place_id.
  *   36 → 37 v3.4.0: custom_foods.barcode, and 'off' as a source — a product
  *                  read from Open Food Facts, kept so it is never asked for twice.
+ *   37 → 38 v3.5.0: custom_foods.image_uri — a picture of a food you added; and
+ *                  more exercises (push-up variations, sports, mind and body),
+ *                  which the bump re-seeds.
  */
-const SCHEMA_VERSION = 37;
+const SCHEMA_VERSION = 38;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -140,6 +143,7 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   // v31 — where a custom food's numbers came from ('user' | 'ai'); NULL = user
   { table: 'custom_foods', column: 'source', ddl: 'TEXT' },
   { table: 'custom_foods', column: 'barcode', ddl: 'TEXT' },
+  { table: 'custom_foods', column: 'image_uri', ddl: 'TEXT' },
   // v33 — one how-to video per exercise (built-ins seeded, customs user-entered)
   { table: 'exercises', column: 'video_id', ddl: 'TEXT' },
 ];
@@ -685,6 +689,7 @@ CREATE TABLE IF NOT EXISTS custom_foods (
   form TEXT,
   source TEXT,
   barcode TEXT,
+  image_uri TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_custom_foods_user ON custom_foods(user_id, name);

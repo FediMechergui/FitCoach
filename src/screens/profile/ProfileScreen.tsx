@@ -284,6 +284,8 @@ export function ProfileScreen() {
         <Divider />
         <LinkRow icon="nav.train" label="Exercise library" onPress={() => navigation.navigate('ExerciseLibrary', { pick: false })} />
         <Divider />
+        <LinkRow icon="card.camera" label="Picture credits" onPress={() => navigation.navigate('PictureCredits')} />
+        <Divider />
         <LinkRow
           icon="core.settings"
           label="Recalculate targets"

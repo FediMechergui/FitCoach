@@ -19,6 +19,7 @@ import { useNutritionStore } from '@/stores/nutritionStore';
 import { currentFastingState } from '@/repositories/faithRepo';
 import { minutesToHM } from '@/lib/time';
 import { customFoodsAsItems, customFoodIdFrom } from '@/repositories/customFoodRepo';
+import { FoodImage } from '@/components/FoodImage';
 import { EatenAtPicker } from '@/components/EatenAtPicker';
 import { resolveEatenAt, type EatenAtChoice } from '@/lib/eatenAt';
 
@@ -241,7 +242,8 @@ function PreciseMode({ meal }: { meal: MealType }) {
         renderItem={({ item }) => (
           <Pressable onPress={() => setSelected(item)}>
             <Card accent={item.isCustom ? theme.colors.accent : undefined}>
-              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Row gap={12} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <FoodImage foodId={item.isCustom ? null : item.id} imageUri={item.imageUri} category={item.category} form={item.form} size={48} />
                 <View style={{ flex: 1 }}>
                   <Row gap={6} style={{ alignItems: 'center' }}>
                     <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>

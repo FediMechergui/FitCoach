@@ -76,6 +76,8 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
+import { foodTile, DEFAULT_TILE, isLocalImage, foodNameKey, offImageAllowed } from '../src/lib/foodTile';
+import { FOOD_IMAGE_CREDITS } from '../src/data/foodImageCredits';
 import { decodeBarcode, ean13Modules, readLine, runsOf, bytesFromBase64, VOTES_NEEDED } from '../src/lib/barcodeDecode';
 import { judgeBarcodeReading, checkBarcode, barcodeChecksumOk, cleanBarcode, parseOffProduct, offPortion, offDisplayName, cleanSearchWords, OFF_FIELDS } from '../src/lib/openFoodFacts';
 import { fitRoute } from '../src/lib/geo';
@@ -4430,8 +4432,8 @@ console.log('\nLibrary 3.3.1 - the disciplines in depth:');
   const risky = ['climbing-lead', 'climbing-fall-practice', 'freediving-pool', 'swim-underwater-dolphin-kick', 'spearfishing-breath-hold', 'athletics-pole-vault', 'rugby-tackle-technique', 'bjj-leg-lock-entries', 'football-heading'];
   const cue = /never|always|only|stop|helmet|buddy|instructor|qualified|tap|alone|supervis|spotter|limit|cap|safe/i;
   check('The risky ones carry a safety cue', risky.every((k) => cue.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))), risky.filter((k) => !cue.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))).join());
-  // Stable work is done on the ground, so it is not asked for a helmet.
-  check('Every riding entry says helmet', EXLIB.filter((e) => e.slug.startsWith('equestrian-') && e.slug !== 'equestrian-stable-work').every((e) => /helmet/i.test((e.instructions ?? []).join(' ') + (e.description ?? ''))), EXLIB.filter((e) => e.slug.startsWith('equestrian-') && e.slug !== 'equestrian-stable-work' && !/helmet/i.test((e.instructions ?? []).join(' ') + (e.description ?? ''))).map((e) => e.slug).join());
+  // Work done on the ground, beside the horse, is not asked for a helmet.
+  check('Every riding entry says helmet', EXLIB.filter((e) => e.slug.startsWith('equestrian-') && !['equestrian-stable-work', 'equestrian-tacking-up'].includes(e.slug)).every((e) => /helmet/i.test((e.instructions ?? []).join(' ') + (e.description ?? ''))), EXLIB.filter((e) => e.slug.startsWith('equestrian-') && !['equestrian-stable-work', 'equestrian-tacking-up'].includes(e.slug) && !/helmet/i.test((e.instructions ?? []).join(' ') + (e.description ?? ''))).map((e) => e.slug).join());
   check('No two exercises share a name', new Set(EXLIB.filter((e) => !e.aliasOf).map((e) => e.name.toLowerCase())).size === EXLIB.filter((e) => !e.aliasOf).length);
   const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
   check('The schema bump is what delivers them', /const SCHEMA_VERSION = (3[6-9]|[4-9]\d);/.test(boot));
@@ -4868,6 +4870,102 @@ console.log('\nBars 3.4.2 - a barcode read on the phone, from its bars:');
   check('The phone reads first; the model is asked only if it could not', scr.indexOf('await readBarcodeOnDevice(photo)') > 0 && scr.indexOf('await readBarcodeOnDevice(photo)') < scr.indexOf('await readBarcodeInPhoto(photo)') && /if \(!hasModel\) \{/.test(scr));
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   check('The JPEG decoder is plain JavaScript, pinned', pkg.dependencies['jpeg-js'] === '0.4.4' || /^\^?0\.4\./.test(pkg.dependencies['jpeg-js'] ?? ''));
+}
+
+console.log('\nPictures 3.5.0 - every food has a face, and none of them phones home:');
+{
+  // foodImages.ts is a map of require() calls, so it is read as text here, not imported.
+  const mapSrc = fs.readFileSync('src/data/foodImages.ts', 'utf8');
+  const bundled = [...mapSrc.matchAll(/^  "([^"]+)": require\('\.\.\/\.\.\/assets\/foods\/([^']+)\.jpg'\),/gm)].map((m) => ({ id: m[1], file: m[2] }));
+  const foodIds = new Set(FOOD_DB.map((f) => f.id));
+  check('Most of the catalogue has a photograph', bundled.length >= FOOD_DB.length * 0.6, `${bundled.length} of ${FOOD_DB.length}`);
+  check('Every photograph belongs to a real food, under its own id', bundled.every((b) => foodIds.has(b.id) && b.id === b.file), bundled.filter((b) => !foodIds.has(b.id)).map((b) => b.id).join());
+  const missingFiles = bundled.filter((b) => !fs.existsSync(`assets/foods/${b.file}.jpg`));
+  check('Every photograph named is a file that exists', missingFiles.length === 0, missingFiles.map((b) => b.id).join());
+  const stray = fs.existsSync('assets/foods') ? fs.readdirSync('assets/foods').filter((f) => !bundled.some((b) => `${b.file}.jpg` === f)) : [];
+  check('No stray picture is shipped', stray.length === 0, stray.slice(0, 5).join());
+  const sizes = bundled.map((b) => fs.statSync(`assets/foods/${b.file}.jpg`).size);
+  check('Each is a thumbnail: real, and small', sizes.every((n) => n > 600 && n < 40_000), `${Math.min(...sizes)}..${Math.max(...sizes)}`);
+  check('All of them together stay under 4 MB', sizes.reduce((a, b) => a + b, 0) < 4_000_000, `${Math.round(sizes.reduce((a, b) => a + b, 0) / 1024)} KB`);
+  const jpegs = bundled.filter((b) => { const d = fs.readFileSync(`assets/foods/${b.file}.jpg`); return d[0] === 0xff && d[1] === 0xd8; });
+  check('Every file is a JPEG', jpegs.length === bundled.length);
+
+  // ── Licences and credit ──
+  const credited = Object.keys(FOOD_IMAGE_CREDITS);
+  check('Every photograph is credited, and nothing is credited that is not shipped', credited.length === bundled.length && bundled.every((b) => !!FOOD_IMAGE_CREDITS[b.id]));
+  const free = /^(public domain|pd|cc0|cc[ -]by([ -]sa)?([ -]\d(\.\d)?)?( [a-z-]+)?)$/i;
+  const unfree = credited.filter((id) => !free.test(FOOD_IMAGE_CREDITS[id].licence));
+  check('Every licence allows reuse: public domain, CC0, CC BY or CC BY-SA', unfree.length === 0, unfree.map((id) => `${id}:${FOOD_IMAGE_CREDITS[id].licence}`).join());
+  check('No non-commercial or no-derivatives licence slipped in', credited.every((id) => !/\b(NC|ND)\b/i.test(FOOD_IMAGE_CREDITS[id].licence)));
+  check('Every credit names an author and points at Wikimedia Commons', credited.every((id) => FOOD_IMAGE_CREDITS[id].artist.length > 0 && /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(FOOD_IMAGE_CREDITS[id].page)));
+  const cs = fs.readFileSync('src/screens/profile/PictureCreditsScreen.tsx', 'utf8');
+  check('The app has a page that names them', /FOOD_IMAGE_CREDITS\[f\.id\]/.test(cs) && /shared under that same licence/.test(cs) && /name="PictureCredits"/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
+  check('...and the profile leads to it', /navigation\.navigate\('PictureCredits'\)/.test(fs.readFileSync('src/screens/profile/ProfileScreen.tsx', 'utf8')));
+
+  // ── No picture is ever loaded from the internet ──
+  check('A web address is never an image the app will show', !isLocalImage('https://images.openfoodfacts.org/x.jpg') && !isLocalImage('http://x/y.jpg') && !isLocalImage('data:image/png;base64,AAAA') && !isLocalImage('') && !isLocalImage(null) && !isLocalImage(undefined));
+  check('A file in the app storage is', isLocalImage('file:///data/user/0/com.fitcoach.app/files/food-photos/a.jpg') && isLocalImage('content://media/1'));
+  const comp = fs.readFileSync('src/components/FoodImage.tsx', 'utf8');
+  check('The food picture shows a local file, a bundled photograph, or a tile - in that order', /const local = !broken && isLocalImage\(imageUri\) \? imageUri : null;/.test(comp) && /const bundled = !local && foodId \? FOOD_IMAGES\[foodId\] : undefined;/.test(comp) && /const tile = foodTile\(category, form\);/.test(comp));
+  check('A picture that has gone missing falls back instead of leaving a hole', /onError=\{\(\) => setBroken\(true\)\}/.test(comp));
+  const srcFiles = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? srcFiles(`${dir}/${d.name}`) : /\.tsx$/.test(d.name) ? [`${dir}/${d.name}`] : []));
+  const remote = srcFiles('src').filter((f) => /source=\{\{\s*uri:\s*[`'"]https?:/.test(fs.readFileSync(f, 'utf8')));
+  check('No screen shows an image straight from a web address', remote.length === 0, remote.join());
+
+  // ── Open Food Facts pictures: one server, https, an image ──
+  check('Only Open Food Facts image servers are downloaded from', offImageAllowed('https://images.openfoodfacts.org/images/products/619/400/380/3042/front_fr.3.200.jpg') && !offImageAllowed('http://images.openfoodfacts.org/a.jpg') && !offImageAllowed('https://evil.example/a.jpg') && !offImageAllowed('https://images.openfoodfacts.org.evil.example/a.jpg') && !offImageAllowed('https://images.openfoodfacts.org/a.jpg?x=1') && !offImageAllowed('https://images.openfoodfacts.org/a.exe') && !offImageAllowed(null));
+  const ph = fs.readFileSync('src/services/foodPhoto.ts', 'utf8');
+  check('The address is checked before anything is downloaded', ph.indexOf('if (!offImageAllowed(url)) return null;') > 0 && ph.indexOf('if (!offImageAllowed(url)) return null;') < ph.indexOf('FileSystem.downloadAsync('));
+  check('An empty or oversized download is thrown away', /info\.size < 200 \|\| info\.size > 3_000_000/.test(ph));
+  check('Only pictures in the app own folder are ever deleted', /if \(!uri \|\| !uri\.startsWith\(DIR\)\) return;/.test(ph));
+  check('A picked picture is copied out of the cache', /FileSystem\.copyAsync\(\{ from: picked\.assets\[0\]\.uri, to: dest \}\)/.test(ph));
+  check('A refused permission says what happened, and the food is still saved', /The food is saved without one/.test(ph));
+
+  // ── Your own pictures ──
+  const repo = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('Editing the macros of a food cannot touch its picture', /export function setCustomFoodImage/.test(repo) && repo.indexOf('imageUri: input.imageUri || null,') > repo.indexOf('function provenance('));
+  const ed = fs.readFileSync('src/screens/nutrition/CustomFoodScreen.tsx', 'utf8');
+  check('A food you add can carry your own picture, from the camera or the gallery', /onPress=\{\(\) => addPhoto\(true\)\}/.test(ed) && /onPress=\{\(\) => addPhoto\(false\)\}/.test(ed) && /createCustomFood\(\{ \.\.\.input, imageUri \}\)/.test(ed));
+  check('A replaced picture is deleted, not left behind', /const replaced = setCustomFoodImage\(editingId, imageUri\);\s*\n\s*removeFoodPhoto\(replaced\);/.test(ed));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8').replace(/\r\n/g, '\n');
+  check('The picture column exists on fresh installs and upgrades, schema 38', /\{ table: 'custom_foods', column: 'image_uri', ddl: 'TEXT' \}/.test(boot) && /  barcode TEXT,\n  image_uri TEXT,/.test(boot) && /const SCHEMA_VERSION = (3[8-9]|[4-9]\d);/.test(boot));
+  check('A product saved from Open Food Facts keeps the picture of its pack', /const imageUri = packImage \?\? \(await keepOffImage\(product\.imageUrl\)\);/.test(fs.readFileSync('src/screens/nutrition/BarcodeFoodScreen.tsx', 'utf8')));
+
+  // ── Tiles, and the diary ──
+  check('A kind has its tile; an unknown kind has the plain one', foodTile('Fruit').icon === 'nutrition.snack' && foodTile('Tunisian dish').icon === 'nutrition.lunch' && foodTile('Seafood').color === foodTile('Meat').color && foodTile(null) === DEFAULT_TILE && foodTile('', 'liquid').icon === 'nutrition.soda');
+  const iconOk2 = (k: string) => { const [g, n] = k.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; };
+  const cats = [...new Set(FOOD_DB.map((f) => f.category ?? ''))];
+  check('Every category in the catalogue resolves to a tile whose icon exists', cats.every((c) => iconOk2(foodTile(c).icon)) && iconOk2(DEFAULT_TILE.icon) && iconOk2(foodTile('Packaged product').icon));
+  check('A diary row finds its picture by name, whatever the spacing or the case', foodNameKey('  Couscous   (plain) ') === 'couscous (plain)' && foodNameKey(null) === '');
+  check('The diary and the food list both show the picture', /<DiaryPicture name=/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')) && /<FoodImage foodId=\{item\.isCustom \? null : item\.id\}/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')));
+  check('Where two foods share a name, the diary keeps the one that has a photograph', /if \(!held \|\| \(FOOD_IMAGES\[held\.id\] == null && FOOD_IMAGES\[f\.id\] != null\)\) pictureIndex\.set\(k, f\);/.test(fs.readFileSync('src/screens/nutrition/NutritionScreen.tsx', 'utf8')));
+  const fetcher = fs.readFileSync('scripts/fetch-food-images.js', 'utf8');
+  check('The fetcher accepts free licences only, and only files on Commons', /const FREE = /.test(fetcher) && /if \(!FREE\.test\(licence\)\) return null;/.test(fetcher) && /commons\.wikimedia\.org/.test(fetcher));
+}
+
+console.log('\nLibrary 3.5.0 - the second pass:');
+{
+  const exSrc = fs.readFileSync('src/data/exercises.ts', 'utf8');
+  check('The block is on file and the library is past 1,600 entries', /3\.5\.0: the second pass/.test(exSrc) && EXERCISE_LIBRARY.length >= 1600, `${EXERCISE_LIBRARY.length}`);
+  const pushups = EXLIB.filter((e) => !e.aliasOf && /push-?up/i.test(e.name));
+  check('More than seventy push-ups', pushups.length >= 70, `${pushups.length}`);
+  const emphasis = new Set(pushups.map((e) => e.primaryMuscle));
+  check('...and they are aimed at different muscles: chest, triceps, shoulders, core, forearms, back', ['chest', 'triceps', 'shoulders', 'core', 'forearms', 'back'].every((m) => emphasis.has(m)), [...emphasis].join());
+  check('Chest push-ups cover the upper, the middle and the lower chest', ['upper_chest', 'mid_chest', 'lower_chest'].every((sub) => pushups.some((e) => e.primaryMuscle === 'chest' && e.subMuscle === sub)));
+  check('A push-up names every muscle it works, not just the one it is filed under', pushups.filter((e) => /3\.5\.0/.test('') || (e.muscleGroups ?? []).length >= 2).length >= pushups.length * 0.9);
+  const has = (slugs: string[]) => slugs.filter((k) => !EXLIB.some((e) => e.slug === k));
+  check('The push-ups asked for are there', has(['sphinx-push-up', 'tiger-bend-push-up', 't-push-up', 'push-up-plus', 'knuckle-push-up', 'push-up-feet-elevated-high', 'push-up-weighted-vest', 'negative-push-up', 'depth-push-up', 'lever-push-up']).length === 0, has(['sphinx-push-up', 'tiger-bend-push-up', 't-push-up', 'push-up-plus', 'knuckle-push-up', 'push-up-feet-elevated-high', 'push-up-weighted-vest', 'negative-push-up', 'depth-push-up', 'lever-push-up']).join());
+  check('What the paths were missing is there now', has(['padel-serve', 'padel-volley', 'handball-three-step-rhythm', 'handball-back-court-shooting', 'basketball-three-man-weave', 'boxing-stance-and-guard', 'judo-de-ashi-barai', 'bjj-closed-guard-drill', 'wrestling-arm-drag', 'marathon-pace-run', 'swim-css-test', 'climbing-campus-board', 'equestrian-pole-work', 'physique-posing-practice']).length === 0);
+  check('New sports have entered the library', has(['gymnastics-still-rings', 'gymnastics-pommel-horse', 'rhythmic-gymnastics', 'breaking', 'track-cycling', 'footvolley', 'wing-foiling', 'fencing-foil-bouting', 'canoe-kayak-sprint']).length === 0);
+  check('Mind and body grew: poses, Pilates, mobility, the Eastern forms', has(['half-moon-pose', 'eagle-pose', 'shoulder-stand', 'pilates-saw', 'pilates-swan', 'median-nerve-glide', 'baduanjin-eight-brocades', 'tai-chi-24-form', 'feldenkrais-pelvic-clock', 'middle-split-progression']).length === 0 && EXLIB.filter((e) => e.sessionType === 'mindbody').length >= 180);
+  check('Contemplation grew too, faith among it', has(['breath-counting', 'equanimity-practice', 'cognitive-defusion', 'prayer-witr', 'prayer-istikhara', 'adhkar-morning-evening', 'itikaf-retreat']).length === 0 && EXLIB.filter((e) => e.sessionType === 'meditation').length >= 95);
+  check('Faith entries follow the library own convention', ['prayer-witr', 'prayer-eid', 'salawat'].every((k) => { const e = EXLIB.find((x) => x.slug === k)!; return e.category === 'prayer' && e.icon === 'faith.prayer' && (e.muscleGroups ?? []).join() === 'mind'; }));
+  const cue = /never|always|only|stop|neck|knee|gentle|instructor|qualified|dizzy|pain|slowly|support/i;
+  const risky = ['shoulder-stand', 'plough-pose', 'lotus-preparation', 'kumbhaka-breath-retention', 'median-nerve-glide', 'middle-split-progression', 'wrist-push-up', 'climbing-anchor-cleaning-practice', 'bjj-guillotine-drill', 'handball-legal-contact-drill', 'russian-dip'];
+  check('The risky ones carry a safety cue', risky.every((k) => cue.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))), risky.filter((k) => !cue.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))).join());
+  check('Breath holding warns about water', /water|swim|driv/i.test((EXLIB.find((e) => e.slug === 'kumbhaka-breath-retention')?.instructions ?? []).join(' ')));
+  check('No two exercises share a name, still', new Set(EXLIB.filter((e) => !e.aliasOf).map((e) => e.name.toLowerCase())).size === EXLIB.filter((e) => !e.aliasOf).length);
+  check('Nearly every exercise has its video', Object.keys(EXERCISE_VIDEOS).length >= EXERCISE_LIBRARY.length - 5, `${Object.keys(EXERCISE_VIDEOS).length} of ${EXERCISE_LIBRARY.length}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

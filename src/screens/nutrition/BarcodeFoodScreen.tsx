@@ -30,6 +30,8 @@ import {
 import { OFF_FAILURE, lookupBarcode, searchProducts, type OffFailure } from '@/services/openFoodFacts';
 import { failureMessage, hasFoodVisionKey, readBarcodeInPhoto } from '@/services/foodVision';
 import { readBarcodeOnDevice } from '@/services/barcodePhoto';
+import { keepOffImage } from '@/services/foodPhoto';
+import { FoodImage } from '@/components/FoodImage';
 import { createCustomFood, findByBarcode, toFoodItem } from '@/repositories/customFoodRepo';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import type { RootStackParamList } from '@/navigation/types';
@@ -68,6 +70,9 @@ export function BarcodeFoodScreen() {
   const [basis, setBasis] = useState<OffBasis>('serving');
   const [servings, setServings] = useState('1');
   const [reading, setReading] = useState(false);
+  /** the pack's picture, once it has been downloaded into the app's storage */
+  const [packImage, setPackImage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const hasModel = hasFoodVisionKey();
 
   const verdict = useMemo(() => checkBarcode(code), [code]);
@@ -80,6 +85,7 @@ export function BarcodeFoodScreen() {
   };
 
   const show = (p: OffProduct, alreadyKept: boolean) => {
+    setPackImage(null);
     setProduct(p);
     setKept(alreadyKept);
     setBasis(p.servingG != null ? 'serving' : '100');
@@ -224,11 +230,17 @@ export function BarcodeFoodScreen() {
     navigation.goBack();
   };
 
-  const keep = (alsoLog: boolean) => {
-    if (!product) return;
+  const keep = async (alsoLog: boolean) => {
+    if (!product || saving) return;
     const portion = offPortion(product, basis);
     const name = offDisplayName(product);
     if (!kept && !findByBarcode(product.barcode)) {
+      // The picture is downloaded once, now, and shown from the phone from then on.
+      // No picture is not a failure: the product is saved without one.
+      setSaving(true);
+      const imageUri = packImage ?? (await keepOffImage(product.imageUrl));
+      setSaving(false);
+      setPackImage(imageUri);
       createCustomFood({
         name,
         serving: portion.label,
@@ -243,6 +255,7 @@ export function BarcodeFoodScreen() {
         micros: portion.micros,
         source: 'off',
         barcode: product.barcode,
+        imageUri,
       });
       setKept(true);
     }
@@ -350,6 +363,9 @@ export function BarcodeFoodScreen() {
         <>
           <Card raised accent={theme.colors.accent} style={{ gap: 12 }}>
             <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ marginRight: 12 }}>
+                <FoodImage imageUri={packImage} category="Packaged product" form={product.liquid ? 'liquid' : 'solid'} size={56} />
+              </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="h3">{offDisplayName(product)}</Text>
                 <Text variant="caption" color="textMuted">
@@ -430,8 +446,13 @@ export function BarcodeFoodScreen() {
 
           <Card style={{ gap: 12 }}>
             <Input label={`How many (${portion.label} each)`} value={servings} onChangeText={setServings} keyboardType="decimal-pad" placeholder="1" maxLength={5} />
-            <Button title={`Save and log to ${meal}`} icon="core.check" onPress={() => keep(true)} />
-            {!kept ? <Button title="Save to my foods only" variant="secondary" onPress={() => keep(false)} /> : null}
+            <Button title={saving ? 'Saving…' : `Save and log to ${meal}`} icon="core.check" loading={saving} onPress={() => keep(true)} />
+            {!kept ? <Button title="Save to my foods only" variant="secondary" disabled={saving} onPress={() => keep(false)} /> : null}
+            {product.imageUrl ? (
+              <Text variant="caption" color="textFaint">
+                Saving also keeps the picture of the pack, downloaded once from Open Food Facts.
+              </Text>
+            ) : null}
           </Card>
         </>
       ) : null}

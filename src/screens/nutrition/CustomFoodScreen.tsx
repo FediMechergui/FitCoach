@@ -18,10 +18,14 @@ import { caloriesFromMacros, parseAmount, isCompleteCustomFood } from '@/lib/foo
 import {
   createCustomFood,
   updateCustomFood,
+  setCustomFoodImage,
   deleteCustomFood,
   getCustomFood,
   listCustomFoods,
 } from '@/repositories/customFoodRepo';
+import { FoodImage } from '@/components/FoodImage';
+import { PICK_REASON, pickFoodPhoto, removeFoodPhoto } from '@/services/foodPhoto';
+import { toast } from '@/components/ui/Toast';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type CustomFoodRouteProp = RouteProp<RootStackParamList, 'CustomFood'>;
@@ -56,6 +60,20 @@ export function CustomFoodScreen() {
   );
   const [category, setCategory] = useState<string | null>(existing?.category ?? null);
   const [form, setForm] = useState<'solid' | 'liquid'>(existing?.form === 'liquid' ? 'liquid' : 'solid');
+  const [imageUri, setImageUri] = useState<string | null>(existing?.imageUri ?? null);
+  /** pictures taken in this visit and then replaced: deleted when the screen saves */
+  const [discarded, setDiscarded] = useState<string[]>([]);
+
+  const addPhoto = async (fromCamera: boolean) => {
+    const r = await pickFoodPhoto(fromCamera);
+    if (!r.ok) {
+      const why = PICK_REASON[r.reason];
+      if (why) toast({ message: why });
+      return;
+    }
+    if (imageUri && imageUri !== existing?.imageUri) setDiscarded((d) => [...d, imageUri]);
+    setImageUri(r.uri);
+  };
 
   const macros = {
     protein: parseAmount(protein),
@@ -80,8 +98,13 @@ export function CustomFoodScreen() {
       caloriesEstimated: estimated,
       form,
     };
-    if (editingId) updateCustomFood(editingId, input);
-    else createCustomFood(input);
+    if (editingId) {
+      updateCustomFood(editingId, input);
+      // The picture is set apart from the macros, so an edit of one never touches the other.
+      const replaced = setCustomFoodImage(editingId, imageUri);
+      removeFoodPhoto(replaced);
+    } else createCustomFood({ ...input, imageUri });
+    discarded.forEach((u) => removeFoodPhoto(u));
     navigation.goBack();
   };
 
@@ -118,6 +141,22 @@ export function CustomFoodScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Card style={{ gap: 12 }}>
+            <Row gap={14} style={{ alignItems: 'center' }}>
+              <FoodImage imageUri={imageUri} category={category} form={form} size={72} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text variant="label" color="textMuted">
+                  {imageUri ? 'Its picture' : 'Add a picture, if you like'}
+                </Text>
+                <Row gap={8} style={{ flexWrap: 'wrap' }}>
+                  <Button title="Camera" icon="card.camera" size="sm" variant="secondary" fullWidth={false} onPress={() => addPhoto(true)} />
+                  <Button title="Gallery" size="sm" variant="secondary" fullWidth={false} onPress={() => addPhoto(false)} />
+                  {imageUri ? <Button title="Remove" size="sm" variant="ghost" fullWidth={false} onPress={() => setImageUri(null)} /> : null}
+                </Row>
+              </View>
+            </Row>
+            <Text variant="caption" color="textFaint">
+              The picture stays on your phone. Without one, the food shows a tile in the colour of its kind.
+            </Text>
             <Input label="Name" value={name} onChangeText={setName} placeholder="e.g. Mum's couscous" />
             <Input
               label="Serving"

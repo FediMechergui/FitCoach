@@ -68,6 +68,7 @@ export type RootStackParamList = {
   Ranks: undefined;
   Identity: undefined;
   Souk: undefined;
+  PictureCredits: undefined;
   Paths: undefined;
   Places: undefined;
   PlaceEdit: { placeId?: number } | undefined;

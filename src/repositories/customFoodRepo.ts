@@ -50,6 +50,8 @@ export interface CustomFoodInput {
   source?: 'user' | 'ai' | 'off';
   /** the pack's barcode, for a product from Open Food Facts */
   barcode?: string | null;
+  /** a picture of the food, already copied into the app's storage */
+  imageUri?: string | null;
 }
 
 export function listCustomFoods(userId: number = PRIMARY_USER_ID): CustomFood[] {
@@ -100,6 +102,21 @@ export function updateCustomFood(
     .run();
 }
 
+/**
+ * Change a food's picture, or take it away. Kept apart from `updateCustomFood`
+ * for the reason provenance is: an edit of the macros must never touch it.
+ * Returns the address of the picture it replaced, so the file can be deleted.
+ */
+export function setCustomFoodImage(id: number, imageUri: string | null, userId: number = PRIMARY_USER_ID): string | null {
+  const before = getCustomFood(id, userId);
+  if (!before) return null;
+  db.update(customFoods)
+    .set({ imageUri })
+    .where(and(eq(customFoods.id, id), eq(customFoods.userId, userId)))
+    .run();
+  return before.imageUri && before.imageUri !== imageUri ? before.imageUri : null;
+}
+
 export function deleteCustomFood(id: number, userId: number = PRIMARY_USER_ID): void {
   db.delete(customFoods).where(and(eq(customFoods.id, id), eq(customFoods.userId, userId))).run();
 }
@@ -148,6 +165,7 @@ function provenance(input: CustomFoodInput) {
       input.micros && Object.keys(input.micros).length > 0 ? JSON.stringify(input.micros) : null,
     source: input.source ?? ('user' as const),
     barcode: input.barcode?.trim() || null,
+    imageUri: input.imageUri || null,
   };
 }
 
@@ -186,6 +204,7 @@ export function toFoodItem(f: CustomFood): FoodItem {
     isComposed: !!f.componentsJson,
     aiSourced: f.source === 'ai',
     fromLabel: f.source === 'off',
+    imageUri: f.imageUri ?? undefined,
   };
 }
 

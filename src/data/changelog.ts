@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.5.0',
+    date: '2026-09-28',
+    title: 'Every food has a face',
+    highlights: [
+      'Foods have pictures. 298 of the 321 foods in the catalogue carry a photograph, shown in the food list and beside each meal in the diary. They are bundled with the app, so they work with no connection and nothing is fetched as you scroll: a food list that loaded its pictures from the internet would tell a server what you eat.',
+      'Every photograph was looked at before it shipped. The first attempt matched Apple to a company headquarters, sunflower seeds to an art installation and spinach to a street scene; those were found by eye and replaced. The 23 foods with no honest photograph show a tile in the colour of their kind, because a wrong picture is worse than none.',
+      'A food you add can carry your own picture, from the camera or the gallery. It stays on your phone, and editing the numbers of a food never touches its picture.',
+      'A product saved from Open Food Facts keeps the picture of its pack, downloaded once when you save it and shown from the phone after that.',
+      'The photographs come from Wikimedia Commons under licences that allow reuse, and their authors are named on a new page: You, then Picture credits.',
+      '326 more exercises, 1607 in all. Forty-eight push-ups chosen for what they work: upper, middle and lower chest, triceps, shoulders, core, forearms, even the upper back, from the box push-up to the lever push-up. Variations of pull-ups, dips, squats, hinges and planks. The drills the paths were missing, from the padel serve to judo foot sweeps. Gymnastics by apparatus, fencing, breaking, track cycling. Thirty-four yoga poses, Pilates, mobility work, the eight brocades and tai chi, and more ways to sit quietly, faith among them.',
+      'Each new exercise has a how-to video, checked for the right subject. About fifty were wrong on the first attempt (a circular saw for the Pilates saw) and were replaced.',
+      '2111 checks in all, up from 2061. Schema 38.',
+    ],
+  },
+  {
     version: '3.4.2',
     date: '2026-09-28',
     title: 'The bars, read on the phone',

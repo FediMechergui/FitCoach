@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.4.2',
+    date: '2026-09-28',
+    title: 'The bars, read on the phone',
+    highlights: [
+      'A photographed barcode is now read on the phone itself, from its bars. No model, no connection, nothing sent, and no key needed. The picture is walked along a few dozen lines, each line is turned into runs of dark and light, and the runs are matched against the barcode alphabet.',
+      'It is strict about what it believes. The same number has to be read on more than one line, and it has to pass its own check digit. Noise, stripes and blank walls are not barcodes, and a barcode with a bar scratched out is not guessed at.',
+      'It reads a barcode that is upside down, turned on its side, soft, in low contrast, half in shadow, or squeezed by JPEG compression. EAN-13, UPC-A and EAN-8.',
+      'The model that reads your meals is kept as the second attempt. It is asked only if the phone could not read the bars and a key is set, and its reading is checked the same way.',
+      'Nothing was added to the build: the decoder that unpacks the photograph is plain JavaScript. If a photograph is too large to unpack safely it is refused with a sentence, not attempted.',
+      '2061 checks in all, up from 2039.',
+    ],
+  },
+  {
     version: '3.4.1',
     date: '2026-09-28',
     title: 'Photograph the barcode',

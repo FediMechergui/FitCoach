@@ -29,6 +29,7 @@ import {
 } from '@/lib/openFoodFacts';
 import { OFF_FAILURE, lookupBarcode, searchProducts, type OffFailure } from '@/services/openFoodFacts';
 import { failureMessage, hasFoodVisionKey, readBarcodeInPhoto } from '@/services/foodVision';
+import { readBarcodeOnDevice } from '@/services/barcodePhoto';
 import { createCustomFood, findByBarcode, toFoodItem } from '@/repositories/customFoodRepo';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import type { RootStackParamList } from '@/navigation/types';
@@ -67,7 +68,7 @@ export function BarcodeFoodScreen() {
   const [basis, setBasis] = useState<OffBasis>('serving');
   const [servings, setServings] = useState('1');
   const [reading, setReading] = useState(false);
-  const canPhotograph = hasFoodVisionKey();
+  const hasModel = hasFoodVisionKey();
 
   const verdict = useMemo(() => checkBarcode(code), [code]);
 
@@ -112,11 +113,15 @@ export function BarcodeFoodScreen() {
   };
 
   /**
-   * Photograph the barcode. The camera is the one the meal photograph already
-   * uses, and so is the model that reads it. What the model says is put
-   * through the check digit before it is believed: a number that passes is
-   * looked up at once, a number that fails is shown for correction and is
-   * NOT looked up, because a wrong barcode is a different product.
+   * Photograph the barcode.
+   *
+   * It is read ON THE PHONE first: the bars themselves are decoded, with no
+   * model and no request, and the same number has to be read on more than one
+   * line and pass its check digit. Only if that finds nothing, and a key is
+   * set, is the photograph sent to the model that reads your meals — and
+   * what the model says is put through the check digit too. A number that
+   * fails is shown for correction and NOT looked up: a wrong barcode is a
+   * different product.
    */
   const photograph = async () => {
     clear();
@@ -128,19 +133,38 @@ export function BarcodeFoodScreen() {
     }
     const picked = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      // Crop to the barcode: fewer pixels to send, and nothing else in the frame.
+      // Crop to the barcode: fewer pixels to read, and nothing else in the frame.
       allowsEditing: true,
       aspect: [3, 2],
-      // Digits are small; this is sharper than the meal photograph and still light.
-      quality: 0.5,
+      quality: 0.6,
       base64: true,
     });
     if (picked.canceled || !picked.assets[0]?.base64) return;
+    const photo = picked.assets[0].base64;
     setReading(true);
-    const seen = await readBarcodeInPhoto(picked.assets[0].base64);
+
+    const local = await readBarcodeOnDevice(photo);
+    if (local.ok) {
+      setReading(false);
+      setCode(local.result.code);
+      await lookUp(local.result.code);
+      return;
+    }
+
+    if (!hasModel) {
+      setReading(false);
+      setProblem(
+        local.reason === 'too-large'
+          ? 'That photograph is too large to read on the phone. Crop it closer to the barcode, or type the number.'
+          : 'No barcode could be read from that photograph. Fill the frame with it, hold it level in good light, or type the number.'
+      );
+      return;
+    }
+
+    const seen = await readBarcodeInPhoto(photo);
     setReading(false);
     if (seen.error) {
-      setProblem(failureMessage(seen.error));
+      setProblem(`The bars could not be read on the phone, and the model could not be asked. ${failureMessage(seen.error)}`);
       return;
     }
     const judged = judgeBarcodeReading(seen.data);
@@ -265,20 +289,10 @@ export function BarcodeFoodScreen() {
             helper={verdict.ok ? 'That number checks out.' : code.length >= 8 ? BARCODE_REASON[verdict.reason] : 'Eight, twelve or thirteen digits. Tunisian products begin with 619.'}
           />
           <Button title={busy ? 'Looking it up…' : 'Look it up'} icon="nutrition.search" loading={busy} disabled={!verdict.ok || reading} hint={!verdict.ok && code.length > 0 ? BARCODE_REASON[verdict.reason] : undefined} onPress={() => lookUp()} />
-          <Button
-            title={reading ? 'Reading the number…' : 'Photograph the barcode'}
-            icon="card.camera"
-            variant="secondary"
-            loading={reading}
-            disabled={!canPhotograph || busy}
-            hint={!canPhotograph ? 'This uses the same OpenRouter key as photographing a meal. Add it there first.' : undefined}
-            onPress={photograph}
-          />
-          {!canPhotograph ? (
-            <Button title="Set up the key" variant="ghost" size="sm" onPress={() => navigation.navigate('PhotoFood', { meal })} />
-          ) : null}
+          <Button title={reading ? 'Reading the barcode…' : 'Photograph the barcode'} icon="card.camera" variant="secondary" loading={reading} disabled={busy} onPress={photograph} />
           <Text variant="caption" color="textFaint">
-            A photograph is read by the same model that reads your meals, and its reading is checked against the barcode's own check digit before it is used. A number that fails the check is shown to you, not looked up.
+            The bars are read on your phone, with no connection and nothing sent. The number has to be read on more than one line and pass its own check digit before it is used.
+            {hasModel ? ' If the bars cannot be read, the photograph is sent to the model that reads your meals, and its reading is checked the same way.' : ''}
           </Text>
         </Card>
       ) : (
@@ -430,7 +444,7 @@ export function BarcodeFoodScreen() {
           Open Food Facts is a free database of packaged food, entered by the people who buy it and published under the Open Database Licence. A record is as good as whoever typed it, so check it against the pack.
         </Text>
         <Text variant="caption" color="textMuted">
-          A lookup sends the barcode, or the words you typed, to openfoodfacts.org. Nothing about you or your diary is sent. A photograph of a barcode goes to OpenRouter with your own key, as a photograph of a meal does.
+          A lookup sends the barcode, or the words you typed, to openfoodfacts.org. Nothing about you or your diary is sent. A photograph of a barcode is read on the phone; it goes to OpenRouter, with your own key, only if the phone could not read it.
         </Text>
         <Pressable onPress={() => Linking.openURL('https://world.openfoodfacts.org').catch(() => undefined)} accessibilityRole="link">
           <Text variant="caption" color="accent">

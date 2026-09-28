@@ -76,6 +76,7 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
+import { decodeBarcode, ean13Modules, readLine, runsOf, bytesFromBase64, VOTES_NEEDED } from '../src/lib/barcodeDecode';
 import { judgeBarcodeReading, checkBarcode, barcodeChecksumOk, cleanBarcode, parseOffProduct, offPortion, offDisplayName, cleanSearchWords, OFF_FIELDS } from '../src/lib/openFoodFacts';
 import { fitRoute } from '../src/lib/geo';
 import { TRAINING_PATHS, DISCIPLINE_ORDER, findPath, pathWeeks } from '../src/data/paths';
@@ -4759,7 +4760,7 @@ console.log('\nLabel 3.4.0 - packaged products, from Open Food Facts:');
   // Superseded by 3.4.1: the camera the meal photograph uses can photograph a barcode too.
   check('No scanner module is imported', !/expo-camera|BarCodeScanner/.test(scr));
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  check('No native module was added: this ships over the air', !Object.keys(pkg.dependencies).some((d) => /camera|barcode/i.test(d)));
+  check('No native module was added: this ships over the air', !Object.keys(pkg.dependencies).some((d) => /camera|barcode|vision|mlkit/i.test(d)));
   const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
   check('The barcode column exists on fresh installs and upgrades, schema 37', /\{ table: 'custom_foods', column: 'barcode', ddl: 'TEXT' \}/.test(boot) && /  source TEXT,\n  barcode TEXT,/.test(boot.replace(/\r\n/g, '\n')) && /const SCHEMA_VERSION = (3[7-9]|[4-9]\d);/.test(boot));
   const repo = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
@@ -4782,11 +4783,91 @@ console.log('\nBarcode 3.4.1 - photographed, read, and checked before it is beli
   check('Only a reading that passed is looked up', /if \(judged\.kind === 'read'\) \{\s*\n\s*setCode\(judged\.code\);\s*\n\s*await lookUp\(judged\.code\);/.test(scr) && !/judged\.kind === 'doubtful'\) \{[^}]*lookUp/.test(scr));
   check('A doubtful reading says what was read and what to do', /but that number does not add up, so one digit was read wrong/.test(scr));
   check('The photograph uses the camera already in the build', /ImagePicker\.launchCameraAsync\(/.test(scr) && /from 'expo-image-picker'/.test(scr));
-  check('Without a key the button says why, and where to set it', /This uses the same OpenRouter key as photographing a meal/.test(scr) && /Set up the key/.test(scr));
+  // Superseded by 3.4.2: the bars are read on the phone, so the button needs no key.
+  check('Photographing needs no key', !/disabled=\{!canPhotograph/.test(scr) && /const hasModel = hasFoodVisionKey\(\);/.test(scr));
   check('A refused camera says what to do instead', /You can type the number instead/.test(scr));
-  check('The screen says where a photograph goes', /A photograph of a barcode goes to OpenRouter with your own key/.test(scr));
+  check('The screen says where a photograph goes', /it goes to OpenRouter, with your own key, only if the phone could not read it/.test(scr));
   const vis = fs.readFileSync('src/services/foodVision.ts', 'utf8');
   check('The model is told to read, not to guess', /Do not guess a number from the brand or the product/.test(vis) && /export async function readBarcodeInPhoto/.test(vis));
+}
+
+console.log('\nBars 3.4.2 - a barcode read on the phone, from its bars:');
+{
+  // A small renderer: a barcode drawn into a grey picture, the way a camera would see it.
+  let seed = 11;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  const draw = (code: string, o: { W: number; H: number; px: number; x0: number; y0: number; bh: number; blur?: number; noise?: number; dark?: number; light?: number; shadow?: number; turn?: 0 | 90 | 180 }) => {
+    const { W, H } = o;
+    const light = o.light ?? 235;
+    const dark = o.dark ?? 25;
+    const mods = ean13Modules(code);
+    const img = new Float32Array(W * H).fill(light);
+    for (let y = o.y0; y < o.y0 + o.bh; y++) for (let x = 0; x < W; x++) {
+      let acc = 0;
+      for (let q = 0; q < 4; q++) { const m = Math.floor((x + (q + 0.5) / 4 - o.x0) / o.px); if (m >= 0 && m < mods.length && mods[m]) acc++; }
+      img[y * W + x] = light + (dark - light) * (acc / 4);
+    }
+    const b = o.blur ?? 0;
+    const at = (x: number, y: number) => {
+      let a = 0; let n = 0;
+      for (let k = -b; k <= b; k++) { const xx = x + k; if (xx >= 0 && xx < W) { a += img[y * W + xx]; n++; } }
+      let v = a / n;
+      if (o.shadow) v *= 1 - o.shadow * (x / W);
+      if (o.noise) v += (rnd() - 0.5) * 2 * o.noise;
+      return Math.max(0, Math.min(255, v));
+    };
+    const side = o.turn === 90;
+    const w = side ? H : W;
+    const h = side ? W : H;
+    const rgba = new Uint8Array(w * h * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let X = x; let Y = y;
+      if (o.turn === 180) { X = W - 1 - x; Y = H - 1 - y; }
+      if (o.turn === 90) { X = H - 1 - y; Y = x; }
+      const i = (Y * w + X) * 4;
+      const v = at(x, y);
+      rgba[i] = v; rgba[i + 1] = v; rgba[i + 2] = v; rgba[i + 3] = 255;
+    }
+    return { rgba, w, h };
+  };
+  const read = (code: string, o: Parameters<typeof draw>[1]) => { const p = draw(code, o); return decodeBarcode(p.rgba, p.w, p.h)?.code ?? null; };
+  const codes = ['6194003803042', '3017620422003', '5449000000996', '0036000291452', '6191442500075', '4006381333931'];
+
+  check('An EAN-13 is 95 modules and an EAN-8 is 67, bars at both ends', ean13Modules('6194003803042').length === 95 && ean13Modules('96385074').length === 67 && ean13Modules('6194003803042')[0] && ean13Modules('6194003803042')[94]);
+  check('A clean barcode is read, whatever its first digit', codes.every((c) => read(c, { W: 600, H: 300, px: 3, x0: 120, y0: 80, bh: 140 }) === c));
+  check('An EAN-8 is read', read('96385074', { W: 500, H: 260, px: 3.2, x0: 120, y0: 70, bh: 120, blur: 1 }) === '96385074');
+  check('A soft, noisy photograph is read', codes.every((c) => read(c, { W: 1400, H: 700, px: 7.4, x0: 300, y0: 200, bh: 300, blur: 3, noise: 10 }) === c));
+  check('Upside down and in low contrast, it is read', codes.every((c) => read(c, { W: 800, H: 400, px: 3.6, x0: 200, y0: 100, bh: 200, blur: 1, dark: 70, light: 190, turn: 180, noise: 6 }) === c));
+  check('On its side and half in shadow, it is read', codes.every((c) => read(c, { W: 900, H: 450, px: 4.2, x0: 220, y0: 120, bh: 200, blur: 1, shadow: 0.45, turn: 90 }) === c));
+  check('Bars that do not fall on whole pixels are read', codes.every((c) => read(c, { W: 900, H: 300, px: 5.37, x0: 173, y0: 60, bh: 160, blur: 1, noise: 5 }) === c));
+
+  // ── What it must NOT do ──
+  const blank = (fill: (x: number, y: number) => number) => { const W = 700; const H = 350; const d = new Uint8Array(W * H * 4); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const v = fill(x, y); const i = (y * W + x) * 4; d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255; } return decodeBarcode(d, W, H); };
+  check('Noise is not a barcode', Array.from({ length: 12 }, () => blank(() => rnd() * 255)).every((r) => r === null));
+  check('Stripes are not a barcode', [2, 3, 4, 5, 7, 9].every((k) => blank((x) => (Math.floor(x / k) % 2) * 210 + rnd() * 20) === null));
+  check('A blank wall is not a barcode', blank(() => 200) === null && blank(() => 20) === null);
+  check('A picture too small to hold one is refused', decodeBarcode(new Uint8Array(30 * 30 * 4), 30, 30) === null && decodeBarcode(new Uint8Array(10), 600, 300) === null);
+  check('One line is not enough: the number must be read on several', VOTES_NEEDED >= 2 && (() => { const p = draw('6194003803042', { W: 600, H: 300, px: 3, x0: 120, y0: 146, bh: 3 }); return decodeBarcode(p.rgba, p.w, p.h) === null; })());
+  check('A barcode with a bar scratched out is not guessed at', (() => { const p = draw('6194003803042', { W: 600, H: 300, px: 3, x0: 120, y0: 80, bh: 140 }); for (let y = 0; y < p.h; y++) for (let x = 200; x < 224; x++) { const i = (y * p.w + x) * 4; p.rgba[i] = p.rgba[i + 1] = p.rgba[i + 2] = 235; } const r = decodeBarcode(p.rgba, p.w, p.h); return r === null || r.code === '6194003803042'; })());
+  check('Whatever is read has passed its check digit', (() => { const line = new Float32Array(600).fill(235); const m = ean13Modules('6194003803042'); for (let x = 0; x < 600; x++) { const k = Math.floor((x - 120) / 3); if (k >= 0 && k < m.length && m[k]) line[x] = 25; } return readLine(line).every((c) => checkBarcode(c).ok) && readLine(line).includes('6194003803042'); })());
+  check('A flat line gives no runs at all', runsOf(new Float32Array(400).fill(128)).runs.length === 0);
+
+  // ── Through a real JPEG, the way a photograph arrives ──
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const jpeg = require('jpeg-js') as { encode: (i: { data: Uint8Array; width: number; height: number }, q: number) => { data: Uint8Array }; decode: (b: Uint8Array, o: { useTArray: boolean }) => { data: Uint8Array; width: number; height: number } };
+  const viaJpeg = (code: string, q: number) => { const p = draw(code, { W: 1000, H: 500, px: 5.1, x0: 240, y0: 150, bh: 200, blur: 2, noise: 8 }); const enc = jpeg.encode({ data: p.rgba, width: p.w, height: p.h }, q); const b64 = Buffer.from(enc.data).toString('base64'); const dec = jpeg.decode(bytesFromBase64(b64), { useTArray: true }); return decodeBarcode(dec.data, dec.width, dec.height)?.code ?? null; };
+  check('It survives JPEG compression, heavy and light', codes.every((c) => viaJpeg(c, 35) === c && viaJpeg(c, 80) === c));
+  check('Base64 is unpacked without help from the runtime', (() => { const src = Uint8Array.from({ length: 300 }, (_, i) => (i * 37 + 11) % 256); const out = bytesFromBase64(Buffer.from(src).toString('base64')); return out.length === 300 && out.every((v, i) => v === src[i]) && bytesFromBase64('').length === 0 && bytesFromBase64('AQID\n').join() === '1,2,3'; })());
+
+  // ── Wiring ──
+  const svc = fs.readFileSync('src/services/barcodePhoto.ts', 'utf8');
+  check('Reading on the phone sends nothing anywhere', !/fetch\(|https?:\/\/|openRouterKey|kvGet/.test(svc));
+  check('The decoder is loaded when needed, so a failure costs one feature and not the screen', /require\('jpeg-js\/lib\/decoder'\)/.test(svc) && !/^import .*jpeg-js/m.test(svc));
+  check('A picture too large to unpack is refused, not attempted', /maxResolutionInMP: MAX_MEGAPIXELS/.test(svc) && /reason: big \? 'too-large' : 'unreadable'/.test(svc));
+  const scr = fs.readFileSync('src/screens/nutrition/BarcodeFoodScreen.tsx', 'utf8');
+  check('The phone reads first; the model is asked only if it could not', scr.indexOf('await readBarcodeOnDevice(photo)') > 0 && scr.indexOf('await readBarcodeOnDevice(photo)') < scr.indexOf('await readBarcodeInPhoto(photo)') && /if \(!hasModel\) \{/.test(scr));
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  check('The JPEG decoder is plain JavaScript, pinned', pkg.dependencies['jpeg-js'] === '0.4.4' || /^\^?0\.4\./.test(pkg.dependencies['jpeg-js'] ?? ''));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

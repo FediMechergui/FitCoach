@@ -244,12 +244,15 @@ export function StatsScreen() {
           <SectionHeader title="Smoking Impact" action="Details" onAction={() => navigation.navigate('Smoking')} />
           <Pressable onPress={() => navigation.navigate('Smoking')}>
             <Card accent={smoking.smokeFreeStreak > 0 ? theme.colors.accent : theme.colors.warning} style={{ gap: 12 }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Row gap={8} style={{ alignItems: 'center' }}>
-                  <Icon icon="smoking.cigarette" size={18} color={theme.colors.warning} />
+              {/* Two lines, not one row: side by side they did not fit a phone and ran out of the card. */}
+              <Row gap={10} style={{ alignItems: 'center' }}>
+                <Icon icon="smoking.cigarette" size={18} color={theme.colors.warning} />
+                <View style={{ flex: 1 }}>
                   <Text variant="bodyStrong">~{smoking.avgPerDay}/day this week</Text>
-                </Row>
-                <Text variant="caption" color="textMuted">{smoking.currency}{smoking.moneyWeek.toFixed(2)} · {Math.round(smoking.lifeMinutesWeek / 60 * 10) / 10}h life (est.)</Text>
+                  <Text variant="caption" color="textMuted">
+                    {smoking.currency} {smoking.moneyWeek.toFixed(2)} spent · {Math.round(smoking.lifeMinutesWeek / 60 * 10) / 10} h of life (est.)
+                  </Text>
+                </View>
               </Row>
               <Divider />
               <Row gap={10} style={{ alignItems: 'center' }}>

@@ -40,8 +40,10 @@ export function Icon({ icon, def, size = 22, color, artistic }: IconProps) {
     const pad = size * 0.75;
     const totalSize = size + pad * 2;
     return (
-      <View style={{ width: totalSize, height: totalSize, alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ position: 'absolute' }}>
+      // The box is the size of the ICON. The glow is drawn around it and spills
+      // past the box, so dressing an icon never moves what sits beside it.
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: -pad, top: -pad, width: totalSize, height: totalSize }}>
           <Svg width={totalSize} height={totalSize} viewBox={`0 0 ${totalSize} ${totalSize}`}>
             <Defs>
               <RadialGradient id="icon_glow" cx="50%" cy="50%" r="50%">

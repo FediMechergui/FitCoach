@@ -4695,5 +4695,18 @@ console.log('\nRoute 3.3.3 - the line a walk draws:');
   check('The glass tile follows the theme', /theme\.dark \? 'rgba\(20, 26, 38, 0\.55\)' : theme\.alpha\.tint08\(finalColor\)/.test(icon));
 }
 
+console.log('\nTiles 3.3.4 - a number and its name, in seventy points:');
+{
+  const tile = fs.readFileSync('src/components/ui/StatTile.tsx', 'utf8');
+  check('The value is one line and shrinks to fit, never broken from its unit', /variant="numeralM" numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.6\}/.test(tile));
+  check('...and never shrinks below the 11px floor', 22 * 0.6 >= 11);
+  check('The label has the full width under the icon, and two lines', /variant="eyebrow" color="textMuted" numberOfLines=\{2\}/.test(tile) && !/flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6/.test(tile));
+  check('A tile can shrink inside its row', /minWidth: 0/.test(tile));
+  const icon = fs.readFileSync('src/components/ui/Icon.tsx', 'utf8');
+  check('A glow takes no room: the box is the size of the icon', /<View style=\{\{ width: size, height: size, alignItems: 'center', justifyContent: 'center', overflow: 'visible' \}\}>/.test(icon) && /left: -pad, top: -pad, width: totalSize, height: totalSize/.test(icon));
+  const stats = fs.readFileSync('src/screens/stats/StatsScreen.tsx', 'utf8');
+  check('The smoking line on Stats wraps inside its card', /spent · \{Math\.round\(smoking\.lifeMinutesWeek \/ 60 \* 10\) \/ 10\} h of life \(est\.\)/.test(stats) && !/<Row style=\{\{ justifyContent: 'space-between' \}\}>\s*\n\s*<Row gap=\{8\} style=\{\{ alignItems: 'center' \}\}>\s*\n\s*<Icon icon="smoking\.cigarette"/.test(stats));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

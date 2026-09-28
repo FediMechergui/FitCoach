@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.3.4',
+    date: '2026-09-28',
+    title: 'Tiles that fit',
+    highlights: [
+      'Stat tiles fit a phone again. The label sits under the icon with the whole width to itself and may take two lines, so Calories, Caffeine, Avg sleep and Body fat are no longer cut short or pushed out of the card.',
+      'A value is one line. It shrinks to fit instead of breaking a number from its unit, so 68.9kg and 400mg stay whole, and a pace shows its rate underneath: 26:40, per km.',
+      'A glow around an icon no longer takes room. It is drawn past the edge of the icon, so dressing an icon does not move what sits beside it.',
+      'The smoking line on Stats is set on two lines and stays inside its card.',
+      '1986 checks in all, up from 1980.',
+    ],
+  },
+  {
     version: '3.3.3',
     date: '2026-09-28',
     title: 'The route draws again',

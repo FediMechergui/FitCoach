@@ -66,6 +66,13 @@ export function AddFoodScreen() {
             icon="card.camera"
             onPress={() => navigation.navigate('PhotoFood', { meal })}
           />
+          {/* A packaged product: its barcode or its name, read from Open Food Facts. */}
+          <Button
+            title="Look up a packaged product"
+            variant="ghost"
+            icon="nutrition.search"
+            onPress={() => navigation.navigate('BarcodeFood', { meal })}
+          />
         </View>
         {mode === 'precise' ? <PreciseMode meal={meal} /> : <HonestMode meal={meal} />}
       </KeyboardAvoidingView>
@@ -241,7 +248,12 @@ function PreciseMode({ meal }: { meal: MealType }) {
                       {item.name}
                     </Text>
                     {item.cuisine === 'tunisian' && <Text style={{ fontSize: 12 }}>🇹🇳</Text>}
-                    {item.isCustom && !item.aiSourced && (
+                    {item.fromLabel && (
+                      <Text variant="caption" color="textMuted">
+                        label
+                      </Text>
+                    )}
+                    {item.isCustom && !item.aiSourced && !item.fromLabel && (
                       <Text variant="caption" color="accent">
                         yours
                       </Text>

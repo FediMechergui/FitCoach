@@ -43,8 +43,13 @@ export interface CustomFoodInput {
    * micronutrient data such a meal will ever have.
    */
   micros?: Partial<MicroProfile>;
-  /** who produced these numbers — 'ai' when a model did. Defaults to 'user'. */
-  source?: 'user' | 'ai';
+  /**
+   * who produced these numbers — 'ai' when a model did, 'off' when they were
+   * read from Open Food Facts. Defaults to 'user'.
+   */
+  source?: 'user' | 'ai' | 'off';
+  /** the pack's barcode, for a product from Open Food Facts */
+  barcode?: string | null;
 }
 
 export function listCustomFoods(userId: number = PRIMARY_USER_ID): CustomFood[] {
@@ -61,6 +66,17 @@ export function getCustomFood(id: number, userId: number = PRIMARY_USER_ID): Cus
     .select()
     .from(customFoods)
     .where(and(eq(customFoods.id, id), eq(customFoods.userId, userId)))
+    .get();
+}
+
+/** A product already looked up, found by its barcode — no network needed. */
+export function findByBarcode(barcode: string, userId: number = PRIMARY_USER_ID): CustomFood | undefined {
+  const code = barcode.trim();
+  if (!code) return undefined;
+  return db
+    .select()
+    .from(customFoods)
+    .where(and(eq(customFoods.userId, userId), eq(customFoods.barcode, code)))
     .get();
 }
 
@@ -131,6 +147,7 @@ function provenance(input: CustomFoodInput) {
     microsJson:
       input.micros && Object.keys(input.micros).length > 0 ? JSON.stringify(input.micros) : null,
     source: input.source ?? ('user' as const),
+    barcode: input.barcode?.trim() || null,
   };
 }
 
@@ -168,6 +185,7 @@ export function toFoodItem(f: CustomFood): FoodItem {
     micros: parseMicros(f.microsJson) ?? undefined,
     isComposed: !!f.componentsJson,
     aiSourced: f.source === 'ai',
+    fromLabel: f.source === 'off',
   };
 }
 

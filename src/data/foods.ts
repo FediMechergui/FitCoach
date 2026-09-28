@@ -43,6 +43,8 @@ export interface FoodItem {
    * UI says so wherever the food appears.
    */
   aiSourced?: boolean;
+  /** read from a pack's label through Open Food Facts */
+  fromLabel?: boolean;
   /**
    * How the stomach treats it — the digestion clock runs liquids about twice
    * as fast and settles them in a quarter of the time. Every catalogue food

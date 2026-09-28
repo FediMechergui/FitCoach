@@ -76,6 +76,7 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
+import { checkBarcode, barcodeChecksumOk, cleanBarcode, parseOffProduct, offPortion, offDisplayName, cleanSearchWords, OFF_FIELDS } from '../src/lib/openFoodFacts';
 import { fitRoute } from '../src/lib/geo';
 import { TRAINING_PATHS, DISCIPLINE_ORDER, findPath, pathWeeks } from '../src/data/paths';
 import { pathStyleTag, parsePathStyle, gateStatus, nextDayKey, pathProgress } from '../src/lib/paths';
@@ -4626,7 +4627,8 @@ console.log('\nNetwork 3.3.1 - planned, not switched on:');
   const importers = srcFiles('src').filter((f) => !f.startsWith('src/social') && /from '@\/social\//.test(fs.readFileSync(f, 'utf8')));
   check('Nothing in the app imports the network yet', importers.length === 0, importers.join());
   const calls = srcFiles('src').filter((f) => /\bfetch\(/.test(fs.readFileSync(f, 'utf8')));
-  check('The app still makes network calls from two files only', calls.length === 2 && calls.every((f) => /weatherFetch|foodVision/.test(f)), calls.join());
+  // Superseded by 3.4.0: Open Food Facts is the third, and the list is still closed.
+  check('The app makes network calls from three files only', calls.length === 3 && calls.every((f) => /services\/(weatherFetch|foodVision|openFoodFacts)\.ts$/.test(f)), calls.join());
   const plan = fs.readFileSync('docs/SOCIAL-PLAN.md', 'utf8');
   check('The plan says it is a plan, lists what never leaves the phone, and what is yours to decide', /Nothing in this document is switched on/.test(plan) && /Never leaves the phone/.test(plan) && /Decisions that are yours to make/.test(plan) && /with a lawyer in Tunisia/.test(plan));
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -4706,6 +4708,62 @@ console.log('\nTiles 3.3.4 - a number and its name, in seventy points:');
   check('A glow takes no room: the box is the size of the icon', /<View style=\{\{ width: size, height: size, alignItems: 'center', justifyContent: 'center', overflow: 'visible' \}\}>/.test(icon) && /left: -pad, top: -pad, width: totalSize, height: totalSize/.test(icon));
   const stats = fs.readFileSync('src/screens/stats/StatsScreen.tsx', 'utf8');
   check('The smoking line on Stats wraps inside its card', /spent · \{Math\.round\(smoking\.lifeMinutesWeek \/ 60 \* 10\) \/ 10\} h of life \(est\.\)/.test(stats) && !/<Row style=\{\{ justifyContent: 'space-between' \}\}>\s*\n\s*<Row gap=\{8\} style=\{\{ alignItems: 'center' \}\}>\s*\n\s*<Icon icon="smoking\.cigarette"/.test(stats));
+}
+
+console.log('\nLabel 3.4.0 - packaged products, from Open Food Facts:');
+{
+  // ── Barcodes ──
+  check('Real barcodes pass: EAN-13, UPC-A, EAN-8', checkBarcode('3017620422003').ok && checkBarcode('6194003803042').ok && checkBarcode('036000291452').ok && checkBarcode('96385074').ok);
+  check('One wrong digit fails the check', !barcodeChecksumOk('3017620422004') && checkBarcode('3017620422004').ok === false);
+  const why = (t: string) => { const v = checkBarcode(t); return v.ok ? 'ok' : v.reason; };
+  check('Each refusal has its own reason', why('') === 'empty' && why('30176abc') === 'characters' && why('12345') === 'length' && why('3017620422004') === 'checksum');
+  check('Spaces and dashes typed from the pack are forgiven', cleanBarcode(' 3 017620-422003 ') === '3017620422003' && checkBarcode('3 017620 422003').ok);
+  check('Swapping two neighbouring digits is caught', !barcodeChecksumOk('3017620422030'));
+
+  // ── Reading a record ──
+  const yog = { code: '6194003803042', product_name: 'Yaourt brassé', brands: ['Délice Danone'], quantity: '110 g', serving_size: '110 g', serving_quantity: 110, nutriments: { 'energy-kcal_100g': 110, proteins_100g: 3, carbohydrates_100g: 16.8, fat_100g: 5, sugars_100g: 15, sodium_100g: 0.05, calcium_100g: 0.12 }, nutriscore_grade: 'c', nova_group: 4, allergens_tags: ['en:milk'], countries_tags: ['en:tunisia'] };
+  const y = parseOffProduct(yog);
+  check('A full record is read', y.ok && y.product.name === 'Yaourt brassé' && y.product.per100.calories === 110 && y.product.per100.protein === 3 && y.product.brand === 'Délice Danone' && y.product.countries.join() === 'Tunisia' && y.product.allergens.join() === 'Milk');
+  check('What the record lacks is named, not hidden', y.ok && y.product.missing.join() === 'fiber');
+  check('Micronutrients arrive in grams and are kept in milligrams', y.ok && y.product.micros.sodium_mg === 50 && y.product.micros.calcium_mg === 120);
+  check('Brands are read as a list or as one string', (() => { const a = parseOffProduct({ ...yog, brands: 'Delice, Danone' }); return a.ok && a.product.brand === 'Delice'; })());
+  check('A serving scales every number', y.ok && offPortion(y.product, 'serving').macros.calories === 121 && offPortion(y.product, 'serving').macros.protein === 3.3 && offPortion(y.product, 'serving').micros.calcium_mg === 132 && offPortion(y.product, 'serving').label === '110 g');
+  check('With no serving on record, the portion is 100 g', (() => { const a = parseOffProduct({ ...yog, serving_quantity: undefined, serving_size: undefined }); return a.ok && offPortion(a.product, 'serving').label === '100 g' && offPortion(a.product, 'serving').factor === 1; })());
+  check('A drink is measured in millilitres', (() => { const a = parseOffProduct({ product_name: 'Cola', quantity: '330 ml', nutriments: { 'energy-kcal_100g': 42, carbohydrates_100g: 10.6 } }); return a.ok && a.product.liquid && offPortion(a.product, '100').label === '100 ml'; })());
+  check('Energy given in kilojoules is converted', (() => { const a = parseOffProduct({ product_name: 'X', nutriments: { 'energy-kj_100g': 418.4, proteins_100g: 1 } }); return a.ok && a.product.per100.calories === 100; })());
+  check('Energy that is missing is derived, and said to be', (() => { const a = parseOffProduct({ product_name: 'X', nutriments: { proteins_100g: 10, carbohydrates_100g: 20, fat_100g: 5 } }); return a.ok && a.product.per100.calories === 165 && a.product.missing.includes('calories'); })());
+  const no = (raw: unknown) => { const r = parseOffProduct(raw); return r.ok ? 'ok' : r.reason; };
+  check('A record with no name is refused', no({ nutriments: { 'energy-kcal_100g': 100 } }) === 'unnamed' && no(null) === 'empty');
+  check('A record with no nutrition is refused', no({ product_name: 'Mystery' }) === 'no-nutrition' && no({ product_name: 'Mystery', nutriments: {} }) === 'no-nutrition');
+  check('Numbers that cannot be true are refused', no({ product_name: 'X', nutriments: { proteins_100g: 60, carbohydrates_100g: 50, fat_100g: 10 } }) === 'implausible' && no({ product_name: 'X', nutriments: { 'energy-kcal_100g': 2500, fat_100g: 10 } }) === 'implausible');
+  check('Negative and nonsense numbers are read as absent', (() => { const a = parseOffProduct({ product_name: 'X', nutriments: { 'energy-kcal_100g': 100, proteins_100g: -4, fat_100g: 'abc' } }); return a.ok && a.product.per100.protein === 0 && a.product.missing.includes('protein') && a.product.missing.includes('fat'); })());
+  check('Numbers written with a comma are read', (() => { const a = parseOffProduct({ product_name: 'X', nutriments: { 'energy-kcal_100g': '52,5', proteins_100g: '1,2' } }); return a.ok && a.product.per100.protein === 1.2; })());
+  check('Fibre can never exceed the carbohydrate it is part of', (() => { const a = parseOffProduct({ product_name: 'X', nutriments: { 'energy-kcal_100g': 50, carbohydrates_100g: 4, fiber_100g: 9 } }); return a.ok && a.product.per100.fiber === 4; })());
+  check('A grade outside a to e is dropped', (() => { const a = parseOffProduct({ ...yog, nutriscore_grade: 'unknown', nova_group: 9 }); return a.ok && a.product.nutriScore === null && a.product.nova === null; })());
+  check('The brand leads the name only when the name lacks it', y.ok && offDisplayName(y.product) === 'Délice Danone Yaourt brassé' && offDisplayName({ ...y.product, name: 'Délice Danone brassé' }) === 'Délice Danone brassé');
+  check('Search words cannot carry query syntax', cleanSearchWords('  yaourt "nature": (x) ') === 'yaourt nature x' && cleanSearchWords('a'.repeat(200)).length === 60 && !/[":()]/.test(cleanSearchWords('countries_tags:"en:france"')));
+
+  // ── What leaves the phone ──
+  const svc = fs.readFileSync('src/services/openFoodFacts.ts', 'utf8');
+  check('Only Open Food Facts is addressed, over https', (svc.match(/https?:\/\/[^'"`\s)]+/g) ?? []).every((u) => /^https:\/\/(world|search)\.openfoodfacts\.org/.test(u)));
+  check('The request says what app it is, and nothing about the user', /const AGENT = `FitCoach\/\$\{APP_RELEASE\} \(Android; github\.com\/FediMechergui\/FitCoach\)`;/.test(svc) && !/@gmail|email|userId|getUser|latitude|kvGet/i.test(svc));
+  check('The request names the fields it wants', /fields=\$\{OFF_FIELDS\}/.test(svc) && OFF_FIELDS.split(',').includes('nutriments') && !/\b(creator|editors|images)\b/.test(OFF_FIELDS));
+  check('A barcode is checked before any request is made', svc.indexOf('const verdict = checkBarcode(text);') > 0 && svc.indexOf('const verdict = checkBarcode(text);') < svc.indexOf('/api/v2/product/'));
+  check('It never throws: offline, slow, refused and missing are all answers', /reason: aborted \? 'timeout' : 'offline'/.test(svc) && /res\.status === 429/.test(svc) && /res\.status === 404/.test(svc) && /clearTimeout\(timer\)/.test(svc));
+  const scr = fs.readFileSync('src/screens/nutrition/BarcodeFoodScreen.tsx', 'utf8');
+  check('A product already on the phone is found without the network', scr.indexOf('const saved = findByBarcode(verdict.code);') > 0 && scr.indexOf('const saved = findByBarcode(verdict.code);') < scr.indexOf('await lookupBarcode(verdict.code)'));
+  check('The record is kept with its source and its barcode', /source: 'off',\s*\n\s*barcode: product\.barcode,/.test(scr));
+  check('Gaps are said out loud before saving', /This record does not give:/.test(scr) && /worked out from the macros, the label gave none/.test(scr));
+  check('A product that is not there offers the way to enter it by hand', /Enter the label by hand/.test(scr) && /navigation\.navigate\('CustomFood', \{\}\)/.test(scr));
+  check('The source, the licence and what is sent are all stated', /Open Database Licence/.test(scr) && /Nothing about you or your diary is sent/.test(scr));
+  check('The screen does not pretend to scan', /Scanning with the camera needs a new version of the app/.test(scr) && !/expo-camera|BarCodeScanner/.test(scr));
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  check('No native module was added: this ships over the air', !Object.keys(pkg.dependencies).some((d) => /camera|barcode/i.test(d)));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('The barcode column exists on fresh installs and upgrades, schema 37', /\{ table: 'custom_foods', column: 'barcode', ddl: 'TEXT' \}/.test(boot) && /  source TEXT,\n  barcode TEXT,/.test(boot.replace(/\r\n/g, '\n')) && /const SCHEMA_VERSION = (3[7-9]|[4-9]\d);/.test(boot));
+  const repo = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
+  check('Editing a saved product cannot erase where it came from', /barcode: input\.barcode\?\.trim\(\) \|\| null,/.test(repo) && repo.indexOf('barcode: input.barcode') > repo.indexOf('function provenance('));
+  check('A label food is told apart from your entries and from estimates', /fromLabel: f\.source === 'off',/.test(repo) && /\{item\.fromLabel && \(/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

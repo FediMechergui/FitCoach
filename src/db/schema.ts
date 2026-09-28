@@ -810,7 +810,12 @@ export const customFoods = sqliteTable('custom_foods', {
    * however confident they look; NULL or 'user' means you entered them. Kept
    * for the lifetime of the row so an estimate can never quietly become fact.
    */
-  source: text('source', { enum: ['user', 'ai'] }),
+  source: text('source', { enum: ['user', 'ai', 'off'] }),
+  /**
+   * The barcode, for a product that came from Open Food Facts ('off'). It is
+   * what lets a product looked up once be found again with no network.
+   */
+  barcode: text('barcode'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

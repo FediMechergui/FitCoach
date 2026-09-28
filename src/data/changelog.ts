@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.4.0',
+    date: '2026-09-28',
+    title: 'The label, from Open Food Facts',
+    highlights: [
+      'Packaged products can be looked up. From Add food, choose Look up a packaged product, then type the numbers under the barcode or search by name. The data comes from Open Food Facts, a free and open database entered by the people who buy the food. Searching can be narrowed to products sold in Tunisia.',
+      'The record is shown in full before anything is kept: energy and macros per serving or per 100 g, sugars, saturated fat and salt, the Nutri-Score, how processed it is, declared allergens and the ingredients. What the record does not give is named, and energy that was missing is worked out from the macros and marked as such.',
+      'Nothing is trusted blindly. A barcode is checked for a mistyped digit before any request is made. A record with no name or no nutrition is refused, and so is one whose numbers cannot be true, such as more than 100 g of macros in 100 g of food.',
+      'A product saved once lives on your phone with its barcode, so the same number finds it again with no connection. In search it wears the word label, to tell it from your own entries and from estimates.',
+      'What leaves the phone is the barcode or the words you typed, and nothing else. This is the third thing in the app that uses the network, after the weather and the photograph of a meal. It is checked by machine that there are only three.',
+      'Scanning with the camera is not in this version. It needs a new build of the app, so until then the number is typed.',
+      '2024 checks in all, up from 1986. Schema 37.',
+    ],
+  },
+  {
     version: '3.3.4',
     date: '2026-09-28',
     title: 'Tiles that fit',

@@ -311,6 +311,42 @@ export async function identifyFoodInPhoto(
   return parsed ? { data: parsed, error: null } : { data: null, error: 'unreadable' };
 }
 
+// ── 1b. What number is under the barcode? ──────────────────────────────────
+
+const BARCODE_SCHEMA = {
+  type: 'object',
+  properties: {
+    barcode: { type: 'string', description: 'the digits printed under the barcode, digits only, or an empty string if none can be read' },
+    alternatives: { type: 'array', description: 'other readings of the same number, if any digit was unclear', items: { type: 'string' } },
+  },
+  required: ['barcode', 'alternatives'],
+};
+
+const BARCODE_PROMPT =
+  'This is a photograph of the barcode on a food package. ' +
+  'Read the digits PRINTED UNDER the bars, left to right, including any small digit set apart at the far left or right. ' +
+  'A food barcode has 13, 12 or 8 digits. Return digits only, with no spaces. ' +
+  'If a digit is unclear, put your best reading in barcode and the other possible readings in alternatives. ' +
+  'Do not guess a number from the brand or the product. If no digits can be read, return an empty string.';
+
+/**
+ * Read the number under a barcode from a JPEG. The answer is NOT trusted here:
+ * the caller puts it through the check digit (lib/openFoodFacts) before it is
+ * used for anything.
+ */
+export async function readBarcodeInPhoto(base64Jpeg: string): Promise<VisionResult<unknown>> {
+  return ask(
+    [
+      { type: 'text', text: BARCODE_PROMPT },
+      { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Jpeg}` } },
+    ],
+    BARCODE_SCHEMA,
+    'barcode_reading',
+    VISION_TIMEOUT_MS,
+    300
+  );
+}
+
 // ── 2. What is in a food we don't have? ──────────────────────────────────────
 
 /** The micro block, built from the real key list so it can never drift. */

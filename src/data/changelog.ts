@@ -19,6 +19,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.4.1',
+    date: '2026-09-28',
+    title: 'Photograph the barcode',
+    highlights: [
+      'A barcode can be photographed instead of typed. The camera is the one that already photographs your meals, and so is the model that reads the picture, so nothing had to be added to the app and it needs the same key.',
+      'What the model reads is never taken on trust. Every barcode carries a check digit, and the reading is put through it: a number that passes is looked up at once, and a number that fails is shown to you for correction and is not looked up. A wrong barcode is a different product, not a worse answer.',
+      'When a digit was unclear the model gives its other readings too, and the first one that passes the check is used.',
+      'The last version said scanning needed a new build of the app. That was wrong, and the line is gone.',
+      '2039 checks in all, up from 2024.',
+    ],
+  },
+  {
     version: '3.4.0',
     date: '2026-09-28',
     title: 'The label, from Open Food Facts',

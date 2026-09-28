@@ -47,6 +47,42 @@ export function checkBarcode(text: string): BarcodeVerdict {
   return { ok: true, code };
 }
 
+export type BarcodeReading =
+  | { kind: 'read'; code: string }
+  /** digits were read, but they fail the check: shown for correction, never looked up */
+  | { kind: 'doubtful'; digits: string }
+  | { kind: 'none' };
+
+/**
+ * What a model said it read under a barcode, judged.
+ *
+ * A model reading digits from a photograph will sometimes read one wrong, and
+ * a wrong barcode is a DIFFERENT PRODUCT, not a worse answer. So its word is
+ * never taken: every candidate is put through the check digit, and only one
+ * that passes is accepted. Digits that fail are handed back to be corrected
+ * against the pack, and are not looked up.
+ */
+export function judgeBarcodeReading(raw: unknown): BarcodeReading {
+  const found: string[] = [];
+  const take = (v: unknown) => {
+    if (typeof v === 'number' && Number.isFinite(v)) found.push(String(Math.trunc(v)));
+    else if (typeof v === 'string') found.push(v);
+  };
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>;
+    take(o.barcode);
+    if (Array.isArray(o.alternatives)) o.alternatives.forEach(take);
+  } else take(raw);
+
+  const candidates = found.map((t) => t.replace(/\D/g, '')).filter((t) => t.length >= 6 && t.length <= 14);
+  for (const t of candidates) {
+    const v = checkBarcode(t);
+    if (v.ok) return { kind: 'read', code: v.code };
+  }
+  const closest = candidates.find((t) => [8, 12, 13].includes(t.length)) ?? candidates[0];
+  return closest ? { kind: 'doubtful', digits: closest } : { kind: 'none' };
+}
+
 export const BARCODE_REASON: Record<Exclude<BarcodeVerdict, { ok: true }>['reason'], string> = {
   empty: 'Type the numbers printed under the barcode.',
   characters: 'A barcode is digits only.',

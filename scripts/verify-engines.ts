@@ -76,7 +76,7 @@ import { estimate1RMFromSet, repsAtFailureEquivalent, ormConfidence } from '../s
 import { roundTo, roundKcal, roundGrams } from '../src/lib/format';
 import { NICOTINE_PRODUCTS, findNicotineProduct, productOrDefault } from '../src/data/nicotineProducts';
 import { BADGE_IMAGES } from '../src/data/badgeImages';
-import { checkBarcode, barcodeChecksumOk, cleanBarcode, parseOffProduct, offPortion, offDisplayName, cleanSearchWords, OFF_FIELDS } from '../src/lib/openFoodFacts';
+import { judgeBarcodeReading, checkBarcode, barcodeChecksumOk, cleanBarcode, parseOffProduct, offPortion, offDisplayName, cleanSearchWords, OFF_FIELDS } from '../src/lib/openFoodFacts';
 import { fitRoute } from '../src/lib/geo';
 import { TRAINING_PATHS, DISCIPLINE_ORDER, findPath, pathWeeks } from '../src/data/paths';
 import { pathStyleTag, parsePathStyle, gateStatus, nextDayKey, pathProgress } from '../src/lib/paths';
@@ -4756,7 +4756,8 @@ console.log('\nLabel 3.4.0 - packaged products, from Open Food Facts:');
   check('Gaps are said out loud before saving', /This record does not give:/.test(scr) && /worked out from the macros, the label gave none/.test(scr));
   check('A product that is not there offers the way to enter it by hand', /Enter the label by hand/.test(scr) && /navigation\.navigate\('CustomFood', \{\}\)/.test(scr));
   check('The source, the licence and what is sent are all stated', /Open Database Licence/.test(scr) && /Nothing about you or your diary is sent/.test(scr));
-  check('The screen does not pretend to scan', /Scanning with the camera needs a new version of the app/.test(scr) && !/expo-camera|BarCodeScanner/.test(scr));
+  // Superseded by 3.4.1: the camera the meal photograph uses can photograph a barcode too.
+  check('No scanner module is imported', !/expo-camera|BarCodeScanner/.test(scr));
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   check('No native module was added: this ships over the air', !Object.keys(pkg.dependencies).some((d) => /camera|barcode/i.test(d)));
   const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
@@ -4764,6 +4765,28 @@ console.log('\nLabel 3.4.0 - packaged products, from Open Food Facts:');
   const repo = fs.readFileSync('src/repositories/customFoodRepo.ts', 'utf8');
   check('Editing a saved product cannot erase where it came from', /barcode: input\.barcode\?\.trim\(\) \|\| null,/.test(repo) && repo.indexOf('barcode: input.barcode') > repo.indexOf('function provenance('));
   check('A label food is told apart from your entries and from estimates', /fromLabel: f\.source === 'off',/.test(repo) && /\{item\.fromLabel && \(/.test(fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8')));
+}
+
+console.log('\nBarcode 3.4.1 - photographed, read, and checked before it is believed:');
+{
+  const j = (raw: unknown) => judgeBarcodeReading(raw);
+  check('A reading that passes the check digit is accepted', (() => { const r = j({ barcode: '6194003803042', alternatives: [] }); return r.kind === 'read' && r.code === '6194003803042'; })());
+  check('Spaces, dashes and stray characters in a reading are removed', (() => { const r = j({ barcode: ' 6 194003-803042\n', alternatives: [] }); return r.kind === 'read' && r.code === '6194003803042'; })());
+  check('One digit read wrong is caught: shown, never looked up', (() => { const r = j({ barcode: '6194003803043', alternatives: [] }); return r.kind === 'doubtful' && r.digits === '6194003803043'; })());
+  check('When the best reading fails, an alternative that passes is used', (() => { const r = j({ barcode: '6194003808042', alternatives: ['6194003803042'] }); return r.kind === 'read' && r.code === '6194003803042'; })());
+  check('Nothing read is nothing', j({ barcode: '', alternatives: [] }).kind === 'none' && j(null).kind === 'none' && j({}).kind === 'none' && j({ barcode: 'no barcode visible', alternatives: [] }).kind === 'none');
+  check('A number returned as a number is read too', (() => { const r = j({ barcode: 3017620422003, alternatives: [] }); return r.kind === 'read' && r.code === '3017620422003'; })());
+  check('A plain string reply is accepted', j('3017620422003').kind === 'read');
+  check('Absurd lengths are not offered for correction', j({ barcode: '12', alternatives: ['123456789012345678'] }).kind === 'none');
+  const scr = fs.readFileSync('src/screens/nutrition/BarcodeFoodScreen.tsx', 'utf8');
+  check('Only a reading that passed is looked up', /if \(judged\.kind === 'read'\) \{\s*\n\s*setCode\(judged\.code\);\s*\n\s*await lookUp\(judged\.code\);/.test(scr) && !/judged\.kind === 'doubtful'\) \{[^}]*lookUp/.test(scr));
+  check('A doubtful reading says what was read and what to do', /but that number does not add up, so one digit was read wrong/.test(scr));
+  check('The photograph uses the camera already in the build', /ImagePicker\.launchCameraAsync\(/.test(scr) && /from 'expo-image-picker'/.test(scr));
+  check('Without a key the button says why, and where to set it', /This uses the same OpenRouter key as photographing a meal/.test(scr) && /Set up the key/.test(scr));
+  check('A refused camera says what to do instead', /You can type the number instead/.test(scr));
+  check('The screen says where a photograph goes', /A photograph of a barcode goes to OpenRouter with your own key/.test(scr));
+  const vis = fs.readFileSync('src/services/foodVision.ts', 'utf8');
+  check('The model is told to read, not to guess', /Do not guess a number from the brand or the product/.test(vis) && /export async function readBarcodeInPhoto/.test(vis));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

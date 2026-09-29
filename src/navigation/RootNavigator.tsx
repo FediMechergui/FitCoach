@@ -38,6 +38,7 @@ import { SplitPickerScreen } from '@/screens/train/SplitPickerScreen';
 import { MethodPickerScreen } from '@/screens/train/MethodPickerScreen';
 import { ProgramPickerScreen } from '@/screens/train/ProgramPickerScreen';
 import { SpecialProgramsScreen } from '@/screens/train/SpecialProgramsScreen';
+import { ReadySessionsScreen } from '@/screens/train/ReadySessionsScreen';
 import { ChallengeScreen } from '@/screens/train/ChallengeScreen';
 import { SpecialProgramDetailScreen } from '@/screens/train/SpecialProgramDetailScreen';
 import { ChangelogScreen } from '@/screens/profile/ChangelogScreen';
@@ -97,6 +98,7 @@ export function RootNavigator() {
           <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: '' }} />
           <Stack.Screen name="ProgramPicker" component={ProgramPickerScreen} options={{ title: '' }} />
           <Stack.Screen name="SpecialPrograms" component={SpecialProgramsScreen} options={{ title: '' }} />
+          <Stack.Screen name="ReadySessions" component={ReadySessionsScreen} options={{ title: '' }} />
           <Stack.Screen name="DailyChallenge" component={ChallengeScreen} options={{ title: '' }} />
           <Stack.Screen name="SpecialProgramDetail" component={SpecialProgramDetailScreen} options={{ title: '' }} />
           <Stack.Screen

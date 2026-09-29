@@ -21,6 +21,8 @@ export type RootStackParamList = {
   ProgramPicker: { sessionType: SessionType };
   /** themed military / historical / lifestyle programmes */
   SpecialPrograms: undefined;
+  /** single sessions already written: every push-up, best three per muscle… */
+  ReadySessions: undefined;
   /** spin-the-wheel daily challenge */
   DailyChallenge: undefined;
   SpecialProgramDetail: { programKey: string };

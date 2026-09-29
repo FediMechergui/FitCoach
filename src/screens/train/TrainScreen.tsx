@@ -194,6 +194,22 @@ export function TrainScreen() {
       {/* ── Browse ─────────────────────────────────────────────────────────── */}
       <SectionHeader title="Browse" />
 
+      {/* One session, already written: the shortest way from "what do I do?" to doing it */}
+      <Card accent={theme.colors.primary} style={{ gap: 6 }} onPress={() => navigation.navigate('ReadySessions')}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+            <Icon artistic="minted" icon="core.start" size={24} color={theme.colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong">Ready sessions</Text>
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                Every push-up, the best three per muscle, skills, short ones
+              </Text>
+            </View>
+          </Row>
+          <Icon icon="core.forward" size={18} color={theme.colors.textFaint} />
+        </Row>
+      </Card>
+
       {/* Spin once a day for a challenge you didn't choose */}
       <Card accent={theme.colors.warning} style={{ gap: 6 }} onPress={() => navigation.navigate('DailyChallenge')}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>

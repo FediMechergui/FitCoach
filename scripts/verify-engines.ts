@@ -147,6 +147,7 @@ import { SEARCH_FOOD_DB } from '../src/data/foods';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
+import { READY_SESSIONS, READY_GROUP_META, READY_GROUP_ORDER, readySessionsIn, findReadySession, readyStyleTag, parseReadyStyle } from '../src/data/readySessions';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
 import { estimateDifficulty, findEasierAlternatives, matchQuality, type AltExercise } from '../src/lib/exerciseAlternatives';
@@ -4966,6 +4967,76 @@ console.log('\nLibrary 3.5.0 - the second pass:');
   check('Breath holding warns about water', /water|swim|driv/i.test((EXLIB.find((e) => e.slug === 'kumbhaka-breath-retention')?.instructions ?? []).join(' ')));
   check('No two exercises share a name, still', new Set(EXLIB.filter((e) => !e.aliasOf).map((e) => e.name.toLowerCase())).size === EXLIB.filter((e) => !e.aliasOf).length);
   check('Nearly every exercise has its video', Object.keys(EXERCISE_VIDEOS).length >= EXERCISE_LIBRARY.length - 5, `${Object.keys(EXERCISE_VIDEOS).length} of ${EXERCISE_LIBRARY.length}`);
+}
+
+console.log('\nReady sessions 3.6.0 - one session, already written:');
+{
+  const lib = new Map(EXLIB.map((e) => [e.slug, e]));
+  const RS = READY_SESSIONS;
+  check('More than a hundred sessions, in eleven groups', RS.length >= 100 && READY_GROUP_ORDER.length === 11, `${RS.length}`);
+  check('Every group has a name, a short name for the rail, a line and an icon', READY_GROUP_ORDER.every((g) => { const m = READY_GROUP_META[g]; return !!m && m.label.length > 2 && m.short.length > 2 && m.short.length <= 16 && m.blurb.length > 20 && /^[a-z]+\.[A-Za-z]+$/.test(m.icon); }));
+  check('Every group holds at least six sessions', READY_GROUP_ORDER.every((g) => readySessionsIn(g).length >= 6), READY_GROUP_ORDER.map((g) => `${g}:${readySessionsIn(g).length}`).join());
+  check('No session belongs to a group that is not on the rail', RS.every((x) => READY_GROUP_ORDER.includes(x.group)));
+  check('Keys are unique, lower-case, and never reused', new Set(RS.map((x) => x.key)).size === RS.length && RS.every((x) => /^[a-z][a-z0-9-]+$/.test(x.key)));
+  const missing = RS.flatMap((x) => x.exercises.filter((k) => !lib.has(k)).map((k) => `${x.key}:${k}`));
+  check('Every exercise named is in the library', missing.length === 0, missing.join());
+  const aliased = RS.flatMap((x) => x.exercises.filter((k) => lib.get(k)?.aliasOf).map((k) => `${x.key}:${k}`));
+  check('...under its primary slug, never an alias', aliased.length === 0, aliased.join());
+  check('No session lists the same exercise twice', RS.every((x) => new Set(x.exercises).size === x.exercises.length));
+  check('A session is three to fourteen exercises', RS.every((x) => x.exercises.length >= 3 && x.exercises.length <= 14), RS.filter((x) => x.exercises.length < 3 || x.exercises.length > 14).map((x) => x.key).join());
+  check('Where targets are given, there is one per exercise', RS.every((x) => !x.targets || x.targets.length === x.exercises.length));
+  check('Every session says why, what is needed and what to do', RS.every((x) => x.why.length >= 30 && x.kit.length >= 3 && x.prescription.length >= 20 && x.minutes >= 5 && x.minutes <= 75));
+  check('Every level is one of the three', RS.every((x) => ['beginner', 'intermediate', 'advanced'].includes(x.level)));
+  check('Each level is served: at least twenty sessions for a beginner', RS.filter((x) => x.level === 'beginner').length >= 20 && RS.filter((x) => x.level === 'advanced').length >= 10);
+
+  // what was asked for
+  const all = findReadySession('pushups-every-muscle')!;
+  const muscles = new Set(all.exercises.map((k) => lib.get(k)!.primaryMuscle));
+  check('Push-ups for every muscle reaches chest, triceps, shoulders, core, forearms and back', ['chest', 'triceps', 'shoulders', 'core', 'forearms', 'back'].every((m) => muscles.has(m)), [...muscles].join());
+  const subs = new Set(all.exercises.map((k) => lib.get(k)!.subMuscle));
+  check('...and the chest at all three heights', ['upper_chest', 'mid_chest', 'lower_chest'].every((m) => subs.has(m)));
+  check('Every session in the push-up group is made of push-ups, bar its warm-up and its plank', readySessionsIn('pushups').every((x) => x.exercises.filter((k) => /push-?up/.test(k)).length >= x.exercises.length - 1));
+  const MUSCLES = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 'core', 'forearms', 'neck'];
+  for (const g of ['best-gym', 'best-home'] as const) {
+    const list = readySessionsIn(g);
+    check(`Best three (${g}): one session per muscle group, twelve in all`, list.length === 12 && MUSCLES.every((m) => list.some((x) => x.key === `${g}-${m}`)));
+    check(`Best three (${g}): exactly three exercises each`, list.every((x) => x.exercises.length === 3));
+    const stray = list.flatMap((x) => { const m = x.key.slice(g.length + 1); return x.exercises.filter((k) => { const e = lib.get(k)!; return e.primaryMuscle !== m && !(e.muscleGroups ?? []).includes(m); }).map((k) => `${x.key}:${k}`); });
+    // the shin muscle is filed under calves, the lower back under back; a Nordic curl is a hamstring exercise everywhere
+    check(`Best three (${g}): each exercise trains the muscle it is listed under`, stray.length === 0, stray.join());
+  }
+  check('Best three in the gym covers the three regions where the library names them', ['chest', 'back', 'shoulders', 'core', 'forearms', 'neck'].every((m) => new Set(findReadySession(`best-gym-${m}`)!.exercises.map((k) => lib.get(k)!.subMuscle)).size === 3));
+  check('No-kit sessions ask for no barbell, dumbbell, cable or machine', readySessionsIn('best-home').concat(readySessionsIn('pushups'), readySessionsIn('bar'), readySessionsIn('skills')).every((x) => x.exercises.every((k) => !['barbell', 'dumbbell', 'cable', 'machine'].includes(lib.get(k)!.equipmentType ?? ''))));
+  check('Combat sessions are combat, calm sessions are mind or body', readySessionsIn('combat').every((x) => x.sessionType === 'martial_arts') && readySessionsIn('calm').every((x) => x.sessionType === 'mindbody' || x.sessionType === 'meditation'));
+
+  // safety
+  const mustWarn = ['best-gym-neck', 'best-home-neck', 'pushups-power', 'pushups-wrists', 'pushups-triceps', 'skill-handstand', 'skill-handstand-push-up', 'skill-planche', 'care-knees', 'care-lower-back', 'cardio-jumps', 'combat-heavy-bag', 'calm-splits', 'calm-yoga-backbends', 'bar-dips-every-kind'];
+  check('The ones that can hurt carry a note', mustWarn.every((k) => (findReadySession(k)?.note ?? '').length > 30), mustWarn.filter((k) => !findReadySession(k)?.note).join());
+  check('Lower back care sends leg pain and numbness to a doctor', /doctor/i.test(findReadySession('care-lower-back')!.note!));
+  check('Neck work is light and never to failure', /never to failure/i.test(findReadySession('best-gym-neck')!.note!) && /2\.5 kg/.test(findReadySession('best-gym-neck')!.prescription));
+  check('The group of joints says it does not replace a physiotherapist', /physiotherapist/i.test(READY_GROUP_META.care.blurb));
+  check('"Best three" is presented as a choice, in the data and on the page', /not the only one/.test(fs.readFileSync('src/data/readySessions.ts', 'utf8')) && /not the only right one/.test(fs.readFileSync('src/screens/train/ReadySessionsScreen.tsx', 'utf8')));
+
+  // the tag
+  check('A session is tagged ready:<key>, and the tag reads back', RS.every((x) => readyStyleTag(x) === `ready:${x.key}` && parseReadyStyle(readyStyleTag(x)) === x.key));
+  check('Other tags are not mistaken for a ready session', parseReadyStyle('special:mil-army-acft:run') === null && parseReadyStyle('path:boxer:one:a') === null && parseReadyStyle(null) === null && parseReadyStyle('ready:') === null);
+  check('No ready key collides with a special programme or a path', RS.every((x) => !SPECIAL_PROGRAMS.some((sp) => sp.key === x.key) && !findPath(x.key)));
+
+  // the page
+  const page = fs.readFileSync('src/screens/train/ReadySessionsScreen.tsx', 'utf8');
+  const repo = fs.readFileSync('src/repositories/readyRepo.ts', 'utf8');
+  const nav = fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8');
+  const train = fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8');
+  check('The page is on the stack under a hero, with no bar title', /<Stack\.Screen name="ReadySessions" component=\{ReadySessionsScreen\} options=\{\{ title: '' \}\}/.test(nav) && /<PageHero/.test(page));
+  check('Train opens it, first under Browse', /navigation\.navigate\('ReadySessions'\)/.test(train) && train.indexOf("navigate('ReadySessions')") < train.indexOf("navigate('DailyChallenge')"));
+  check('Starting one pre-loads its exercises and tags the session', /begin\(s\.sessionType, \{[\s\S]{0,160}style: readyStyleTag\(s\),[\s\S]{0,80}prefillSlugs: s\.exercises/.test(page));
+  check('It will not start over a session already in progress', /if \(activeId\) \{[\s\S]{0,200}return;/.test(page));
+  check('A session can be kept among your own routines', /saveRoutine\(sessionLabel\(s\), ids\)/.test(page));
+  check('Only the open card reads the library', /const preview = open \? exercisesBySlugs\(s\.exercises\) : \[\]/.test(page));
+  check('The page shows what is needed, the prescription and the note', /\{s\.kit\}/.test(page) && /\{s\.prescription\}/.test(page) && /\{s\.note\}/.test(page));
+  check('What has been done is counted from finished sessions only', /isNotNull\(sessions\.endTime\)/.test(repo) && /like\(sessions\.style, 'ready:%'\)/.test(repo));
+  check('Ready sessions write nothing new to the database: no table, no column', !/CREATE TABLE|ALTER TABLE|insert\(|update\(/.test(repo));
+  check('No text on the page is smaller than 11', !/fontSize: (?:[0-9]|10)\b/.test(page));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

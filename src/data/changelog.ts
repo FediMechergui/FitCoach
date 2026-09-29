@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.6.0',
+    date: '2026-09-29',
+    title: 'Ready sessions',
+    highlights: [
+      'Ready sessions: 108 single sessions, already written, first under Browse on the Train tab. A split says which muscles, a programme says what the week looks like, a path says what you are becoming. A ready session answers the smallest question: I have forty minutes, what do I do?',
+      'Push-ups, twelve sessions. Push-ups for every muscle is nine push-ups for nine targets: upper, middle and lower chest, triceps, shoulders, serratus, obliques, forearms and the upper back. The grand tour gives two per target. Then your first push-up, from the wall to the floor; the chest at three angles; triceps; shoulders; the core; explosive; slow; the road to the one-arm push-up; a hundred push-ups; wrists and forearms.',
+      'The best three for each muscle, twice over: twelve sessions for the gym and twelve with no kit, one per muscle group from chest to neck. Three exercises that between them reach every part of the muscle, the first a heavy compound, the last the one that isolates. Each exercise says which part it is there for. It is a considered choice and says so: a good answer, not the only one.',
+      'Whole muscle and whole body: every head of the shoulder, every region of the back, the chest top to bottom, arms from elbow to wrist, legs from hip to ankle. One exercise for each muscle in a single session, for a full gym, for two dumbbells, for one kettlebell, for bands only, for no kit at all. And a first day in a gym, on machines.',
+      'Bars and floor: a first pull-up, pull-ups in every grip, rows, dips, the park bars, squats, lunges and planks of every kind. Skills, one per session from the first drill to the move itself: handstand, handstand push-up, L-sit, front lever, planche, muscle-up, pistol squat, human flag.',
+      'Joints and posture: shoulders, knees, lower back, hips, neck after a desk, wrists, ankles, grip. Short ones: ten minutes with no kit, a hotel room, a desk break, a wake-up, a warm-up before lifting, a cool-down, before bed. Combat by subject: the six punches, the defence, the feet, the heavy bag, the kicks, the ground alone. Conditioning, yoga by family, the Pilates mat classics, the breath.',
+      'Each session says what you need, what to do and, where it can hurt, what to watch for. Open one to read its running order before starting anything. Start pre-loads it, and nothing is locked once inside. Keep in My Routines copies it to your own list. A session you have done shows how many times and when last.',
+      '2154 checks in all, up from 2111. No change to the database.',
+    ],
+  },
+  {
     version: '3.5.0',
     date: '2026-09-28',
     title: 'Every food has a face',

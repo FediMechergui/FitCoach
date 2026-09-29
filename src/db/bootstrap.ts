@@ -67,8 +67,11 @@ import { seedExerciseLibrary } from './seed';
  *   37 → 38 v3.5.0: custom_foods.image_uri — a picture of a food you added; and
  *                  more exercises (push-up variations, sports, mind and body),
  *                  which the bump re-seeds.
+ *   38 → 39 v3.7.0: +358 exercises in families — kettlebell, bands, straps,
+ *                  rehabilitation, seniors and the chair, pregnancy, after
+ *                  birth, dance. No new table or column: the bump re-seeds.
  */
-const SCHEMA_VERSION = 38;
+const SCHEMA_VERSION = 39;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

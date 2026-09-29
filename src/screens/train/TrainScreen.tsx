@@ -43,6 +43,52 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  *
  * Nothing was removed — everything was placed.
  */
+function ActiveSessionBanner({ activeId, theme, navigation }: any) {
+  const startedAt = useSessionStore((s) => s.startedAt);
+  const [elapsed, setElapsed] = useState(0);
+
+  React.useEffect(() => {
+    if (!startedAt) return;
+    const t = setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [startedAt]);
+
+  const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const secs = (elapsed % 60).toString().padStart(2, '0');
+
+  return (
+    <Card accent={theme.colors.accent} raised>
+      <View style={{ position: 'absolute', right: -20, top: -20, opacity: 0.1, zIndex: -1 }}>
+        <Icon artistic="glow" icon="core.timer" size={100} color={theme.colors.accent} />
+      </View>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
+          <View style={{
+            width: 44, height: 44, borderRadius: 22,
+            backgroundColor: theme.alpha.tint14(theme.colors.accent),
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 1, borderColor: theme.alpha.tint22('#FFF'),
+          }}>
+            <Icon artistic="glow" icon="core.timer" size={24} color={theme.colors.accent} />
+          </View>
+          <View>
+            <Text variant="bodyStrong">Session in progress</Text>
+            <Text variant="numeralM" color="accent" style={{ marginTop: 2 }}>
+              {mins}:{secs} <Text variant="caption" color="textMuted">elapsed</Text>
+            </Text>
+          </View>
+        </Row>
+        <Button
+          title="Resume"
+          size="sm"
+          fullWidth={false}
+          onPress={() => navigation.navigate('ActiveSession', { sessionId: activeId })}
+        />
+      </Row>
+    </Card>
+  );
+}
+
 export function TrainScreen() {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
@@ -117,25 +163,7 @@ export function TrainScreen() {
       </View>
 
       {activeId ? (
-        <Card accent={theme.colors.accent} raised>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
-              <Icon artistic="glow" icon="core.timer" color={theme.colors.accent} />
-              <View>
-                <Text variant="bodyStrong">Session in progress</Text>
-                <Text variant="caption" color="textMuted">
-                  Tap to resume your check-in
-                </Text>
-              </View>
-            </Row>
-            <Button
-              title="Resume"
-              size="sm"
-              fullWidth={false}
-              onPress={() => navigation.navigate('ActiveSession', { sessionId: activeId })}
-            />
-          </Row>
-        </Card>
+        <ActiveSessionBanner activeId={activeId} theme={theme} navigation={navigation} />
       ) : (
         <Button
           title="Start a Session"

@@ -475,7 +475,7 @@ function attachSensors(): void {
       lastNotifiedDistanceM = distanceNow;
       void pushWalkNotification(t);
     }
-  }, 3000);
+  }, 1000);
 }
 
 /**

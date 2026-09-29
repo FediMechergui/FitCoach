@@ -147,6 +147,7 @@ import { SEARCH_FOOD_DB } from '../src/data/foods';
 import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMethods';
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
+import { EXERCISE_FAMILIES, familyOf, findFamily } from '../src/lib/exerciseFamilies';
 import { READY_SESSIONS, READY_GROUP_META, READY_GROUP_ORDER, readySessionsIn, findReadySession, readyStyleTag, parseReadyStyle } from '../src/data/readySessions';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
@@ -4973,7 +4974,8 @@ console.log('\nReady sessions 3.6.0 - one session, already written:');
 {
   const lib = new Map(EXLIB.map((e) => [e.slug, e]));
   const RS = READY_SESSIONS;
-  check('More than a hundred sessions, in eleven groups', RS.length >= 100 && READY_GROUP_ORDER.length === 11, `${RS.length}`);
+  // Superseded by 3.7.0: four groups joined the rail (kit, rehab, gentle, mother), fifteen in all.
+  check('More than a hundred sessions, in fifteen groups', RS.length >= 150 && READY_GROUP_ORDER.length === 15, `${RS.length}`);
   check('Every group has a name, a short name for the rail, a line and an icon', READY_GROUP_ORDER.every((g) => { const m = READY_GROUP_META[g]; return !!m && m.label.length > 2 && m.short.length > 2 && m.short.length <= 16 && m.blurb.length > 20 && /^[a-z]+\.[A-Za-z]+$/.test(m.icon); }));
   check('Every group holds at least six sessions', READY_GROUP_ORDER.every((g) => readySessionsIn(g).length >= 6), READY_GROUP_ORDER.map((g) => `${g}:${readySessionsIn(g).length}`).join());
   check('No session belongs to a group that is not on the rail', RS.every((x) => READY_GROUP_ORDER.includes(x.group)));
@@ -5037,6 +5039,84 @@ console.log('\nReady sessions 3.6.0 - one session, already written:');
   check('What has been done is counted from finished sessions only', /isNotNull\(sessions\.endTime\)/.test(repo) && /like\(sessions\.style, 'ready:%'\)/.test(repo));
   check('Ready sessions write nothing new to the database: no table, no column', !/CREATE TABLE|ALTER TABLE|insert\(|update\(/.test(repo));
   check('No text on the page is smaller than 11', !/fontSize: (?:[0-9]|10)\b/.test(page));
+}
+
+console.log('\nFamilies 3.7.0 - kettlebell, bands, straps, rehab, seniors, pregnancy, dance:');
+{
+  const exSrc = fs.readFileSync('src/data/exercises.ts', 'utf8');
+  const live = EXLIB.filter((e) => !e.aliasOf);
+  check('The block is on file and the library is past 1,950 entries', /3\.7\.0: the families/.test(exSrc) && EXERCISE_LIBRARY.length >= 1950, `${EXERCISE_LIBRARY.length}`);
+  check('Schema 39 re-seeds them', /const SCHEMA_VERSION = (39|[4-9]\d);/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')) && /38 . 39 v3\.7\.0/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
+  const count = (f: string) => live.filter((e) => familyOf(e) === f).length;
+  const floors: Record<string, number> = { kettlebell: 60, band: 60, suspension: 40, rehab: 55, seniors: 40, prenatal: 24, postnatal: 19, dance: 58 };
+  check('Eight families, each with a name and an icon', EXERCISE_FAMILIES.length === 8 && EXERCISE_FAMILIES.every((f) => f.label.length > 2 && /^[a-z]+\.[A-Za-z]+$/.test(f.icon)) && new Set(EXERCISE_FAMILIES.map((f) => f.key)).size === 8);
+  for (const f of EXERCISE_FAMILIES) check(`${f.label}: at least ${floors[f.key]} exercises`, count(f.key) >= floors[f.key], `${count(f.key)}`);
+  check('Older entries are gathered into their family too', familyOf({ slug: 'kettlebell-swing', category: 'other' }) === 'kettlebell' && familyOf({ slug: 'kb-press', category: 'other' }) === 'kettlebell' && familyOf({ slug: 'band-pull-apart', category: 'other' }) === 'band' && familyOf({ slug: 'ring-row', category: 'calisthenics' }) === 'suspension' && familyOf({ slug: 'dance-ballet', category: 'sport' }) === 'dance' && familyOf({ slug: 'prenatal-yoga', category: 'mindbody' }) === 'prenatal');
+  check('The kickboxing combination is not mistaken for a kettlebell', familyOf({ slug: 'kb-dutch-combo-drill', category: 'martial arts' }) === null);
+  check('An ordinary exercise belongs to no family', familyOf({ slug: 'bench-press-barbell', category: 'barbell' }) === null && familyOf({ slug: null, category: null }) === null && findFamily('nothing') === undefined);
+
+  // health families: the wording is the feature
+  const health = live.filter((e) => ['rehab', 'seniors', 'prenatal', 'postnatal'].includes(familyOf(e) ?? '') && /^(rehab|chair|senior|prenatal|postnatal)-/.test(e.slug) && !['chair-yoga', 'chair-squat'].includes(e.slug)); // those two are general entries, older than the family
+  const text = (e: (typeof live)[number]) => `${e.name} ${e.description ?? ''} ${(e.instructions ?? []).join(' ')}`;
+  const cue = /stop|doctor|midwife|physio|clinician|clear|advice|regress|ease back|ease off|go back a stage|single check/i;
+  check('There are more than 140 of them', health.length >= 140, `${health.length}`);
+  check('Every one carries a cue on when to stop or whom to ask', health.every((e) => cue.test((e.instructions ?? []).join(' '))), health.filter((e) => !cue.test((e.instructions ?? []).join(' '))).map((e) => e.slug).join());
+  check('None promises a cure, healing or a guarantee', health.every((e) => !/\b(cure|cures|cured|heal|heals|healed|guarantee|guarantees|guaranteed)\b/i.test(text(e))), health.filter((e) => /\b(cure|cures|cured|heal|heals|healed|guarantee|guarantees|guaranteed)\b/i.test(text(e))).map((e) => e.slug).join());
+  check('None is harder than "beginner", bar the late-stage rehab drills', health.every((e) => (e.difficulty ?? 3) <= 2 || /^rehab-(ankle-(lateral-hop|hop)|knee-decline)/.test(e.slug)), health.filter((e) => (e.difficulty ?? 3) > 2).map((e) => e.slug).join());
+  const rehab = health.filter((e) => e.slug.startsWith('rehab-'));
+  check('A rehab entry says what it is commonly used for, never what it fixes', rehab.filter((e) => /commonly|often|used (in|to|for|early|as)|programmes?/i.test(e.description ?? '')).length >= rehab.length * 0.95, rehab.filter((e) => !/commonly|often|used (in|to|for|early|as)|programmes?/i.test(e.description ?? '')).map((e) => e.slug).join());
+  check('Rehab covers ankle, knee, elbow, shoulder, back, wrist, neck and foot', ['ankle', 'knee', 'elbow', 'shoulder', 'back', 'wrist', 'neck', 'foot'].every((j) => rehab.some((e) => e.slug.startsWith(`rehab-${j}-`))));
+  check('Hopping drills ask for a physiotherapist first', ['rehab-ankle-lateral-hop-stick', 'rehab-ankle-hop-progression'].every((k) => /physiotherapist/i.test((EXLIB.find((e) => e.slug === k)?.instructions ?? []).join(' '))));
+  const pre = health.filter((e) => e.slug.startsWith('prenatal-'));
+  check('Every pregnancy entry names the midwife, the doctor or the maternity unit', pre.every((e) => /midwife|doctor|maternity/i.test((e.instructions ?? []).join(' '))));
+  check('Every pregnancy entry lists bleeding among the signs to stop', pre.every((e) => /bleed/i.test((e.instructions ?? []).join(' '))), pre.filter((e) => !/bleed/i.test((e.instructions ?? []).join(' '))).map((e) => e.slug).join());
+  check('No pregnancy entry is a crunch, a sit-up, a jump or a contact sport', pre.every((e) => !/crunch|sit-up|jump|sparring|contact/i.test(e.name)));
+  check('The deep squat hold asks about the placenta, breech and the stitch first', /placenta/i.test((EXLIB.find((e) => e.slug === 'prenatal-supported-deep-squat-hold')?.instructions ?? []).join(' ')));
+  const post = health.filter((e) => e.slug.startsWith('postnatal-'));
+  check('Every after-birth entry names a sign to step back or someone to ask', post.every((e) => /doming|coning|cones|domes|leak|heaviness|bleeding|wound|physiotherapist|postnatal check|doctor/i.test((e.instructions ?? []).join(' '))));
+  check('Running after birth waits for clearance', /clearance/i.test((EXLIB.find((e) => e.slug === 'postnatal-return-to-run-walk-jog')?.instructions ?? []).join(' ')));
+  check('The separation check says it is not a diagnosis', /not a diagnosis/i.test(EXLIB.find((e) => e.slug === 'postnatal-abdominal-separation-check')?.description ?? ''));
+  const old = health.filter((e) => /^(chair|senior)-/.test(e.slug));
+  check('Every seniors entry names dizziness or chest pain', old.every((e) => /dizz|chest pain|faint|light-headed/i.test((e.instructions ?? []).join(' '))), old.filter((e) => !/dizz|chest pain|faint|light-headed/i.test((e.instructions ?? []).join(' '))).map((e) => e.slug).join());
+  check('Standing balance is done beside something to hold', old.filter((e) => e.icon === 'mindbody.balance').every((e) => /counter|chair|rail|wall|support/i.test((e.instructions ?? []).join(' '))));
+  check('The four health families each say their caution at the top of the list', ['rehab', 'seniors', 'prenatal', 'postnatal'].every((k) => (findFamily(k)?.caution ?? '').length > 80) && /cannot examine you/.test(findFamily('rehab')!.caution!) && /midwife or doctor/.test(findFamily('prenatal')!.caution!));
+
+  // kit families
+  check('No brand names in what is shown', live.every((e) => !/\bTRX\b|Zumba|Jazzercise/i.test(e.name)));
+  check('A hip exercise is never filed under the arm raise', live.filter((e) => ['glutes', 'hamstrings', 'quads', 'calves'].includes(e.primaryMuscle ?? '')).every((e) => e.pattern !== 'lateral_raise' && e.pattern !== 'triceps_extension'), live.filter((e) => ['glutes', 'hamstrings', 'quads', 'calves'].includes(e.primaryMuscle ?? '') && (e.pattern === 'lateral_raise' || e.pattern === 'triceps_extension')).map((e) => e.slug).join());
+  check('Kettlebell lifts are loaded, strap and band work is counted', live.filter((e) => e.category === 'kettlebell').every((e) => e.trackingType === 'reps_weight' || e.trackingType === 'duration') && live.filter((e) => e.category === 'suspension trainer').every((e) => e.sessionType === 'calisthenics' && e.equipmentType === 'bodyweight'));
+  const has = (slugs: string[]) => slugs.filter((k) => !EXLIB.some((e) => e.slug === k));
+  check('The kettlebell lifts are there: clean, jerk, long cycle, gorilla row, arm bar', has(['kb-clean', 'kb-jerk', 'kb-long-cycle', 'kb-gorilla-row', 'kb-arm-bar', 'kb-one-arm-swing', 'kb-half-get-up']).length === 0);
+  check('Bands reach every muscle group', ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 'core'].every((m) => live.some((e) => e.category === 'resistance band' && e.primaryMuscle === m)));
+  check('Bodyweight biceps and hamstrings are no longer thin', live.filter((e) => e.sessionType === 'calisthenics' && e.primaryMuscle === 'biceps').length >= 15 && live.filter((e) => e.sessionType === 'calisthenics' && e.primaryMuscle === 'hamstrings').length >= 20, `${live.filter((e) => e.sessionType === 'calisthenics' && e.primaryMuscle === 'biceps').length} / ${live.filter((e) => e.sessionType === 'calisthenics' && e.primaryMuscle === 'hamstrings').length}`);
+  const dance = live.filter((e) => e.category === 'dance');
+  check('Dance is cardio by style, timed, under one icon', dance.length >= 50 && dance.every((e) => e.sessionType === 'sport' && e.primaryMuscle === 'cardio' && e.trackingType === 'duration' && e.icon === 'sport.dance'));
+  check('Salsa, waltz, tango, lindy hop, flamenco, dabke and bhangra are there', has(['dance-salsa', 'dance-waltz', 'dance-argentine-tango', 'dance-lindy-hop', 'dance-flamenco', 'dance-dabke', 'dance-bhangra', 'dance-tap']).length === 0);
+  check('Pointe work is for the advanced and under a teacher', EXLIB.find((e) => e.slug === 'dance-pointe-work')?.difficulty === 5 && /teacher/i.test((EXLIB.find((e) => e.slug === 'dance-pointe-work')?.instructions ?? []).join(' ')));
+  check('No two exercises share a name, still', new Set(live.map((e) => e.name.toLowerCase())).size === live.length);
+  check('Nearly every exercise has its video', Object.keys(EXERCISE_VIDEOS).length >= EXERCISE_LIBRARY.length - 8, `${Object.keys(EXERCISE_VIDEOS).length} of ${EXERCISE_LIBRARY.length}`);
+
+  // the library
+  const libSrc = fs.readFileSync('src/screens/train/ExerciseLibraryScreen.tsx', 'utf8');
+  check('The library can be browsed by family', /options=\{FAMILY_FILTERS\} value=\{family\} onChange=\{setFamily\}/.test(libSrc) && /familyOf\(e\) === family/.test(libSrc));
+  check('...and shows the caution of a health family above its list', /findFamily\(family\)\?\.caution/.test(libSrc));
+  check('A family is read, never stored: the helper touches no database', !/from '@\/db|from '@\/repositories|react/.test(fs.readFileSync('src/lib/exerciseFamilies.ts', 'utf8')));
+
+  // ready sessions for the families
+  const RS = READY_SESSIONS;
+  const lib = new Map(EXLIB.map((e) => [e.slug, e]));
+  check('Four groups joined the rail', ['kit', 'rehab', 'gentle', 'mother'].every((g) => READY_GROUP_ORDER.includes(g as never) && readySessionsIn(g as never).length >= 6), ['kit', 'rehab', 'gentle', 'mother'].map((g) => `${g}:${readySessionsIn(g as never).length}`).join());
+  const healthRS = RS.filter((x) => ['rehab', 'gentle', 'mother'].includes(x.group));
+  check('Every rehab, seniors and pregnancy session carries a note', healthRS.every((x) => (x.note ?? '').length >= 100), healthRS.filter((x) => (x.note ?? '').length < 100).map((x) => x.key).join());
+  check('Rehab sessions say they are not treatment and ask for an assessment', readySessionsIn('rehab').every((x) => /not treatment/.test(x.note!) && /assessed/.test(x.note!)));
+  check('Pregnancy sessions name the midwife or doctor and the signs to stop', RS.filter((x) => x.key.startsWith('mother-') && !x.key.startsWith('mother-after')).every((x) => /midwife or doctor/.test(x.note!) && /bleeding/.test(x.note!) && /baby moves less/.test(x.note!)));
+  check('After-birth sessions name the signs to step back', RS.filter((x) => x.key.startsWith('mother-after')).length >= 3 && RS.filter((x) => x.key.startsWith('mother-after')).every((x) => /caesarean/.test(x.note!) && /doming/.test(x.note!) && /leaking/.test(x.note!)));
+  check('Seniors sessions are all for beginners, with something to hold', readySessionsIn('gentle').every((x) => x.level === 'beginner' && /sturdy chair/.test(x.note!) && /dizziness/.test(x.note!)));
+  check('No health session is advanced, and none runs past half an hour', healthRS.every((x) => x.level !== 'advanced' && x.minutes <= 30));
+  check('Pregnancy sessions use only pregnancy exercises', RS.filter((x) => x.key.startsWith('mother-') && !x.key.startsWith('mother-after')).every((x) => x.exercises.every((k) => k.startsWith('prenatal-'))));
+  check('Emergencies are named where they hide: the Achilles, the back, the neck, the ankle', /emergency/.test(findReadySession('rehab-achilles-heel')!.note!) && /emergency/.test(findReadySession('rehab-lower-back')!.note!) && /doctor first/.test(findReadySession('rehab-neck')!.note!) && /X-rayed/.test(findReadySession('rehab-ankle-first-days')!.note!));
+  check('Kettlebell sessions are made of kettlebell lifts, strap sessions of strap work', RS.filter((x) => x.key.startsWith('kit-kettlebell')).every((x) => x.exercises.every((k) => familyOf(lib.get(k)!) === 'kettlebell')) && RS.filter((x) => x.key.startsWith('kit-straps')).every((x) => x.exercises.every((k) => familyOf(lib.get(k)!) === 'suspension')) && RS.filter((x) => /^kit-(bands|loop)/.test(x.key)).every((x) => x.exercises.every((k) => familyOf(lib.get(k)!) === 'band')));
+  check('The health groups say their caution on the rail too', /cannot examine you/.test(READY_GROUP_META.rehab.blurb) && /midwife or doctor/.test(READY_GROUP_META.mother.blurb));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

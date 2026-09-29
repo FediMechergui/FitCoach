@@ -10,6 +10,11 @@ import type { ProgramLevel } from './programs';
  * push-up for every muscle; the best three for the chest; a first pull-up; ten
  * minutes in a hotel room.
  *
+ * Since 3.7.0 four groups are about health rather than training: rehabilitation,
+ * seniors, pregnancy, after birth. Every session in them carries a note, and
+ * the note says who to ask and when to stop. They describe what is commonly
+ * done; they never diagnose and never promise.
+ *
  * Each one is a single session, never a plan. Nothing is locked: the exercises
  * are pre-loaded and everything can be added, removed or swapped once inside.
  *
@@ -33,10 +38,15 @@ export type ReadyGroup =
   | 'short'
   | 'combat'
   | 'cardio'
-  | 'calm';
+  | 'calm'
+  | 'kit'
+  | 'rehab'
+  | 'gentle'
+  | 'mother';
 
 export const READY_GROUP_ORDER: ReadyGroup[] = [
   'pushups', 'best-gym', 'best-home', 'whole', 'bar', 'skills', 'care', 'short', 'combat', 'cardio', 'calm',
+  'kit', 'rehab', 'gentle', 'mother',
 ];
 
 export const READY_GROUP_META: Record<ReadyGroup, { label: string; short: string; blurb: string; icon: string }> = {
@@ -105,6 +115,30 @@ export const READY_GROUP_META: Record<ReadyGroup, { label: string; short: string
     short: 'Calm',
     blurb: 'Poses by family, the mat classics of Pilates, the breath, and the long stretch.',
     icon: 'mindbody.morning',
+  },
+  kit: {
+    label: 'Kettlebell, bands & straps',
+    short: 'Bell & bands',
+    blurb: 'One piece of kit and a whole session built on it: a kettlebell, a set of bands, or straps hung from a door or a bar.',
+    icon: 'strength.kettlebell',
+  },
+  rehab: {
+    label: 'Rehabilitation, joint by joint',
+    short: 'Rehab',
+    blurb: 'The exercises physiotherapists commonly give, grouped by what they are used for. The app cannot examine you: an injury that is swollen, unstable, numb or not improving needs to be seen.',
+    icon: 'mindbody.joint',
+  },
+  gentle: {
+    label: 'Seniors & the chair',
+    short: 'Seniors & chair',
+    blurb: 'Strength, balance and movement sitting on a chair or standing beside one. For later life, and for anyone coming back from a long time of doing little.',
+    icon: 'mindbody.balance',
+  },
+  mother: {
+    label: 'Pregnancy & after birth',
+    short: 'Pregnancy',
+    blurb: 'Gentle sessions for pregnancy and a staged return after birth. Agree your activity with your midwife or doctor; they know your pregnancy, the app does not.',
+    icon: 'mindbody.breath',
   },
 };
 
@@ -589,6 +623,22 @@ export const READY_SESSIONS: ReadySession[] = [
     exercises: ['glute-bridge', 'glute-bridge-march', 'single-leg-glute-bridge', 'frog-pump', 'donkey-kicks', 'fire-hydrant', 'feet-elevated-glute-bridge'],
   },
 
+  {
+    key: 'bar-biceps-no-weights', group: 'bar', name: "Biceps without weights",
+    why: "The lowering of a chin-up, the chin-up itself, a curl under a table, a curl against your own leg, a hold.",
+    sessionType: 'calisthenics', level: 'intermediate', minutes: 25, kit: "A bar, a sturdy table, a towel",
+    prescription: "3 sets each. Lowerings 5 x 5 seconds. Chin-ups and curls 6 to 10. Holds 10 s at each of the three angles.",
+    exercises: ['chin-up-negative', 'chin-up', 'under-table-bodyweight-curl', 'towel-curl-leg-resistance', 'chin-up-isometric-three-angles'],
+  },
+  {
+    key: 'bar-hamstrings-no-weights', group: 'bar', name: "Hamstrings without weights",
+    why: "The hinge, the long bridge on two legs then one, the slow slide, and the Nordic with help.",
+    sessionType: 'calisthenics', level: 'intermediate', minutes: 25, kit: "A smooth floor and socks, a band and something to hold the feet down",
+    prescription: "3 sets each of 8 to 10 reps. Slides and Nordics are lowered for 4 to 5 seconds.",
+    exercises: ['bodyweight-good-morning', 'long-lever-glute-bridge', 'single-leg-long-lever-bridge', 'slider-leg-curl-eccentric', 'band-assisted-nordic-curl', 'nordic-curl-isometric-hold'],
+    note: "Hamstrings cramp when they are new to this. Shorten the lever, shake it out, and carry on.",
+  },
+
   // ══════════════════════════ SKILLS ══════════════════════════
   {
     key: 'skill-handstand', group: 'skills', name: 'The handstand',
@@ -951,6 +1001,343 @@ export const READY_SESSIONS: ReadySession[] = [
     prescription: 'Swings 2 × 15 a leg to warm up. Each stretch 3 × 45 s a side. Hands on the blocks in the splits.',
     exercises: ['leg-swings', 'half-kneeling-hip-flexor-stretch', 'couch-stretch', 'frog-stretch', 'pancake-stretch', 'middle-split-progression', 'front-split'],
     note: 'Never bounce, never cold. Stop at a strong stretch, well before pain.',
+  },
+
+  // ══════════════════════════ KETTLEBELL, BANDS & STRAPS ══════════════════════════
+  {
+    key: 'kit-kettlebell-first', group: 'kit', name: "Your first kettlebell session",
+    why: "Lift it, squat with it, swing it, get up under it, row it, carry it. The six things a bell is for.",
+    sessionType: 'strength', level: 'beginner', minutes: 35, kit: "One kettlebell, light enough to press overhead",
+    prescription: "3 sets each. Deadlift and squat 8 reps. Swings 10. Half get-up 3 a side. Rows 8 a side. Carry 30 m.",
+    exercises: ['kb-sumo-deadlift', 'kb-prying-goblet-squat', 'kettlebell-swing', 'kb-half-get-up', 'kb-single-arm-row', 'kb-front-rack-carry'],
+    note: "The swing is a hinge at the hips, not a squat and not a lift with the arms. Learn the deadlift first.",
+  },
+  {
+    key: 'kit-kettlebell-ballistics', group: 'kit', name: "Kettlebell: swing, clean, snatch",
+    why: "The fast lifts in the order they are learned, each one a swing that finishes somewhere higher.",
+    sessionType: 'strength', level: 'advanced', minutes: 35, kit: "One kettlebell",
+    prescription: "4 sets each of 5 to 8 a side, 90 s rest. Every rep starts from a hinge and ends standing tall.",
+    exercises: ['kb-dead-stop-swing', 'kb-one-arm-swing', 'kb-clean', 'kb-high-pull', 'kb-half-snatch', 'kb-snatch'],
+    note: "Stop the set when the bell starts to pull you forward or bang the forearm. Chalk helps; a tight grip tears hands.",
+  },
+  {
+    key: 'kit-kettlebell-press', group: 'kit', name: "Kettlebell: overhead",
+    why: "From the knees to standing, strict to driven by the legs. The shoulder learns to hold before it learns to push.",
+    sessionType: 'strength', level: 'intermediate', minutes: 35, kit: "One kettlebell, or two for the see-saw",
+    prescription: "Halos to warm up. Then 3 sets each of 5 to 8 a side, 90 s rest.",
+    exercises: ['kb-halo', 'kb-half-kneeling-press', 'kb-press', 'kb-push-press', 'kb-see-saw-press', 'kb-floor-press'],
+  },
+  {
+    key: 'kit-kettlebell-doubles', group: 'kit', name: "Two kettlebells",
+    why: "Everything heavier and nothing to hide behind: both sides work at once.",
+    sessionType: 'strength', level: 'advanced', minutes: 40, kit: "Two kettlebells of the same weight",
+    prescription: "4 sets each of 5 reps, 2 minutes rest. Long cycle last: as many clean reps as 2 minutes allow.",
+    exercises: ['kb-double-clean', 'kb-double-press', 'kb-double-front-squat', 'kb-double-swing', 'kb-gorilla-row', 'kb-long-cycle'],
+  },
+  {
+    key: 'kit-kettlebell-core', group: 'kit', name: "Kettlebell: the trunk",
+    why: "Pass it round the body, drag it under a plank, and hold it overhead while the body moves beneath.",
+    sessionType: 'strength', level: 'intermediate', minutes: 25, kit: "One light kettlebell",
+    prescription: "3 sets each. Passes 10 each way. Drags 6 a side. Windmill, arm bar and sit-up 5 a side, slowly.",
+    exercises: ['kb-around-the-world', 'kb-figure-eight', 'kb-plank-pull-through', 'kb-windmill', 'kb-arm-bar', 'kb-get-up-sit-up'],
+    note: "Eyes on the bell whenever it is overhead. Use a bell you could press easily.",
+  },
+  {
+    key: 'kit-bands-upper', group: 'kit', name: "Bands: upper body",
+    why: "A push and a pull in each direction, then the arms. A door and a band are the whole gym.",
+    sessionType: 'strength', level: 'beginner', minutes: 35, kit: "A long band or a band with handles, and a door anchor",
+    prescription: "3 sets each of 12 to 20 reps, 45 s rest. Pause a second where the band is tightest.",
+    exercises: ['band-chest-press-standing', 'band-seated-row', 'band-overhead-press', 'band-lat-pulldown', 'band-lateral-raise', 'band-biceps-curl', 'band-triceps-pushdown'],
+    note: "Check the band for nicks before every session and never stretch it towards your face.",
+  },
+  {
+    key: 'kit-bands-lower', group: 'kit', name: "Bands: lower body",
+    why: "Squat, hinge, split, thrust, curl, raise: the legs from every side with a band underfoot.",
+    sessionType: 'strength', level: 'beginner', minutes: 35, kit: "A long band, a bench or sofa for the hip thrust",
+    prescription: "3 sets each of 12 to 20 reps, 60 s rest.",
+    exercises: ['band-squat', 'band-romanian-deadlift', 'band-split-squat', 'band-hip-thrust', 'band-lying-leg-curl', 'band-calf-raise'],
+  },
+  {
+    key: 'kit-loop-band-glutes', group: 'kit', name: "Loop band: glutes",
+    why: "A small loop above the knees turns every movement into work for the side of the hip.",
+    sessionType: 'strength', level: 'beginner', minutes: 25, kit: "A loop band",
+    prescription: "2 sets each of 15 to 20 reps, 30 s rest. Walks are 10 steps each way.",
+    exercises: ['loop-band-squat', 'loop-band-bridge-abduction', 'loop-band-glute-kickback', 'loop-band-fire-hydrant', 'loop-band-standing-hip-abduction', 'banded-lateral-walk', 'monster-walk'],
+  },
+  {
+    key: 'kit-bands-core', group: 'kit', name: "Bands: the trunk",
+    why: "The band pulls you round; the trunk refuses. Then the chop, the crunch and the dead bug.",
+    sessionType: 'strength', level: 'intermediate', minutes: 25, kit: "A long band with an anchor, a loop band",
+    prescription: "3 sets each of 10 to 12 a side. The hold is 20 to 30 s a side.",
+    exercises: ['band-pallof-press', 'band-anti-rotation-hold', 'band-woodchop', 'band-kneeling-crunch', 'loop-band-bicycle-crunch', 'dead-bug-banded'],
+  },
+  {
+    key: 'kit-straps-whole-body', group: 'kit', name: "Straps: whole body",
+    why: "Squat, row, push, curl the legs, open the shoulders, hold the plank. Step closer or further to set the weight.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 35, kit: "A suspension trainer or rings, anchored above head height",
+    prescription: "3 sets each of 8 to 12 reps, 60 s rest. Plank 20 to 40 s.",
+    exercises: ['suspension-assisted-squat', 'ring-row', 'ring-push-up', 'suspension-hamstring-curl', 'suspension-y-fly', 'suspension-plank', 'suspension-knee-tuck'],
+    note: "Test the anchor with your full weight before the first rep. A door must close towards you and be locked.",
+  },
+  {
+    key: 'kit-straps-upper-back', group: 'kit', name: "Straps: shoulders and upper back",
+    why: "The four letters, I, Y, T and W, then a face pull and a row that turns.",
+    sessionType: 'calisthenics', level: 'intermediate', minutes: 30, kit: "A suspension trainer or rings",
+    prescription: "3 sets each of 8 to 12 slow reps, 60 s rest. Stand taller to make it lighter.",
+    exercises: ['suspension-i-fly', 'suspension-y-fly', 'suspension-t-fly', 'suspension-w-fly', 'ring-face-pull', 'suspension-power-pull'],
+  },
+  {
+    key: 'kit-straps-legs', group: 'kit', name: "Straps: legs",
+    why: "The straps take a little weight so the legs can go deeper and one at a time.",
+    sessionType: 'calisthenics', level: 'intermediate', minutes: 35, kit: "A suspension trainer",
+    prescription: "3 sets each of 8 to 12 a leg, 75 s rest.",
+    exercises: ['suspension-assisted-squat', 'suspension-bulgarian-split-squat', 'suspension-side-lunge', 'suspension-hamstring-curl', 'suspension-hip-press', 'suspension-assisted-pistol-squat'],
+  },
+  {
+    key: 'kit-straps-core', group: 'kit', name: "Straps: the trunk",
+    why: "Feet in the cradles and the floor becomes unsteady. Planks first, then the moving ones.",
+    sessionType: 'calisthenics', level: 'advanced', minutes: 30, kit: "A suspension trainer with foot cradles, hung to mid-shin",
+    prescription: "Planks 3 x 20 to 40 s. Then 3 sets each of 8 to 12 reps, 60 s rest.",
+    exercises: ['suspension-plank', 'suspension-side-plank', 'suspension-knee-tuck', 'suspension-pike', 'suspension-body-saw', 'suspension-kneeling-rollout'],
+    note: "The moment the lower back sags, the set is over.",
+  },
+
+  // ══════════════════════════ REHABILITATION, JOINT BY JOINT ══════════════════════════
+  {
+    key: 'rehab-ankle-first-days', group: 'rehab', name: "Ankle sprain: getting it moving",
+    why: "Gentle movement while the ankle is still sore: pumps, the alphabet, a seated stretch, the toes.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 10, kit: "A towel, a chair",
+    prescription: "10 to 20 slow reps of each, two or three times a day. Nothing here should hurt sharply.",
+    exercises: ['rehab-ankle-pumps', 'rehab-ankle-alphabet', 'rehab-ankle-towel-calf-stretch', 'rehab-foot-towel-scrunches'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. If you could not put weight on it, or the bone is tender, get it X-rayed.",
+  },
+  {
+    key: 'rehab-ankle-strength', group: 'rehab', name: "Ankle sprain: strength",
+    why: "The band in four directions, then the calf, then standing on it.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 20, kit: "A band, a step, a counter to hold",
+    prescription: "3 sets each of 12 to 15 slow reps. Balance 3 x 30 s.",
+    exercises: ['rehab-ankle-band-dorsiflexion', 'rehab-ankle-band-plantarflexion', 'rehab-ankle-band-eversion', 'rehab-ankle-band-inversion', 'calf-raise-step', 'rehab-ankle-single-leg-balance'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving.",
+  },
+  {
+    key: 'rehab-ankle-return', group: 'rehab', name: "Ankle sprain: back to sport",
+    why: "Balance made harder, then small hops, then sideways. The last stage, and the one most often skipped.",
+    sessionType: 'mindbody', level: 'intermediate', minutes: 25, kit: "Flat ground, tape for lines, a cushion",
+    prescription: "Balance and reaches 3 x 30 s a side. Hops 3 x 5, every landing quiet and held for 2 seconds.",
+    exercises: ['rehab-ankle-single-leg-balance', 'rehab-ankle-star-excursion-reach', 'rehab-ankle-tandem-walk', 'rehab-ankle-hop-progression', 'rehab-ankle-lateral-hop-stick'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. Hopping needs clearance from a physiotherapist.",
+  },
+  {
+    key: 'rehab-tennis-elbow', group: 'rehab', name: "Tennis elbow",
+    why: "The outside of the elbow: a stretch, a hold, then the slow lowering that tendons respond to.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 15, kit: "A light dumbbell, a flex bar if you have one, a soft ball",
+    prescription: "Stretch 3 x 30 s. Hold 5 x 30 to 45 s. Lowerings 3 x 10 to 15, 3 seconds down.",
+    exercises: ['rehab-elbow-wrist-extensor-stretch', 'rehab-elbow-isometric-wrist-extension', 'rehab-elbow-eccentric-wrist-extension', 'rehab-elbow-tyler-twist', 'rehab-hand-grip-ball-squeeze'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving.",
+  },
+  {
+    key: 'rehab-golfers-elbow', group: 'rehab', name: "Golfer's elbow",
+    why: "The inside of the elbow: the same plan as tennis elbow, turned over.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 15, kit: "A light dumbbell, a flex bar if you have one, a soft ball",
+    prescription: "Stretch 3 x 30 s. Hold 5 x 30 to 45 s. Lowerings 3 x 10 to 15, 3 seconds down.",
+    exercises: ['rehab-elbow-wrist-flexor-stretch', 'rehab-elbow-isometric-wrist-flexion', 'rehab-elbow-eccentric-wrist-flexion', 'rehab-elbow-reverse-tyler-twist', 'rehab-hand-grip-ball-squeeze'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. Tingling in the ring and little fingers needs to be looked at.",
+  },
+  {
+    key: 'rehab-runners-knee', group: 'rehab', name: "Runner's knee",
+    why: "Pain round the kneecap is usually answered at the thigh and the hip, so that is where the work goes.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 25, kit: "A mat, a loop band, a low step",
+    prescription: "3 sets each of 10 to 15 reps a side. Step-downs slow, the knee tracking over the second toe.",
+    exercises: ['rehab-knee-quad-set', 'rehab-knee-straight-leg-raise', 'rehab-hip-side-lying-abduction', 'clamshell', 'rehab-hip-hike', 'step-down'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. A knee that locks, gives way or swells needs to be examined before it is called runner's knee.",
+  },
+  {
+    key: 'rehab-knee-early', group: 'rehab', name: "Knee: the early exercises",
+    why: "Wake the thigh, regain the bend, straighten the last few degrees.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 15, kit: "A mat, a rolled towel",
+    prescription: "10 reps of each, holding each contraction 5 seconds, two or three times a day.",
+    exercises: ['rehab-ankle-pumps', 'rehab-knee-quad-set', 'rehab-knee-heel-slide', 'rehab-knee-short-arc-quad', 'rehab-knee-straight-leg-raise'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. After an operation, the limits your surgeon or physiotherapist set come before anything written here.",
+  },
+  {
+    key: 'rehab-patellar-tendon', group: 'rehab', name: "Jumper's knee",
+    why: "The tendon below the kneecap: long holds first, then slow loading on a slope.",
+    sessionType: 'mindbody', level: 'intermediate', minutes: 20, kit: "A band or strap, a wall, a slanted board",
+    prescription: "Holds 5 x 30 to 45 s. Decline squats 3 x 8 to 10, 3 seconds down.",
+    exercises: ['rehab-knee-isometric-leg-extension', 'wall-sit', 'spanish-squat', 'rehab-knee-decline-single-leg-squat'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving.",
+  },
+  {
+    key: 'rehab-achilles-heel', group: 'rehab', name: "Achilles and heel",
+    why: "The calf and the sole of the foot: stretched, held, then lowered slowly off a step.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 20, kit: "A step, a wall, a rolled towel",
+    prescription: "Stretches 3 x 30 s. Hold 5 x 30 s. Heel drops 3 x 12 to 15 with the knee straight, then bent.",
+    exercises: ['wall-calf-stretch', 'rehab-plantar-fascia-stretch', 'rehab-foot-short-foot', 'calf-raise-iso-hold', 'eccentric-heel-drop', 'rehab-achilles-bent-knee-heel-drop', 'rehab-plantar-towel-calf-raise'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. A sudden snap or a kick-like pain at the back of the heel is an emergency.",
+  },
+  {
+    key: 'rehab-shoulder-early', group: 'rehab', name: "Shoulder: getting it moving",
+    why: "The arm moved without being lifted: swung, slid, helped by the other arm, walked up a wall.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 15, kit: "A table, a stick, a wall",
+    prescription: "10 reps of each. Holds against the wall 5 x 10 s at a light effort.",
+    exercises: ['rehab-shoulder-pendulum', 'rehab-shoulder-table-slide', 'rehab-shoulder-supine-cane-flexion', 'rehab-shoulder-wall-walk', 'rehab-shoulder-isometric-external-rotation', 'rehab-shoulder-isometric-internal-rotation'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. After an operation, the limits your surgeon or physiotherapist set come before anything written here.",
+  },
+  {
+    key: 'rehab-shoulder-strength', group: 'rehab', name: "Shoulder: rotator cuff and blade",
+    why: "Turning out, turning in, the punch that works the serratus, and the muscles that set the shoulder blade.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 20, kit: "A light band, a mat, a wall",
+    prescription: "3 sets each of 12 to 15 slow reps with a band so light the last rep looks like the first.",
+    exercises: ['band-external-rotation', 'rehab-shoulder-band-internal-rotation', 'rehab-shoulder-supine-serratus-punch', 'rehab-shoulder-low-row-isometric', 'prone-w-raise', 'wall-slides'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving.",
+  },
+  {
+    key: 'rehab-lower-back', group: 'rehab', name: "Lower back: gentle movement",
+    why: "Small movements lying down, to keep a stiff, sore back moving.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 15, kit: "A mat",
+    prescription: "10 slow reps of each, stretches held 20 to 30 s. Keep whatever eases it; leave out whatever sharpens it.",
+    exercises: ['rehab-back-supine-pelvic-tilt', 'rehab-back-knee-to-chest-stretch', 'rehab-back-lower-trunk-rotation', 'rehab-back-prone-press-up', 'rehab-back-mcgill-curl-up', 'bird-dog'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. Numbness between the legs, loss of bladder or bowel control, or weakness in a leg is an emergency.",
+  },
+  {
+    key: 'rehab-wrist-hand', group: 'rehab', name: "Wrist and hand",
+    why: "The tendons of the fingers glided, the wrist moved in every direction, both sides stretched.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 10, kit: "A table",
+    prescription: "10 slow reps of each, stretches held 20 to 30 s.",
+    exercises: ['rehab-hand-tendon-glides', 'wrist-cars', 'rehab-wrist-radial-ulnar-deviation', 'rehab-wrist-prayer-stretch', 'rehab-wrist-reverse-prayer-stretch'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving.",
+  },
+  {
+    key: 'rehab-neck', group: 'rehab', name: "Neck",
+    why: "The deep muscles at the front strengthened, the tight ones at the side and the top eased.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 12, kit: "A mat, a chair",
+    prescription: "Nods and tucks 10 x 5 s. Stretches 3 x 20 to 30 s a side, gently.",
+    exercises: ['rehab-neck-deep-flexor-nod', 'chin-tuck-hold', 'rehab-neck-upper-trapezius-stretch', 'rehab-neck-scalene-stretch', 'levator-scapulae-stretch'],
+    note: "This is general information, not treatment. Have the injury assessed first, stay below sharp pain, and stop if it swells, gives way, goes numb or is not improving. Neck pain after a fall or a crash, or with dizziness or arm weakness, needs a doctor first.",
+  },
+
+  // ══════════════════════════ SENIORS & THE CHAIR ══════════════════════════
+  {
+    key: 'gentle-seated-whole-body', group: 'gentle', name: "Seated: the whole body",
+    why: "Every part of the body moved without leaving the chair, finishing by standing up from it.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 20, kit: "A sturdy chair without wheels",
+    prescription: "10 reps of each, unhurried. March for 1 minute. Twice through if it feels good.",
+    exercises: ['chair-seated-march', 'chair-seated-shoulder-rolls', 'chair-seated-arm-raises', 'chair-seated-knee-extension', 'chair-seated-heel-raise', 'chair-seated-torso-twist', 'chair-sit-to-stand-hands-assisted'],
+    note: "Use a sturdy chair that cannot slide, on a floor that is not slippery. Stop for dizziness, chest pain, or breathlessness that stops you talking.",
+  },
+  {
+    key: 'gentle-seated-stretch', group: 'gentle', name: "Seated: loosening up",
+    why: "Neck to ankles, sitting down. A good start to a morning.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 12, kit: "A sturdy chair without wheels",
+    prescription: "5 slow reps of each movement. Stretches held 15 to 20 s, never bounced.",
+    exercises: ['chair-seated-neck-rotation', 'chair-seated-shoulder-rolls', 'chair-seated-chest-stretch', 'chair-seated-side-bend', 'chair-seated-cat-cow', 'chair-seated-hamstring-stretch', 'chair-seated-ankle-circles'],
+    note: "Use a sturdy chair that cannot slide, on a floor that is not slippery. Stop for dizziness, chest pain, or breathlessness that stops you talking.",
+  },
+  {
+    key: 'gentle-seated-cardio', group: 'gentle', name: "Seated: getting warm",
+    why: "The heart and lungs worked from a chair: marching, tapping, punching, arms and legs together.",
+    sessionType: 'cardio', level: 'beginner', minutes: 12, kit: "A sturdy chair without wheels",
+    prescription: "1 minute of each with 30 s of rest. You should feel warm and still be able to talk.",
+    exercises: ['chair-seated-march', 'chair-seated-toe-raise', 'chair-seated-heel-raise', 'chair-seated-boxing', 'chair-seated-jumping-jacks'],
+    note: "Use a sturdy chair that cannot slide, on a floor that is not slippery. Stop for dizziness, chest pain, or breathlessness that stops you talking.",
+  },
+  {
+    key: 'gentle-seated-bands', group: 'gentle', name: "Seated: strength with a band",
+    why: "Push, pull, curl, open the knees, straighten the legs. A light band is enough.",
+    sessionType: 'strength', level: 'beginner', minutes: 20, kit: "A sturdy chair, a light band",
+    prescription: "2 sets each of 10 to 12 slow reps, resting as long as you need.",
+    exercises: ['chair-seated-band-chest-press', 'band-seated-row', 'chair-seated-band-biceps-curl', 'chair-seated-band-hip-abduction', 'chair-seated-knee-extension'],
+    note: "Use a sturdy chair that cannot slide, on a floor that is not slippery. Stop for dizziness, chest pain, or breathlessness that stops you talking.",
+  },
+  {
+    key: 'gentle-standing-strength', group: 'gentle', name: "Standing: strength beside a chair",
+    why: "The legs that get you out of a chair and up the stairs, with a hand on something solid.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 20, kit: "A sturdy chair or a kitchen counter, a wall",
+    prescription: "2 sets each of 8 to 10 slow reps. Lower more slowly than you rise.",
+    exercises: ['chair-sit-to-stand-slow-lowering', 'chair-supported-heel-raise', 'chair-supported-knee-bend', 'chair-supported-side-leg-raise', 'chair-supported-back-leg-raise', 'chair-supported-knee-curl', 'wall-push-up'],
+    note: "Stand beside a kitchen counter or a sturdy chair you can hold. Stop for dizziness, chest pain, or breathlessness that stops you talking.",
+  },
+  {
+    key: 'gentle-balance', group: 'gentle', name: "Balance",
+    why: "Feet together, one in front of the other, on one leg, then walking: sideways, on the heels, in a figure of eight.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 15, kit: "A kitchen counter to walk along",
+    prescription: "Stands 3 x 10 to 30 s. Walks 10 steps each way, twice.",
+    exercises: ['senior-tandem-stand', 'chair-supported-single-leg-stand', 'senior-sideways-walking', 'senior-heel-walking', 'senior-clock-reach', 'senior-figure-of-eight-walking'],
+    note: "Stand beside a kitchen counter or a sturdy chair you can hold. Stop for dizziness, chest pain, or breathlessness that stops you talking. If you have fallen in the last year, ask your doctor about a supervised balance class.",
+  },
+  {
+    key: 'gentle-everyday', group: 'gentle', name: "The things the day asks for",
+    why: "Standing from a chair, stepping over things, climbing stairs, getting down to the floor and up again.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 20, kit: "A sturdy chair, stairs with a handrail, a mat",
+    prescription: "5 to 8 reps of each. Floor-to-stand: 2 or 3 times, next to the chair.",
+    exercises: ['chair-squat', 'senior-stepping-over-obstacles', 'senior-stair-climbing-handrail', 'senior-timed-up-and-go-practice', 'senior-floor-to-stand-practice'],
+    note: "Stand beside a kitchen counter or a sturdy chair you can hold. Stop for dizziness, chest pain, or breathlessness that stops you talking. Practise getting down to the floor only with someone in the house the first time.",
+  },
+
+  // ══════════════════════════ PREGNANCY & AFTER BIRTH ══════════════════════════
+  {
+    key: 'mother-pregnancy-mobility', group: 'mother', name: "Pregnancy: daily mobility",
+    why: "Hands and knees takes the weight of the bump off the back. Tilts, rocking, circles, a rest, the breath.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 12, kit: "A mat, cushions",
+    prescription: "8 to 10 slow reps of each, the rest held up to a minute. Breathe throughout.",
+    exercises: ['prenatal-pelvic-tilt-all-fours', 'prenatal-all-fours-rocking', 'prenatal-standing-hip-circles', 'prenatal-wide-knee-childs-pose', 'prenatal-360-breathing'],
+    note: "Agree this with your midwife or doctor. Stop and call them for bleeding, leaking fluid, dizziness, chest pain, calf pain or swelling, regular painful contractions, or if the baby moves less.",
+  },
+  {
+    key: 'mother-pregnancy-strength', group: 'mother', name: "Pregnancy: strength",
+    why: "Legs, hips and the deep abdominals, all holding on to something, none lying flat.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 25, kit: "A sturdy chair or counter, a mat, a wedge or firm cushions",
+    prescription: "2 sets each of 8 to 12 reps at an effort where you could still talk. Breathe out on the effort.",
+    exercises: ['prenatal-supported-squat', 'prenatal-sumo-squat-supported', 'prenatal-side-lying-leg-lift', 'prenatal-incline-glute-bridge', 'prenatal-side-plank-knees', 'prenatal-tva-activation'],
+    note: "Agree this with your midwife or doctor. Stop and call them for bleeding, leaking fluid, dizziness, chest pain, calf pain or swelling, regular painful contractions, or if the baby moves less. Never hold your breath, and do not lie flat on your back for long after the first trimester.",
+  },
+  {
+    key: 'mother-birth-ball', group: 'mother', name: "Pregnancy: on the birth ball",
+    why: "Circles, figures of eight and a small bounce, then the breath. Comfortable for a sore back.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 12, kit: "An anti-burst birth ball on a floor that does not slip, a wall within reach",
+    prescription: "1 to 2 minutes of each, changing direction halfway.",
+    exercises: ['prenatal-birth-ball-pelvic-circles', 'prenatal-birth-ball-figure-eights', 'prenatal-birth-ball-bounce', 'prenatal-360-breathing'],
+    note: "Agree this with your midwife or doctor. Stop and call them for bleeding, leaking fluid, dizziness, chest pain, calf pain or swelling, regular painful contractions, or if the baby moves less. Have someone steady you the first time you sit on the ball.",
+  },
+  {
+    key: 'mother-backache', group: 'mother', name: "Pregnancy: for backache",
+    why: "Pelvic tilts standing and on all fours, circles, and a supported rest.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 10, kit: "A wall, a mat, cushions",
+    prescription: "10 slow tilts of each kind, 1 minute of circles, 1 minute of rest.",
+    exercises: ['prenatal-pelvic-tilt-standing', 'prenatal-pelvic-tilt-all-fours', 'prenatal-standing-hip-circles', 'prenatal-wide-knee-childs-pose'],
+    note: "Agree this with your midwife or doctor. Stop and call them for bleeding, leaking fluid, dizziness, chest pain, calf pain or swelling, regular painful contractions, or if the baby moves less. Back pain that comes and goes in a regular rhythm may be labour: call your maternity unit.",
+  },
+  {
+    key: 'mother-birth-preparation', group: 'mother', name: "Late pregnancy: preparing for birth",
+    why: "Letting go is the skill: the slow breath, the pelvic floor softened, a supported squat, a rest on the side.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 20, kit: "A birth ball or chair, blocks or a low stool, pillows",
+    prescription: "3 to 5 minutes of each breathing practice. Squat hold 3 x 20 to 30 s. Finish with 5 minutes on your side.",
+    exercises: ['prenatal-labour-breathing', 'prenatal-pelvic-floor-relaxation', 'prenatal-supported-deep-squat-hold', 'prenatal-all-fours-rocking', 'prenatal-side-lying-rest'],
+    note: "Agree this with your midwife or doctor. Stop and call them for bleeding, leaking fluid, dizziness, chest pain, calf pain or swelling, regular painful contractions, or if the baby moves less. Ask before the deep squat if you have a low-lying placenta, a breech baby, a cervical stitch or pelvic girdle pain.",
+  },
+  {
+    key: 'mother-after-first-weeks', group: 'mother', name: "After birth: the first weeks",
+    why: "Breath, pelvic floor and the deep abdominals, lying down. Small, and the base of everything that follows.",
+    sessionType: 'mindbody', level: 'beginner', minutes: 10, kit: "A bed or a mat",
+    prescription: "5 to 10 gentle reps of each, once or twice a day, on the days you feel up to it.",
+    exercises: ['postnatal-reconnection-breathing', 'postnatal-pelvic-floor-lying', 'postnatal-tva-activation-lying', 'postnatal-pelvic-tilt-lying', 'postnatal-knee-rolls'],
+    note: "Start after your midwife or doctor agrees, later after a caesarean. A doming abdomen, leaking, heaviness in the pelvis, pain or heavier bleeding mean go back a stage and ask.",
+  },
+  {
+    key: 'mother-after-core', group: 'mother', name: "After birth: the core returns",
+    why: "The legs begin to move while the trunk holds still: slides, fall-outs, taps, a bridge.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 15, kit: "A mat, socks",
+    prescription: "2 sets each of 8 to 10 slow reps. Move on a stage only when the one before is easy and the tummy stays flat.",
+    exercises: ['postnatal-reconnection-breathing', 'postnatal-heel-slide', 'postnatal-bent-knee-fall-out', 'postnatal-toe-tap', 'postnatal-glute-bridge', 'prenatal-side-plank-knees'],
+    note: "Start after your midwife or doctor agrees, later after a caesarean. A doming abdomen, leaking, heaviness in the pelvis, pain or heavier bleeding mean go back a stage and ask.",
+  },
+  {
+    key: 'mother-after-strength', group: 'mother', name: "After birth: strength for carrying",
+    why: "Legs for lifting, the upper back for feeding and carrying, the hips for everything.",
+    sessionType: 'calisthenics', level: 'beginner', minutes: 20, kit: "A sturdy chair, a light band, a mat",
+    prescription: "2 sets each of 8 to 12 reps, breathing out on the effort.",
+    exercises: ['postnatal-posture-reset', 'postnatal-squat-to-chair', 'postnatal-glute-bridge', 'postnatal-standing-band-row', 'prenatal-side-lying-leg-lift'],
+    note: "Start after your midwife or doctor agrees, later after a caesarean. A doming abdomen, leaking, heaviness in the pelvis, pain or heavier bleeding mean go back a stage and ask.",
   },
 ];
 

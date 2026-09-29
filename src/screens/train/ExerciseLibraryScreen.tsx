@@ -35,6 +35,7 @@ import { subMuscleOf, subMusclesFor } from '@/lib/subMuscle';
 import { difficultyBySlug } from '@/data/exercises';
 import { DIFFICULTY_LABELS, suitsLevel, levelFit, levelNote, type Difficulty } from '@/lib/exerciseDifficulty';
 import { levelOrDefault, LEVEL_LABELS } from '@/lib/level';
+import { EXERCISE_FAMILIES, familyOf, findFamily, type ExerciseFamily } from '@/lib/exerciseFamilies';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
@@ -47,6 +48,11 @@ const TYPE_FILTERS: Array<{ value: SessionType | 'all'; label: string }> = [
 const MUSCLE_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'all', label: 'All muscles' },
   ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABELS[m] ?? m })),
+];
+
+const FAMILY_FILTERS: Array<{ value: ExerciseFamily | 'all'; label: string; icon?: string }> = [
+  { value: 'all', label: 'All families' },
+  ...EXERCISE_FAMILIES.map((f) => ({ value: f.key, label: f.label, icon: f.icon })),
 ];
 
 const EQUIP_FILTERS: Array<{ value: EquipmentType | 'all'; label: string }> = [
@@ -79,6 +85,8 @@ export function ExerciseLibraryScreen() {
   const [muscle, setMuscle] = useState<string>('all');
   const [subMuscle, setSubMuscle] = useState<string>('all');
   const [equip, setEquip] = useState<EquipmentType | 'all'>('all');
+  /** kettlebell, bands, rehab, pregnancy… a way in that is neither muscle nor type */
+  const [family, setFamily] = useState<ExerciseFamily | 'all'>('all');
   /** The lifter's own level, so the list can lead with what actually fits. */
   const level = levelOrDefault(useUserStore((u) => u.user?.experienceLevel));
   const [forMyLevel, setForMyLevel] = useState(false);
@@ -118,12 +126,13 @@ export function ExerciseLibraryScreen() {
    * come to want it. The toggle is for when only the doable matters.
    */
   const items = useMemo(() => {
-    const base = subMuscle === 'all' ? muscleItems : muscleItems.filter((e) => subMuscleOf(e) === subMuscle);
+    const inFamily = family === 'all' ? muscleItems : muscleItems.filter((e) => familyOf(e) === family);
+    const base = subMuscle === 'all' ? inFamily : inFamily.filter((e) => subMuscleOf(e) === subMuscle);
     const rated = base.map((e, i) => ({ e, i, d: ((e.slug ? difficultyBySlug(e.slug) : null) ?? 3) as Difficulty }));
     const pool = forMyLevel ? rated.filter((x) => suitsLevel(x.d, level)) : rated;
     // Stable: equally-fitting exercises keep the catalogue's own order.
     return pool.sort((x, y) => levelFit(y.d, level) - levelFit(x.d, level) || x.i - y.i).map((x) => x.e);
-  }, [muscleItems, subMuscle, level, forMyLevel]);
+  }, [muscleItems, subMuscle, level, forMyLevel, family]);
 
   const onSelect = useCallback(
     (ex: ExerciseView) => {
@@ -168,6 +177,7 @@ export function ExerciseLibraryScreen() {
           />
         )}
         <SegmentedControl scrollable options={EQUIP_FILTERS} value={equip} onChange={setEquip} accent={theme.colors.warning} />
+        <SegmentedControl scrollable options={FAMILY_FILTERS} value={family} onChange={setFamily} accent={theme.colors.success} />
         {/* The famous unwired switch, wired. The filtering shipped in v2.64;
             the control that flips it never rendered anywhere — a fully coded
             feature nobody could reach. */}
@@ -186,9 +196,21 @@ export function ExerciseLibraryScreen() {
         contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 120 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          <Text variant="caption" color="textFaint" style={{ marginBottom: 6 }}>
-            {items.length} exercise{items.length === 1 ? '' : 's'}
-          </Text>
+          <View style={{ gap: 6, marginBottom: 6 }}>
+            {findFamily(family)?.caution ? (
+              <Card accent={theme.colors.warning} style={{ gap: 4 }}>
+                <Row gap={8} style={{ alignItems: 'flex-start' }}>
+                  <Icon icon="core.info" size={16} color={theme.colors.warning} />
+                  <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
+                    {findFamily(family)?.caution}
+                  </Text>
+                </Row>
+              </Card>
+            ) : null}
+            <Text variant="caption" color="textFaint">
+              {items.length} exercise{items.length === 1 ? '' : 's'}
+            </Text>
+          </View>
         }
         ListEmptyComponent={
           <EmptyState

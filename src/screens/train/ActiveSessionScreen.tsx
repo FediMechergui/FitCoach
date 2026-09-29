@@ -94,7 +94,7 @@ export function ActiveSessionScreen() {
     const t = setInterval(() => {
       setGpsDistanceM(sessionGpsDistanceM());
       setGpsRoute(sessionGpsRoute());
-    }, 2000);
+    }, 1000);
     return () => clearInterval(t);
   }, [gpsOn]);
 

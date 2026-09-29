@@ -19,6 +19,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.7.0',
+    date: '2026-09-29',
+    title: 'Families',
+    highlights: [
+      '358 more exercises, 1965 in all, gathered into eight families. The library has a new filter for them, under the gear filter: Kettlebell, Bands, Straps and rings, Rehab, Seniors and chair, Pregnancy, After birth, Dance.',
+      'The kettlebell as a family, 51 lifts: swings with one hand and two bells, the clean, the jerk, the long cycle, the half snatch, the bent press, the gorilla row, the arm bar, the half get-up. Bands for every muscle group, 50 of them, with a long band, a loop band or a door anchor. 32 movements on a suspension trainer or rings.',
+      'Bodyweight biceps and hamstrings are no longer thin: curls under a table and against your own leg, the pelican curl, the headbanger pull-up; the long-lever bridge, the razor curl, the Nordic with a band and as a hold.',
+      'Rehabilitation by joint, 57 exercises: the ankle after a sprain, the Achilles and the sole of the foot, the knee, the elbow (tennis and golfer), the shoulder, the lower back, the wrist and hand, the neck. Each one says what it is commonly used for and never what it fixes, and each ends with when to stop and whom to ask. The app cannot examine you, and says so at the top of the list.',
+      'Seniors and the chair, 41 exercises: strength, stretching and cardio sitting down, strength and balance standing beside a chair or a counter, and the skills the day asks for, such as getting down to the floor and up again.',
+      'Pregnancy, 24 exercises, and after birth, 19. Written from the guidance midwives and physiotherapists give: nothing lying flat for long, nothing held on the breath, nothing with a risk of falling. Every one names the signs to stop and call the midwife or doctor. After birth the return is staged, and running waits for clearance.',
+      'Dance, 55 styles: salsa, bachata, tango, the waltz and the rest of the ballroom, lindy hop and the swing family, popping, locking, house, dancehall, flamenco, dabke, bhangra, tap and more.',
+      '44 new ready sessions, 152 in all, in four new groups: Kettlebell, bands and straps; Rehabilitation, joint by joint; Seniors and the chair; Pregnancy and after birth. Every session in the three health groups carries a note that says who to ask and when to stop.',
+      'Every exercise has a how-to video, 1965 of 1965. About 130 of the new ones were wrong on the first attempt (a slideshow tutorial for table slides, vine pruning for the grapevine step) and were replaced by hand.',
+      'On the Train tab a session in progress now shows its running time.',
+      '2210 checks in all, up from 2154. Schema 39, which is what brings the new exercises to your phone.',
+    ],
+  },
+  {
     version: '3.6.0',
     date: '2026-09-29',
     title: 'Ready sessions',

@@ -5339,5 +5339,20 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   check('Nothing calls the Vibration API: the update also runs on the older binary that lacks the permission', srcAll.every((f) => !/Vibration\.vibrate\(/.test(fs.readFileSync(f, 'utf8'))));
 }
 
+console.log('\nLocal APK 3.8.0 - built here, signed like EAS, secrets kept out:');
+{
+  const gi = fs.readFileSync('.gitignore', 'utf8');
+  check('The downloaded signing credentials can never be committed', /^credentials\.json\r?$/m.test(gi) && /^\/credentials\/\r?$/m.test(gi) && /^\*\.jks\r?$/m.test(gi) && /^\/android\/\r?$/m.test(gi));
+  const ba = fs.readFileSync('scripts/build-apk.js', 'utf8');
+  check('The build script reads the key from credentials.json and hands it to Gradle by environment only', /FITCOACH_STORE_PASSWORD = signing\.storePassword/.test(ba) && /System\.getenv\('FITCOACH_STORE_PASSWORD'\)/.test(ba));
+  check('...and never prints a password', !/console\.(log|error|warn)\([^)]*(assword|signing\.)/.test(ba));
+  check('A warm-up build says loudly it must not be installed', /do not install it over the app/.test(ba));
+  check('Prebuild is not allowed to leave package.json rewritten', /fs\.writeFileSync\(pkgPath, pkgBefore\)/.test(ba));
+  const cfgA = fs.readFileSync('app.config.ts', 'utf8');
+  const easA = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+  check('A local build listens on the same update channel as the EAS preview build', new RegExp(`'expo-channel-name': '${easA.build.preview.channel}'`).test(cfgA));
+  check('npm run build:apk:local exists', JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts['build:apk:local'] === 'node scripts/build-apk.js');
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

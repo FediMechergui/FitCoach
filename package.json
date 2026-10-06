@@ -12,6 +12,7 @@
     "verify:engines": "tsx scripts/verify-engines.ts",
     "db:generate": "drizzle-kit generate",
     "build:apk": "eas build -p android --profile preview",
+    "build:apk:local": "node scripts/build-apk.js",
     "build:aab": "eas build -p android --profile production",
     "update:push": "eas update --branch preview",
     "release": "node scripts/release.js"

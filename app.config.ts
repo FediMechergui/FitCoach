@@ -22,6 +22,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     url: 'https://u.expo.dev/00d7b01f-b20d-4303-b6cb-8bcb88a8e512',
     checkAutomatically: 'ON_LOAD',
     fallbackToCacheTimeout: 0,
+    // EAS stamps its builds with their channel; a LOCAL build (npm run build:apk:local)
+    // has to carry it here, or it would never see an over-the-air update.
+    requestHeaders: { 'expo-channel-name': 'preview' },
   },
   // Updates only apply to builds with the same native runtime — appVersion
   // policy ties that to `version`, so a JS update can never land on an APK

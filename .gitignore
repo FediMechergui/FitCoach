@@ -16,6 +16,10 @@ expo-env.d.ts
 
 # Native
 *.orig.*
+# EAS signing credentials downloaded for a local build — the keystore and its
+# passwords. Never commit: the repository is public.
+credentials.json
+/credentials/
 *.jks
 *.p8
 *.p12

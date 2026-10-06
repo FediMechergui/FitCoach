@@ -108,8 +108,16 @@ if (!gradle.includes('FITCOACH_STORE_FILE')) {
   fs.writeFileSync(gradleFile, gradle);
 }
 
+// The bundler starts a worker per CPU core; on a machine already busy that ran
+// it out of memory ("Zone Allocation failed"). Two workers are plenty.
+gradle = fs.readFileSync(gradleFile, 'utf8');
+if (!gradle.includes('extraPackagerArgs = ["--max-workers"')) {
+  gradle = gradle.replace(/react\s*\{/, 'react {\n    extraPackagerArgs = ["--max-workers", "2"]');
+  fs.writeFileSync(gradleFile, gradle);
+}
+
 // ── build ────────────────────────────────────────────────────────────────────
-const env = { ...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk, NODE_ENV: 'production' };
+const env = { ...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk, NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=4096' };
 if (javaHome) env.JAVA_HOME = javaHome;
 if (signing) {
   env.FITCOACH_STORE_FILE = signing.storeFile;
@@ -122,7 +130,10 @@ if (signing) {
 console.log(`\nBuilding the release APK (${signing ? 'signed with the EAS key' : 'DEBUG-signed, to warm caches only'})…`);
 console.log(`JDK: ${javaHome ?? 'from PATH'}\nSDK: ${sdk}\n`);
 // By full path: some shells will not run a program from the current folder.
-run(path.join(androidDir, isWin ? 'gradlew.bat' : 'gradlew'), ['assembleRelease', '--no-daemon'], { cwd: androidDir, env });
+// Phones of the last several years are 64-bit ARM; one architecture builds about
+// four times less native code. --all-abis builds the four Expo builds by default.
+const abis = args.includes('--all-abis') ? [] : ['-PreactNativeArchitectures=arm64-v8a'];
+run(path.join(androidDir, isWin ? 'gradlew.bat' : 'gradlew'), ['assembleRelease', '--no-daemon', ...abis], { cwd: androidDir, env });
 
 const apk = path.join(androidDir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 if (!fs.existsSync(apk)) fail('Gradle finished but no APK was found.');

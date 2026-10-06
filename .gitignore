@@ -13,6 +13,9 @@ expo-env.d.ts
 # from git — and then EAS builds a module with no implementation.
 /android/
 /ios/
+# ...but a local module's BUILD output is generated (its sources above must stay committed).
+/modules/*/android/build/
+/modules/*/android/.cxx/
 
 # Native
 *.orig.*

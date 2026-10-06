@@ -184,7 +184,20 @@ export function isConfined(window: LatLng[]): boolean {
  * `distanceM` is exactly the path length of `accepted` measured from the last
  * tail point, so callers can append and add without recomputing.
  */
-export function filterFixes(tail: LatLng[], fixes: GpsFix[]): GpsFilterResult {
+/**
+ * The fastest a fix may report and still be believed. On foot nothing human
+ * passes IMPOSSIBLE_SPEED_MS; on a bike a descent does, every weekend — so a
+ * ride passes its own ceiling (RIDE_MAX_SPEED_MS) and keeps its fast downhill
+ * instead of losing it as "impossible".
+ */
+export const RIDE_MAX_SPEED_MS = 25; // 90 km/h
+
+export interface FilterLimits {
+  maxSpeedMs?: number;
+}
+
+export function filterFixes(tail: LatLng[], fixes: GpsFix[], limits: FilterLimits = {}): GpsFilterResult {
+  const maxSpeedMs = limits.maxSpeedMs ?? IMPOSSIBLE_SPEED_MS;
   const rejected = emptyRejects();
   const accepted: LatLng[] = [];
   let distanceM = 0;
@@ -226,7 +239,7 @@ export function filterFixes(tail: LatLng[], fixes: GpsFix[]): GpsFilterResult {
     const speed = typeof fix.speed === 'number' && Number.isFinite(fix.speed) && fix.speed > 0
       ? fix.speed
       : null;
-    if (speed != null && speed >= IMPOSSIBLE_SPEED_MS) {
+    if (speed != null && speed >= maxSpeedMs) {
       rejected.impossible += 1;
       continue;
     }

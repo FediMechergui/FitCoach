@@ -10,6 +10,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StatTile } from '@/components/ui/StatTile';
+import { RouteSummaryCard } from '@/components/RouteSummaryCard';
+import { parseRoute } from '@/lib/geo';
 import { Row, Divider, SectionHeader, Badge } from '@/components/ui/misc';
 import type { RootStackParamList } from '@/navigation/types';
 import {
@@ -166,6 +168,16 @@ export function SessionDetailScreen() {
           <StatTile icon="cardio.gps" label="Distance" value={formatDistance(session.distanceM, unit)} accent={theme.colors.outdoor} />
           <StatTile icon="cardio.pace" label="Pace" value={formatPace(session.pace, unit)} />
         </Row>
+      ) : null}
+
+      {/* A session that ran GPS keeps its trace (3.8.0): drawn here, with its GPS reps in gold. */}
+      {session.routeJson ? (
+        <RouteSummaryCard
+          route={parseRoute(session.routeJson)}
+          distanceLabel={session.distanceM ? formatDistance(session.distanceM, unit) : null}
+          share={{ kind: 'session', id: session.id }}
+          segments={logs.flatMap((lv) => lv.sets.filter((x) => x.gpsFrom != null && x.gpsTo != null).map((x) => ({ from: x.gpsFrom!, to: x.gpsTo! })))}
+        />
       ) : null}
 
       {justFinished && route.params.stepsAdded ? (

@@ -148,6 +148,18 @@ import { TRAINING_METHODS, methodsFor, findMethod } from '../src/data/trainingMe
 import { PROGRAMS, programsFor } from '../src/data/programs';
 import { SPECIAL_PROGRAMS, SPECIAL_CATEGORY_META, SPECIAL_CATEGORY_ORDER, specialProgramsFor, findSpecialProgram, specialStyleTag } from '../src/data/specialPrograms';
 import { EXERCISE_FAMILIES, familyOf, findFamily } from '../src/lib/exerciseFamilies';
+import { cyclingMet, paceMet, rowMet, swimMet, RUNNING_CURVE } from '../src/lib/met';
+import { outdoorCalories } from '../src/lib/outdoorActivities';
+import { paceKindFor } from '../src/lib/exerciseCalories';
+import { MotionWindow, classifyMotion as classifyMotion380, classifyRide, WINDOW_MS } from '../src/lib/motionValidation';
+import { filterFixes as filterFixes380, RIDE_MAX_SPEED_MS } from '../src/lib/gpsFilter';
+import { startLaps, advanceLaps, finishRepByHand, drainPending, describePlan, sanitizePlan, lapProgress, formatPaceS, DEFAULT_LAP_PLAN } from '../src/lib/gpsLaps';
+import { sanitizeOutdoorSettings, splitIndex, splitLabel, DEFAULT_OUTDOOR_SETTINGS, ACCURACY_INTERVALS } from '../src/lib/outdoorSettings';
+import { fitViewport, project as projectTile, distanceMarks, trimRouteEnds, markSpacingM, worldX, worldY, TILE_PROVIDER, MAX_TILES, TILE_DP } from '../src/lib/mapTiles';
+import { STORY_THEMES, DEFAULT_STORY_THEME, storyVerdict, findStoryTheme } from '../src/data/souk';
+import { exerciseTip, focusPhaseNote, GOAL_FROM_PHASE, PHASE_FROM_GOAL, FOCUS_META, sanitizeFocus, roundLoad } from '../src/lib/trainingFocus';
+import { formatPace as formatPace380 } from '../src/lib/format';
+import { routeDistanceM as routeDistanceM380, type LatLng as LatLng380 } from '../src/lib/geo';
 import { READY_SESSIONS, READY_GROUP_META, READY_GROUP_ORDER, readySessionsIn, findReadySession, readyStyleTag, parseReadyStyle } from '../src/data/readySessions';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
@@ -758,6 +770,10 @@ const zeroStats: AchievementStats = {
   challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
   cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0,
   rankedLifts: 0, rankedPillars: 0, overallRung: 0, pathStages: 0, pathsCompleted: 0, placesMarked: 0, questsBestWeek: 0, skinsBought: 0,
+  routeShares: 0,
+  gpsLapSets: 0, gpsLapSessions: 0, longestRunKm: 0, fastest5kPaceS: 0, earlyStarts: 0, rideKmTotal: 0, realMapOn: false,
+  focusChosen: false, focusLiftingSessions: 0, cutLifting28d: 0, bulkLifting28d: 0, situpVariations: 0, declineReps: 0, twistReps: 0, bestSitupSession: 0,
+  storyThemesBought: 0, soukItems: 0,
 };
 const maxed: AchievementStats = { ...zeroStats, appStreakBest: 400, bestStepDay: 12000, best10kStreak: 8, cardOverall: 80, bestExportedOverall: 80, prCount: 3, routineCount: 2, maxVolumeKg: 12000, tdeeCalculated: true, bestSleepHours: 8, sleepDebt: 0 };
 check('Fresh account unlocks nothing that is tracked-and-zero (Spark locked)', evaluateAchievement(ACHIEVEMENTS[0], zeroStats).unlocked === false);
@@ -970,7 +986,8 @@ console.log('\nSchema ↔ migration integrity:');
   check('The data-corrupting walkBackgroundTask is not back', !files.includes('walkBackgroundTask.ts'));
   const walkSrc = fs.readFileSync('src/services/walkTracking.ts', 'utf8');
   check('walkTracking does not import the removed background task', !/walkBackgroundTask/.test(walkSrc));
-  check('GPS is started for walks as well as runs', /startRouteTracking\(mode\)/.test(walkSrc) && !/mode === 'run'\s*\)\s*\{\s*gps/.test(walkSrc));
+  // Superseded by 3.8.0: the GPS notification names the activity (a ride, a hike), so the call carries a label.
+  check('GPS is started for walks as well as runs', /startRouteTracking\(mode, activityFor\(mem\.activity\)\.label\.toLowerCase\(\)\)/.test(walkSrc) && !/mode === 'run'\s*\)\s*\{\s*gps/.test(walkSrc));
   check('Hardware step counter is preferred over the accelerometer', /hardware \? 'pedometer'/.test(walkSrc) && /attachStepSource\(true\)/.test(walkSrc));
   // The background location task must checkpoint steps so they keep climbing
   // while the app is killed — and must only ever raise the stored count.
@@ -979,7 +996,8 @@ console.log('\nSchema ↔ migration integrity:');
   check('Step checkpoint is monotonic (never lowers the count)', /steps: Math\.max\(row\.steps, impliedSteps\)/.test(repoSrc));
   // Every GPS fix must go through the filter — the raw haversine loop inflated
   // distance indoors and while turning on the spot.
-  check('Route append filters fixes before crediting distance', /filterFixes\(route, fixes\)/.test(repoSrc));
+  // Superseded by 3.8.0: a ride passes its own speed ceiling as a third argument.
+  check('Route append filters fixes before crediting distance', /filterFixes\(route, fixes, riding \? \{ maxSpeedMs: RIDE_MAX_SPEED_MS \} : \{\}\)/.test(repoSrc));
   check('Raw unfiltered segment accumulation is gone', !/const seg = haversine\(last, p\)/.test(repoSrc));
   // Rejecting every fix still counts as observing the session; leaving updatedAt
   // stale would make the stretch look like a blind window and let the gap
@@ -2074,7 +2092,8 @@ console.log('\nCustom foods — calories from macros:');
    * pairing is enforced rather than remembered.
    */
   const bootSrc = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
-  check('to_failure is in the CREATE TABLE DDL (fresh installs)', /to_failure INTEGER NOT NULL DEFAULT 0\s*\);/.test(bootSrc));
+  // Superseded by 3.8.0: gps_from / gps_to follow it in the set_entries DDL.
+  check('to_failure is in the CREATE TABLE DDL (fresh installs)', /to_failure INTEGER NOT NULL DEFAULT 0,\s*\n\s*gps_from INTEGER,/.test(bootSrc));
   check('to_failure is in ADDED_COLUMNS (existing installs)', /table: 'set_entries', column: 'to_failure'/.test(bootSrc));
   // At-or-above, not exactly: pinning the number makes this fail on every
   // later bump for a reason that has nothing to do with what it's testing.
@@ -2904,7 +2923,10 @@ console.log('\nOutdoor ground activities launch like a walk:');
   check('Every activity icon resolves', OUTDOOR_ACTIVITIES.every((a) => { const [g, n] = a.icon.split('.'); return !!(ICONS as Record<string, Record<string, unknown>>)[g]?.[n]; }));
   const walkSrcO = fs.readFileSync('src/screens/train/WalkScreen.tsx', 'utf8');
   check('The tracker screen takes an activity and keeps working from a plain mode', /activityFor\(route\.params\?\.activity \?\? route\.params\?\.mode \?\? 'walk'\)/.test(walkSrcO));
-  check('…floors the pace MET by activity and scales by the carried pack', /activityMet\(activity, paceMet\)/.test(walkSrcO) && /loadCalorieFactor\(profileFor\(\{ slug: 'rucking' \}\), weightKg, loadKg\)/.test(walkSrcO));
+  // Superseded by 3.8.0: the floor and the pack moved into ONE sum (outdoorCalories) that the screen
+  // and the store both call — before, the saved number skipped them and disagreed with the live one.
+  const oaSrc = fs.readFileSync('src/lib/outdoorActivities.ts', 'utf8');
+  check('…floors the pace MET by activity and scales by the carried pack', /activityMet\(activity, pace\)/.test(oaSrc) && /loadCalorieFactor\(profileFor\(\{ slug: 'rucking' \}\), weightKg, params\.loadKg\)/.test(oaSrc) && /outdoorCalories\(\{/.test(walkSrcO));
   check('…asks for the pack only where it makes sense, and warns when GPS is the only source', /activity\.carries && \(/.test(walkSrcO) && /gpsOnly && \(/.test(walkSrcO));
   check('…and labels everything by the activity, not "walk"', /title=\{activity\.label\}/.test(walkSrcO) && /: activity\.verb\}/.test(walkSrcO) && /sessionType: activity\.sessionType/.test(walkSrcO));
   check('Train offers every ground activity one tap away', /OUTDOOR_ACTIVITIES\.map\(\(a\) => \(/.test(fs.readFileSync('src/screens/train/TrainScreen.tsx', 'utf8')));
@@ -3615,7 +3637,8 @@ console.log('\nA library big enough to be whole, graded so it can be used:');
   check('Both prefill pickers pass difficulty through', /slugsForLevel\(day\.exercises, level, difficultyBySlug\)/.test(fs.readFileSync('src/screens/train/SplitPickerScreen.tsx', 'utf8')) && /difficultyBySlug/.test(fs.readFileSync('src/screens/train/MethodPickerScreen.tsx', 'utf8')));
   // New exercises only reach an existing install when the schema version moves.
   // Superseded by 3.1.0: v33 adds exercises.video_id and re-seeds the library with its videos.
-  check('The schema bump is what delivers them', /const SCHEMA_VERSION = 3[4-9];/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
+  // Superseded by 3.8.0: v40 — the version only ever rises.
+  check('The schema bump is what delivers them', /const SCHEMA_VERSION = (3[4-9]|[4-9]\d);/.test(fs.readFileSync('src/db/bootstrap.ts', 'utf8')));
 }
 
 console.log('\n3.0 "Lume" - the design platform holds its own rules:');
@@ -4112,7 +4135,9 @@ console.log('\nMotion 3.1.2 - springs where motion is physical, the icon in the 
 
   // ── The icon set wears the theme ──
   const cfg = fs.readFileSync('app.config.ts', 'utf8');
-  check('Splash and adaptive backgrounds are Night Sea', (cfg.match(/backgroundColor: '#070C14'/g) ?? []).length === 2 && !/#0B1220/.test(cfg));
+  // Superseded by 3.8.0: the launcher icon is the user's crest, and its adaptive background is the crest's
+  // own night blue so the padded foreground melts into it. The splash stays Night Sea.
+  check('Splash is Night Sea; the adaptive icon sits on the crest night blue', (cfg.match(/backgroundColor: '#070C14'/g) ?? []).length === 1 && /backgroundColor: '#051021'/.test(cfg) && !/#0B1220/.test(cfg));
   check('The icon set is present and freshly rendered', ['assets/icon.png', 'assets/adaptive-icon.png', 'assets/splash.png', 'assets/favicon.png'].every((f) => fs.existsSync(f) && fs.statSync(f).size > 1500));
 }
 
@@ -4310,7 +4335,9 @@ console.log('\nBadges 3.2.3 - minted, not flat:');
   check('...and quantises the PNGs so 150 medals stay a small bundle', /palette: true/.test(rb));
   const art = fs.readFileSync('src/data/badgeImages.ts', 'utf8');
   check('The rendered art says it is minted, at a stated size', /minted into a medal/.test(art) && /rasterised at \d+px/.test(art));
-  check('The badge bundle stays under 1.5 MB', art.length < 1_500_000, `${Math.round(art.length / 1024)} KB`);
+  // Superseded by 3.8.0: a flat 1.5 MB was set for 160 medals. The budget is now per medal (9 KB, the
+  // density the 160 had), so 20 new badges do not force every medal's colours down.
+  check('The badge bundle stays within 9 KB a medal', art.length < ACHIEVEMENTS.length * 9_000, `${Math.round(art.length / 1024)} KB for ${ACHIEVEMENTS.length}`);
   const ach = fs.readFileSync('src/screens/profile/AchievementsScreen.tsx', 'utf8');
   check('Locked badges wear a lock, not just a dim', /<Icon icon="core\.lock" size=\{11\}/.test(ach) && /size=\{56\}/.test(ach));
   check('The lock glyph exists', !!(ICONS as Record<string, Record<string, unknown>>).core?.lock);
@@ -5117,6 +5144,199 @@ console.log('\nFamilies 3.7.0 - kettlebell, bands, straps, rehab, seniors, pregn
   check('Emergencies are named where they hide: the Achilles, the back, the neck, the ankle', /emergency/.test(findReadySession('rehab-achilles-heel')!.note!) && /emergency/.test(findReadySession('rehab-lower-back')!.note!) && /doctor first/.test(findReadySession('rehab-neck')!.note!) && /X-rayed/.test(findReadySession('rehab-ankle-first-days')!.note!));
   check('Kettlebell sessions are made of kettlebell lifts, strap sessions of strap work', RS.filter((x) => x.key.startsWith('kit-kettlebell')).every((x) => x.exercises.every((k) => familyOf(lib.get(k)!) === 'kettlebell')) && RS.filter((x) => x.key.startsWith('kit-straps')).every((x) => x.exercises.every((k) => familyOf(lib.get(k)!) === 'suspension')) && RS.filter((x) => /^kit-(bands|loop)/.test(x.key)).every((x) => x.exercises.every((k) => familyOf(lib.get(k)!) === 'band')));
   check('The health groups say their caution on the rail too', /cannot examine you/.test(READY_GROUP_META.rehab.blurb) && /midwife or doctor/.test(READY_GROUP_META.mother.blurb));
+}
+
+console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
+{
+  const rd = (f: string) => fs.readFileSync(f, 'utf8');
+
+  // ── the MET curves ──
+  const speeds = Array.from({ length: 41 }, (_, i) => 2 + i * 0.5);
+  check('Walking and running cost rises with speed, without a single step backwards', speeds.every((v, i) => i === 0 || walkRunMet(v) >= walkRunMet(speeds[i - 1])));
+  check('A fast run is no longer capped at the 12.9 km/h rate', walkRunMet(16) > walkRunMet(13) + 1.5 && walkRunMet(20, 'run') > 18, `${walkRunMet(16)}`);
+  check('The running curve reads the Compendium anchors exactly', RUNNING_CURVE.every(([kmh, met]) => Math.abs(walkRunMet(kmh, 'run') - met) < 0.02));
+  check('A gait picks its curve: a slow jog costs like a run, a race walk like a walk', walkRunMet(6.5, 'run') > walkRunMet(6.5, 'walk') && walkRunMet(9, 'walk') <= 10);
+  check('A bike at 20 km/h is about 8 METs, not a sprint', cyclingMet(20) > 7 && cyclingMet(20) < 9, `${cyclingMet(20)}`);
+  const ride = walkCalories({ weightKg: 80, distanceM: 20000, durationSec: 3600, steps: 0, gait: 'none' });
+  const asRun = walkCalories({ weightKg: 80, distanceM: 20000, durationSec: 3600, steps: 0 });
+  check('An hour on a bike at 20 km/h costs a ride, not a run', ride < asRun / 2 && ride > 450 && ride < 700, `${ride} vs ${asRun}`);
+  check('Swimming and rowing cost more the faster they go', swimMet(100 / 90) > swimMet(100 / 150) && rowMet(500 / 110) > rowMet(500 / 150));
+  check('Pace MET needs a distance and a time', paceMet('run', 0, 600) === null && paceMet('run', 5000, 0) === null && paceMet('run', 5000, 1500) === walkRunMet(12, 'run'));
+
+  // ── one outdoor sum ──
+  const hike = activityFor('hike');
+  const cycle = activityFor('cycle');
+  const slowHike = outdoorCalories({ activity: hike, weightKg: 80, distanceM: 3000, durationSec: 3600, activeSec: 3600, steps: 4000 });
+  const slowWalk = outdoorCalories({ activity: activityFor('walk'), weightKg: 80, distanceM: 3000, durationSec: 3600, activeSec: 3600, steps: 4000 });
+  check('A slow hike is floored above a slow walk', slowHike > slowWalk);
+  check('A pack scales the hike', outdoorCalories({ activity: hike, weightKg: 80, distanceM: 3000, durationSec: 3600, activeSec: 3600, steps: 4000, loadKg: 20 }) > slowHike);
+  check('A ride is costed on the cycling curve and never by steps', outdoorCalories({ activity: cycle, weightKg: 80, distanceM: 20000, durationSec: 3600, steps: 9999 }) === ride);
+  const ws = rd('src/stores/walkStore.ts');
+  const wscr = rd('src/screens/train/WalkScreen.tsx');
+  check('The number on screen and the number saved come from the same sum', /outdoorCalories\(\{/.test(ws) && /outdoorCalories\(\{/.test(wscr) && !/walkCalories\(/.test(ws));
+  check('A walk is saved with what it really was', /activity: result\.activity,/.test(ws) && /activity: data\.activity \?\? null,/.test(rd('src/repositories/activityRepo.ts')));
+  check('A walk that ran past midnight counts on the day it started', /toISODate\(new Date\(data\.startTime\)\)/.test(rd('src/repositories/activityRepo.ts')));
+
+  // ── pace-based distance sets ──
+  check('A barbell row is never a rowing machine', paceKindFor('barbell-row', 'reps_weight') === null && paceKindFor('seal-row', 'distance') === null);
+  check('Distance movements find their curve', paceKindFor('outdoor-run', 'duration_distance') === 'run' && paceKindFor('swim-freestyle', 'duration_distance') === 'swim' && paceKindFor('road-cycling', 'duration_distance') === 'cycle' && paceKindFor('rowing-machine', 'duration_distance') === 'row' && paceKindFor('hiking', 'duration_distance') === 'walk');
+  check('...but only when they track distance', paceKindFor('outdoor-run', 'duration') === null);
+  const runEx = (sec: number): BurnExercise => ({ met: 9, trackingType: 'duration_distance', paceKind: 'run', sets: [{ distanceM: 5000, durationS: sec, completed: true }] });
+  const fast = distributeSessionCalories({ durationS: 1500, weightKg: 80, fallbackMet: 7, exercises: [runEx(1200)] }).total;
+  const slow = distributeSessionCalories({ durationS: 2400, weightKg: 80, fallbackMet: 7, exercises: [runEx(2400)] }).total;
+  check('5 km in 20 minutes costs more per minute than 5 km in 40', fast / 20 > slow / 40, `${fast} vs ${slow}`);
+  check('The session repository hands the pace kind to the calorie sum', /paceKind: paceKindFor\(lv\.slug, lv\.trackingType\)/.test(rd('src/repositories/sessionRepo.ts')));
+
+  // ── motion over a window, not a jittery second ──
+  const mw = new MotionWindow();
+  let pausedOnce = false;
+  let t0 = 0;
+  for (let sec = 0; sec <= 60; sec++) {
+    // GPS lands 6 m every 4 s; the step counter delivers 9 steps every 5 s: a 1.5 m/s walk at ~108 spm
+    mw.push({ at: sec * 1000, steps: Math.floor(sec / 5) * 9, distanceM: Math.floor(sec / 4) * 6 });
+    const r = mw.read();
+    if (r && classifyMotion380({ speedMs: r.speedMs, cadenceSpm: r.cadenceSpm }).shouldPause) pausedOnce = true;
+    t0 = sec;
+  }
+  check('A steady walk reported in bursts is never judged stopped or a car', !pausedOnce && t0 === 60);
+  const w = mw.read()!;
+  check('...and reads as the walk it is', w.speedMs > 1.2 && w.speedMs < 1.8 && w.cadenceSpm > 90 && w.cadenceSpm < 130, `${w.speedMs.toFixed(2)} m/s, ${Math.round(w.cadenceSpm)} spm`);
+  const short = new MotionWindow();
+  short.push({ at: 0, steps: 0, distanceM: 0 });
+  short.push({ at: 1000, steps: 0, distanceM: 9 });
+  check('A second of history judges nothing', short.read() === null && WINDOW_MS >= 15_000);
+  check('A cyclist at 30 km/h is riding, not in a car', !classifyRide(8.3).shouldPause && classifyRide(0.1).shouldPause && classifyRide(30).shouldPause);
+  const wt = rd('src/services/walkTracking.ts');
+  check('The tracker judges motion over the window and honours the auto-pause setting', /motionWindow\.push\(/.test(wt) && /outdoorSettings\(\)\.autoPause/.test(wt) && !/segmentSpeedMs\(distDelta, elapsedMs\)/.test(wt));
+  check('The accelerometer is timed by the sensor, not by when JavaScript got to it', /timestamp \* 1000/.test(wt) && /detector!\.onSample\(x, y, z, ts\)/.test(wt));
+  check('A ride attaches no step source and recovers no steps', /if \(!mem\.countSteps\) return;/.test(wt) && /const baseline = mem\.countSteps \? await getStepsSinceBoot\(\) : null;/.test(wt));
+  check('Resuming asks the permission, not the saved row, whether the step counter can be used', /Pedometer\.getPermissionsAsync\(\)/.test(wt));
+  check('A training session trace is never resumed as a walk', /row\.activity !== 'session'/.test(wt) && /row\.activity === 'session'\) return;/.test(wt));
+  const det = new StepDetector();
+  check('A sample from the past restarts the rhythm instead of breaking the count', (() => { det.onSample(0, 0, 1, 10_000); det.onSample(0, 0, 1, 5_000); return true; })());
+
+  // ── rides keep their downhill ──
+  const fastFix = [{ lat: 36.8, lng: 10.18, accuracy: 5, speed: 12 }, { lat: 36.801, lng: 10.18, accuracy: 5, speed: 12 }];
+  check('A 43 km/h fix is impossible on foot and fine on a bike', filterFixes380([], fastFix).accepted.length < filterFixes380([], fastFix, { maxSpeedMs: RIDE_MAX_SPEED_MS }).accepted.length);
+  const ar = rd('src/repositories/activityRepo.ts');
+  check('A ride invents no steps from its distance', /const impliedSteps = riding \? 0 :/.test(ar));
+  check('The live route is parsed once per change, and its length read from the row', /if \(json === cachedJson\) return cachedRoute;/.test(ar) && /return row\.distanceM > 0 \? row\.distanceM/.test(ar));
+
+  // ── GPS laps ──
+  const r0 = { now: 0, distanceM: 1000, routeLen: 50 };
+  let st = startLaps({ sessionId: 1, logId: 7, exerciseId: 3, exerciseName: 'Track 400s', plan: { targetM: 400, reps: 2, restS: 90, autoNext: true }, reading: r0 });
+  let ev = advanceLaps(st, { now: 60_000, distanceM: 1300, routeLen: 70 });
+  check('A rep short of its target keeps running', ev.events.length === 0 && ev.state.phase === 'running');
+  ev = advanceLaps(st, { now: 88_000, distanceM: 1440, routeLen: 80 });
+  const lap1 = ev.state.pending[0];
+  check('The target ends the rep by itself, credited as the target with the time scaled to it', ev.events[0]?.kind === 'rep-done' && lap1.distanceM === 400 && lap1.durationS === 80 && lap1.from === 49 && lap1.to === 79 && lap1.auto, JSON.stringify(lap1));
+  check('...then the rest runs', ev.state.phase === 'resting' && ev.state.restEndsAt === 88_000 + 90_000);
+  st = ev.state;
+  check('Rest does not end early', advanceLaps(st, { now: 150_000, distanceM: 1460, routeLen: 82 }).events.length === 0);
+  ev = advanceLaps(st, { now: 178_000, distanceM: 1470, routeLen: 85 });
+  check('...and the next rep starts by itself from where you stand', ev.events[0]?.kind === 'rep-start' && ev.state.phase === 'running' && ev.state.startDistanceM === 1470 && ev.state.repNo === 2);
+  ev = advanceLaps(ev.state, { now: 260_000, distanceM: 1875, routeLen: 110 });
+  check('The last rep closes the plan', ev.events.some((e) => e.kind === 'plan-done') && ev.state.phase === 'done' && ev.state.doneReps === 2);
+  const drained = drainPending(ev.state);
+  check('Finished reps leave once, to be logged as sets', drained.laps.length === 2 && drained.state.pending.length === 0);
+  const open = startLaps({ sessionId: 1, logId: 8, exerciseId: 4, exerciseName: 'Run', plan: DEFAULT_LAP_PLAN, reading: r0 });
+  const byHand = finishRepByHand(open, { now: 300_000, distanceM: 1987, routeLen: 99 });
+  check('An open rep is finished by hand with its true distance', byHand.state.pending[0]?.distanceM === 987 && !byHand.state.pending[0]?.auto);
+  check('The plan reads in a line', describePlan({ targetM: 400, reps: 6, restS: 90, autoNext: true }) === '6 × 400 m · rest 90 s' && describePlan({ targetM: 1609, reps: null, restS: 120, autoNext: true }) === '1 mile · rest 2 min');
+  check('Nonsense plans are made sane', sanitizePlan({ targetM: 5, reps: 500, restS: -3 } as never).targetM === null && sanitizePlan({ reps: 500 } as never).reps === null && sanitizePlan({ restS: -3 } as never).restS === 90);
+  check('Progress shows distance against the target', lapProgress(open, { now: 60_000, distanceM: 1200, routeLen: 60 }).distanceM === 200);
+  const act = rd('src/screens/train/ActiveSessionScreen.tsx');
+  check('Finished reps become sets that remember their slice of the route', /logSet\(ls\.logId, \{ distanceM: lap\.distanceM, durationS: lap\.durationS, gpsFrom: lap\.from, gpsTo: lap\.to \}\)/.test(act));
+  check('The background location task advances the laps too', /runOutdoorTick\(\)/.test(rd('src/services/locationTracking.ts')));
+  check('A set keeps its slice: gps_from and gps_to are written', /gpsFrom: draft\.gpsFrom \?\? null,/.test(rd('src/repositories/sessionRepo.ts')));
+
+  // ── session GPS belongs to the session ──
+  const sg = rd('src/services/sessionGps.ts');
+  check('Whether GPS is on is asked of the session, not the screen', /useState\(\(\) => isSessionGpsOn\(store\.activeId\)\)/.test(act) && /setSessionGpsMarker\(\{ sessionId, startedAt: Date\.now\(\) \}\)/.test(sg));
+  check('A discarded session stops its GPS', /if \(gpsOn \|\| isSessionGpsOn\(store\.activeId\)\) void stopSessionGps\(\);/.test(act));
+  check('A finished session keeps its route', /routeJson: opts\.activity\?\.routeJson \?\? session\.routeJson \?\? null,/.test(rd('src/repositories/sessionRepo.ts')) && /const routeJson = route\.length > 1 \? JSON\.stringify\(route\) : null;/.test(act));
+  check('A trace whose session is gone is stopped at start-up', /cleanupOrphanSessionGps\(activeSession\(\)\?\.id \?\? null\)/.test(rd('App.tsx')));
+  check('A walk cannot take over a session trace', /if \(sessionGpsMarker\(\) && getLiveWalk\(\)\?\.active\)/.test(wscr));
+
+  // ── settings ──
+  check('Outdoor settings fall back to safe defaults', JSON.stringify(sanitizeOutdoorSettings({ accuracy: 'max', splitM: 3, realMap: 'yes' })) === JSON.stringify({ ...DEFAULT_OUTDOOR_SETTINGS }));
+  check('Real maps are never on until asked', DEFAULT_OUTDOOR_SETTINGS.realMap === 'unset' && DEFAULT_OUTDOOR_SETTINGS.hideEndsM > 0);
+  check('Splits are counted and named', splitIndex(2999, 1000) === 2 && splitLabel(3, 1000) === 'Km 3' && splitLabel(2, 1609) === 'Mile 2');
+  check('Precision decides the receiver', ACCURACY_INTERVALS.precise.timeMs < ACCURACY_INTERVALS.balanced.timeMs && /ACCURACY_INTERVALS\[acc\]/.test(rd('src/services/locationTracking.ts')));
+
+  // ── real maps ──
+  const route: LatLng380[] = [[36.8, 10.1808], [36.7999, 10.183], [36.79975, 10.1855], [36.7996, 10.188], [36.7995, 10.1905], [36.79935, 10.193], [36.79925, 10.1955], [36.8005, 10.197], [36.8025, 10.1975], [36.8045, 10.1978], [36.806, 10.1965], [36.8062, 10.1935], [36.806, 10.1905], [36.8055, 10.1875], [36.804, 10.185], [36.802, 10.182]];
+  const vp = fitViewport(route, 360, 380, { pad: 34 })!;
+  check('A 3.6 km city loop fits at street zoom on a handful of tiles', vp.z >= 14 && vp.z <= 16 && vp.tiles.length > 0 && vp.tiles.length <= MAX_TILES, `z${vp.z} ${vp.tiles.length} tiles`);
+  check('Every point of the route lands inside the box', route.every((p) => { const q = projectTile(vp, p); return q.x >= 0 && q.y >= 0 && q.x <= 360 && q.y <= 380; }));
+  const t0t = vp.tiles[0];
+  check('Tiles sit where the projection says', Math.abs(t0t.left - (t0t.x * TILE_DP - vp.originX)) < 1e-6 || t0t.x * TILE_DP - vp.originX < 0);
+  check('North is up on the map', worldY(37, 15) < worldY(36, 15) && worldX(11, 15) > worldX(10, 15));
+  check('Distance markers fall at every kilometre of a 3.6 km route', distanceMarks(route, markSpacingM(routeDistanceM380(route))).length === 3);
+  check('...and thin out on long routes', markSpacingM(8000) === 1000 && markSpacingM(20000) === 2000 && markSpacingM(42000) === 5000);
+  const trimmed = trimRouteEnds(route, 200);
+  check('What is shared is cut back from both ends', trimmed.length >= 2 && trimmed.length < route.length && trimmed[0] !== route[0] && routeDistanceM380(trimmed) < routeDistanceM380(route) - 300);
+  check('The map server is told a tile and nothing else', TILE_PROVIDER.url(15, 17311, 12776) === 'https://tile.openstreetmap.org/15/17311/12776.png' && /OpenStreetMap contributors/.test(TILE_PROVIDER.attribution));
+  const mt = rd('src/services/mapTiles.ts');
+  check('Tiles are fetched politely: identified, two at a time, kept a month', /'User-Agent': TILE_USER_AGENT/.test(mt) && /const PARALLEL = 2;/.test(mt) && /const KEEP_MS = 30 \* 86_400_000;/.test(mt));
+  check('A map from tiles always carries the credit', /\{tiles \? \(/.test(rd('src/components/RealRouteMap.tsx')) && /TILE_PROVIDER\.attribution/.test(rd('src/components/RealRouteMap.tsx')));
+  check('The first real map asks, and says what the map server sees', /their servers see the area it was in/.test(rd('src/components/RealMapConsent.tsx')) && /settings\.realMap === 'on'/.test(rd('src/components/RouteSummaryCard.tsx')));
+  const downloads = (function walk(dir: string): string[] { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : /\.(ts|tsx)$/.test(d.name) ? [`${dir}/${d.name}`] : [])); })('src').filter((f) => /downloadAsync\(/.test(fs.readFileSync(f, 'utf8')));
+  check('Files are downloaded from two places only: a product picture and map tiles', downloads.length === 2 && downloads.every((f) => /services\/(foodPhoto|mapTiles)\.ts$/.test(f)), downloads.join());
+
+  // ── sharing ──
+  const sh = rd('src/screens/train/RouteShareScreen.tsx');
+  check('A story is story-sized', /width: 1080, height: 1920/.test(rd('src/services/cardExport.ts')));
+  check('The shared line is trimmed, the numbers are not', /trimRouteEnds\(data\.route, hideM\)/.test(sh) && /distanceM: data\.distanceM,/.test(sh));
+  check('A share is counted only once the file exists', /if \(r\.saved \|\| r\.shared\) recordRouteShare\(\);/.test(sh));
+  check('Share waits for the map to finish drawing', /disabled=\{!mapReady \|\| !!busy\}/.test(sh));
+  check('Finished routes offer the share on every screen they are shown', ['src/screens/train/WalkScreen.tsx', 'src/screens/train/WalkDetailScreen.tsx', 'src/screens/train/SessionDetailScreen.tsx'].every((f) => /<RouteSummaryCard/.test(rd(f))));
+  check('A pace never reads :60', formatPace380(359.6, 'metric') === '6:00 /km' && formatPaceS(299.7) === '5:00');
+
+  // ── the souk ──
+  const lum = (h: string) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  const contrast = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  check('Fourteen card skins now, still one free', CARD_SKINS.length === 14 && CARD_SKINS.filter((x) => x.cost === 0).length === 1);
+  check('Story themes: eight places, one free and the default', STORY_THEMES.length === 8 && STORY_THEMES.filter((x) => x.cost === 0).map((x) => x.key).join() === DEFAULT_STORY_THEME && new Set(STORY_THEMES.map((x) => x.key)).size === 8);
+  check('Every story theme is a place with colours and a map tint', STORY_THEMES.every((x) => x.key.startsWith('story:') && x.story.length > 20 && [x.top, x.bottom, x.ink, x.muted, ...x.line].every((col) => /^#[0-9A-F]{6}$/i.test(col)) && ['dark', 'light', 'warm'].includes(x.map)));
+  check('The ink reads on every story card', STORY_THEMES.every((x) => contrast(x.ink, x.bottom) >= 4.5), STORY_THEMES.filter((x) => contrast(x.ink, x.bottom) < 4.5).map((x) => x.key).join());
+  check('Story themes are bought like skins, from the same till', !storyVerdict('story:carthage', new Set(), 10).ok && storyVerdict('story:carthage', new Set(), 250).ok && !storyVerdict(DEFAULT_STORY_THEME, new Set(), 999).ok && findStoryTheme('nope').key === DEFAULT_STORY_THEME);
+  check('A story theme is not counted as a card skin', /filter\(\(r\) => !r\.k\.startsWith\('story:'\)\)/.test(rd('src/repositories/achievementsRepo.ts')));
+
+  // ── phase and focus ──
+  check('Phase and goal are one setting', (Object.keys(GOAL_FROM_PHASE) as Array<keyof typeof GOAL_FROM_PHASE>).every((ph) => PHASE_FROM_GOAL[GOAL_FROM_PHASE[ph]] === ph) && GOAL_FROM_PHASE.bulk === 'build_muscle' && GOAL_FROM_PHASE.cut === 'lose_fat');
+  check('An unknown focus reads as hypertrophy', sanitizeFocus('atrophy') === 'hypertrophy' && sanitizeFocus(null) === 'hypertrophy');
+  check('Loads round to a plate you can put on', roundLoad(61.3) === 62.5 && roundLoad(21, 2) === 22);
+  const lastTop = [{ reps: 12, weightKg: 60, durationS: null, distanceM: null }, { reps: 12, weightKg: 60, durationS: null, distanceM: null }];
+  const lastMid = [{ reps: 10, weightKg: 60, durationS: null, distanceM: null }, { reps: 9, weightKg: 60, durationS: null, distanceM: null }];
+  check('Hypertrophy on a bulk: every set at the top of the range means add weight', /Up to 62\.5 kg/.test(exerciseTip({ focus: 'hypertrophy', phase: 'bulk', kind: 'loaded', last: lastTop, best1RM: 84 }).line));
+  check('...below the top, add a rep at the same weight', /Stay at 60 kg/.test(exerciseTip({ focus: 'hypertrophy', phase: 'bulk', kind: 'loaded', last: lastMid, best1RM: 80 }).line));
+  check('On a cut, the tip holds the weight', /Hold 60 kg/.test(exerciseTip({ focus: 'hypertrophy', phase: 'cut', kind: 'loaded', last: lastTop, best1RM: 84 }).line));
+  check('Strength works up to 85% of the estimated max', /Work up to 85 kg/.test(exerciseTip({ focus: 'strength', phase: 'maintain', kind: 'loaded', last: lastMid, best1RM: 100 }).line));
+  check('Reducing size goes light', /Light: about 30 kg/.test(exerciseTip({ focus: 'reduce', phase: 'cut', kind: 'loaded', last: lastMid, best1RM: 80 }).line));
+  check('Fifteen bodyweight reps mean the harder version', /harder version/.test(exerciseTip({ focus: 'hypertrophy', phase: 'bulk', kind: 'bodyweight', last: [{ reps: 18, weightKg: null, durationS: null, distanceM: null }], best1RM: null }).line));
+  check('Cardio on a bulk is kept short', /2–3 short sessions/.test(exerciseTip({ focus: 'hypertrophy', phase: 'bulk', kind: 'distance', last: [], best1RM: null }).line));
+  check('With nothing logged, the tip says how to find a weight', /About 52\.5–65 kg/.test(exerciseTip({ focus: 'hypertrophy', phase: 'maintain', kind: 'loaded', last: [], best1RM: 80 }).line));
+  check('Hypertrophy on a cut points to Preserve; reducing size points to protein', /Preserve/.test(focusPhaseNote('hypertrophy', 'cut') ?? '') && /protein/.test(focusPhaseNote('reduce', 'cut') ?? ''));
+  check('Every focus has a range that makes sense', Object.values(FOCUS_META).every((m) => m.reps[0] < m.reps[1] && m.load[0] < m.load[1] && m.load[1] <= 0.9));
+  check('Each exercise in a session shows its tip, from the last session', /lastSessionSets\(lv\.log\.exerciseId, store\.activeId \?\? null\)/.test(act) && /Tip · \{tip\.heading\}/.test(act));
+  check('Choosing a phase moves the calorie goal', /updateProfile\(\{ goal: GOAL_FROM_PHASE\[p\] \}\)/.test(rd('src/screens/profile/TrainingFocusScreen.tsx')));
+
+  // ── sit-ups, badges, schema, binary ──
+  const situps = ['decline-sit-up', 'decline-twisting-sit-up', 'weighted-decline-sit-up', 'decline-crunch', 'decline-oblique-crunch', 'decline-reverse-crunch', 'decline-russian-twist', 'twisting-sit-up', 'weighted-twisting-sit-up', 'butterfly-sit-up', 'straight-leg-sit-up', 'janda-sit-up', 'jackknife-sit-up', 'medicine-ball-sit-up-throw', 'stability-ball-sit-up'];
+  check('Fifteen sit-up variations, decline and twisting among them', situps.every((k) => EXLIB.some((e) => e.slug === k && e.primaryMuscle === 'core')));
+  check('...each with its video', situps.every((k) => !!(EXERCISE_VIDEOS as Record<string, unknown>)[k]));
+  check('The twisting ones work the obliques', situps.filter((k) => /twist|oblique/.test(k)).every((k) => EXLIB.find((e) => e.slug === k)!.subMuscle === 'obliques'));
+  check('Eighteen badge categories, 180 badges', ACHIEVEMENT_CATEGORIES.length === 18 && ACHIEVEMENTS.length === 180 && ACHIEVEMENT_CATEGORIES[16] === 'Roads & Stories' && ACHIEVEMENT_CATEGORIES[17] === 'Phase, Focus & Core');
+  check('Every new badge is measured from the record', ACHIEVEMENTS.filter((a) => a.id > 160).every((a) => evaluateAchievement(a, zeroStats).tracked));
+  check('...and none is unlocked by doing nothing', ACHIEVEMENTS.filter((a) => a.id > 160).every((a) => !evaluateAchievement(a, zeroStats).unlocked));
+  check('Sub-Five means under five minutes per km', evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 167)!, { ...zeroStats, fastest5kPaceS: 299 }).unlocked && !evaluateAchievement(ACHIEVEMENTS.find((a) => a.id === 167)!, { ...zeroStats, fastest5kPaceS: 301 }).unlocked);
+  const boot = rd('src/db/bootstrap.ts');
+  check('Schema 40 adds what 3.8.0 stores, for fresh installs and old ones alike', /const SCHEMA_VERSION = (4\d|[5-9]\d);/.test(boot) && ['training_focus', 'route_json', 'gps_from', 'gps_to', 'activity'].every((col) => new RegExp(`column: '${col}'`).test(boot)) && /gps_to INTEGER\n\);/.test(boot.replace(/\r\n/g, '\n')));
+  const cfg = rd('app.config.ts');
+  check('The new binary is versionCode 4 and may vibrate', /versionCode: 4,/.test(cfg) && /'VIBRATE'/.test(cfg) && /version: '2\.0\.0'/.test(cfg));
+  const srcAll = (function walk(dir: string): string[] { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : /\.(ts|tsx)$/.test(d.name) ? [`${dir}/${d.name}`] : [])); })('src');
+  check('Nothing calls the Vibration API: the update also runs on the older binary that lacks the permission', srcAll.every((f) => !/Vibration\.vibrate\(/.test(fs.readFileSync(f, 'utf8'))));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

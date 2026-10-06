@@ -23,6 +23,7 @@ import { DIFFICULTY_POINTS } from '@/data/challenges';
 import { restDayCount, restDaySet } from './restDaysRepo';
 import { bestBridgedStreak } from '@/lib/streaks';
 import { profileEvents } from './eventsRepo';
+import { roadsCoreStats, ZERO_ROADS_CORE, type RoadsCoreStats } from './roadsCoreStats';
 import { rankSnapshot } from './ranksRepo';
 import { completedPathCount, graduatedStageCount } from './pathsRepo';
 import { listPlaces } from './placesRepo';
@@ -33,7 +34,7 @@ import { MICRO_KEYS, percentRdi } from '@/lib/micros';
 import { SUPPLEMENTS } from '@/data/supplements';
 import { daysAgoISO, lastNDates, todayISO, toISODate } from '@/lib/date';
 
-export interface AchievementStats {
+export interface AchievementStats extends RoadsCoreStats {
   // streaks / usage
   appStreakBest: number;
   // steps / movement
@@ -143,6 +144,8 @@ export interface AchievementStats {
   /** the most quests met in any single week */
   questsBestWeek: number;
   skinsBought: number;
+  // —— Roads & Stories (3.8.0) ——
+  routeShares: number;
 }
 
 /** Longest run of consecutive true days ending at the most recent (today, else yesterday). */
@@ -482,7 +485,8 @@ function computeAchievementStats(userId: number): AchievementStats {
     challengePointsBestMonth,
     challengeStreakCurrent: chal.streak,
     distinctChallenges: chal.distinctChallenges,
-    ...safe(() => profileEvents(), { cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0 }),
+    ...safe(() => profileEvents(), { cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0, routeShares: 0 }),
+    ...safe(() => roadsCoreStats(userId), ZERO_ROADS_CORE),
     ...safe(() => {
       const snap = rankSnapshot(userId);
       const o = snap.overall ?? snap.peak;
@@ -502,7 +506,8 @@ function computeAchievementStats(userId: number): AchievementStats {
       }
       return maxOf([...byWeek.values()], 0);
     }, 0),
-    skinsBought: safe(() => db.select({ id: pointPurchases.id }).from(pointPurchases).where(eq(pointPurchases.userId, userId)).all().length, 0),
+    // Card skins only — a story theme is bought from the same till but is not a skin.
+    skinsBought: safe(() => db.select({ k: pointPurchases.itemKey }).from(pointPurchases).where(eq(pointPurchases.userId, userId)).all().filter((r) => !r.k.startsWith('story:')).length, 0),
   };
 }
 
@@ -527,6 +532,8 @@ const ZERO_STATS: AchievementStats = {
   challengePointsBestMonth: 0, challengeStreakCurrent: 0, distinctChallenges: 0,
   cardExports: 0, bestExportedOverall: 0, coachReports: 0, nutritionReports: 0,
   rankedLifts: 0, rankedPillars: 0, overallRung: 0, pathStages: 0, pathsCompleted: 0, placesMarked: 0, questsBestWeek: 0, skinsBought: 0,
+  routeShares: 0,
+  ...ZERO_ROADS_CORE,
 };
 
 /** Public entry — never throws; a failure yields zeroed stats, not a white screen. */

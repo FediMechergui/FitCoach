@@ -23,6 +23,9 @@
  *     through lib/loadProfile (a 20 kg pack at 80 kg costs ~25 % more).
  */
 
+import { cyclingMet, netCaloriesFromMet, walkCalories, walkRunMet } from './met';
+import { loadCalorieFactor, profileFor } from './loadProfile';
+
 export type Gait = 'walk' | 'run' | 'none';
 
 export interface OutdoorActivity {
@@ -146,4 +149,47 @@ export function requiresGps(activity: OutdoorActivity): boolean {
  */
 export function activityMet(activity: OutdoorActivity, paceMet: number): number {
   return Math.max(activity.metFloor, paceMet);
+}
+
+/**
+ * Calories for an outdoor activity — the ONE place the number is made.
+ *
+ * Before 3.8.0 there were two: the live tile on the walk screen floored the
+ * pace MET by the activity and scaled it by the pack, while the figure that
+ * was SAVED came from the plain walk formula. A hike showed one number while
+ * you walked it and kept a smaller one forever after, and a ride was costed
+ * as a run — 20 km/h read as an ~19 MET sprint instead of ~8 METs of
+ * cycling. Both the screen and the store now call this.
+ *
+ *   • the pace picks the MET from the curve of the activity's own gait
+ *     (walking, running, or cycling for a wheel);
+ *   • the activity floor lifts a slow hike, ruck or stair climb to what that
+ *     ground actually costs;
+ *   • a carried pack scales the result (lib/loadProfile).
+ *
+ * `activeSec` is moving time: paused stretches are not exercise.
+ */
+export function outdoorCalories(params: {
+  activity: OutdoorActivity;
+  weightKg: number;
+  distanceM: number;
+  durationSec: number;
+  activeSec?: number;
+  steps: number;
+  /** a pack, vest or sandbag, kg */
+  loadKg?: number;
+}): number {
+  const { activity, weightKg, distanceM, durationSec, steps } = params;
+  const activeSec = params.activeSec != null && params.activeSec > 0 ? Math.min(params.activeSec, durationSec || params.activeSec) : durationSec;
+  const loadFactor = params.loadKg && params.loadKg > 0 ? loadCalorieFactor(profileFor({ slug: 'rucking' }), weightKg, params.loadKg) : 1;
+  const base = walkCalories({ weightKg, distanceM, durationSec, activeSec, steps: activity.gait === 'none' ? 0 : steps, gait: activity.gait });
+  const speedKmh = distanceM > 0 && activeSec > 0 ? distanceM / 1000 / (activeSec / 3600) : 0;
+  const pace =
+    speedKmh > 0 ? (activity.gait === 'none' ? cyclingMet(speedKmh) : walkRunMet(speedKmh, activity.gait)) : 0;
+  const floored = activityMet(activity, pace);
+  const cal =
+    activity.metFloor > 0 && activeSec > 0 && floored > pace
+      ? netCaloriesFromMet(floored, weightKg, activeSec)
+      : base;
+  return Math.round(cal * loadFactor);
 }

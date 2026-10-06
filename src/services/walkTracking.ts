@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { Accelerometer, Pedometer } from 'expo-sensors';
 import {
   endLiveWalk,
@@ -12,11 +13,15 @@ import { StepDetector, distanceFromSteps, DAILY_STEP_GOAL } from '@/lib/pedomete
 import { recoverGapSteps, MIN_GAP_SEC } from '@/lib/walkRecovery';
 import {
   classifyMotion,
-  segmentSpeedMs,
+  classifyRide,
+  MotionWindow,
   PAUSE_CONFIRM_MS,
   RESUME_CONFIRM_MS,
   type MotionKind,
 } from '@/lib/motionValidation';
+import { outdoorSettings } from '@/repositories/outdoorRepo';
+import { runOutdoorTick } from './outdoorAlerts';
+import { activityFor } from '@/lib/outdoorActivities';
 import { progressBarWithPct } from '@/lib/progressBar';
 import { getStepsSinceBoot, hasHardwareStepCounter } from '../../modules/step-counter';
 import type { LatLng } from '@/lib/geo';
@@ -75,9 +80,16 @@ let stepCountSupported: boolean | null = null;
 type Source = 'pedometer' | 'accelerometer' | 'gps';
 
 /** In-memory live session — the single source of truth while tracking. */
+/** Speed and cadence over the last ~20 s, not one jittery second (lib/motionValidation). */
+const motionWindow = new MotionWindow();
+
 const mem = {
   active: false,
   mode: 'walk' as 'walk' | 'run',
+  /** the outdoor activity key (walk, run, hike, cycle…) */
+  activity: 'walk',
+  /** false for a ride: a bike has no steps, so no step source is attached at all */
+  countSteps: true,
   source: 'pedometer' as Source,
   /** a hardware step counter is in use (watchStepCount) */
   hardware: false,
@@ -168,6 +180,7 @@ async function isPedometerAvailable(): Promise<boolean> {
 export interface WalkSnapshot {
   active: boolean;
   mode: 'walk' | 'run';
+  activity: string;
   source: Source;
   startTime: number;
   steps: number;
@@ -189,6 +202,7 @@ export function getLiveSnapshot(): WalkSnapshot | null {
     return {
       active: true,
       mode: mem.mode,
+      activity: mem.activity,
       source: mem.source,
       startTime: mem.startTime,
       steps: total(),
@@ -201,10 +215,12 @@ export function getLiveSnapshot(): WalkSnapshot | null {
     };
   }
   const row = getLiveWalk();
-  if (row?.active && row.startTime) {
+  // A training session's GPS trace shares the live row; it is not a walk.
+  if (row?.active && row.startTime && row.activity !== 'session') {
     return {
       active: true,
       mode: row.mode,
+      activity: row.activity ?? row.mode,
       source: row.source,
       startTime: row.startTime,
       steps: row.steps,
@@ -309,37 +325,38 @@ async function reconcileFromHardwareBaseline(): Promise<void> {
  */
 function evaluateMotion(): void {
   const now = Date.now();
-  if (!mem.lastTickAt) {
-    mem.lastTickAt = now;
-    mem.lastTickSteps = total();
-    mem.lastTickDistanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
-    return;
-  }
-
-  const elapsedMs = now - mem.lastTickAt;
-  if (elapsedMs < 1000) return;
-
   const steps = total();
   const distanceM = mem.usingGps ? getLiveRouteDistanceM() : 0;
-  const stepDelta = Math.max(0, steps - mem.lastTickSteps);
-  const distDelta = Math.max(0, distanceM - mem.lastTickDistanceM);
+  motionWindow.push({ at: now, steps, distanceM });
 
-  mem.lastTickAt = now;
-  mem.lastTickSteps = steps;
-  mem.lastTickDistanceM = distanceM;
-
-  // Without GPS there's no speed to reason about, so only step activity can tell
-  // us anything — and a phone in a pocket on a bus produces no steps either way.
-  const cadenceSpm = elapsedMs > 0 ? (stepDelta / elapsedMs) * 60_000 : 0;
-  const speedMs = mem.usingGps ? segmentSpeedMs(distDelta, elapsedMs) : 0;
-  if (!mem.usingGps && stepDelta > 0) {
-    // Stepping without GPS — plainly active, nothing to judge.
-    confirmResume(now);
+  // Auto-pause can be switched off (Profile → Outdoor & GPS): then nothing is
+  // ever paused, and moving time is simply the clock.
+  if (!outdoorSettings().autoPause) {
+    if (mem.paused) {
+      mem.resumeCandidateSince = now - RESUME_CONFIRM_MS;
+      confirmResume(now);
+    }
     mem.motion = 'walking';
     return;
   }
 
-  const verdict = classifyMotion({ speedMs, cadenceSpm: mem.hardware || stepDelta > 0 ? cadenceSpm : null });
+  const w = motionWindow.read();
+  if (!w) return; // not enough history yet to judge anything
+
+  const riding = !mem.countSteps;
+  // Without GPS there's no speed to reason about, so only steps can tell us
+  // anything — and a phone on a bus produces no steps either way.
+  if (!mem.usingGps && !riding) {
+    if (w.cadenceSpm > 0) {
+      confirmResume(now);
+      mem.motion = 'walking';
+    }
+    return;
+  }
+
+  const verdict = riding
+    ? classifyRide(w.speedMs)
+    : classifyMotion({ speedMs: w.speedMs, cadenceSpm: mem.hardware || w.cadenceSpm > 0 ? w.cadenceSpm : null });
   mem.motion = verdict.kind;
 
   if (verdict.shouldPause) {
@@ -375,6 +392,11 @@ function confirmResume(now: number): void {
 
 function catchUpFromGap(): void {
   const now = Date.now();
+  // A ride has no steps to recover — GPS already kept the distance.
+  if (!mem.countSteps) {
+    mem.lastObservedAt = now;
+    return;
+  }
   if (!mem.lastObservedAt) {
     mem.lastObservedAt = now;
     return;
@@ -426,6 +448,10 @@ function attachStepSource(useHardware: boolean): void {
   }
   mem.hardware = useHardware;
 
+  // A ride counts no steps: pedalling and a phone bouncing in a jersey pocket
+  // would otherwise be credited as a walk.
+  if (!mem.countSteps) return;
+
   if (useHardware) {
     // Cumulative since subscription — and because the OS counter keeps ticking
     // while we're backgrounded, the batched total lands the moment JS resumes.
@@ -436,10 +462,21 @@ function attachStepSource(useHardware: boolean): void {
   } else {
     detector = new StepDetector();
     Accelerometer.setUpdateInterval(40); // 25 Hz
-    accelSub = Accelerometer.addListener(({ x, y, z }) => {
+    accelSub = Accelerometer.addListener(({ x, y, z, timestamp }) => {
+      /*
+       * The sensor's OWN timestamp, not the moment JavaScript got round to the
+       * sample. When the JS thread is busy (a long route redrawing, a big
+       * screen mounting) samples are delivered in bunches: stamped with
+       * Date.now() a bunch lands a few milliseconds apart, real strides fall
+       * inside the refractory window and are dropped, and the rhythm test
+       * breaks on the uneven spacing — the count stalls and then lurches. The
+       * event timestamp (seconds) keeps the true spacing however late it
+       * arrives. One clock per detector: it is used for every sample or none.
+       */
+      const ts = typeof timestamp === 'number' && timestamp > 0 ? timestamp * 1000 : Date.now();
       // onSample returns a count, not a flag: the sample that proves the rhythm
       // banks the whole warm-up run at once, so `+= 1` would lose those strides.
-      const credited = detector!.onSample(x, y, z, Date.now());
+      const credited = detector!.onSample(x, y, z, ts);
       if (credited > 0) {
         mem.steps += credited;
         mem.dirty = true;
@@ -461,6 +498,8 @@ function attachSensors(): void {
 
     // Auto-pause check (vehicle / standing still) before anything is credited.
     evaluateMotion();
+    // Splits: announced here while the app runs, by the location task otherwise.
+    if (mem.usingGps) runOutdoorTick({ foreground: AppState.currentState === 'active' });
 
     const t = total();
     const distanceNow = mem.usingGps ? Math.round(getLiveRouteDistanceM()) : 0;
@@ -501,8 +540,10 @@ async function pushWalkNotification(sessionSteps: number, opts: { create?: boole
   const dayTotal = dayBefore + sessionSteps;
 
   const bar = progressBarWithPct(dayTotal / DAILY_STEP_GOAL);
-  const icon = mem.paused ? '⏸' : mem.mode === 'run' ? '🏃' : '🚶';
-  const title = `${icon} ${sessionSteps.toLocaleString()} steps · ${(distanceM / 1000).toFixed(2)} km`;
+  const icon = mem.paused ? '⏸' : !mem.countSteps ? '🚴' : mem.mode === 'run' ? '🏃' : '🚶';
+  const title = mem.countSteps
+    ? `${icon} ${sessionSteps.toLocaleString()} steps · ${(distanceM / 1000).toFixed(2)} km`
+    : `${icon} ${(distanceM / 1000).toFixed(2)} km`;
   const body =
     `${bar} ${dayTotal.toLocaleString()} / ${DAILY_STEP_GOAL.toLocaleString()} today\n` +
     (mem.paused
@@ -551,7 +592,7 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   // 0. Bank the hardware counter's absolute since-boot reading. This sensor keeps
   //    counting while the CPU sleeps and while our process is dead, so this
   //    baseline is what lets us recover an EXACT count after an app kill.
-  const baseline = await getStepsSinceBoot();
+  const baseline = mem.countSteps ? await getStepsSinceBoot() : null;
   if (!stillMine()) return;
   if (baseline != null) {
     mem.bootBaseline = baseline;
@@ -560,9 +601,18 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
 
   // 1. GPS first — it's required for both walks and runs, and its foreground
   //    service is what keeps recording once the screen goes off or we're killed.
-  const gps = await startRouteTracking(mode);
+  const gps = await startRouteTracking(mode, activityFor(mem.activity).label.toLowerCase());
   if (!stillMine()) return;
   mem.usingGps = gps;
+
+  // A ride needs GPS and nothing else: no motion permission, no step counter.
+  if (!mem.countSteps) {
+    livePermissions = { motion: false, notifications: await requestNotificationPermission(), gps, hardware: false };
+    mem.source = 'gps';
+    patchLiveWalk({ source: 'gps' });
+    void pushWalkNotification(total());
+    return;
+  }
 
   // 2. Motion permission, then the hardware step counter.
   const perms = await requestWalkPermissions();
@@ -588,14 +638,18 @@ async function configureSession(mode: 'walk' | 'run'): Promise<void> {
   void pushWalkNotification(total());
 }
 
-export async function startWalkTracking(mode: 'walk' | 'run'): Promise<WalkPermissions> {
+export async function startWalkTracking(mode: 'walk' | 'run', activityKey?: string): Promise<WalkPermissions> {
   // ── Synchronous part: the session is live before this function returns, so the
   // UI can switch to the tracking view with zero delay. ──
   livePermissions = null;
-  startLiveWalk({ mode, source: 'accelerometer' });
+  const activity = activityFor(activityKey ?? mode);
+  startLiveWalk({ mode, source: activity.gait === 'none' ? 'gps' : 'accelerometer', activity: activity.key });
   mem.active = true;
   mem.mode = mode;
-  mem.source = 'accelerometer';
+  mem.activity = activity.key;
+  mem.countSteps = activity.gait !== 'none';
+  motionWindow.reset();
+  mem.source = activity.gait === 'none' ? 'gps' : 'accelerometer';
   mem.hardware = false;
   mem.startTime = Date.now();
   mem.baseSteps = 0;
@@ -646,12 +700,31 @@ export async function resumeWalkTracking(): Promise<void> {
     return;
   }
   const row = getLiveWalk();
-  if (!row?.active || !row.startTime) return;
+  if (!row?.active || !row.startTime || row.activity === 'session') return;
 
-  const hardware = row.source !== 'accelerometer' && (await isPedometerAvailable());
+  const activity = activityFor(row.activity ?? row.mode);
+  const countSteps = activity.gait !== 'none';
+  /*
+   * Whether the hardware counter can be used is a question for the permission,
+   * not for what the row happened to say. A session backgrounded while the
+   * "Physical activity" dialog was still open was saved as 'accelerometer' and,
+   * on return, stayed on the accelerometer for good — which stops counting the
+   * moment the screen goes off. Ask the permission itself.
+   */
+  let motionGranted = false;
+  try {
+    const perm = await Pedometer.getPermissionsAsync();
+    motionGranted = perm.granted || perm.status === 'granted';
+  } catch {
+    motionGranted = row.source !== 'accelerometer';
+  }
+  const hardware = countSteps && motionGranted && ((await isPedometerAvailable()) || hasHardwareStepCounter());
   const gpsLive = await isRouteTrackingActive();
   mem.active = true;
   mem.mode = row.mode;
+  mem.activity = activity.key;
+  mem.countSteps = countSteps;
+  motionWindow.reset();
   mem.source = row.source;
   mem.hardware = hardware;
   mem.startTime = row.startTime;
@@ -680,7 +753,11 @@ export async function resumeWalkTracking(): Promise<void> {
 
   // If the GPS service died (rare), restart it.
   if (mem.usingGps && !gpsLive) {
-    await startRouteTracking(row.mode);
+    await startRouteTracking(row.mode, activity.label.toLowerCase());
+  }
+  if (hardware && row.source === 'accelerometer') {
+    mem.source = 'pedometer';
+    patchLiveWalk({ source: 'pedometer' });
   }
 
   attachSensors();
@@ -693,6 +770,7 @@ export async function resumeWalkTracking(): Promise<void> {
 
 export interface WalkResult {
   mode: 'walk' | 'run';
+  activity: string;
   steps: number;
   distanceM: number;
   durationS: number;
@@ -719,17 +797,20 @@ export function stopWalkTracking(): WalkResult | null {
   mem.paused = false;
   mem.pausedSince = null;
   mem.pausedTotalMs = 0;
+  motionWindow.reset();
 
   if (!snapshot) return null;
 
   const heightCm = useUserStore.getState().user?.heightCm ?? 175;
-  const steps = snapshot.steps;
-  // GPS distance is truth for runs; fall back to step-estimated distance otherwise.
+  const riding = activityFor(snapshot.activity).gait === 'none';
+  const steps = riding ? 0 : snapshot.steps;
+  // GPS distance is truth; fall back to step-estimated distance (never for a ride).
   const distanceM =
-    snapshot.gpsDistanceM > 0 ? snapshot.gpsDistanceM : distanceFromSteps(steps, heightCm, snapshot.mode);
+    snapshot.gpsDistanceM > 0 ? snapshot.gpsDistanceM : riding ? 0 : distanceFromSteps(steps, heightCm, snapshot.mode);
 
   return {
     mode: snapshot.mode,
+    activity: snapshot.activity,
     steps,
     distanceM: Math.round(distanceM),
     durationS: Math.max(1, Math.round((Date.now() - snapshot.startTime) / 1000)),

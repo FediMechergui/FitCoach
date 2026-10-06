@@ -53,6 +53,12 @@ export const users = sqliteTable('users', {
    * intermediate, so nothing changes for anyone until they pick.
    */
   experienceLevel: text('experience_level', { enum: ['beginner', 'intermediate', 'advanced'] }),
+  /**
+   * What the lifting is FOR right now — grow, get strong, last longer, hold what
+   * you have through a cut, or deliberately carry less. Shapes the tip on every
+   * exercise. NULL reads as hypertrophy (see lib/trainingFocus).
+   */
+  trainingFocus: text('training_focus', { enum: ['hypertrophy', 'strength', 'endurance', 'preserve', 'reduce'] }),
   onboardedAt: integer('onboarded_at'),
   createdAt: integer('created_at')
     .notNull()
@@ -181,6 +187,8 @@ export const sessions = sqliteTable('sessions', {
   warmupsDone: text('warmups_done'),
   /** where it happened — a row of `places`, or null */
   placeId: integer('place_id'),
+  /** the session's GPS trace as JSON [[lat,lng],…], when GPS ran during it */
+  routeJson: text('route_json'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -216,6 +224,12 @@ export const setEntries = sqliteTable('set_entries', {
   distanceM: real('distance_m'),
   isPr: integer('is_pr', { mode: 'boolean' }).notNull().default(false),
   completed: integer('completed', { mode: 'boolean' }).notNull().default(true),
+  /**
+   * A set measured by GPS: the slice of the session's route it covered, as
+   * point indices [gps_from, gps_to]. NULL for every set typed in by hand.
+   */
+  gpsFrom: integer('gps_from'),
+  gpsTo: integer('gps_to'),
 });
 
 // ── Exercise (library) ───────────────────────────────────────────────────────
@@ -297,6 +311,8 @@ export const walkSessions = sqliteTable('walk_sessions', {
     .default('pedometer'),
   /** GPS route as JSON [[lat,lng],…] for the circuit map (runs/outdoor) */
   routeJson: text('route_json'),
+  /** the outdoor activity it was (walk, run, hike, ride…); NULL reads from `mode` */
+  activity: text('activity'),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -329,6 +345,8 @@ export const liveWalks = sqliteTable('live_walks', {
    * even after the app has been killed. Null when no hardware counter.
    */
   bootStepBaseline: integer('boot_step_baseline'),
+  /** the outdoor activity being tracked, so the background task knows a ride from a walk */
+  activity: text('activity'),
 });
 
 // ── DailyStepLog ─────────────────────────────────────────────────────────────

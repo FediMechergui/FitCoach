@@ -115,6 +115,15 @@ export class StepDetector {
    * `timestampMs` should be monotonic (e.g. Date.now() or event timestamp).
    */
   onSample(x: number, y: number, z: number, timestampMs: number): number {
+    // A sample from the past (a clock went backwards, or two timestamp sources
+    // were mixed) would make every interval negative: start the rhythm afresh.
+    if (this.lastStepTs > 0 && timestampMs < this.lastStepTs) {
+      this.lastStepTs = 0;
+      this.pending = 0;
+      this.lastInterval = 0;
+      this.warm = false;
+    }
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return 0;
     const mag = Math.sqrt(x * x + y * y + z * z);
 
     // Low-pass filter (exponential moving average).

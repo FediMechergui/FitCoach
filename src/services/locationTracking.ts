@@ -2,6 +2,9 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { appendLiveRoutePoints } from '@/repositories/activityRepo';
 import type { GpsFix } from '@/lib/gpsFilter';
+import { runOutdoorTick } from './outdoorAlerts';
+import { outdoorSettings } from '@/repositories/outdoorRepo';
+import { ACCURACY_INTERVALS } from '@/lib/outdoorSettings';
 
 /**
  * GPS route tracking for runs / outdoor sessions.
@@ -48,6 +51,13 @@ TaskManager.defineTask(ROUTE_TASK, async ({ data, error }) => {
     } catch {
       // never let a bad DB write crash the background task
     }
+    // Splits and interval reps are announced from here, so they reach you with
+    // the screen off. Same persisted state as the screen: each fires once.
+    try {
+      runOutdoorTick();
+    } catch {
+      // alerts are a convenience
+    }
   }
 });
 
@@ -89,21 +99,24 @@ export async function isRouteTrackingActive(): Promise<boolean> {
  * Begin GPS route tracking with a persistent foreground-service notification.
  * Returns true if updates actually started.
  */
-export async function startRouteTracking(mode: 'walk' | 'run'): Promise<boolean> {
+export async function startRouteTracking(mode: 'walk' | 'run', label?: string): Promise<boolean> {
   try {
     const perms = await requestLocationPermissions();
     if (!perms.foreground) return false;
     if (await isRouteTrackingActive()) return true;
 
+    // The receiver works as hard as the settings ask (Profile → Outdoor & GPS).
+    const acc = outdoorSettings().accuracy;
+    const every = ACCURACY_INTERVALS[acc];
     await Location.startLocationUpdatesAsync(ROUTE_TASK, {
-      accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 3000,
-      distanceInterval: 5, // metres between fixes
+      accuracy: acc === 'saver' ? Location.Accuracy.High : Location.Accuracy.BestForNavigation,
+      timeInterval: every.timeMs,
+      distanceInterval: every.distanceM, // metres between fixes
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       activityType: Location.ActivityType.Fitness,
       foregroundService: {
-        notificationTitle: `FitCoach — ${mode === 'run' ? 'run' : 'walk'} in progress`,
+        notificationTitle: `FitCoach — ${label ?? (mode === 'run' ? 'run' : 'walk')} in progress`,
         notificationBody: 'Tracking your route with GPS. Return to FitCoach to finish.',
         notificationColor: '#4F8CFF',
         killServiceOnDestroy: false,

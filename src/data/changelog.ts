@@ -19,6 +19,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.8.0',
+    date: '2026-10-06',
+    title: 'Out on the road',
+    highlights: [
+      'Finished routes on a real map. A walk, run, hike or ride, and any session that ran GPS, is drawn on OpenStreetMap with a marker at every kilometre and the distance on the map. The map squares are downloaded once and kept on the phone; the first time, the app asks, because the map server sees the area of the route. Say no and the offline drawing stays.',
+      'Share to a story. One tap makes a 1080 by 1920 image: the route on the map, the distance large, and the time, pace and calories under it. Share it to Instagram (pick Story), WhatsApp or anywhere, or save it to Photos. The first and last 200 metres of the line are cut from anything you share, because that is usually your door; the numbers are never cut.',
+      'GPS laps: every distance exercise in a session can be measured rep by rep. Set a distance (100 m to 5 km, or open), how many reps and the rest between them, and each rep ends by itself at the target, rests, and starts the next. It keeps going with the screen off, a notification at the end of each rep, and every rep is logged as a set with its own distance, time, pace and slice of the route, picked out in gold on the map.',
+      'Outdoor and GPS settings (Profile): GPS precision (precise, balanced, battery saver), auto-pause on or off, a notification at every split (500 m, 1 km, 1 mile or more), real maps, distance markers, and how much of each end to hide when sharing.',
+      'Step counting fixes. The accelerometer now times each sample by the sensor, not by when the app got to it, so a busy screen no longer makes the count stall and lurch. Auto-pause judges the last 20 seconds instead of each second, so a steady walk is no longer paused or flagged as a car because the GPS and step counter report in bursts. A session resumed before the step permission came back now finds the step counter.',
+      'Rides are rides. Cycling was costed on the running curve (an hour at 20 km/h came out near 1,500 kcal for 80 kg; it is now about 560), counted pedal strokes as steps, lost fast descents as impossible speed, and was saved as a Walk. All four are fixed, and history now says Ride.',
+      'Calories checked end to end. The number saved for a hike, ruck, stairs or trail run now matches the one shown while moving (it used to skip the activity floor and the pack). Walking and running follow the Compendium curves without steps, and fast running is no longer capped. A distance set in a session (a 5 km run, a 2 km row, a swim) is costed by its pace. A pace never reads 5:60 any more.',
+      'Session GPS belongs to the session. Leaving the session screen no longer forgets that GPS is on, discarding a session stops its GPS, and a session keeps its route to draw and share. A restart during a GPS session no longer shows a phantom walk.',
+      'Phase and focus (Profile): Bulk, Cut, Maintain, Recomp or Performance, which is your calorie goal, and a focus: Hypertrophy, Strength, Endurance, Preserve or Reduce size. Every exercise in a session now shows a tip from these and your last numbers: stay at 60 kg and add a rep, go up to 62.5 kg, hold the weight on a cut.',
+      '15 sit-up variations: decline, decline twisting, weighted decline, decline crunch, decline oblique and reverse crunch, decline Russian twist, twisting, weighted twisting, butterfly, straight-leg, Janda, jackknife, medicine ball throw and stability ball. 1980 exercises, every one with a video.',
+      '20 new badges in two categories, Roads and Stories, and Phase, Focus and Core: 180 in all. The souk has five more card skins (Tabarka, Chott el Jerid, Matmata, Ichkeul, Bizerte) and a new shelf of eight story themes for shared routes.',
+      'A new APK (versionCode 4) carries your crest as the app icon and the vibration permission for alerts. Everything else arrives over the air.',
+      '2314 checks in all, up from 2210. Schema 40.',
+    ],
+  },
+  {
     version: '3.7.0',
     date: '2026-09-29',
     title: 'Families',

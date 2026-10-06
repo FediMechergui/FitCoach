@@ -22,6 +22,8 @@ import { useWalkStore } from '@/stores/walkStore';
 import { registerBackgroundSteps, syncTodaySteps } from '@/services/backgroundSteps';
 // Importing the service registers its TaskManager background task at startup.
 import { cleanupOrphanWalk } from '@/services/walkTracking';
+import { cleanupOrphanSessionGps } from '@/services/sessionGps';
+import { activeSession } from '@/repositories/sessionRepo';
 
 /** Run a startup step but never let it brick the app; log failures instead. */
 function safe(label: string, fn: () => void) {
@@ -113,6 +115,8 @@ export default function App() {
       registerBackgroundSteps();
       syncTodaySteps().catch(() => {});
       cleanupOrphanWalk().catch(() => {});
+      // A session's GPS trace with no session left behind it (discarded, or a crash).
+      cleanupOrphanSessionGps(activeSession()?.id ?? null).catch(() => {});
     })();
     return () => {
       cancelled = true;

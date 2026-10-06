@@ -116,3 +116,75 @@ export function isPlausibleOnFootSegment(distanceM: number, elapsedMs: number): 
 export const PAUSE_CONFIRM_MS = 25_000;
 /** And how long of good motion before resuming. */
 export const RESUME_CONFIRM_MS = 5_000;
+
+/**
+ * Motion over a sliding window, not a single tick.
+ *
+ * The flush timer ticks every second, and judging speed and cadence one second
+ * at a time was the source of the "it bugs sometimes" pauses. GPS fixes land
+ * every 3–5 s and the hardware step counter delivers its steps in batches, so
+ * most one-second ticks saw no distance and no steps — standing still — and the
+ * odd tick saw a whole fix's 8 m arrive at once — 8 m/s, a car. Neither was
+ * true; both were the sampling. A real walk would be auto-paused, or flagged as
+ * a vehicle, by nothing more than the rhythm the sensors happen to report in.
+ *
+ * Averaged over the last WINDOW_MS the batches smooth out into the speed and
+ * cadence you actually have. Until the window holds MIN_WINDOW_MS of history it
+ * reports nothing, so the first seconds of a session are never judged on a
+ * scrap of data.
+ */
+export const WINDOW_MS = 20_000;
+export const MIN_WINDOW_MS = 8_000;
+
+export interface WindowSample {
+  at: number;
+  steps: number;
+  distanceM: number;
+}
+
+export class MotionWindow {
+  private samples: WindowSample[] = [];
+
+  reset(): void {
+    this.samples = [];
+  }
+
+  push(s: WindowSample): void {
+    // A clock that went backwards (or a restart) makes the history meaningless.
+    const last = this.samples[this.samples.length - 1];
+    if (last && (s.at < last.at || s.steps < last.steps - 5 || s.distanceM < last.distanceM - 1)) this.samples = [];
+    this.samples.push(s);
+    const cutoff = s.at - WINDOW_MS;
+    while (this.samples.length > 2 && this.samples[1].at <= cutoff) this.samples.shift();
+  }
+
+  /** Speed (m/s) and cadence (steps/min) over the window, or null while it is too short. */
+  read(): { speedMs: number; cadenceSpm: number; spanMs: number } | null {
+    if (this.samples.length < 2) return null;
+    const first = this.samples[0];
+    const last = this.samples[this.samples.length - 1];
+    const spanMs = last.at - first.at;
+    if (spanMs < MIN_WINDOW_MS) return null;
+    return {
+      speedMs: segmentSpeedMs(Math.max(0, last.distanceM - first.distanceM), spanMs),
+      cadenceSpm: (Math.max(0, last.steps - first.steps) / spanMs) * 60_000,
+      spanMs,
+    };
+  }
+}
+
+/**
+ * Classify a ride. A bike covers ground without steps, so the vehicle rule —
+ * fast and no cadence — would pause every cyclist doing 25 km/h. A ride is
+ * only paused when it stops, or moves faster than any bike on a road.
+ */
+export function classifyRide(speedMs: number): MotionVerdict {
+  const speed = Number.isFinite(speedMs) && speedMs > 0 ? speedMs : 0;
+  if (speed >= 25) {
+    return { kind: 'vehicle', countDistance: false, shouldPause: true, reason: 'Faster than a bike on the road — looks like a vehicle, so tracking is paused.' };
+  }
+  if (speed < STATIONARY_SPEED_MS) {
+    return { kind: 'stationary', countDistance: false, shouldPause: true, reason: 'Stopped — paused until you ride on.' };
+  }
+  return { kind: 'running', countDistance: true, shouldPause: false, reason: 'Riding.' };
+}

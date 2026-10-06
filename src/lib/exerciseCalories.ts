@@ -23,7 +23,7 @@
  * "what does this movement cost" reference below stays gross, because there it's
  * a standalone Compendium figure rather than something added to a daily budget.
  */
-import { caloriesFromMet, netCaloriesFromMet } from './met';
+import { caloriesFromMet, netCaloriesFromMet, paceMet, type PaceKind } from './met';
 import { intensityCalorieFactor, loadCalorieFactor, profileFor, type LoadProfile } from './loadProfile';
 import type { TrackingType } from '@/db/schema';
 
@@ -51,6 +51,30 @@ export interface BurnExercise {
   slug?: string | null;
   equipmentType?: string | null;
   pattern?: string | null;
+  /**
+   * How a distance set of this exercise is costed by its pace (3.8.0). A 5 km
+   * run in 20 minutes and the same 5 km in 40 used to cost the same — the
+   * exercise's one MET for the time. With a kind, each set with a distance and
+   * a time is valued on the Compendium curve for that speed instead.
+   */
+  paceKind?: PaceKind | null;
+}
+
+/**
+ * Which pace curve an exercise's distance sets belong on — or none. Only
+ * distance-tracked movements qualify, so a barbell row is never mistaken for
+ * a rowing machine, and a sprint drill without a distance keeps its MET.
+ */
+export function paceKindFor(slug: string | null | undefined, trackingType: TrackingType): PaceKind | null {
+  if (trackingType !== 'duration_distance' && trackingType !== 'distance') return null;
+  const k = (slug ?? '').toLowerCase();
+  if (!k) return null;
+  if (/swim|aqua-jog/.test(k)) return /aqua-jog/.test(k) ? null : 'swim';
+  if (/row|erg|kayak|canoe|paddl/.test(k) && !/barbell|dumbbell|cable|machine-row|seal|pendlay|t-bar|inverted/.test(k)) return 'row';
+  if (/cycl|bike|ride|bmx|gravel|spin/.test(k) && !/stationary|recumbent|assault|spin-bike|indoor/.test(k)) return 'cycle';
+  if (/walk|hik|ruck|trek|stair/.test(k) && !/lunge|carry|farmer|crab|bear|duck|toe|heel|sideways/.test(k)) return 'walk';
+  if (/run|jog|sprint|tempo|fartlek|strides|marathon|track-interval|hill-repeat|road-race|cooper|1500m|800m|400m|steeplechase/.test(k)) return 'run';
+  return null;
 }
 
 /**
@@ -93,12 +117,20 @@ function setSeconds(s: BurnSet): number {
  * seconds" of the exercise. Equal to plain active seconds whenever no set
  * carries a load or an RPE.
  */
-export function weightedActiveSecondsFor(ex: BurnExercise, bodyweightKg: number): number {
+export function weightedActiveSecondsFor(ex: BurnExercise, bodyweightKg: number, fallbackMet?: number): number {
   const profile = profileFor(ex);
+  const baseMet = ex.met && ex.met > 0 ? ex.met : fallbackMet ?? 0;
   let weighted = 0;
   for (const s of ex.sets) {
     if (s.completed === false) continue;
-    weighted += setSeconds(s) * setEnergyFactor(profile, bodyweightKg, s);
+    let factor = setEnergyFactor(profile, bodyweightKg, s);
+    // A distance in a time is a speed: value the set on its pace curve,
+    // expressed as a factor on the exercise's own MET (net of resting).
+    if (ex.paceKind && baseMet > 1) {
+      const pm = paceMet(ex.paceKind, s.distanceM ?? 0, s.durationS ?? 0);
+      if (pm != null && pm > 1) factor *= (pm - 1) / (baseMet - 1);
+    }
+    weighted += setSeconds(s) * factor;
   }
   return weighted;
 }
@@ -172,7 +204,7 @@ export function distributeSessionCalories(params: {
   const actives = exercises.map(activeSecondsFor);
   // Energy-weighted seconds: the load on the back and the effort in the set
   // scale the burn; the plain seconds still decide how the wall clock is split.
-  const weighted = exercises.map((ex) => weightedActiveSecondsFor(ex, weightKg));
+  const weighted = exercises.map((ex) => weightedActiveSecondsFor(ex, weightKg, fallbackMet));
   const totalActive = actives.reduce((a, b) => a + b, 0);
 
   if (durationS <= 0) {

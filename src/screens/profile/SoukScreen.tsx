@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -13,7 +13,8 @@ import { Row } from '@/components/ui/misc';
 import { EmptyState, Skeleton } from '@/components/ui/misc3';
 import { toast } from '@/components/ui/Toast';
 import type { CardSkin } from '@/data/souk';
-import { buySkin, soukState, wearSkin, type SoukState } from '@/repositories/soukRepo';
+import { buySkin, buyStoryTheme, soukState, wearSkin, wearStoryTheme, type SoukState } from '@/repositories/soukRepo';
+import type { StoryTheme } from '@/data/souk';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -188,6 +189,63 @@ export function SoukScreen() {
         icon="card.trophy"
         onPress={() => navigation.navigate('ProfileCard')}
       />
+
+      {/* ── Story themes (3.8.0): the colours a finished route is shared in ── */}
+      <View style={{ gap: 4, marginTop: theme.spacing.md }}>
+        <Text variant="eyebrow" color="textMuted">
+          Story themes
+        </Text>
+        <Text variant="caption" color="textFaint">
+          The colours of a route you share: the card, the map's tint and the line over the streets. Pick one when you share a walk, run or ride.
+        </Text>
+      </View>
+      {state.stories.map(({ theme: t, owned, verdict }) => {
+        const worn = state.story === t.key;
+        return (
+          <Card key={t.key} accent={worn ? theme.colors.primary : owned ? theme.colors.success : undefined} style={{ gap: 12 }}>
+            <Row gap={14} style={{ alignItems: 'center' }}>
+              <StorySwatch theme={t} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Row gap={6} style={{ alignItems: 'baseline' }}>
+                  <Text variant="h3">{t.name}</Text>
+                  <Text variant="caption" color="textFaint">
+                    {t.place}
+                  </Text>
+                </Row>
+                <Text variant="caption" color="textMuted">
+                  {t.story}
+                </Text>
+              </View>
+            </Row>
+            {worn ? (
+              <Button title="On your routes" variant="secondary" size="sm" disabled hint="Shared routes wear this theme now." />
+            ) : owned ? (
+              <Button
+                title="Use it"
+                size="sm"
+                variant="secondary"
+                onPress={() => {
+                  wearStoryTheme(t.key);
+                  reload();
+                  toast({ message: `Your routes wear ${t.name}` });
+                }}
+              />
+            ) : (
+              <Button
+                title={`Buy for ${t.cost} points`}
+                size="sm"
+                disabled={!verdict.ok}
+                hint={!verdict.ok && verdict.reason === 'points' ? `You have ${state.balance}. ${t.cost - state.balance} more to go.` : undefined}
+                onPress={() => {
+                  const res = buyStoryTheme(t.key);
+                  reload();
+                  toast({ message: res.ok ? `${t.name} is yours, and on your routes` : 'Not enough points for that one yet' });
+                }}
+              />
+            )}
+          </Card>
+        );
+      })}
     </Screen>
   );
 }
@@ -241,3 +299,28 @@ function Swatch({ skin, worn }: { skin: CardSkin; worn?: boolean }) {
   );
 }
 
+
+/** A story theme in miniature: its gradient, and its route line crossing it. */
+function StorySwatch({ theme }: { theme: StoryTheme }) {
+  const id = `ss-${theme.key.replace(/[^a-z0-9]/gi, '')}`;
+  const lid = `${id}-l`;
+  return (
+    <View style={{ width: 50, height: 88, borderRadius: 10, overflow: 'hidden' }}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <LinearGradient id={id} x1="0" y1="0" x2="0.3" y2="1">
+            <Stop offset="0" stopColor={theme.top} />
+            <Stop offset="1" stopColor={theme.bottom} />
+          </LinearGradient>
+          <LinearGradient id={lid} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={theme.line[0]} />
+            <Stop offset="0.55" stopColor={theme.line[1]} />
+            <Stop offset="1" stopColor={theme.line[2]} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
+        <Path d="M 8 70 C 14 40, 30 56, 26 32 S 40 18, 42 12" stroke={`url(#${lid})`} strokeWidth={3.5} fill="none" strokeLinecap="round" />
+      </Svg>
+    </View>
+  );
+}

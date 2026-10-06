@@ -8,7 +8,7 @@
  * entry here if a better video is known — the generator's cache keeps it
  * unless run with --fresh.
  *
- * Generated 2026-09-29 · 1965 of 1965 exercises.
+ * Generated 2026-10-06 · 1980 of 1980 exercises.
  */
 
 export interface ExerciseVideo {
@@ -330,6 +330,7 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'burst-redirect': { id: 'Sn4YH5MjF9E', title: 'How to do a Squat Jack - HIIT Cardio Exercises - 20 Second Demo', channel: 'Group HIIT', lengthS: 38 },
   'buteyko-breathing': { id: 'UK3evBQkeEU', title: 'Buteyko Breathing - Breathe Light, Slow & Deep | Guided Exercise for Anxiety & Brain Fog', channel: 'Neil Tranter | The Buteyko Method', lengthS: 556 },
   'butt-kicks': { id: 'oMW59TKZvaI', title: 'How to Butt-Kick with Proper Form', channel: 'Get Healthy U - with Chris Freytag', lengthS: 59 },
+  'butterfly-sit-up': { id: 'ZLyOWSPnVrM', title: 'AB EXERCISE - How to do a butterfly sit up', channel: 'PureGym', lengthS: 22 },
   'butterfly-stretch': { id: 'amblBIOKniA', title: 'How To Do BUTTERFLY STRETCH EXERCISE Tutorial', channel: 'Stylecraze Fitness', lengthS: 48 },
   'cable-chest-press-standing': { id: 'FVWJglwid4I', title: 'How to Do a Cable Chest Press | Chest Workout', channel: 'Howcast', lengthS: 106 },
   'cable-crossover': { id: 'taI4XduLpTk', title: 'How to Do Cable Crossovers', channel: 'LIVESTRONG', lengthS: 87 },
@@ -593,7 +594,13 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'dead-hang': { id: '0HBhuaD_S7M', title: 'Beginner Dead Hang Tutorial', channel: 'Maximus Pump', lengthS: 126 },
   'deadlift': { id: 'r4MzxtBKyNE', title: 'How To Perfect Your Deadlift | Form Check | Men\'s Health', channel: 'Men\'s Health', lengthS: 185 },
   'deceleration-landing-mechanics': { id: 'b7UlaJjPiYw', title: 'How To Assess And Teach Landing Mechanics', channel: '[P]rehab', lengthS: 354 },
+  'decline-crunch': { id: 'qhUqEVru6HY', title: 'Tutorial | Decline Crunches', channel: 'Get Right Results', lengthS: 42 },
+  'decline-oblique-crunch': { id: '1vn_bB1b0VA', title: 'Decline Oblique Crunch Exercise Guide and Video2', channel: 'lipigard', lengthS: 55 },
   'decline-push-up': { id: 'SKPab2YC8BE', title: 'How To: Decline Push-Up', channel: 'ScottHermanFitness', lengthS: 90 },
+  'decline-reverse-crunch': { id: 'DNL_WtPX8iA', title: 'How to | Reverse Crunch on the Decline Bench | Anick Fontaine', channel: 'PREGALA', lengthS: 113 },
+  'decline-russian-twist': { id: 'FCnjUyM3N84', title: 'DECLINE BENCH PLATE RUSSIAN TWISTS', channel: 'Frost Fitness', lengthS: 72 },
+  'decline-sit-up': { id: 'QhGU5cmNZds', title: 'How To: Decline Sit-Up', channel: 'ScottHermanFitness', lengthS: 96 },
+  'decline-twisting-sit-up': { id: '7k0bjxweJJs', title: 'Decline Sit-Up. Anatomy, kinesiology and common mistake.', channel: 'Muscle & Motion', lengthS: 55 },
   'deep-squat-hold': { id: 'yV-f07dFWgM', title: 'Deep Squat Hold Tutorial', channel: 'Jacobs Fitness', lengthS: 72 },
   'deficit-deadlift': { id: 'hnuPZZfeRzs', title: 'How to Perform a Deficit Deadlift', channel: 'Misfit Athletics', lengthS: 226 },
   'deficit-handstand-push-up': { id: 'LPvzXFRW5R0', title: 'Handstand push up Technique? Tips & Tricks', channel: 'Sid Paulson', lengthS: 274 },
@@ -883,7 +890,9 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'isometric-neck-4-way': { id: 'IisyHl4YJUU', title: 'How to Do Self Assisted Cervical Isometric 4 Way Neck Exercise | Physical Therapy, NJ', channel: 'Twin Boro Physical Therapy - New Jersey', lengthS: 57 },
   'itikaf-retreat': { id: 'vkVkKYTdxYU', title: 'Explained: I\'tikaf Seclusion in the Mosque | Ep.19 | #RevivingRamadan with Shaykh Ali Hammuda', channel: 'Islam21c', lengthS: 312 },
   'iyengar-yoga': { id: 'LR72KqH24xM', title: 'Iyengar Yoga for Beginners - Morning Practice', channel: 'Desa Yogi Iyengar Yoga', lengthS: 1468 },
+  'jackknife-sit-up': { id: 'GI4S_zkJJkM', title: 'How to Do Jackknife Sit Ups for Beginners | Ab & Core Exercise', channel: 'Brian Syuki ', lengthS: 111 },
   'jacobs-ladder': { id: 'yO4KJB2R0XI', title: 'How To Use The Jacobs Ladder Cardio Exercise Machine with Mitch Jimenez the Colombian Beast', channel: 'Colombian Beast', lengthS: 229 },
+  'janda-sit-up': { id: 'UsFGTXPmPaI', title: 'How To: Janda Sit-Up', channel: 'ScottHermanFitness', lengthS: 113 },
   'japa-mala-counting': { id: '1gmNu649vLM', title: 'How to meditate using japa mala or meditation beads', channel: 'Chant Now', lengthS: 196 },
   'jaw-tmj-release': { id: 'NX2rstWOhKY', title: 'Guided Fascia Release Jaw/TMJ/Neck/Headache', channel: 'Colby Offutt', lengthS: 852 },
   'jefferson-curl': { id: 'rJfehSZOZyU', title: 'How Jefferson Curls Transform Your Body', channel: 'FitnessFAQs', lengthS: 657 },
@@ -1142,6 +1151,7 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'medicine-ball-close-grip-push-up': { id: 'G2mlaEfpEIM', title: 'How to Do a Close Grip Push-Up | Boot Camp Workout', channel: 'Howcast', lengthS: 108 },
   'medicine-ball-rolling-push-up': { id: 'NN9R4wGK47E', title: 'How To: Medicine Ball Push-Up', channel: 'ScottHermanFitness', lengthS: 92 },
   'medicine-ball-rotational-throw': { id: 'DttZ5JU-b_U', title: 'How to Perform Rotational Med Ball Throws', channel: 'CORE Strong Fitness', lengthS: 50 },
+  'medicine-ball-sit-up-throw': { id: '-HKJ8KYGSyE', title: 'Med Ball Sit-up Toss', channel: 'Breakaway Fitness & Performance LLC', lengthS: 49 },
   'medicine-ball-slam': { id: 'QxYhFwMd1Ks', title: 'How to Perform the Med Ball Slam', channel: 'CORE Strong Fitness', lengthS: 43 },
   'medicine-ball-slams': { id: 'lsMGmkvzFsE', title: 'How To Do Medicine Ball Slams & 12 Best Slam Variations | BJ Gaddour', channel: 'Bodybuilding.com', lengthS: 687 },
   'middle-split-progression': { id: 'zCi7trpTYmg', title: 'Middle Split Tutorial', channel: 'Alivia D\'Andrea', lengthS: 543 },
@@ -1679,6 +1689,7 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'squat-to-stand': { id: 'lvFTMvi-Aqo', title: 'How To Do a Squat to Toe Touch', channel: 'Swift Movement Academy', lengthS: 52 },
   'stability-ball-decline-push-up': { id: 'zFYtEUTJ8Xo', title: 'How To Perform Stability Ball Push Ups (Advanced) Exercises', channel: 'Endurance Hour', lengthS: 149 },
   'stability-ball-push-up': { id: 'zFYtEUTJ8Xo', title: 'How To Perform Stability Ball Push Ups (Advanced) Exercises', channel: 'Endurance Hour', lengthS: 149 },
+  'stability-ball-sit-up': { id: 's_CXq2gEiUk', title: 'How To Swiss Ball Crunch | Nuffield Health', channel: 'Nuffield Health', lengthS: 42 },
   'staggered-hand-push-up': { id: 'oWK_4kM-M9M', title: 'Exercise Tutorial - Staggered Arm Push-Up', channel: 'XHIT Daily', lengthS: 56 },
   'staggered-plyo-push-up': { id: 'Y-uF4F3mQIs', title: 'HOW TO: Plyometric Push Up', channel: 'Goodlife Health Clubs', lengthS: 47 },
   'staggered-stance-rdl': { id: '_K-C-nB4Hy4', title: 'How To: Staggered-Stance Dumbbell Romanian Deadlift', channel: 'Kia Khadem', lengthS: 58 },
@@ -1713,6 +1724,7 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'straddle-planche': { id: 'IP-Vs4jfSyc', title: 'From TUCK to STRADDLE PLANCHE in 30 days | Straddle Planche Tutorial', channel: 'Vitality', lengthS: 726 },
   'straight-arm-pulldown': { id: 'soX7zhZ7yfQ', title: 'Build your LATS with Straight Arm Pulldowns | Exercise Tutorial', channel: 'Buff Dudes Workouts', lengthS: 142 },
   'straight-bar-dip': { id: '6rhowlOcTn0', title: 'Straight Bar Dips Tutorial (Form & Progression)', channel: 'Minus The Gym', lengthS: 385 },
+  'straight-leg-sit-up': { id: 'Tl9dNZunx3c', title: 'How To: Straight Leg Sit Up - Exercise Tutorial', channel: 'David Mura', lengthS: 65 },
   'stretching': { id: 'itJE4neqDJw', title: '12 MIN DAILY STRETCH (full body) - for tight muscles, mobility & flexibility', channel: 'MadFit', lengthS: 858 },
   'strides': { id: 'IeZS646X44M', title: 'How to Run Strides (short accelerations)', channel: 'StrengthRunning', lengthS: 81 },
   'strongman-axle-clean-press': { id: 'VAOypXSUo0c', title: 'Axle Clean & Press Tutorial', channel: 'LiftBigEatBigVideo', lengthS: 266 },
@@ -1882,6 +1894,7 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'tuck-planche-hold': { id: 'M5il8Jpltt8', title: 'HOW TO TUCK PLANCHE', channel: 'CHRIS HERIA', lengthS: 786 },
   'tuck-planche-push-up': { id: '4IISjdSCw5k', title: 'TUCK PLANCHE Push Up Tutorial', channel: 'Vitaly Pavlenko', lengthS: 181 },
   'turkish-get-up': { id: 'D6Ed9jmniqw', title: 'How To Do A Turkish Get-Up', channel: 'BuiltLean®', lengthS: 122 },
+  'twisting-sit-up': { id: '_xzyH6NP_9k', title: 'How to Do：SIT-UP TWIST', channel: 'Leap Fitness', lengthS: 53 },
   'typewriter-pull-up': { id: 'PSjeeKy6I2g', title: 'How To: Type Writer Pull Up w/ Progressions [HD] | Brendan Meyers', channel: 'Brendan Meyers', lengthS: 408 },
   'typewriter-push-up': { id: 'fw56EiZYvm8', title: 'TYPEWRITER PUSH UPS | CORRECT FORM TUTORIAL', channel: 'Victory Calisthenics', lengthS: 283 },
   'ujjayi-breath': { id: 'x_4e-yujMcA', title: 'Ujjayi Pranayama (Ocean Breath) Breathing Basics: How to Do Step by Step for Beginners with Benefits', channel: 'Siddhi Yoga International', lengthS: 659 },
@@ -1935,12 +1948,14 @@ export const EXERCISE_VIDEOS: Record<string, ExerciseVideo> = {
   'water-polo-shooting': { id: 'nURFA_W4xNE', title: 'How to increase your shot power in Water Polo ft. Maggie Steffens | Olympians\' Tips', channel: 'Olympic Games', lengthS: 281 },
   'weighted-chin-up': { id: 'bZ6Ysk9jf6E', title: 'How To: Weighted Chin-Up', channel: 'ScottHermanFitness', lengthS: 144 },
   'weighted-crunch': { id: 'TYGY9-kG9hM', title: 'How to Do a Long Arm Weighted Crunch | Ab Workout', channel: 'Howcast', lengthS: 67 },
+  'weighted-decline-sit-up': { id: 'qZaMPggxdhg', title: 'How To: Weight Plate Decline Sit Up', channel: 'Live Lean TV Daily Exercises', lengthS: 52 },
   'weighted-dip-triceps': { id: 'hsEKg3M45dc', title: 'How To Do: Dips (Bench, Parallel Bar, Weighted)', channel: 'MuscleWiki', lengthS: 361 },
   'weighted-leg-raise': { id: 'l4kQd9eWclE', title: 'How to Do a Leg Raise | Ab Workout', channel: 'Howcast', lengthS: 85 },
   'weighted-nordic-curl': { id: '_e9vFU9-tkc', title: 'How to Set Up, Perform, & Program Nordic Hamstring Curls (Progressions | Regressions | Alternatives)', channel: 'E3 Rehab', lengthS: 630 },
   'weighted-plank': { id: 'pSHjTRCQxIw', title: 'How To: Plank', channel: 'ScottHermanFitness', lengthS: 77 },
   'weighted-pull-up': { id: 'HuuyDNGrCI8', title: 'How To: Weighted Pull-Up', channel: 'ScottHermanFitness', lengthS: 112 },
   'weighted-sit-up': { id: 'hNoqupytA8g', title: 'Weight Training : How to Do Sit-Ups on the Bench', channel: 'ehowhealth', lengthS: 117 },
+  'weighted-twisting-sit-up': { id: 'pDTHSnoGoEc', title: 'How To: Alternating Floor Oblique Twist w/ Weight', channel: 'ScottHermanFitness', lengthS: 124 },
   'wheel-pose': { id: 'aXpRAJC8ylM', title: 'How To: Wheel Pose for Beginners - Improve Your Backbend', channel: 'Livinleggings', lengthS: 398 },
   'white-water-rafting': { id: 'VpRuihuOdFQ', title: 'White Water Rafting Classes / Levels Explained', channel: 'All-Outdoors California Whitewater Rafting', lengthS: 170 },
   'wide-legged-forward-fold': { id: 'vB5GtHh9l2Y', title: 'Wide Legged Forward Fold - Pose Guide Technique Walkthrough', channel: 'Man Flow Yoga', lengthS: 197 },

@@ -74,8 +74,10 @@ export function formatDistance(meters: number, unit: 'metric' | 'imperial'): str
 export function formatPace(secPerKm: number | null | undefined, unit: 'metric' | 'imperial'): string {
   if (!secPerKm || !isFinite(secPerKm) || secPerKm <= 0) return '—';
   const perUnit = unit === 'imperial' ? secPerKm * 1.609344 : secPerKm;
-  const m = Math.floor(perUnit / 60);
-  const s = Math.round(perUnit % 60);
+  // Round the whole pace first: rounding only the seconds turned 5:59.6 into "5:60".
+  const total = Math.round(perUnit);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${String(s).padStart(2, '0')} /${unit === 'imperial' ? 'mi' : 'km'}`;
 }
 

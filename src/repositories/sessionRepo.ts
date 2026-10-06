@@ -12,7 +12,7 @@ import {
   type TrackingType,
 } from '@/db/schema';
 import { caloriesFromMet, SESSION_TYPE_MET } from '@/lib/met';
-import { distributeSessionCalories, type BurnExercise } from '@/lib/exerciseCalories';
+import { distributeSessionCalories, paceKindFor, type BurnExercise } from '@/lib/exerciseCalories';
 import { estimateActivitySteps } from '@/lib/activitySteps';
 import { estimate1RMFromSet } from '@/lib/oneRepMax';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
@@ -28,6 +28,9 @@ export interface SetDraft {
   durationS?: number | null;
   distanceM?: number | null;
   completed?: boolean;
+  /** a GPS-measured set: its slice of the session route, as point indices */
+  gpsFrom?: number | null;
+  gpsTo?: number | null;
 }
 
 export interface ExerciseLogView {
@@ -134,6 +137,8 @@ export function addSet(exerciseLogId: number, draft: SetDraft): number {
       durationS: draft.durationS ?? null,
       distanceM: draft.distanceM ?? null,
       completed: draft.completed ?? true,
+      gpsFrom: draft.gpsFrom ?? null,
+      gpsTo: draft.gpsTo ?? null,
     })
     .run();
   return Number(res.lastInsertRowId);
@@ -247,6 +252,8 @@ export interface ActivityDetail {
   elevationM?: number | null;
   score?: string | null;
   caloriesBurned?: number | null;
+  /** the GPS trace, kept with the session so it can be drawn and shared */
+  routeJson?: string | null;
 }
 
 export interface FinalizeResult {
@@ -353,6 +360,7 @@ export function finalizeSession(
       pace: opts.activity?.pace ?? null,
       elevationM: opts.activity?.elevationM ?? null,
       score: opts.activity?.score ?? null,
+      routeJson: opts.activity?.routeJson ?? session.routeJson ?? null,
       caloriesBurned,
       moodAfter: opts.moodAfter ?? session.moodAfter ?? null,
       notes: opts.notes ?? session.notes ?? null,
@@ -507,6 +515,7 @@ function logsToBurn(logs: ExerciseLogView[]): BurnExercise[] {
     slug: lv.slug,
     equipmentType: lv.equipmentType,
     pattern: lv.pattern,
+    paceKind: paceKindFor(lv.slug, lv.trackingType),
     sets: lv.sets.map((s) => ({
       reps: s.reps,
       durationS: s.durationS,
@@ -745,4 +754,29 @@ export function deleteSession(sessionId: number): void {
       session.userId
     );
   }
+}
+
+/**
+ * The completed sets of an exercise from the most recent FINISHED session
+ * before this one — what the training tip compares today against.
+ */
+export function lastSessionSets(exerciseId: number, excludeSessionId: number | null, userId: number = PRIMARY_USER_ID): SetEntry[] {
+  const logs = db
+    .select({ id: exerciseLogs.id, sessionId: exerciseLogs.sessionId, start: sessions.startTime, end: sessions.endTime })
+    .from(exerciseLogs)
+    .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
+    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(sessions.userId, userId)))
+    .all()
+    .filter((l) => l.sessionId !== excludeSessionId && l.end != null)
+    .sort((a, b) => b.start - a.start);
+  for (const l of logs) {
+    const sets = db
+      .select()
+      .from(setEntries)
+      .where(and(eq(setEntries.exerciseLogId, l.id), eq(setEntries.completed, true)))
+      .orderBy(setEntries.setNumber)
+      .all();
+    if (sets.length) return sets;
+  }
+  return [];
 }

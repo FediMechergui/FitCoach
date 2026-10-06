@@ -175,6 +175,28 @@ const RULES: Record<number, Rule> = {
   158: (s) => ({ current: s.placesMarked, target: 3 }),
   159: (s) => ({ current: s.questsBestWeek, target: 3 }),
   160: (s) => ({ current: s.skinsBought, target: 1 }),
+  // 17. Roads & Stories (3.8.0)
+  161: (s) => ({ current: s.routeShares, target: 1 }),
+  162: (s) => ({ current: s.routeShares, target: 10 }),
+  163: (s) => ({ current: s.gpsLapSets, target: 1 }),
+  164: (s) => ({ current: s.gpsLapSets, target: 20 }),
+  165: (s) => ({ current: s.gpsLapSessions, target: 5 }),
+  166: (s) => ({ current: Math.floor(s.longestRunKm * 10), target: 211 }),
+  167: (s) => ({ current: s.fastest5kPaceS > 0 && s.fastest5kPaceS < 300 ? 1 : 0, target: 1 }),
+  168: (s) => ({ current: s.earlyStarts, target: 10 }),
+  169: (s) => ({ current: Math.floor(s.rideKmTotal), target: 100 }),
+  170: (s) => ({ current: s.realMapOn && s.routeShares > 0 ? 1 : 0, target: 1 }),
+  // 18. Phase, Focus & Core (3.8.0)
+  171: (s) => ({ current: s.focusChosen ? 1 : 0, target: 1 }),
+  172: (s) => ({ current: s.focusLiftingSessions, target: 12 }),
+  173: (s) => ({ current: s.cutLifting28d, target: 8 }),
+  174: (s) => ({ current: s.bulkLifting28d, target: 12 }),
+  175: (s) => ({ current: s.situpVariations, target: 5 }),
+  176: (s) => ({ current: s.declineReps, target: 200 }),
+  177: (s) => ({ current: s.twistReps, target: 200 }),
+  178: (s) => ({ current: s.bestSitupSession, target: 100 }),
+  179: (s) => ({ current: s.storyThemesBought, target: 3 }),
+  180: (s) => ({ current: s.soukItems, target: 10 }),
 };
 
 export function evaluateAchievement(def: AchievementDef, s: AchievementStats): AchievementProgress {

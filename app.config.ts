@@ -40,6 +40,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     /**
      * 2 → the build that added the native step-counter module.
      * 3 → the 3.x build: the Lume icon set and splash live in the binary.
+     * 4 → the 3.8 build: the crest icon, and vibration for split and interval
+     *     alerts (VIBRATE). Built locally with the same signing key as 2 and 3.
      * Android only accepts an install over an existing app when versionCode is
      * >= the installed one, so each bump is a clean in-place update that KEEPS
      * all app data (the SQLite database lives in app storage and is untouched).
@@ -47,10 +49,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
      * over-the-air update compatibility — is unchanged: every 3.x OTA update
      * already published applies to this binary too.
      */
-    versionCode: 3,
+    versionCode: 4,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#070C14',
+      // The crest's own night blue, so the padded foreground melts into it.
+      backgroundColor: '#051021',
     },
     permissions: [
       'ACTIVITY_RECOGNITION',
@@ -66,6 +69,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'WRITE_EXTERNAL_STORAGE',
       'WAKE_LOCK', // Keep CPU awake for background step counting
       'INTERNET', // Required for location updates task
+      'VIBRATE', // Split and interval alerts buzz, so a runner feels them with the phone in a pocket
     ],
   },
   ios: {

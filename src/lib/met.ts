@@ -57,19 +57,138 @@ export const SESSION_TYPE_MET: Record<string, number> = {
 };
 
 /**
- * Walking/running MET scales with pace. Uses speed (km/h) to pick a MET from
- * the Compendium of Physical Activities.
+ * A MET curve as anchor points from the Compendium of Physical Activities,
+ * read by straight-line interpolation between them.
+ *
+ * Until 3.8.0 these were steps: 6.4 km/h and 7.9 km/h cost the same, and every
+ * run faster than 12.9 km/h was valued as if it were 12.9 — a 16 km/h tempo
+ * run came out a fifth short. A curve has no cliffs to fall off: two runs a
+ * few seconds per kilometre apart now cost a few kilocalories apart. Below
+ * the first anchor the first value stands; above the last, the last slope
+ * carries on, capped at a ceiling no human holds for long.
  */
-export function walkRunMet(speedKmh: number): number {
-  if (speedKmh <= 0) return 2.0;
-  if (speedKmh < 4) return 2.8; // slow walk
-  if (speedKmh < 5.5) return 3.5; // moderate walk
-  if (speedKmh < 6.5) return 5.0; // brisk walk
-  if (speedKmh < 8) return 7.0; // very brisk / jog
-  if (speedKmh < 9.7) return 9.0; // ~10 min/mi
-  if (speedKmh < 11.3) return 10.5;
-  if (speedKmh < 12.9) return 11.5;
-  return 12.8; // fast run
+type Curve = ReadonlyArray<readonly [number, number]>;
+
+function readCurve(curve: Curve, x: number, ceiling: number): number {
+  if (!Number.isFinite(x) || x <= curve[0][0]) return curve[0][1];
+  for (let i = 1; i < curve.length; i++) {
+    const [x1, y1] = curve[i];
+    if (x <= x1) {
+      const [x0, y0] = curve[i - 1];
+      return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
+    }
+  }
+  const [xa, ya] = curve[curve.length - 2];
+  const [xb, yb] = curve[curve.length - 1];
+  return Math.min(ceiling, yb + ((x - xb) / (xb - xa)) * (yb - ya));
+}
+
+/** km/h → MET, walking (Compendium codes 17xxx). */
+export const WALKING_CURVE: Curve = [
+  [2.0, 2.0],
+  [3.2, 2.8],
+  [4.0, 3.0],
+  [4.8, 3.5],
+  [5.6, 4.3],
+  [6.4, 5.0],
+  [7.2, 7.0],
+  [8.0, 8.3],
+];
+
+/** km/h → MET, running (Compendium codes 12xxx). */
+export const RUNNING_CURVE: Curve = [
+  [6.4, 6.0],
+  [8.0, 8.3],
+  [8.4, 9.0],
+  [9.7, 9.8],
+  [10.8, 10.5],
+  [11.3, 11.0],
+  [12.1, 11.5],
+  [12.9, 11.8],
+  [13.8, 12.3],
+  [14.5, 12.8],
+  [16.1, 14.5],
+  [17.7, 16.0],
+  [19.3, 19.0],
+  [20.9, 19.8],
+  [22.5, 23.0],
+];
+
+/** km/h → MET, cycling outdoors on the flat (Compendium codes 01xxx). */
+export const CYCLING_CURVE: Curve = [
+  [8, 3.5],
+  [14, 4.0],
+  [17.5, 6.8],
+  [21, 8.0],
+  [24, 10.0],
+  [28, 12.0],
+  [33, 15.8],
+];
+
+/**
+ * Walking or running by speed.
+ *
+ * With no gait given, walking anchors carry to 7.2 km/h and running ones take
+ * over from 8 km/h — one rising curve, so a faster pace never costs less. A
+ * gait, when known, picks its own curve: a 6.5 km/h jog is a run and costs
+ * like one; an 8 km/h race walk costs like the walk it is.
+ */
+export function walkRunMet(speedKmh: number, gait?: 'walk' | 'run'): number {
+  if (!Number.isFinite(speedKmh) || speedKmh <= 0) return 2.0;
+  if (gait === 'run') return round2(readCurve(RUNNING_CURVE, speedKmh, 23));
+  if (gait === 'walk') return round2(readCurve(WALKING_CURVE, speedKmh, 10));
+  if (speedKmh <= 7.2) return round2(readCurve(WALKING_CURVE, speedKmh, 10));
+  if (speedKmh >= 8) return round2(readCurve(RUNNING_CURVE, speedKmh, 23));
+  // 7.2 → 8 km/h: the brisk walk turns into the jog without a step.
+  return round2(7.0 + ((speedKmh - 7.2) / 0.8) * (8.3 - 7.0));
+}
+
+/** Cycling by road speed. A bike is not a run: 20 km/h is ~8 METs, not ~19. */
+export function cyclingMet(speedKmh: number): number {
+  if (!Number.isFinite(speedKmh) || speedKmh <= 0) return 3.5;
+  return round2(readCurve(CYCLING_CURVE, speedKmh, 16));
+}
+
+/**
+ * Swimming by pace. Compendium: leisurely ~6, moderate freestyle 8.3, fast
+ * 9.8; a pace slower than 3:00 per 100 m is treated as easy swimming.
+ */
+export function swimMet(metresPerSecond: number): number {
+  if (!Number.isFinite(metresPerSecond) || metresPerSecond <= 0) return 6.0;
+  const per100s = 100 / metresPerSecond;
+  // Read on the negative of seconds-per-100 m, so the x axis rises with speed.
+  return round2(readCurve([[-180, 5.8], [-120, 8.3], [-90, 9.8], [-60, 11.0]], -per100s, 11));
+}
+
+/** Rowing (ergometer or boat) by split. ~2:30 per 500 m is ~7 METs, 2:00 is ~10. */
+export function rowMet(metresPerSecond: number): number {
+  if (!Number.isFinite(metresPerSecond) || metresPerSecond <= 0) return 4.8;
+  return round2(readCurve([[2.5, 4.8], [3.33, 7.0], [4.17, 10.0], [4.76, 12.0]], metresPerSecond, 14));
+}
+
+export type PaceKind = 'walk' | 'run' | 'cycle' | 'swim' | 'row';
+
+/** The MET a distance covered in a time is worth, for the kind of movement it was. */
+export function paceMet(kind: PaceKind, distanceM: number, durationS: number): number | null {
+  if (!(distanceM > 0) || !(durationS > 0)) return null;
+  const ms = distanceM / durationS;
+  const kmh = ms * 3.6;
+  switch (kind) {
+    case 'walk':
+      return walkRunMet(kmh, 'walk');
+    case 'run':
+      return walkRunMet(kmh, 'run');
+    case 'cycle':
+      return cyclingMet(kmh);
+    case 'swim':
+      return swimMet(ms);
+    case 'row':
+      return rowMet(ms);
+  }
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 /**
@@ -94,8 +213,15 @@ export function walkCalories(params: {
   activeSec?: number;
   /** net elevation climbed, metres — drives the grade adjustment */
   elevationGainM?: number;
+  /**
+   * How the ground was covered. 'walk' and 'run' pick their own Compendium
+   * curve; 'none' is a wheel (a bike), costed by the cycling curve and never
+   * by steps. Omitted, the speed decides between walking and running.
+   */
+  gait?: 'walk' | 'run' | 'none';
 }): number {
   const { weightKg, distanceM, durationSec, steps } = params;
+  const gait = params.gait;
   const active = params.activeSec != null && params.activeSec > 0 ? Math.min(params.activeSec, durationSec) : durationSec;
 
   if (active > 0 && distanceM > 0) {
@@ -103,9 +229,12 @@ export function walkCalories(params: {
     // Pace is derived from moving time, so a paused session doesn't look slower
     // than it was — which would otherwise pick a lower MET as well.
     const gradePct = params.elevationGainM && distanceM > 0 ? (params.elevationGainM / distanceM) * 100 : 0;
-    const met = walkRunMet(speedKmh) * gradeMultiplier(gradePct);
+    const met = (gait === 'none' ? cyclingMet(speedKmh) : walkRunMet(speedKmh, gait)) * gradeMultiplier(gradePct);
     return netCaloriesFromMet(met, weightKg, active);
   }
+
+  // A bike has no steps to fall back on; time at an easy ride is the floor.
+  if (gait === 'none') return active > 0 ? netCaloriesFromMet(4.0, weightKg, active) : 0;
 
   // No usable distance: fall back to steps. ~0.04 kcal/step gross at 70 kg, so
   // scale by weight and take the net share (roughly 0.75 of gross at walking METs).

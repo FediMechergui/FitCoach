@@ -13,6 +13,9 @@ import { WalkScreen } from '@/screens/train/WalkScreen';
 import { SessionHistoryScreen } from '@/screens/train/SessionHistoryScreen';
 import { SessionDetailScreen } from '@/screens/train/SessionDetailScreen';
 import { WalkDetailScreen } from '@/screens/train/WalkDetailScreen';
+import { RouteShareScreen } from '@/screens/train/RouteShareScreen';
+import { OutdoorSettingsScreen } from '@/screens/profile/OutdoorSettingsScreen';
+import { TrainingFocusScreen } from '@/screens/profile/TrainingFocusScreen';
 import { AddFoodScreen } from '@/screens/nutrition/AddFoodScreen';
 import { CustomFoodScreen } from '@/screens/nutrition/CustomFoodScreen';
 import { ComposeFoodScreen } from '@/screens/nutrition/ComposeFoodScreen';
@@ -123,6 +126,9 @@ export function RootNavigator() {
             options={{ title: 'Session' }}
           />
           <Stack.Screen name="WalkDetail" component={WalkDetailScreen} options={{ title: 'Walk / Run' }} />
+          <Stack.Screen name="RouteShare" component={RouteShareScreen} options={{ title: '' }} />
+          <Stack.Screen name="OutdoorSettings" component={OutdoorSettingsScreen} options={{ title: '' }} />
+          <Stack.Screen name="TrainingFocus" component={TrainingFocusScreen} options={{ title: '' }} />
           <Stack.Screen
             name="AddFood"
             component={AddFoodScreen}

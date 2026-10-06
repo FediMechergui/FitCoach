@@ -10,7 +10,7 @@ import {
 } from '@/db/schema';
 import { todayISO, toISODate } from '@/lib/date';
 import { parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
-import { filterFixes, type GpsFix } from '@/lib/gpsFilter';
+import { filterFixes, RIDE_MAX_SPEED_MS, type GpsFix } from '@/lib/gpsFilter';
 import { stepsFromDistance } from '@/lib/pedometer';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
 
@@ -22,7 +22,7 @@ export function getLiveWalk(): LiveWalk | undefined {
 }
 
 export function startLiveWalk(
-  data: { mode: 'walk' | 'run'; source: 'pedometer' | 'accelerometer' | 'gps' },
+  data: { mode: 'walk' | 'run'; source: 'pedometer' | 'accelerometer' | 'gps'; activity?: string | null },
   userId: number = PRIMARY_USER_ID
 ): void {
   const row = {
@@ -31,6 +31,7 @@ export function startLiveWalk(
     userId,
     mode: data.mode,
     source: data.source,
+    activity: data.activity ?? null,
     startTime: Date.now(),
     steps: 0,
     distanceM: 0,
@@ -72,7 +73,9 @@ export function appendLiveRoutePoints(fixes: GpsFix[]): void {
   const row = getLiveWalk();
   if (!row?.active) return;
   const route = parseRoute(row.routeJson);
-  const { accepted, distanceM: gained } = filterFixes(route, fixes);
+  // A ride is allowed a ride's speed; everything else is held to a runner's.
+  const riding = row.activity === 'cycle';
+  const { accepted, distanceM: gained } = filterFixes(route, fixes, riding ? { maxSpeedMs: RIDE_MAX_SPEED_MS } : {});
 
   /*
    * Nothing credible arrived — you're indoors, or standing, or turning on the
@@ -103,7 +106,8 @@ export function appendLiveRoutePoints(fixes: GpsFix[]): void {
    * the stored count. Monotonic: the pedometer's own total wins when it's higher.
    */
   const heightCm = safeUserHeightCm();
-  const impliedSteps = stepsFromDistance(distance, heightCm, row.mode);
+  // A bike covers ground without a single step: never invent them from a ride.
+  const impliedSteps = riding ? 0 : stepsFromDistance(distance, heightCm, row.mode);
 
   db.update(liveWalks)
     .set({
@@ -127,14 +131,34 @@ function safeUserHeightCm(): number {
   }
 }
 
+/*
+ * The live route is read every second by the screens and the tracker. Parsing
+ * an hour of fixes every second — twice, once for the path and once to measure
+ * it — kept the JavaScript thread busy enough that the accelerometer's samples
+ * arrived in bunches (see lib/pedometer). The parse is now cached against the
+ * stored text: unchanged JSON hands back the SAME array, which also lets the
+ * map skip its redraw. The distance needs no parse at all: the row keeps it,
+ * added fix by fix from exactly the accepted points.
+ */
+let cachedJson: string | null = null;
+let cachedRoute: LatLng[] = [];
+
 /** The live route so far (for drawing the circuit while tracking). */
 export function getLiveRoute(): LatLng[] {
-  return parseRoute(getLiveWalk()?.routeJson);
+  const json = getLiveWalk()?.routeJson ?? null;
+  if (json === cachedJson) return cachedRoute;
+  cachedJson = json;
+  cachedRoute = parseRoute(json);
+  return cachedRoute;
 }
 
 /** Total GPS path distance of the live route (metres). */
 export function getLiveRouteDistanceM(): number {
-  return routeDistanceM(getLiveRoute());
+  const row = getLiveWalk();
+  if (!row?.routeJson) return 0;
+  // The stored total IS the path length of the stored points (appendLiveRoutePoints
+  // adds exactly what it accepts). Fall back to measuring if it was never written.
+  return row.distanceM > 0 ? row.distanceM : routeDistanceM(getLiveRoute());
 }
 
 // ── Walk / Run sessions ──────────────────────────────────────────────────────
@@ -150,6 +174,8 @@ export function saveWalkSession(
     avgPace?: number | null;
     source: 'pedometer' | 'accelerometer' | 'gps';
     routeJson?: string | null;
+    /** the outdoor activity key (walk, run, hike, cycle…) */
+    activity?: string | null;
   },
   userId: number = PRIMARY_USER_ID
 ): number {
@@ -167,10 +193,12 @@ export function saveWalkSession(
       avgPace: data.avgPace ?? null,
       source: data.source,
       routeJson: data.routeJson ?? null,
+      activity: data.activity ?? null,
     })
     .run();
   // Roll the session's steps into today's passive step total too.
-  addSteps(data.steps, data.distanceM, data.caloriesBurned, todayISO(), userId);
+  // On the day it started — a walk past midnight belongs to the evening it began.
+  addSteps(data.steps, data.distanceM, data.caloriesBurned, toISODate(new Date(data.startTime)), userId);
   return Number(res.lastInsertRowId);
 }
 

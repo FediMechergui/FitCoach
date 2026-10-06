@@ -10,7 +10,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { StatTile } from '@/components/ui/StatTile';
 import { Row, Badge } from '@/components/ui/misc';
-import { RouteMap } from '@/components/RouteMap';
+import { RouteSummaryCard } from '@/components/RouteSummaryCard';
+import { activityFor } from '@/lib/outdoorActivities';
 import type { RootStackParamList } from '@/navigation/types';
 import { getWalkSession, deleteWalkSession } from '@/repositories/activityRepo';
 import { parseRoute } from '@/lib/geo';
@@ -39,7 +40,9 @@ export function WalkDetailScreen() {
   }
 
   const path = parseRoute(session.routeJson);
+  const activity = activityFor(session.activity ?? session.mode);
   const isRun = session.mode === 'run';
+  const riding = activity.gait === 'none';
   const accent = isRun ? theme.colors.outdoor : theme.colors.accent;
 
   const confirmDelete = () => {
@@ -60,10 +63,10 @@ export function WalkDetailScreen() {
     <Screen>
       <Row gap={12} style={{ alignItems: 'center' }}>
         <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon icon={isRun ? 'cardio.running' : 'cardio.walk'} size={26} color={accent} />
+          <Icon icon={activity.icon} size={26} color={accent} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="h2">{isRun ? 'Run' : 'Walk'}</Text>
+          <Text variant="h2">{activity.label}</Text>
           <Text variant="caption" color="textMuted">
             {new Date(session.startTime).toLocaleString(undefined, {
               weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -75,13 +78,7 @@ export function WalkDetailScreen() {
 
       {/* Route map (GPS runs) */}
       {path.length > 1 ? (
-        <Card>
-          <Row gap={8} style={{ alignItems: 'center', marginBottom: 6 }}>
-            <Icon icon="cardio.gps" size={16} color={theme.colors.outdoor} />
-            <Text variant="label" color="textMuted">Your route</Text>
-          </Row>
-          <RouteMap route={path} height={240} />
-        </Card>
+        <RouteSummaryCard route={path} distanceLabel={formatDistance(session.distanceM, unit)} share={{ kind: 'walk', id: session.id }} />
       ) : (
         <Card accent={theme.colors.textFaint}>
           <Row gap={10} style={{ alignItems: 'flex-start' }}>
@@ -96,7 +93,11 @@ export function WalkDetailScreen() {
       )}
 
       <Row>
-        <StatTile icon="cardio.steps" label="Steps" value={session.steps.toLocaleString()} />
+        {riding ? (
+          <StatTile icon="cardio.pace" label="Avg speed" value={session.avgPace ? (3600 / session.avgPace).toFixed(1) : '—'} sub="km/h" />
+        ) : (
+          <StatTile icon="cardio.steps" label="Steps" value={session.steps.toLocaleString()} />
+        )}
         <StatTile icon="cardio.gps" label="Distance" value={formatDistance(session.distanceM, unit)} accent={theme.colors.outdoor} />
       </Row>
       <Row>

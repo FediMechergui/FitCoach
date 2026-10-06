@@ -11,12 +11,29 @@ import {
 } from '@/services/walkTracking';
 import { distanceFromSteps } from '@/lib/pedometer';
 import type { LatLng } from '@/lib/geo';
-import { walkCalories } from '@/lib/met';
+import { activityFor, outdoorCalories } from '@/lib/outdoorActivities';
 import { useUserStore } from './userStore';
+
+export interface WalkStopResult {
+  /** the saved walk_sessions row */
+  walkId: number;
+  activity: string;
+  steps: number;
+  distanceM: number;
+  calories: number;
+  durationS: number;
+  activeS: number;
+  /** seconds per km over moving time; null without distance */
+  avgPace: number | null;
+}
 
 interface WalkState {
   active: boolean;
   mode: 'walk' | 'run';
+  /** the outdoor activity key (walk, run, hike, cycle…) */
+  activity: string;
+  /** a carried pack, kg — part of the calorie sum for a hike or a ruck */
+  loadKg: number;
   source: 'pedometer' | 'accelerometer' | 'gps';
   startedAt: number | null;
   steps: number;
@@ -34,12 +51,12 @@ interface WalkState {
 
   /** Reattach to a walk that survived a background/app restart. */
   resume: () => void;
-  start: (mode: 'walk' | 'run') => void;
+  start: (mode: 'walk' | 'run', activity?: string, loadKg?: number) => void;
   /** Pull the latest numbers from the in-memory tracker (cheap; no DB read). */
   refresh: () => void;
   /** Reconcile against the hardware step counter (catches up background steps), then refresh. */
   reconcile: () => Promise<void>;
-  stop: () => { steps: number; distanceM: number; calories: number; durationS: number } | null;
+  stop: () => WalkStopResult | null;
   reset: () => void;
 }
 
@@ -59,6 +76,8 @@ function liveCadence(steps: number, activeSec: number): number | null {
 export const useWalkStore = create<WalkState>((set, get) => ({
   active: false,
   mode: 'walk',
+  activity: 'walk',
+  loadKg: 0,
   source: 'pedometer',
   startedAt: null,
   steps: 0,
@@ -80,6 +99,7 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       set({
         active: true,
         mode: snap.mode,
+        activity: snap.activity,
         source: snap.source,
         startedAt: snap.startTime,
         steps: snap.steps,
@@ -91,14 +111,15 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     }
   },
 
-  start: (mode) => {
+  start: (mode, activity, loadKg) => {
     if (get().starting || get().active) return;
-    set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [] });
+    const key = activityFor(activity ?? mode).key;
+    set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [], activity: key, loadKg: loadKg && loadKg > 0 ? loadKg : 0 });
 
     // `startWalkTracking` brings the session up synchronously and finishes the
     // slow parts (permission dialogs, hardware counter, GPS) in the background,
     // so the UI can switch to the tracking view with no delay.
-    void startWalkTracking(mode);
+    void startWalkTracking(mode, key);
 
     const snap = getLiveSnapshot();
     set({
@@ -153,19 +174,23 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     if (!result) return null;
 
     const weightKg = useUserStore.getState().currentWeightKg ?? 75;
-    // Moving time only — standing at a crossing or riding a bus isn't exercise.
-    const calories = walkCalories({
+    // The same sum the screen showed while you moved (lib/outdoorActivities):
+    // moving time only, the activity's floor, the pack, the ride's own curve.
+    const calories = outdoorCalories({
+      activity: activityFor(result.activity),
       weightKg,
       distanceM: result.distanceM,
       durationSec: result.durationS,
       activeSec: result.activeSec,
       steps: result.steps,
+      loadKg: s.loadKg,
     });
     // Moving pace — wall-clock would make a paused session look slower than it ran.
     const avgPace = result.distanceM > 0 ? result.activeSec / (result.distanceM / 1000) : null;
 
-    saveWalkSession({
+    const walkId = saveWalkSession({
       mode: result.mode,
+      activity: result.activity,
       startTime: result.startTime,
       endTime: Date.now(),
       steps: result.steps,
@@ -177,7 +202,16 @@ export const useWalkStore = create<WalkState>((set, get) => ({
       routeJson: result.route.length > 1 ? JSON.stringify(result.route) : null,
     });
 
-    return { steps: result.steps, distanceM: result.distanceM, calories, durationS: result.durationS };
+    return {
+      walkId,
+      activity: result.activity,
+      steps: result.steps,
+      distanceM: result.distanceM,
+      calories,
+      durationS: result.durationS,
+      activeS: result.activeSec,
+      avgPace,
+    };
   },
 
   reset: () => set({ active: false, startedAt: null, steps: 0, distanceM: 0, elapsedS: 0, route: [], usingGps: false }),

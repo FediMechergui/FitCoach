@@ -80,3 +80,28 @@ export async function photoStillExists(uri: string | null): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Capture a route story card at story size — 1080 × 1920, what Instagram and
+ * WhatsApp expect — and share or save it. Same contract as exportCardPng.
+ */
+export async function exportStoryPng(
+  ref: RefObject<View>,
+  opts: { save?: boolean } = {}
+): Promise<CardExportResult> {
+  if (!ref.current) return { ok: false, reason: 'no-view' };
+  try {
+    const uri = await captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1920 });
+    if (opts.save) {
+      const perm = await MediaLibrary.requestPermissionsAsync();
+      if (!perm.granted) return { ok: false, reason: 'permission-denied' };
+      await MediaLibrary.saveToLibraryAsync(uri);
+      return { ok: true, uri, saved: true, shared: false };
+    }
+    if (!(await Sharing.isAvailableAsync())) return { ok: false, reason: 'error', message: 'Sharing is not available on this device.' };
+    await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your route', UTI: 'public.png' });
+    return { ok: true, uri, saved: false, shared: true };
+  } catch (e) {
+    return { ok: false, reason: 'error', message: e instanceof Error ? e.message : String(e) };
+  }
+}

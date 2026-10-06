@@ -209,6 +209,8 @@ export function ProfileScreen() {
         <LinkRow icon="cardio.gps" label="Your places" onPress={() => navigation.navigate('Places')} />
         <Divider />
         <LinkRow icon="card.trophy" label="The souk" onPress={() => navigation.navigate('Souk')} />
+        <LinkRow icon="stats.muscleMap" label="Phase & focus (bulk, cut…)" onPress={() => navigation.navigate('TrainingFocus')} />
+        <LinkRow icon="cardio.gps" label="Outdoor & GPS" onPress={() => navigation.navigate('OutdoorSettings')} />
         <Divider />
         <LinkRow icon="card.trophy" label="Athlete card" onPress={() => navigation.navigate('ProfileCard')} />
         <Divider />

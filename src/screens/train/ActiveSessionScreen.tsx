@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Pressable, Alert, Switch, LayoutAnimation } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -16,16 +16,22 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { metaFor, MOOD_EMOJI, MOOD_LABELS } from '@/constants/sessionTypes';
 import { WARMUPS_BY_MUSCLE, MUSCLE_LABELS, SUB_MUSCLE_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
 import { formatDuration } from '@/lib/format';
-import { warmupsDoneOf, type ExerciseLogView } from '@/repositories/sessionRepo';
+import { lastSessionSets, warmupsDoneOf, type ExerciseLogView } from '@/repositories/sessionRepo';
+import { exerciseTip, focusPhaseNote, sanitizeFocus, FOCUS_META, PHASE_FROM_GOAL, PHASE_META, type TipKind } from '@/lib/trainingFocus';
 import { getExercise, listExercises } from '@/repositories/exerciseRepo';
 import { findEasierAlternatives } from '@/lib/exerciseAlternatives';
 import {
   isGpsBusyWithWalk,
+  isSessionGpsOn,
   sessionGpsDistanceM,
   sessionGpsRoute,
   startSessionGps,
   stopSessionGps,
 } from '@/services/sessionGps';
+import { GpsLapsPanel } from '@/components/GpsLapsPanel';
+import { runOutdoorTick } from '@/services/outdoorAlerts';
+import { lapState, saveLapState } from '@/repositories/outdoorRepo';
+import { drainPending, formatLapDistance, formatClock } from '@/lib/gpsLaps';
 import { RouteMap } from '@/components/RouteMap';
 import { RpeGuide } from '@/components/RpeGuide';
 import type { LatLng } from '@/lib/geo';
@@ -65,6 +71,8 @@ export function ActiveSessionScreen() {
   const { sessionType, startedAt, detail } = store;
   const meta = sessionType ? metaFor(sessionType) : null;
   const flow = meta?.flow ?? 'lifting';
+  const goal = useUserStore((s) => s.user?.goal ?? 'maintain');
+  const focusRaw = useUserStore((s) => s.user?.trainingFocus);
 
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -83,9 +91,36 @@ export function ActiveSessionScreen() {
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
 
   // GPS distance for hikes, rides, wanders — anything that covers ground.
-  const [gpsOn, setGpsOn] = useState(false);
+  // Whether it is on is asked of the SESSION (services/sessionGps), never kept
+  // in this screen: leaving the screen used to forget a trace still running.
+  const [gpsOn, setGpsOn] = useState(() => isSessionGpsOn(store.activeId));
   const [gpsDistanceM, setGpsDistanceM] = useState(0);
   const [gpsRoute, setGpsRoute] = useState<LatLng[]>([]);
+  useFocusEffect(
+    React.useCallback(() => {
+      setGpsOn(isSessionGpsOn(useSessionStore.getState().activeId));
+    }, [])
+  );
+
+  /*
+   * Finished GPS reps become sets. The lap engine (lib/gpsLaps) is advanced
+   * here every second and by the background location task with the screen
+   * off; either way a finished rep waits in `pending` until this turns it into
+   * a logged set carrying its slice of the route. Nothing is lost to a phone
+   * that was asleep when the rep ended.
+   */
+  const drainLaps = React.useCallback(() => {
+    const id = useSessionStore.getState().activeId;
+    const ls = lapState();
+    if (!id || !ls || ls.sessionId !== id || ls.pending.length === 0) return;
+    const { state: next, laps } = drainPending(ls);
+    saveLapState(next);
+    for (const lap of laps) {
+      useSessionStore.getState().logSet(ls.logId, { distanceM: lap.distanceM, durationS: lap.durationS, gpsFrom: lap.from, gpsTo: lap.to });
+    }
+    const last = laps[laps.length - 1];
+    toast({ message: `Rep ${last.repNo} logged · ${formatLapDistance(last.distanceM)} in ${formatClock(last.durationS)}` });
+  }, []);
 
   // Poll the traced distance while GPS is on (the fixes land in the DB from the
   // background task, so this is just reading what's accumulated).
@@ -93,28 +128,37 @@ export function ActiveSessionScreen() {
     if (!gpsOn) return;
     const t = setInterval(() => {
       setGpsDistanceM(sessionGpsDistanceM());
+      // The same array comes back while nothing changed, so the map does not redraw.
       setGpsRoute(sessionGpsRoute());
+      const events = runOutdoorTick({ foreground: true });
+      for (const e of events) {
+        if (e.kind === 'rep-done' && !e.last && e.restS > 0) useSessionStore.getState().startRest(e.restS);
+      }
+      drainLaps();
     }, 1000);
+    drainLaps();
     return () => clearInterval(t);
-  }, [gpsOn]);
+  }, [gpsOn, drainLaps]);
 
   const toggleGps = async () => {
     if (gpsOn) {
-      const { distanceM } = await stopSessionGps();
+      drainLaps();
+      const { distanceM, route } = await stopSessionGps();
+      if (route.length > 1) stoppedRoute.current = route;
       setGpsOn(false);
       setGpsDistanceM(distanceM);
       // Hand the measured distance to the input so it's saved with the session.
       if (distanceM > 0) setDistanceKm((distanceM / 1000).toFixed(2));
       return;
     }
-    if (isGpsBusyWithWalk()) {
+    if (isGpsBusyWithWalk(store.activeId)) {
       Alert.alert(
         'A walk or run is already tracking',
         'Finish that session first — only one GPS trace can run at a time.'
       );
       return;
     }
-    const ok = await startSessionGps();
+    const ok = store.activeId != null && (await startSessionGps(store.activeId));
     if (!ok) {
       Alert.alert(
         'Could not start GPS',
@@ -125,13 +169,22 @@ export function ActiveSessionScreen() {
     setGpsOn(true);
   };
 
+  /** a route kept from a trace stopped before the session ended */
+  const stoppedRoute = React.useRef<LatLng[] | null>(null);
+
   const endSession = () => {
+    // Any rep that finished while we looked away is logged before anything else.
+    if (gpsOn) drainLaps();
     // Measured GPS distance wins over anything typed in.
     const tracedM = gpsOn ? Math.round(sessionGpsDistanceM()) : gpsDistanceM;
+    const route = gpsOn ? sessionGpsRoute() : stoppedRoute.current ?? [];
     if (gpsOn) void stopSessionGps();
+    // The trace is kept with the session (3.8.0), to draw and to share.
+    const routeJson = route.length > 1 ? JSON.stringify(route) : null;
     const activity =
       flow === 'cardio'
         ? {
+            routeJson,
             distanceM: tracedM > 0 ? tracedM : distanceKm ? parseFloat(distanceKm) * 1000 : null,
             elevationM: elevation ? parseFloat(elevation) : null,
             score: score || null,
@@ -142,7 +195,9 @@ export function ActiveSessionScreen() {
                   ? elapsed / parseFloat(distanceKm)
                   : null,
           }
-        : undefined;
+        : routeJson
+          ? { routeJson }
+          : undefined;
     const result = store.finish({
       moodAfter: flow === 'mindbody' ? moodAfter : null,
       activity,
@@ -161,6 +216,8 @@ export function ActiveSessionScreen() {
         text: 'Discard',
         style: 'destructive',
         onPress: () => {
+          // A discarded session must not leave its GPS service running for days.
+          if (gpsOn || isSessionGpsOn(store.activeId)) void stopSessionGps();
           store.cancel();
           navigation.navigate('Main');
         },
@@ -186,9 +243,17 @@ export function ActiveSessionScreen() {
             <Icon artistic="minted" icon={meta.icon} size={24} color={meta.color} />
             <View>
               <Text variant="h3">{meta.label}</Text>
-              <Text variant="caption" color="textMuted">
-                In progress
-              </Text>
+              {flow === 'lifting' ? (
+                <Pressable onPress={() => navigation.navigate('TrainingFocus')} hitSlop={6}>
+                  <Text variant="caption" color="primary">
+                    {PHASE_META[PHASE_FROM_GOAL[goal]].label} · {FOCUS_META[sanitizeFocus(focusRaw)].label} ›
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text variant="caption" color="textMuted">
+                  In progress
+                </Text>
+              )}
             </View>
           </Row>
           <Text variant="display" style={{ fontVariant: ['tabular-nums'], color: meta.color }}>
@@ -200,10 +265,11 @@ export function ActiveSessionScreen() {
       <RestTimerBanner />
 
       {/* Exercises / activities — available for every session type, not just lifting */}
-      <ExerciseSection detail={detail?.logs ?? []} accent={meta.color} isLifting={flow === 'lifting'} />
+      <ExerciseSection detail={detail?.logs ?? []} accent={meta.color} isLifting={flow === 'lifting'} onGpsStarted={() => setGpsOn(true)} />
 
-      {/* GPS distance — hikes, rides, wanders, anything that covers ground */}
-      {flow === 'cardio' && (
+      {/* GPS distance — hikes, rides, wanders, anything that covers ground; and
+          any session with a distance exercise, for its GPS laps. */}
+      {(flow === 'cardio' || gpsOn || (detail?.logs ?? []).some((lv) => lv.trackingType === 'distance' || lv.trackingType === 'duration_distance')) && (
         <Card accent={gpsOn ? theme.colors.outdoor : undefined} style={{ gap: 10 }}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Row gap={10} style={{ alignItems: 'center', flex: 1 }}>
@@ -396,7 +462,7 @@ function RestTimerBanner() {
 }
 
 // ── Exercise section (all session types) ─────────────────────────────────────
-function ExerciseSection({ detail, accent, isLifting }: { detail: ExerciseLogView[]; accent: string; isLifting: boolean }) {
+function ExerciseSection({ detail, accent, isLifting, onGpsStarted }: { detail: ExerciseLogView[]; accent: string; isLifting: boolean; onGpsStarted: () => void }) {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
 
@@ -457,6 +523,7 @@ function ExerciseSection({ detail, accent, isLifting }: { detail: ExerciseLogVie
               upNext={i === upNextIndex}
               canMoveUp={i > 0 && !started}
               canMoveDown={i < detail.length - 1 && !started}
+              onGpsStarted={onGpsStarted}
             />
           );
         })
@@ -492,7 +559,9 @@ function ExerciseLogCard({
   upNext,
   canMoveUp,
   canMoveDown,
+  onGpsStarted,
 }: {
+  onGpsStarted: () => void;
   lv: ExerciseLogView;
   accent: string;
   isLifting: boolean;
@@ -622,6 +691,11 @@ function ExerciseLogCard({
     if (s.reps != null) parts.push(`${s.reps} reps`);
     if (s.durationS != null) parts.push(formatDuration(s.durationS));
     if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
+    if (s.durationS != null && s.distanceM != null && s.distanceM >= 20) {
+      const pace = s.durationS / (s.distanceM / 1000);
+      parts.push(`${Math.floor(pace / 60)}:${String(Math.round(pace) % 60).padStart(2, '0')} /km`);
+    }
+    if (s.gpsFrom != null) parts.push('by GPS');
     if (s.toFailure) parts.push('to failure');
     else if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
     return parts.join(' · ') || 'logged';
@@ -629,6 +703,39 @@ function ExerciseLogCard({
 
   const [showAlts, setShowAlts] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
+  const [showTipWhy, setShowTipWhy] = useState(false);
+
+  /*
+   * Today's tip, from the phase (bulk, cut…), the focus (hypertrophy,
+   * strength…) and what was logged on this exercise LAST session — so it says
+   * "60 kg × 10, 10, 9 last time: stay at 60 and add a rep", not a generic
+   * range. Read once per card; the previous session does not change mid-set.
+   */
+  const goal = useUserStore((s) => s.user?.goal ?? 'maintain');
+  const focusRaw = useUserStore((s) => s.user?.trainingFocus);
+  const tip = useMemo(() => {
+    const kind: TipKind | null = f.distance ? 'distance' : f.weight ? 'loaded' : lv.trackingType === 'reps_only' ? 'bodyweight' : null;
+    if (!kind || (!isLifting && kind !== 'distance')) return null;
+    try {
+      const last = lastSessionSets(lv.log.exerciseId, store.activeId ?? null).map((x) => ({
+        reps: x.reps,
+        weightKg: x.weightKg,
+        durationS: x.durationS,
+        distanceM: x.distanceM,
+      }));
+      return exerciseTip({
+        focus: sanitizeFocus(focusRaw),
+        phase: PHASE_FROM_GOAL[goal],
+        kind,
+        last,
+        best1RM: history.best1RM > 0 ? history.best1RM : null,
+        loadStep: lv.equipmentType === 'dumbbell' || lv.equipmentType === 'machine' || lv.equipmentType === 'cable' ? 2 : 2.5,
+      });
+    } catch {
+      return null;
+    }
+  }, [lv.log.exerciseId, goal, focusRaw, history.best1RM]);
+  const pairingNote = tip ? focusPhaseNote(sanitizeFocus(focusRaw), PHASE_FROM_GOAL[goal]) : null;
 
   return (
     <Card accent={accent} style={{ gap: 10 }}>
@@ -710,6 +817,29 @@ function ExerciseLogCard({
       )}
 
       <ExerciseHowToSheet exerciseId={lv.log.exerciseId} visible={showHowTo} onClose={() => setShowHowTo(false)} />
+
+      {tip && (
+        <Pressable onPress={() => setShowTipWhy((v) => !v)}>
+          <View style={{ gap: 3, paddingHorizontal: 10, paddingVertical: 8, borderRadius: theme.radius.sm, backgroundColor: theme.alpha.tint14(theme.colors.primary) }}>
+            <Text variant="eyebrow" color="primary">
+              Tip · {tip.heading}
+            </Text>
+            <Text variant="caption" color="text">
+              {tip.line}
+            </Text>
+            {showTipWhy && tip.note ? (
+              <Text variant="caption" color="textMuted">
+                {tip.note}
+              </Text>
+            ) : null}
+            {showTipWhy && pairingNote ? (
+              <Text variant="caption" color="textFaint">
+                {pairingNote}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+      )}
 
       {showAlts && (
         <AlternativePicker
@@ -829,6 +959,16 @@ function ExerciseLogCard({
             </Text>
           </Row>
         </Pressable>
+      )}
+      {f.distance && store.activeId != null && (
+        <GpsLapsPanel
+          sessionId={store.activeId}
+          logId={lv.log.id}
+          exerciseId={lv.log.exerciseId}
+          exerciseName={lv.exerciseName}
+          accent={accent}
+          onGpsStarted={onGpsStarted}
+        />
       )}
       <Row>
         <Button title={isLifting ? 'Add Set' : 'Log'} icon="core.add" size="sm" onPress={addSet} style={{ flex: 2 }} fullWidth={false} />

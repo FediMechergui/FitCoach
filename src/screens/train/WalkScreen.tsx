@@ -15,20 +15,21 @@ import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Row, Badge } from '@/components/ui/misc';
 import { PageHero } from '@/components/ui/PageHero';
 import { RouteMap } from '@/components/RouteMap';
+import { RouteSummaryCard } from '@/components/RouteSummaryCard';
 import type { RootStackParamList } from '@/navigation/types';
-import { useWalkStore } from '@/stores/walkStore';
+import { useWalkStore, type WalkStopResult } from '@/stores/walkStore';
+import { sessionGpsMarker } from '@/repositories/outdoorRepo';
+import { getLiveWalk } from '@/repositories/activityRepo';
 import { useUserStore } from '@/stores/userStore';
 import { useLiveWalk } from '@/hooks/usePedometer';
-import { walkCalories } from '@/lib/met';
 import { WeatherCard } from '@/components/WeatherCard';
 import { latestReading } from '@/repositories/weatherRepo';
 import { weatherAdvice, HEAT_BAND_COLOR, HEAT_BAND_LABEL } from '@/lib/weather';
 import type { LatLng } from '@/lib/geo';
 import { formatDuration, formatDistance, formatPace } from '@/lib/format';
 import { PostSessionCard } from '@/components/PostSessionCard';
-import { activityFor, activityMet, requiresGps } from '@/lib/outdoorActivities';
+import { activityFor, outdoorCalories, requiresGps } from '@/lib/outdoorActivities';
 import { loadCalorieFactor, profileFor } from '@/lib/loadProfile';
-import { walkRunMet, gradeMultiplier, netCaloriesFromMet } from '@/lib/met';
 import { postSessionMargins, sessionStrain } from '@/lib/postSession';
 import { isSmokingEnabled } from '@/repositories/smokingRepo';
 
@@ -53,7 +54,7 @@ export function WalkScreen() {
   const weightKg = useUserStore((s) => s.currentWeightKg) ?? 75;
 
   const [hardwareAvailable, setHardwareAvailable] = useState<boolean | null>(null);
-  const [summary, setSummary] = useState<{ steps: number; distanceM: number; calories: number; durationS: number; route: LatLng[]; endedAt: number } | null>(null);
+  const [summary, setSummary] = useState<(WalkStopResult & { route: LatLng[]; endedAt: number }) | null>(null);
 
   useEffect(() => {
     Pedometer.isAvailableAsync().then(setHardwareAvailable).catch(() => setHardwareAvailable(false));
@@ -72,35 +73,37 @@ export function WalkScreen() {
   const packLoadKg = parseFloat(packKg.replace(',', '.'));
   const loadKg = Number.isFinite(packLoadKg) && packLoadKg > 0 ? packLoadKg : 0;
   const loadFactor = loadKg > 0 ? loadCalorieFactor(profileFor({ slug: 'rucking' }), weightKg, loadKg) : 1;
-  const base = walkCalories({
+  /*
+   * A hike at walking pace is not a walk, and a ride is not a run: the one
+   * outdoor calorie sum (lib/outdoorActivities) floors the pace MET at the
+   * activity's own, uses the cycling curve for a wheel, and scales by a
+   * carried pack. The store saves the SAME sum, so the number you watched is
+   * the number that is kept. While a session runs it reads the activity and
+   * pack it was started with, not whatever this screen was opened for.
+   */
+  const liveActivity = walk.active ? activityFor(walk.activity) : activity;
+  const calories = outdoorCalories({
+    activity: liveActivity,
     weightKg,
     distanceM,
     durationSec: walk.elapsedS,
     activeSec: walk.activeS,
     steps: walk.steps,
+    loadKg: walk.active ? walk.loadKg : loadKg,
   });
-  /*
-   * A hike at walking pace is not a walk: uneven ground and gradient cost more,
-   * so the pace-based figure is floored at the activity's own MET, and a
-   * carried pack scales it (see lib/loadProfile). A plain walk or run keeps
-   * exactly the number it had — floor 0, no load.
-   */
-  const activeSec = walk.activeS > 0 ? walk.activeS : walk.elapsedS;
-  const paceMet =
-    distanceM > 0 && activeSec > 0 ? walkRunMet(distanceM / 1000 / (activeSec / 3600)) : 0;
-  const flooredMet = activityMet(activity, paceMet);
-  const calories =
-    activity.metFloor > 0 && activeSec > 0 && flooredMet > paceMet
-      ? Math.round(netCaloriesFromMet(flooredMet, weightKg, activeSec) * loadFactor)
-      : Math.round(base * loadFactor);
   // Pace from MOVING time, so pausing at a crossing doesn't make you look slower.
   const pace = distanceM > 0 && walk.activeS > 0 ? walk.activeS / (distanceM / 1000) : null;
   const unit = user?.unitPreference ?? 'metric';
 
   const start = () => {
+    // One GPS trace at a time: a training session measuring distance owns it.
+    if (sessionGpsMarker() && getLiveWalk()?.active) {
+      Alert.alert('A session is using GPS', 'Finish or stop GPS in your training session first — only one route can be traced at a time.');
+      return;
+    }
     setSummary(null);
     warnedNoGps.current = false;
-    walk.start(initialMode);
+    walk.start(initialMode, activity.key, loadKg);
   };
   const gpsOnly = requiresGps(activity);
 
@@ -146,18 +149,24 @@ export function WalkScreen() {
           <Icon icon="core.check" size={48} color={theme.colors.accent} />
           <Text variant="h1">{activity.label} saved</Text>
         </View>
-        {summary.route.length > 1 && (
-          <Card>
-            <Text variant="label" color="textMuted" style={{ marginBottom: 6 }}>Your route</Text>
-            <RouteMap route={summary.route} height={220} />
-          </Card>
-        )}
+        <RouteSummaryCard
+          route={summary.route}
+          distanceLabel={formatDistance(summary.distanceM, unit)}
+          share={{ kind: 'walk', id: summary.walkId }}
+        />
         <Row>
-          <StatTile icon="cardio.steps" label="Steps" value={summary.steps.toLocaleString()} />
+          {activity.gait === 'none' ? (
+            <StatTile icon="cardio.pace" label="Avg speed" value={summary.activeS > 0 ? `${((summary.distanceM / 1000) / (summary.activeS / 3600)).toFixed(1)}` : '—'} sub="km/h" />
+          ) : (
+            <StatTile icon="cardio.steps" label="Steps" value={summary.steps.toLocaleString()} />
+          )}
           <StatTile icon="cardio.gps" label="Distance" value={formatDistance(summary.distanceM, unit)} accent={theme.colors.outdoor} />
         </Row>
         <Row>
-          <StatTile icon="core.timer" label="Time" value={formatDuration(summary.durationS)} />
+          <StatTile icon="core.timer" label="Moving time" value={formatDuration(summary.activeS)} sub={summary.durationS - summary.activeS > 30 ? `${formatDuration(summary.durationS)} in all` : undefined} />
+          <StatTile icon="cardio.pace" label="Pace" value={formatPace(summary.avgPace, unit)} />
+        </Row>
+        <Row>
           <StatTile icon="nutrition.calories" label="Calories" value={`${summary.calories}`} sub="kcal" accent={theme.colors.calories} />
         </Row>
         <PostSessionCard endedAt={summary.endedAt} strain={strain} margins={margins} title={`After this ${activity.label.toLowerCase()}`} />
@@ -190,10 +199,10 @@ export function WalkScreen() {
           >
             <View style={{ alignItems: 'center' }}>
               <Text variant="display" style={{ fontVariant: ['tabular-nums'] }}>
-                {walk.steps.toLocaleString()}
+                {liveActivity.gait === 'none' ? (distanceM / 1000).toFixed(2) : walk.steps.toLocaleString()}
               </Text>
               <Text variant="caption" color="textMuted">
-                steps
+                {liveActivity.gait === 'none' ? 'km' : 'steps'}
               </Text>
             </View>
           </ProgressRing>

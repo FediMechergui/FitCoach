@@ -40,6 +40,12 @@ export type RootStackParamList = {
   SessionHistory: undefined;
   SessionDetail: { sessionId: number; justFinished?: boolean; prCount?: number; stepsAdded?: number };
   WalkDetail: { walkId: number };
+  /** a finished route as a story image: a walk/run/ride, or a session that ran GPS */
+  RouteShare: { kind: 'walk' | 'session'; id: number };
+  /** the GPS parameters: precision, auto-pause, splits, maps, privacy */
+  OutdoorSettings: undefined;
+  /** bulk or cut, and what the lifting is for */
+  TrainingFocus: undefined;
 
   AddFood: { meal: MealType; mode?: 'precise' | 'honest' };
   PhotoFood: { meal: MealType };

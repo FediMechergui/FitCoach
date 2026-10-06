@@ -70,8 +70,13 @@ import { seedExerciseLibrary } from './seed';
  *   38 → 39 v3.7.0: +358 exercises in families — kettlebell, bands, straps,
  *                  rehabilitation, seniors and the chair, pregnancy, after
  *                  birth, dance. No new table or column: the bump re-seeds.
+ *   39 → 40 v3.8.0: the outdoor pass — walk_sessions.activity and
+ *                  live_walks.activity (a ride stays a ride), sessions.route_json
+ *                  (a session keeps its GPS trace), set_entries.gps_from/gps_to
+ *                  (a set's slice of that trace), users.training_focus; and the
+ *                  sit-up variations, which the bump re-seeds.
  */
-const SCHEMA_VERSION = 39;
+const SCHEMA_VERSION = 40;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -149,6 +154,13 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'custom_foods', column: 'image_uri', ddl: 'TEXT' },
   // v33 — one how-to video per exercise (built-ins seeded, customs user-entered)
   { table: 'exercises', column: 'video_id', ddl: 'TEXT' },
+  // v40 — the outdoor pass: what a walk really was, a session's route, a set's slice of it
+  { table: 'users', column: 'training_focus', ddl: 'TEXT' },
+  { table: 'sessions', column: 'route_json', ddl: 'TEXT' },
+  { table: 'set_entries', column: 'gps_from', ddl: 'INTEGER' },
+  { table: 'set_entries', column: 'gps_to', ddl: 'INTEGER' },
+  { table: 'walk_sessions', column: 'activity', ddl: 'TEXT' },
+  { table: 'live_walks', column: 'activity', ddl: 'TEXT' },
 ];
 
 function ensureColumns(): void {
@@ -178,6 +190,7 @@ CREATE TABLE IF NOT EXISTS users (
   rate_of_change TEXT NOT NULL DEFAULT 'moderate',
   unit_preference TEXT NOT NULL DEFAULT 'metric',
   experience_level TEXT,
+  training_focus TEXT,
   onboarded_at INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
@@ -261,6 +274,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   notes TEXT,
   warmups_done TEXT,
   place_id INTEGER,
+  route_json TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user_time ON sessions(user_id, start_time);
@@ -286,7 +300,9 @@ CREATE TABLE IF NOT EXISTS set_entries (
   distance_m REAL,
   is_pr INTEGER NOT NULL DEFAULT 0,
   completed INTEGER NOT NULL DEFAULT 1,
-  to_failure INTEGER NOT NULL DEFAULT 0
+  to_failure INTEGER NOT NULL DEFAULT 0,
+  gps_from INTEGER,
+  gps_to INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_set_entries_log ON set_entries(exercise_log_id);
 
@@ -336,6 +352,7 @@ CREATE TABLE IF NOT EXISTS walk_sessions (
   avg_pace REAL,
   source TEXT NOT NULL DEFAULT 'pedometer',
   route_json TEXT,
+  activity TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_walk_sessions_user ON walk_sessions(user_id, start_time);
@@ -353,7 +370,8 @@ CREATE TABLE IF NOT EXISTS live_walks (
   last_lng REAL,
   route_json TEXT,
   updated_at INTEGER,
-  boot_step_baseline INTEGER
+  boot_step_baseline INTEGER,
+  activity TEXT
 );
 
 CREATE TABLE IF NOT EXISTS daily_step_logs (

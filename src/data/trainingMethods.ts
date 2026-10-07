@@ -825,6 +825,116 @@ export const TRAINING_METHODS: TrainingMethod[] = [
     progressBy: 'duration', progressNote: 'Progress = consistency across the week — most naturally kept right after salat.',
     typicalMinutes: 10, prefillSlugs: ['dhikr'],
   },
+  // ══════════════ PILATES (3.9.0) ══════════════
+  {
+    key: 'pil-foundations', sessionType: 'pilates', label: 'Foundations', icon: 'mindbody.pilates',
+    blurb: 'The principles before the repertoire: breath, the neutral pelvis, the curl and the bridge.',
+    structure: '30 min · each exercise 6–10 slow reps · move on only when the breath and the pelvis stay steady.',
+    progressBy: 'reps', progressNote: 'Progress = control. The same reps with less wobble, then the next exercise in the order.',
+    typicalMinutes: 30, prefillSlugs: ['pilates-lateral-breathing', 'pilates-chest-lift', 'pilates-pelvic-curl', 'pilates-single-leg-circles', 'pilates-single-leg-stretch', 'pilates-spine-stretch-forward', 'pilates-swimming'],
+  },
+  {
+    key: 'pil-classical-mat', sessionType: 'pilates', label: 'Classical Mat Order', icon: 'mindbody.pilates',
+    blurb: 'Joseph Pilates’ mat sequence in its order, the beginner-to-intermediate part of it.',
+    structure: '45 min · the order is the method: one exercise flows into the next · 5–10 reps each.',
+    progressBy: 'reps', progressNote: 'Progress = adding the next exercise of the order once the ones before it flow without stopping.',
+    typicalMinutes: 45, prefillSlugs: ['pilates-hundred', 'pilates-roll-up', 'pilates-single-leg-circles', 'pilates-rolling-like-a-ball', 'pilates-single-leg-stretch', 'pilates-double-leg-stretch', 'pilates-spine-stretch-forward', 'pilates-saw', 'pilates-swan', 'pilates-single-leg-kick', 'pilates-side-kick-series', 'pilates-teaser', 'pilates-seal', 'pilates-push-up'],
+  },
+  {
+    key: 'pil-advanced-mat', sessionType: 'pilates', label: 'Advanced Mat', icon: 'mindbody.pilates',
+    blurb: 'The second half of the order: roll over, corkscrew, the jackknife, the boomerang.',
+    structure: '50 min · the intermediate order as a warm-up, then the advanced exercises at 3–5 reps.',
+    progressBy: 'reps', progressNote: 'Progress = the advanced exercises joining the flow. Leave out any that load the neck if it complains.',
+    typicalMinutes: 50, prefillSlugs: ['pilates-hundred', 'pilates-roll-over', 'pilates-corkscrew', 'pilates-open-leg-rocker', 'pilates-neck-pull', 'pilates-scissors', 'pilates-bicycle', 'pilates-jackknife', 'pilates-boomerang', 'pilates-control-balance', 'pilates-leg-pull-back'],
+  },
+  {
+    key: 'pil-reformer', sessionType: 'pilates', label: 'Reformer Class', icon: 'mindbody.pilates',
+    blurb: 'A full reformer class: footwork, the hundred, straps, rowing, the elephant and the long stretch.',
+    structure: '50 min · springs set by the instructor · 8–10 reps an exercise.',
+    progressBy: 'reps', progressNote: 'Progress = lighter springs on the core work and heavier on the legs, with the same control.',
+    typicalMinutes: 50, prefillSlugs: ['reformer-footwork', 'reformer-hundred', 'reformer-feet-in-straps', 'reformer-rowing-series', 'reformer-elephant', 'reformer-knee-stretches', 'reformer-long-stretch', 'reformer-short-box-series', 'reformer-side-splits', 'reformer-running'],
+  },
+  {
+    key: 'pil-core-power', sessionType: 'pilates', label: 'Core Power', icon: 'mindbody.pilates',
+    blurb: 'The abdominal series of the mat order, back to back, with the planks after.',
+    structure: '30 min · the five of the abdominal series, then planks and side bends · 8–10 reps.',
+    progressBy: 'reps', progressNote: 'Progress = the series without a break, then the teaser and the jackknife.',
+    typicalMinutes: 30, prefillSlugs: ['pilates-hundred', 'pilates-single-leg-stretch', 'pilates-double-leg-stretch', 'pilates-scissors', 'pilates-criss-cross', 'pilates-teaser', 'pilates-leg-pull-front', 'pilates-side-bend'],
+  },
+  {
+    key: 'pil-back-care', sessionType: 'pilates', label: 'Back & Posture', icon: 'mindbody.pilates',
+    blurb: 'The extension work that most of the day leaves out: the swan, the kicks, swimming.',
+    structure: '30 min · articulation first, then extension · slow, 6–8 reps.',
+    progressBy: 'reps', progressNote: 'Progress = a longer, higher extension without pinching in the lower back.',
+    typicalMinutes: 30, prefillSlugs: ['pilates-pelvic-curl', 'pilates-spine-stretch-forward', 'pilates-swan', 'pilates-single-leg-kick', 'pilates-double-leg-kick', 'pilates-swimming', 'pilates-mermaid'],
+  },
+  {
+    key: 'pil-ring-wall', sessionType: 'pilates', label: 'Props: Ring & Wall', icon: 'mindbody.pilates',
+    blurb: 'A magic circle or a wall gives feedback the floor cannot. Good at home.',
+    structure: '30 min · a ring class or a wall class, one or the other.',
+    progressBy: 'duration', progressNote: 'Progress = finishing the whole class with the shape held to the end.',
+    typicalMinutes: 30, prefillSlugs: ['pilates-ring-workout', 'wall-pilates'],
+  },
+
+  // ══════════════ HYROX (3.9.0) ══════════════
+  // Hyrox is a trademark of its owners; these are training methods for the
+  // race format, and FitCoach has no connection to the organisers.
+  {
+    key: 'hyx-race-sim', sessionType: 'hyrox', label: 'Full Race Simulation', icon: 'cardio.hyrox',
+    blurb: 'Eight 1 km runs, each followed by a station, in race order.',
+    structure: 'Run 1 km → SkiErg → run → sled push → run → sled pull → run → burpee broad jumps → run → row → run → farmers carry → run → lunges → run → wall balls.',
+    progressBy: 'duration', progressNote: 'Progress = the finishing time, and how even the eight run splits are. Once a month at most.',
+    typicalMinutes: 90, prefillSlugs: ['hyrox-run-1km', 'hyrox-skierg-1000', 'hyrox-sled-push-50', 'hyrox-sled-pull-50', 'hyrox-burpee-broad-jump-80', 'hyrox-row-1000', 'hyrox-farmers-carry-200', 'hyrox-sandbag-lunges-100', 'hyrox-wall-balls-100'],
+  },
+  {
+    key: 'hyx-half-sim', sessionType: 'hyrox', label: 'Half Simulation', icon: 'cardio.hyrox',
+    blurb: 'Four runs and four stations: race rhythm without a full race worth of fatigue.',
+    structure: '4 × (1 km run + one station), alternating the first and second half of the race each time.',
+    progressBy: 'duration', progressNote: 'Progress = the same half in less time, with the last run no slower than the first.',
+    typicalMinutes: 45, prefillSlugs: ['hybrid-half-race-simulation', 'hyrox-run-1km', 'hyrox-skierg-1000', 'hyrox-sled-push-50', 'hyrox-row-1000', 'hyrox-wall-balls-100'],
+  },
+  {
+    key: 'hyx-compromised', sessionType: 'hyrox', label: 'Compromised Running', icon: 'cardio.hyrox',
+    blurb: 'Running on legs that have just done a station — the skill the race is really about.',
+    structure: '4–6 rounds: a short, hard station block, then 1 km at race pace straight away.',
+    progressBy: 'duration', progressNote: 'Progress = the run after the station getting closer to your fresh 1 km pace.',
+    typicalMinutes: 50, prefillSlugs: ['hybrid-compromised-running', 'hyrox-run-1km', 'hyrox-wall-ball-unbroken-sets', 'hyrox-sandbag-lunges-100'],
+  },
+  {
+    key: 'hyx-race-pace-runs', sessionType: 'hyrox', label: 'Race-Pace 1 km Repeats', icon: 'cardio.hyrox',
+    blurb: 'The run, alone: 1 km repeats at goal race pace, measured by GPS laps.',
+    structure: '6–8 × 1 km at goal pace · 90 s rest · GPS laps set to 1 km.',
+    progressBy: 'distance', progressNote: 'Progress = more repeats at the same pace, then a few seconds faster.',
+    typicalMinutes: 50, prefillSlugs: ['hybrid-1km-race-pace-repeats', 'hyrox-run-1km'],
+  },
+  {
+    key: 'hyx-stations', sessionType: 'hyrox', label: 'Station Circuit', icon: 'cardio.hyrox',
+    blurb: 'All eight stations at reduced volume, without the runs, to rehearse technique tired.',
+    structure: '1–2 rounds of the eight stations at a quarter to half race volume · walk between.',
+    progressBy: 'rounds', progressNote: 'Progress = clean technique on the last station as well as the first.',
+    typicalMinutes: 45, prefillSlugs: ['hyrox-station-circuit', 'hyrox-roxzone-transitions'],
+  },
+  {
+    key: 'hyx-erg-engine', sessionType: 'hyrox', label: 'Erg Engine', icon: 'cardio.hyrox',
+    blurb: 'The two machine stations as intervals: SkiErg 250s, then rower 500s.',
+    structure: '6–10 × 250 m ski · 60 s rest · then 4–6 × 500 m row · equal rest.',
+    progressBy: 'intensity', progressNote: 'Progress = faster splits held across every rep.',
+    typicalMinutes: 50, prefillSlugs: ['hyrox-skierg-250-repeats', 'hyrox-row-500-repeats'],
+  },
+  {
+    key: 'hyx-sled-strength', sessionType: 'hyrox', label: 'Sleds & Carries', icon: 'cardio.hyrox',
+    blurb: 'The heavy half of the race: sled push and pull, the farmers carry, the lunges.',
+    structure: 'Heavy sled pushes with full rest · sled pulls · heavy carries over short distances · weighted lunges.',
+    progressBy: 'load', progressNote: 'Progress = race weight feeling light: heavier sleds and bells in training.',
+    typicalMinutes: 60, prefillSlugs: ['hyrox-sled-push-intervals', 'hyrox-sled-pull-50', 'hyrox-farmers-carry-200', 'hyrox-sandbag-lunges-100'],
+  },
+  {
+    key: 'hyx-doubles', sessionType: 'hyrox', label: 'Doubles Practice', icon: 'cardio.hyrox',
+    blurb: 'Training with a partner for the doubles format: shared stations, runs together.',
+    structure: 'A half simulation with a partner, splitting every station and practising the hand-offs.',
+    progressBy: 'duration', progressNote: 'Progress = stations that never stop moving at a hand-off.',
+    typicalMinutes: 50, prefillSlugs: ['hyrox-doubles-practice', 'hyrox-run-1km', 'hyrox-wall-balls-100'],
+  },
 ];
 
 export function methodsFor(sessionType: SessionType): TrainingMethod[] {

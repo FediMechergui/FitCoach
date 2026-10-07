@@ -315,6 +315,7 @@ export function intensityForSessionType(sessionType: string): TrainingIntensity 
     case 'calisthenics':
     case 'martial_arts':
     case 'sport':
+    case 'hyrox':
       return 'hard';
     default:
       return 'moderate';

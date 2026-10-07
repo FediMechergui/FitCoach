@@ -79,6 +79,8 @@ export const palette = {
   mindbody: '#6FD4E4',
   meditation: '#C09AF7',
   custom: '#8FA0B5',
+  pilates: '#F59AC0',
+  hyrox: '#F2D03B',
 
   // Domain palette — one metric, one hue, none of them shouting.
   protein: '#F58CB0',
@@ -261,6 +263,8 @@ export const SESSION_TYPE_COLORS: Record<string, string> = {
   mindbody: palette.mindbody,
   meditation: palette.meditation,
   custom: palette.custom,
+  pilates: palette.pilates,
+  hyrox: palette.hyrox,
 };
 
 // ── Elevation — the z-axis v2 never had ─────────────────────────────────────

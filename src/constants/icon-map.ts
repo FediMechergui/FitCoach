@@ -105,6 +105,7 @@ export const ICONS = {
     jumpRope: def('MaterialCommunityIcons', 'jump-rope'),
     interval: def('MaterialCommunityIcons', 'timer-sand'),
     agility: def('MaterialCommunityIcons', 'arrow-decision'),
+    hyrox: def('MaterialCommunityIcons', 'run-fast'),
     plyo: def('MaterialCommunityIcons', 'arrow-expand-up'),
   },
   // Martial arts & combat sports
@@ -458,6 +459,10 @@ export function sessionTypeIcon(type: string): string {
       return 'mindbody.yoga';
     case 'meditation':
       return 'mindbody.meditation';
+    case 'pilates':
+      return 'mindbody.pilates';
+    case 'hyrox':
+      return 'cardio.hyrox';
     default:
       return 'core.custom';
   }

@@ -19,6 +19,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.9.0',
+    date: '2026-10-07',
+    title: 'Pilates and Hyrox',
+    highlights: [
+      'Pilates and Hyrox are now session types of their own, next to Strength, Cardio, Outdoor and the rest. Each has its own colour and icon, its own calorie rate, and a place on the session picker, the library filters and the stats.',
+      'Pilates holds 52 exercises: the classical mat order from the hundred to the boomerang and the seal, including roll over, corkscrew, jackknife, control balance and the leg pulls, plus a reformer series with footwork, the hundred, the long stretch, the elephant, knee stretches, rowing, the short box, feet in straps and side splits. The Pilates entries that used to sit under Mind-Body have moved there. Pregnancy and after-birth Pilates stay with their families.',
+      'Hyrox holds 21 exercises: the 1 km run and all eight stations at race distance (SkiErg, sled push, sled pull, burpee broad jumps, row, farmers carry, sandbag lunges, wall balls), the Roxzone, and the sessions that train for them: heavy sled intervals, unbroken wall ball sets, erg repeats, compromised running, half and full simulations, doubles practice. A Hyrox session records distance like cardio, and the GPS laps from 3.8.0 time each kilometre.',
+      '15 training methods: for Pilates, foundations, the classical mat order, advanced mat, reformer class, core power, back and posture, and the ring and the wall. For Hyrox, full and half race simulations, compromised running, race-pace kilometres, the station circuit, the erg engine, sleds and carries, and doubles.',
+      '6 programmes: Pilates Foundations, The Classical Mat, and Reformer and Mat; for Hyrox, First Hyrox (12 weeks to a first finish), Faster Finish, and Pro Block.',
+      '12 ready sessions in two new groups on the Ready rail: from the first Pilates class to the advanced mat, and from learning the stations to a half simulation. The rolling Pilates sessions warn about the neck. Hyrox is a trademark of its owners, and FitCoach has no connection to the race.',
+      'Every new exercise has its how-to video, and the library now holds 2028 exercises. The update reaches the app over the air.',
+    ],
+  },
+  {
     version: '3.8.0',
     date: '2026-10-06',
     title: 'Out on the road',

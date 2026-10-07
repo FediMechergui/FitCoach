@@ -42,11 +42,13 @@ export type ReadyGroup =
   | 'kit'
   | 'rehab'
   | 'gentle'
-  | 'mother';
+  | 'mother'
+  | 'pilates'
+  | 'hyrox';
 
 export const READY_GROUP_ORDER: ReadyGroup[] = [
   'pushups', 'best-gym', 'best-home', 'whole', 'bar', 'skills', 'care', 'short', 'combat', 'cardio', 'calm',
-  'kit', 'rehab', 'gentle', 'mother',
+  'kit', 'rehab', 'gentle', 'mother', 'pilates', 'hyrox',
 ];
 
 export const READY_GROUP_META: Record<ReadyGroup, { label: string; short: string; blurb: string; icon: string }> = {
@@ -139,6 +141,18 @@ export const READY_GROUP_META: Record<ReadyGroup, { label: string; short: string
     short: 'Pregnancy',
     blurb: 'Gentle sessions for pregnancy and a staged return after birth. Agree your activity with your midwife or doctor; they know your pregnancy, the app does not.',
     icon: 'mindbody.breath',
+  },
+  pilates: {
+    label: 'Pilates, mat & reformer',
+    short: 'Pilates',
+    blurb: 'Classes built on the classical order: the breath and the curl first, the full mat, the reformer, and the advanced repertoire for those who have earned it.',
+    icon: 'mindbody.pilates',
+  },
+  hyrox: {
+    label: 'Hyrox, the race format',
+    short: 'Hyrox',
+    blurb: 'Eight runs of a kilometre, each followed by a station. Sessions for the runs, the stations, the sleds and the ergs, and a simulation of the whole race.',
+    icon: 'cardio.hyrox',
   },
 };
 
@@ -1338,6 +1352,104 @@ export const READY_SESSIONS: ReadySession[] = [
     prescription: "2 sets each of 8 to 12 reps, breathing out on the effort.",
     exercises: ['postnatal-posture-reset', 'postnatal-squat-to-chair', 'postnatal-glute-bridge', 'postnatal-standing-band-row', 'prenatal-side-lying-leg-lift'],
     note: "Start after your midwife or doctor agrees, later after a caesarean. A doming abdomen, leaking, heaviness in the pelvis, pain or heavier bleeding mean go back a stage and ask.",
+  },
+  // ══════════════════════════ PILATES ══════════════════════════
+  {
+    key: 'pilates-first-class', group: 'pilates', name: "Pilates: the first class",
+    why: "The breath, the neutral pelvis and the curl, then the first exercises of the order. Everything later is built on these.",
+    sessionType: 'pilates', level: 'beginner', minutes: 25, kit: "A mat",
+    prescription: "6 to 8 slow reps of each. Breathe out as you curl or reach, in as you return.",
+    exercises: ['pilates-lateral-breathing', 'pilates-chest-lift', 'pilates-pelvic-curl', 'pilates-single-leg-circles', 'pilates-single-leg-stretch', 'pilates-spine-stretch-forward', 'pilates-swimming'],
+  },
+  {
+    key: 'pilates-classical-mat', group: 'pilates', name: "Classical mat, in order",
+    why: "The beginner to intermediate mat order of Joseph Pilates, each exercise flowing into the next.",
+    sessionType: 'pilates', level: 'intermediate', minutes: 45, kit: "A mat",
+    prescription: "5 to 10 reps of each, as one flow. The hundred is 100 pumps of the arms, 5 counts in and 5 out.",
+    exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-single-leg-circles', 'pilates-rolling-like-a-ball', 'pilates-single-leg-stretch', 'pilates-double-leg-stretch', 'pilates-spine-stretch-forward', 'pilates-saw', 'pilates-swan', 'pilates-single-leg-kick', 'pilates-side-kick-series', 'pilates-teaser', 'pilates-seal', 'pilates-push-up'],
+    note: "Keep the head down and rest it whenever the neck takes over from the abdominals. Leave out the rolling exercises with a neck or back injury, osteoporosis, or late in pregnancy.",
+  },
+  {
+    key: 'pilates-abdominal-series', group: 'pilates', name: "The abdominal series",
+    why: "The five of the series back to back, then the teaser, the plank and the side bend.",
+    sessionType: 'pilates', level: 'intermediate', minutes: 25, kit: "A mat",
+    prescription: "8 to 10 reps of each with no rest inside the series. 2 rounds if the first was clean.",
+    exercises: ['pilates-hundred', 'pilates-single-leg-stretch', 'pilates-double-leg-stretch', 'pilates-scissors', 'pilates-criss-cross', 'pilates-teaser', 'pilates-leg-pull-front', 'pilates-side-bend'],
+    note: "Keep the head down and rest it whenever the neck takes over from the abdominals. Leave out the rolling exercises with a neck or back injury, osteoporosis, or late in pregnancy.",
+  },
+  {
+    key: 'pilates-back-posture', group: 'pilates', name: "Pilates for the back",
+    why: "Articulation of the spine, then the extension that sitting all day leaves out.",
+    sessionType: 'pilates', level: 'beginner', minutes: 25, kit: "A mat",
+    prescription: "6 to 8 slow reps of each. Lengthen before you lift; the lift is small.",
+    exercises: ['pilates-pelvic-curl', 'pilates-shoulder-bridge', 'pilates-spine-stretch-forward', 'pilates-swan', 'pilates-single-leg-kick', 'pilates-double-leg-kick', 'pilates-swimming', 'pilates-mermaid'],
+    note: "Stop for a pinch in the lower back. Back pain with numbness, weakness or pain down the leg needs to be seen before exercise.",
+  },
+  {
+    key: 'pilates-reformer-class', group: 'pilates', name: "Reformer class",
+    why: "Footwork, the hundred, straps and rowing, then the elephant, knee stretches and the long stretch. Springs set by the studio.",
+    sessionType: 'pilates', level: 'intermediate', minutes: 50, kit: "A reformer, with an instructor until you know the springs",
+    prescription: "8 to 10 reps of each. Lighter springs make the core work harder, heavier springs make the legs work harder.",
+    exercises: ['reformer-footwork', 'reformer-hundred', 'reformer-feet-in-straps', 'reformer-rowing-series', 'reformer-stomach-massage', 'reformer-elephant', 'reformer-knee-stretches', 'reformer-long-stretch', 'reformer-short-box-series', 'reformer-side-splits', 'reformer-running'],
+    note: "Learn the springs and the straps with an instructor first. The carriage moves: never step on or off it while it is free.",
+  },
+  {
+    key: 'pilates-advanced-mat', group: 'pilates', name: "Advanced mat",
+    why: "The second half of the classical order, for those who flow through the first: roll over, corkscrew, jackknife, boomerang.",
+    sessionType: 'pilates', level: 'advanced', minutes: 50, kit: "A mat",
+    prescription: "3 to 5 reps of each, after the hundred and the roll-up as a warm-up.",
+    exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-roll-over', 'pilates-corkscrew', 'pilates-open-leg-rocker', 'pilates-neck-pull', 'pilates-scissors', 'pilates-bicycle', 'pilates-jackknife', 'pilates-boomerang', 'pilates-control-balance', 'pilates-leg-pull-back'],
+    note: "Keep the head down and rest it whenever the neck takes over from the abdominals. Leave out the rolling exercises with a neck or back injury, osteoporosis, or late in pregnancy. Never roll onto the neck: the weight stays on the shoulder blades.",
+  },
+
+  // ══════════════════════════ HYROX ══════════════════════════
+  {
+    key: 'hyrox-first-stations', group: 'hyrox', name: "Hyrox: learn the stations",
+    why: "Every station once, at half the race volume, walking between them. Technique first, speed later.",
+    sessionType: 'hyrox', level: 'beginner', minutes: 45, kit: "A gym with a SkiErg, a rower, a sled, kettlebells, a sandbag and a wall ball",
+    prescription: "1 round at half volume: 500 m ski, 25 m sled push and pull, 40 m burpee jumps, 500 m row, 100 m carry, 50 m lunges, 50 wall balls.",
+    exercises: ['hyrox-skierg-1000', 'hyrox-sled-push-50', 'hyrox-sled-pull-50', 'hyrox-burpee-broad-jump-80', 'hyrox-row-1000', 'hyrox-farmers-carry-200', 'hyrox-sandbag-lunges-100', 'hyrox-wall-balls-100'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
+  },
+  {
+    key: 'hyrox-race-pace-runs', group: 'hyrox', name: "Hyrox: race-pace kilometres",
+    why: "The eight kilometres are more than half the race. Goal pace, rehearsed, measured by GPS laps.",
+    sessionType: 'hyrox', level: 'intermediate', minutes: 50, kit: "Running shoes, the phone for GPS laps",
+    prescription: "Warm-up kilometre easy, then 6 to 8 x 1 km at goal pace with 90 s rest. Set the laps to 1 km.",
+    exercises: ['hyrox-run-1km', 'hybrid-1km-race-pace-repeats', 'hyrox-roxzone-transitions'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
+  },
+  {
+    key: 'hyrox-compromised-runs', group: 'hyrox', name: "Hyrox: compromised running",
+    why: "A hard station, then a kilometre straight away. The legs learn to run after they have worked.",
+    sessionType: 'hyrox', level: 'intermediate', minutes: 55, kit: "A gym with a wall ball and a sandbag, a treadmill or a loop outside",
+    prescription: "5 rounds: one station block, then 1 km at race pace. Rest 2 minutes between rounds.",
+    exercises: ['hybrid-compromised-running', 'hyrox-wall-ball-unbroken-sets', 'hyrox-run-1km', 'hyrox-sandbag-lunges-100', 'hyrox-burpee-broad-jump-pacing'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
+  },
+  {
+    key: 'hyrox-erg-engine', group: 'hyrox', name: "Hyrox: the erg engine",
+    why: "The two machine stations as intervals. Even splits are the skill.",
+    sessionType: 'hyrox', level: 'intermediate', minutes: 45, kit: "A SkiErg and a rower",
+    prescription: "8 x 250 m ski with 60 s rest, then 5 x 500 m row with equal rest.",
+    exercises: ['hyrox-skierg-250-repeats', 'hyrox-row-500-repeats', 'hyrox-roxzone-transitions'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
+  },
+  {
+    key: 'hyrox-sleds-carries', group: 'hyrox', name: "Hyrox: sleds and carries",
+    why: "The heavy half of the race. Heavier than race weight in training, so race weight feels light.",
+    sessionType: 'hyrox', level: 'advanced', minutes: 60, kit: "A sled on turf, kettlebells or farmers handles, a sandbag",
+    prescription: "6 x 25 m heavy sled push, full rest. 4 x 25 m sled pull. 4 x 50 m heavy carry. 2 x 50 m lunges.",
+    exercises: ['hyrox-sled-push-intervals', 'hyrox-sled-pull-50', 'hyrox-farmers-carry-200', 'hyrox-sandbag-lunges-100'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move. Brace before each push and pull, and keep the back flat.",
+  },
+  {
+    key: 'hyrox-half-simulation', group: 'hyrox', name: "Hyrox: half simulation",
+    why: "Four runs and four stations in race order. Race rhythm without a whole race of fatigue.",
+    sessionType: 'hyrox', level: 'advanced', minutes: 50, kit: "A gym with the stations and room to run",
+    prescription: "4 x (1 km run + one station at race volume). Note every split; the last run should be no slower than the first.",
+    exercises: ['hybrid-half-race-simulation', 'hyrox-run-1km', 'hyrox-skierg-1000', 'hyrox-sled-push-50', 'hyrox-row-1000', 'hyrox-wall-balls-100'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
   },
 ];
 

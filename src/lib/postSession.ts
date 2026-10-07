@@ -88,6 +88,8 @@ export const TYPE_INTENSITY: Record<string, number> = {
   mindbody: 0.15,
   meditation: 0.05,
   custom: 0.5,
+  pilates: 0.3,
+  hyrox: 0.9,
 };
 
 /**

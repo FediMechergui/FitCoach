@@ -753,6 +753,92 @@ export const PROGRAMS: TrainingProgram[] = [
       { key: 'dua', label: 'Du\'a & reflection', purpose: 'Supplication and honest reflection on the day.', exercises: ['dua-supplication', 'gratitude-practice'], prescription: '10 min', minutes: 10, method: 'med-gratitude' },
     ],
   },
+
+  // ══════════════════════════ PILATES (3.9.0) ══════════════════════════
+  {
+    key: 'pil-first-weeks', sessionType: 'pilates', name: 'Pilates Foundations', level: 'beginner',
+    blurb: 'Three short mat sessions a week that teach the breath, the neutral pelvis and the first exercises of the order.',
+    daysPerWeek: 3, blockWeeks: 6,
+    bestFor: 'A first Pilates practice, or coming back to it after a long break or a sore back',
+    progressMarker: 'The single leg stretch and the swimming flowing without the pelvis rocking, and the curl-up becoming a roll-up.',
+    icon: 'mindbody.pilates',
+    days: [
+      { key: 'a', label: 'Day A — Breath and curl', purpose: 'The breath and the abdominal curl that everything else is built on.', exercises: ['pilates-lateral-breathing', 'pilates-chest-lift', 'pilates-pelvic-curl', 'pilates-single-leg-circles', 'pilates-single-leg-stretch'], prescription: '6–8 slow reps each · 30 min', minutes: 30, method: 'pil-foundations' },
+      { key: 'b', label: 'Day B — Back and sides', purpose: 'Extension and the side of the body, which most days leave out.', exercises: ['pilates-pelvic-curl', 'pilates-swan', 'pilates-swimming', 'pilates-side-kick-series', 'pilates-spine-stretch-forward'], prescription: '6–8 reps each · 30 min', minutes: 30, method: 'pil-back-care' },
+      { key: 'c', label: 'Day C — The first order', purpose: 'The opening of the classical order, joined up.', exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-rolling-like-a-ball', 'pilates-single-leg-stretch', 'pilates-double-leg-stretch', 'pilates-seal'], prescription: '5–8 reps each, flowing · 35 min', minutes: 35, method: 'pil-classical-mat' },
+    ],
+  },
+  {
+    key: 'pil-mat-order', sessionType: 'pilates', name: 'The Classical Mat', level: 'intermediate',
+    blurb: 'Three sessions built on Joseph Pilates’ mat order: the full intermediate sequence, a core day and a back day.',
+    daysPerWeek: 3, blockWeeks: 8,
+    bestFor: 'Those who know the basics and want the whole order, flowing',
+    progressMarker: 'The order done without stopping, and the teaser and the push-up clean at the end of it.',
+    icon: 'mindbody.pilates',
+    days: [
+      { key: 'order', label: 'The order', purpose: 'The intermediate mat order from the hundred to the push-up.', exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-single-leg-circles', 'pilates-rolling-like-a-ball', 'pilates-single-leg-stretch', 'pilates-double-leg-stretch', 'pilates-spine-stretch-forward', 'pilates-saw', 'pilates-swan', 'pilates-single-leg-kick', 'pilates-side-kick-series', 'pilates-teaser', 'pilates-seal', 'pilates-push-up'], prescription: '5–10 reps each, one flow · 45 min', minutes: 45, method: 'pil-classical-mat' },
+      { key: 'core', label: 'Core power', purpose: 'The abdominal series and the planks, back to back.', exercises: ['pilates-hundred', 'pilates-scissors', 'pilates-criss-cross', 'pilates-teaser', 'pilates-leg-pull-front', 'pilates-side-bend'], prescription: '8–10 reps · 30 min', minutes: 30, method: 'pil-core-power' },
+      { key: 'back', label: 'Back and posture', purpose: 'The extension half of the order.', exercises: ['pilates-swan', 'pilates-double-leg-kick', 'pilates-swimming', 'pilates-mermaid', 'pilates-spine-stretch-forward'], prescription: '6–8 reps · 30 min', minutes: 30, method: 'pil-back-care' },
+    ],
+  },
+  {
+    key: 'pil-reformer-mat', sessionType: 'pilates', name: 'Reformer & Mat', level: 'intermediate',
+    blurb: 'Two reformer classes and one mat session a week: the springs for strength, the mat for control without them.',
+    daysPerWeek: 3, blockWeeks: 8,
+    bestFor: 'Anyone with access to a reformer studio',
+    progressMarker: 'The long stretch and the elephant done on lighter springs with the same control.',
+    icon: 'mindbody.pilates',
+    days: [
+      { key: 'r1', label: 'Reformer — full body', purpose: 'A complete reformer class.', exercises: ['reformer-footwork', 'reformer-hundred', 'reformer-feet-in-straps', 'reformer-rowing-series', 'reformer-elephant', 'reformer-long-stretch'], prescription: '8–10 reps · 50 min', minutes: 50, method: 'pil-reformer' },
+      { key: 'r2', label: 'Reformer — core and legs', purpose: 'The core series of the reformer and the standing leg work.', exercises: ['reformer-footwork', 'reformer-knee-stretches', 'reformer-short-box-series', 'reformer-stomach-massage', 'reformer-side-splits', 'reformer-running'], prescription: '8–10 reps · 50 min', minutes: 50, method: 'pil-reformer' },
+      { key: 'mat', label: 'Mat', purpose: 'The same control with nothing to help.', exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-single-leg-stretch', 'pilates-swan', 'pilates-teaser', 'pilates-push-up'], prescription: '6–8 reps · 35 min', minutes: 35, method: 'pil-classical-mat' },
+    ],
+  },
+
+  // ══════════════════════════ HYROX (3.9.0) ══════════════════════════
+  // Training for the race format; Hyrox is a trademark of its owners.
+  {
+    key: 'hyx-first-race', sessionType: 'hyrox', name: 'First Hyrox', level: 'beginner',
+    blurb: 'Twelve weeks to finish a first race strongly: one running day, one station day, one engine day, and a simulation every few weeks.',
+    daysPerWeek: 3, blockWeeks: 12,
+    bestFor: 'Someone who can run 5 km and lift a little, aiming at their first finish',
+    progressMarker: 'A half simulation finished with the last run no slower than the first.',
+    icon: 'cardio.hyrox',
+    days: [
+      { key: 'run', label: 'Run', purpose: 'The eight kilometres are most of the race: build them first.', exercises: ['hyrox-run-1km', 'hybrid-1km-race-pace-repeats'], prescription: '4–6 × 1 km at goal pace, 2 min rest · GPS laps', minutes: 45, method: 'hyx-race-pace-runs' },
+      { key: 'stations', label: 'Stations', purpose: 'Learn every station and its technique before adding speed.', exercises: ['hyrox-station-circuit', 'hyrox-sled-push-50', 'hyrox-wall-balls-100', 'hyrox-burpee-broad-jump-80'], prescription: '1 round of the eight at half volume, walking between', minutes: 50, method: 'hyx-stations' },
+      { key: 'engine', label: 'Engine', purpose: 'The ski and the rower as intervals.', exercises: ['hyrox-skierg-250-repeats', 'hyrox-row-500-repeats'], prescription: '6 × 250 m ski · 4 × 500 m row', minutes: 45, method: 'hyx-erg-engine' },
+    ],
+  },
+  {
+    key: 'hyx-faster-finish', sessionType: 'hyrox', name: 'Faster Finish', level: 'intermediate',
+    blurb: 'Four days a week for a race already done once: compromised running, heavy sleds, race-pace runs and a half simulation.',
+    daysPerWeek: 4, blockWeeks: 10,
+    bestFor: 'Finishers who want a faster time, usually through the runs after the stations',
+    progressMarker: 'The run after the lunges within 20 seconds of your fresh 1 km time.',
+    icon: 'cardio.hyrox',
+    days: [
+      { key: 'compromised', label: 'Compromised running', purpose: 'Running on legs that have just worked — what the race really asks.', exercises: ['hybrid-compromised-running', 'hyrox-run-1km', 'hyrox-wall-ball-unbroken-sets', 'hyrox-sandbag-lunges-100'], prescription: '5 × (station block + 1 km)', minutes: 55, method: 'hyx-compromised' },
+      { key: 'sleds', label: 'Sleds and carries', purpose: 'Make race weight feel light.', exercises: ['hyrox-sled-push-intervals', 'hyrox-sled-pull-50', 'hyrox-farmers-carry-200'], prescription: 'Heavy pushes, full rest · pulls · heavy carries', minutes: 60, method: 'hyx-sled-strength' },
+      { key: 'pace', label: 'Race-pace runs', purpose: 'Goal pace, rehearsed until it is automatic.', exercises: ['hybrid-1km-race-pace-repeats', 'hyrox-run-1km'], prescription: '6–8 × 1 km at goal pace, 90 s rest', minutes: 50, method: 'hyx-race-pace-runs' },
+      { key: 'sim', label: 'Half simulation', purpose: 'Race rhythm every other week; the engine day on the other weeks.', exercises: ['hybrid-half-race-simulation', 'hyrox-skierg-1000', 'hyrox-row-1000'], prescription: 'Half simulation, or 6 × 250 m ski + 4 × 500 m row', minutes: 50, method: 'hyx-half-sim' },
+    ],
+  },
+  {
+    key: 'hyx-pro-block', sessionType: 'hyrox', name: 'Pro Block', level: 'advanced',
+    blurb: 'Five days for experienced racers: two run sessions, a station day, a sled day and a full simulation every third week.',
+    daysPerWeek: 5, blockWeeks: 8,
+    bestFor: 'Racers chasing a podium in their age group, with a training history to absorb the volume',
+    progressMarker: 'Run splits within 10 seconds of each other across a full simulation.',
+    icon: 'cardio.hyrox',
+    days: [
+      { key: 'threshold', label: 'Threshold runs', purpose: 'The aerobic ceiling, raised.', exercises: ['hybrid-1km-race-pace-repeats', 'hyrox-run-1km'], prescription: '8 × 1 km slightly under race pace, 60 s rest', minutes: 55, method: 'hyx-race-pace-runs' },
+      { key: 'compromised', label: 'Compromised running', purpose: 'Every station followed by a hard kilometre.', exercises: ['hybrid-compromised-running', 'hyrox-run-1km', 'hyrox-burpee-broad-jump-pacing', 'hyrox-wall-ball-unbroken-sets'], prescription: '6 × (station + 1 km)', minutes: 60, method: 'hyx-compromised' },
+      { key: 'stations', label: 'Station circuit', purpose: 'Technique at race volume, tired.', exercises: ['hyrox-station-circuit', 'hyrox-roxzone-transitions'], prescription: '2 rounds at half volume, fast transitions', minutes: 60, method: 'hyx-stations' },
+      { key: 'sleds', label: 'Sleds and carries', purpose: 'Heavy and short.', exercises: ['hyrox-sled-push-intervals', 'hyrox-sled-pull-50', 'hyrox-farmers-carry-200', 'hyrox-sandbag-lunges-100'], prescription: 'Above race weight, full rest', minutes: 60, method: 'hyx-sled-strength' },
+      { key: 'sim', label: 'Simulation or engine', purpose: 'A full simulation every third week; ergs on the others.', exercises: ['fitness-race-simulation', 'hyrox-skierg-250-repeats', 'hyrox-row-500-repeats'], prescription: 'Full simulation, or 10 × 250 m ski + 6 × 500 m row', minutes: 90, method: 'hyx-race-sim' },
+    ],
+  },
 ];
 
 export function programsFor(sessionType: SessionType): TrainingProgram[] {

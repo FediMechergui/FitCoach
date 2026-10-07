@@ -38,6 +38,14 @@ export const SESSION_TYPE_META: SessionTypeMeta[] = [
     flow: 'cardio',
   },
   {
+    type: 'hyrox',
+    label: 'Hyrox',
+    icon: sessionTypeIcon('hyrox'),
+    color: SESSION_TYPE_COLORS.hyrox,
+    blurb: 'Runs between stations: sled, row, wall balls',
+    flow: 'cardio',
+  },
+  {
     type: 'outdoor',
     label: 'Outdoor',
     icon: sessionTypeIcon('outdoor'),
@@ -66,7 +74,15 @@ export const SESSION_TYPE_META: SessionTypeMeta[] = [
     label: 'Mind-Body',
     icon: sessionTypeIcon('mindbody'),
     color: SESSION_TYPE_COLORS.mindbody,
-    blurb: 'Yoga, Pilates, mobility',
+    blurb: 'Yoga, mobility, tai chi',
+    flow: 'mindbody',
+  },
+  {
+    type: 'pilates',
+    label: 'Pilates',
+    icon: sessionTypeIcon('pilates'),
+    color: SESSION_TYPE_COLORS.pilates,
+    blurb: 'Mat, reformer, the classical order',
     flow: 'mindbody',
   },
   {

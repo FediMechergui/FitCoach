@@ -148,6 +148,10 @@ export const SESSION_TYPES = [
   'mindbody',
   'meditation',
   'custom',
+  // 3.9.0 — two categories of their own. Appended, never inserted: the value is
+  // what is stored on every session row, and nothing else may move.
+  'pilates',
+  'hyrox',
 ] as const;
 export type SessionType = (typeof SESSION_TYPES)[number];
 

@@ -54,6 +54,10 @@ export const SESSION_TYPE_MET: Record<string, number> = {
   mindbody: 3,
   meditation: 1.3,
   custom: 4,
+  // Compendium: Pilates (mat, general) ~3.0; a Hyrox-style race mixes running
+  // at ~10 with stations at ~6–8, about 8.5 averaged over a session.
+  pilates: 3,
+  hyrox: 8.5,
 };
 
 /**

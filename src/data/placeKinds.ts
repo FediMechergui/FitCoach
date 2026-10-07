@@ -43,7 +43,7 @@ export interface PlaceKindDef {
 }
 
 export const PLACE_KINDS: PlaceKindDef[] = [
-  { key: 'gym', label: 'Gym', local: 'Salle de sport', icon: 'strength.barbell', color: '#6FA7F5', fits: ['strength', 'cardio', 'calisthenics'], hint: 'Racks, dumbbells up to what weight, opening hours, busy times.' },
+  { key: 'gym', label: 'Gym', local: 'Salle de sport', icon: 'strength.barbell', color: '#6FA7F5', fits: ['strength', 'cardio', 'calisthenics', 'hyrox'], hint: 'Racks, dumbbells up to what weight, opening hours, busy times.' },
   { key: 'boxing_gym', label: 'Boxing gym', local: 'Salle de boxe', icon: 'sport.boxing', color: '#E4596B', fits: ['martial_arts', 'cardio'], hint: 'Ring, bags, coached classes, sparring days.' },
   { key: 'dojo', label: 'Dojo or martial arts club', local: 'Dojo / club d’arts martiaux', icon: 'martial.belt', color: '#E4596B', fits: ['martial_arts'], hint: 'Style taught, mat days, gi or no-gi, beginners welcome.' },
   { key: 'calisthenics_park', label: 'Calisthenics park', local: 'Parc de street workout', icon: 'strength.pullup', color: '#9A8CFA', fits: ['calisthenics', 'outdoor'], hint: 'Bars, dip station, rings, shade, lighting at night.' },
@@ -56,7 +56,7 @@ export const PLACE_KINDS: PlaceKindDef[] = [
   { key: 'track', label: 'Running track', local: 'Piste d’athlétisme', icon: 'cardio.running', color: '#FF8663', fits: ['outdoor', 'cardio', 'sport'], hint: 'Surface, lanes, public hours.' },
   { key: 'climbing', label: 'Climbing wall or crag', local: 'Mur / site d’escalade', icon: 'cardio.elevation', color: '#45D9A0', fits: ['sport', 'outdoor'], hint: 'Bouldering or ropes, grades, gear hire, instruction.' },
   { key: 'riding_club', label: 'Riding club', local: 'Club hippique', icon: 'sport.horse', color: '#C69368', fits: ['sport', 'outdoor'], hint: 'Lessons, arena, trail rides, price per lesson.' },
-  { key: 'studio', label: 'Yoga or Pilates studio', local: 'Studio de yoga / Pilates', icon: 'mindbody.yoga', color: '#6FD4E4', fits: ['mindbody', 'meditation'], hint: 'Class timetable, styles, mats provided.' },
+  { key: 'studio', label: 'Yoga or Pilates studio', local: 'Studio de yoga / Pilates', icon: 'mindbody.yoga', color: '#6FD4E4', fits: ['pilates', 'mindbody', 'meditation'], hint: 'Class timetable, styles, mats provided.' },
   { key: 'beach', label: 'Beach', local: 'Plage', icon: 'sport.surf', color: '#58C8F0', fits: ['outdoor', 'sport', 'cardio'], hint: 'Sand firmness for running, swimming conditions, crowds.' },
   { key: 'trail', label: 'Trail or route', local: 'Sentier / parcours', icon: 'cardio.hiking', color: '#45D9A0', fits: ['outdoor'], hint: 'Distance, climb, shade, water points.' },
   { key: 'park', label: 'Park', local: 'Parc / jardin public', icon: 'cardio.walk', color: '#45D9A0', fits: ['outdoor', 'calisthenics', 'mindbody'], hint: 'Loop length, surface, opening hours.' },

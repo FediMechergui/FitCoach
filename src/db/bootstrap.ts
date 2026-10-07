@@ -75,8 +75,12 @@ import { seedExerciseLibrary } from './seed';
  *                  (a session keeps its GPS trace), set_entries.gps_from/gps_to
  *                  (a set's slice of that trace), users.training_focus; and the
  *                  sit-up variations, which the bump re-seeds.
+ *   40 → 41 v3.9.0: Pilates and Hyrox become session types of their own: +48
+ *                  exercises, and 25 built-ins moved to the new types by slug.
+ *                  No new table or column: the bump re-seeds, and logged
+ *                  sessions keep the type they were logged as.
  */
-const SCHEMA_VERSION = 40;
+const SCHEMA_VERSION = 41;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

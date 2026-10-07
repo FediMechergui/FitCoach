@@ -161,6 +161,11 @@ import { exerciseTip, focusPhaseNote, GOAL_FROM_PHASE, PHASE_FROM_GOAL, FOCUS_ME
 import { formatPace as formatPace380 } from '../src/lib/format';
 import { routeDistanceM as routeDistanceM380, type LatLng as LatLng380 } from '../src/lib/geo';
 import { READY_SESSIONS, READY_GROUP_META, READY_GROUP_ORDER, readySessionsIn, findReadySession, readyStyleTag, parseReadyStyle } from '../src/data/readySessions';
+import { SESSION_TYPES } from '../src/db/schema';
+import { SESSION_TYPE_META } from '../src/constants/sessionTypes';
+import { SESSION_TYPE_COLORS } from '../src/theme';
+import { sessionTypeIcon } from '../src/constants/icon-map';
+import { SESSION_TYPE_MET } from '../src/lib/met';
 import { SPECIAL_DIET_BUILDS } from '../src/data/specialDietPlans';
 import { subMuscleOf, subMusclesFor } from '../src/lib/subMuscle';
 import { estimateDifficulty, findEasierAlternatives, matchQuality, type AltExercise } from '../src/lib/exerciseAlternatives';
@@ -5002,7 +5007,8 @@ console.log('\nReady sessions 3.6.0 - one session, already written:');
   const lib = new Map(EXLIB.map((e) => [e.slug, e]));
   const RS = READY_SESSIONS;
   // Superseded by 3.7.0: four groups joined the rail (kit, rehab, gentle, mother), fifteen in all.
-  check('More than a hundred sessions, in fifteen groups', RS.length >= 150 && READY_GROUP_ORDER.length === 15, `${RS.length}`);
+  // Superseded by 3.9.0: Pilates and Hyrox joined the rail, seventeen in all.
+  check('More than a hundred sessions, in seventeen groups', RS.length >= 160 && READY_GROUP_ORDER.length === 17, `${RS.length}`);
   check('Every group has a name, a short name for the rail, a line and an icon', READY_GROUP_ORDER.every((g) => { const m = READY_GROUP_META[g]; return !!m && m.label.length > 2 && m.short.length > 2 && m.short.length <= 16 && m.blurb.length > 20 && /^[a-z]+\.[A-Za-z]+$/.test(m.icon); }));
   check('Every group holds at least six sessions', READY_GROUP_ORDER.every((g) => readySessionsIn(g).length >= 6), READY_GROUP_ORDER.map((g) => `${g}:${readySessionsIn(g).length}`).join());
   check('No session belongs to a group that is not on the rail', RS.every((x) => READY_GROUP_ORDER.includes(x.group)));
@@ -5337,6 +5343,38 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   check('The new binary is versionCode 4 and may vibrate', /versionCode: 4,/.test(cfg) && /'VIBRATE'/.test(cfg) && /version: '2\.0\.0'/.test(cfg));
   const srcAll = (function walk(dir: string): string[] { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : /\.(ts|tsx)$/.test(d.name) ? [`${dir}/${d.name}`] : [])); })('src');
   check('Nothing calls the Vibration API: the update also runs on the older binary that lacks the permission', srcAll.every((f) => !/Vibration\.vibrate\(/.test(fs.readFileSync(f, 'utf8'))));
+}
+
+console.log('\nPilates & Hyrox 3.9.0 - two categories of their own:');
+{
+  const NEW = ['pilates', 'hyrox'] as const;
+  check('Both are session types, after the ones that were there', NEW.every((t) => (SESSION_TYPES as readonly string[]).includes(t)) && SESSION_TYPES.indexOf('strength' as never) === 0);
+  check('Both have a place on the type picker, a colour and an icon', NEW.every((t) => SESSION_TYPE_META.some((m) => m.type === t) && /^#[0-9A-F]{6}$/i.test(SESSION_TYPE_COLORS[t] ?? '') && !!(ICONS as unknown as Record<string, Record<string, unknown>>)[sessionTypeIcon(t).split('.')[0]]?.[sessionTypeIcon(t).split('.')[1]]));
+  check('...and every type, old or new, has all three', (SESSION_TYPES as readonly string[]).every((t) => SESSION_TYPE_META.some((m) => m.type === t) && !!SESSION_TYPE_COLORS[t] && !!(ICONS as unknown as Record<string, Record<string, unknown>>)[sessionTypeIcon(t).split('.')[0]]?.[sessionTypeIcon(t).split('.')[1]]));
+  check('A Pilates class burns like Pilates, a Hyrox race like a hard race', SESSION_TYPE_MET.pilates >= 2.5 && SESSION_TYPE_MET.pilates <= 4 && SESSION_TYPE_MET.hyrox >= 7 && SESSION_TYPE_MET.hyrox <= 10);
+  check('Hyrox is hard training for digestion, Pilates is not', intensityForSessionType('hyrox' as never) !== intensityForSessionType('pilates' as never));
+  const lib = new Map(EXLIB.map((e) => [e.slug, e]));
+  const pil = EXLIB.filter((e) => e.sessionType === 'pilates' && !e.aliasOf);
+  const hyx = EXLIB.filter((e) => e.sessionType === 'hyrox' && !e.aliasOf);
+  check('Pilates holds the classical mat order and the reformer', pil.length >= 50 && ['pilates-hundred', 'pilates-roll-up', 'pilates-teaser', 'pilates-corkscrew', 'pilates-jackknife', 'pilates-boomerang', 'pilates-seal', 'reformer-footwork', 'reformer-long-stretch', 'reformer-elephant'].every((k) => lib.get(k)?.sessionType === 'pilates'), `${pil.length}`);
+  check('Hyrox holds the run and all eight stations, in race distances', hyx.length >= 20 && ['hyrox-run-1km', 'hyrox-skierg-1000', 'hyrox-sled-push-50', 'hyrox-sled-pull-50', 'hyrox-burpee-broad-jump-80', 'hyrox-row-1000', 'hyrox-farmers-carry-200', 'hyrox-sandbag-lunges-100', 'hyrox-wall-balls-100'].every((k) => lib.get(k)?.sessionType === 'hyrox'), `${hyx.length}`);
+  check('The Pilates and race entries written before 3.9.0 moved over, by slug', ['pilates', 'reformer-pilates', 'pilates-hundred', 'wall-pilates', 'pilates-chair-class', 'fitness-race-simulation', 'hybrid-compromised-running', 'hybrid-1km-race-pace-repeats'].every((k) => lib.get(k)?.sessionType === (k.includes('pilates') ? 'pilates' : 'hyrox')));
+  check('...but pregnancy and after-birth Pilates stay with their families', lib.get('prenatal-pilates-class')?.sessionType === 'mindbody' && lib.get('postnatal-pilates-class')?.sessionType === 'mindbody');
+  check('Every new exercise has its video', [...pil, ...hyx].every((e) => !!EXERCISE_VIDEOS[e.slug]), [...pil, ...hyx].filter((e) => !EXERCISE_VIDEOS[e.slug]).map((e) => e.slug).join());
+  for (const t of NEW) {
+    const ms = methodsFor(t as never);
+    const ps = programsFor(t as never);
+    check(`${t}: methods and programmes of its own, for every level`, ms.length >= 7 && ps.length >= 3 && ['beginner', 'intermediate'].every((l) => ps.some((p) => p.level === l)) && (t === 'pilates' || ps.some((p) => p.level === 'advanced')), `${ms.length} methods, ${ps.length} programmes`);
+    const badM = ms.flatMap((m) => (m.prefillSlugs ?? []).filter((k) => lib.get(k)?.sessionType !== t || lib.get(k)?.aliasOf).map((k) => `${m.key}:${k}`));
+    check(`${t}: every method prefills exercises of its own type`, badM.length === 0, badM.join());
+    const badP = ps.flatMap((p) => p.days.flatMap((d) => [...d.exercises.filter((k) => lib.get(k)?.sessionType !== t || lib.get(k)?.aliasOf).map((k) => `${p.key}/${d.key}:${k}`), ...(d.method && !findMethod(d.method) ? [`${p.key}/${d.key}:method ${d.method}`] : [])]));
+    check(`${t}: every programme day names exercises and methods that exist`, badP.length === 0, badP.join());
+    check(`${t}: ready sessions of its own on the rail`, READY_GROUP_ORDER.includes(t as never) && readySessionsIn(t as never).length >= 6 && readySessionsIn(t as never).every((x) => x.sessionType === t));
+  }
+  check('Every Hyrox ready session says the name is not ours', readySessionsIn('hyrox' as never).every((x) => /trademark of its owners/.test(x.note ?? '')));
+  check('The rolling Pilates sessions warn about the neck', ['pilates-classical-mat', 'pilates-advanced-mat'].every((k) => /neck/.test(findReadySession(k)?.note ?? '')));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('Schema 41 re-seeds the library so the moves reach old installs', /const SCHEMA_VERSION = (4[1-9]|[5-9]\d);/.test(boot) && /40 → 41 v3\.9\.0/.test(boot));
 }
 
 console.log('\nLocal APK 3.8.0 - built here, signed like EAS, secrets kept out:');

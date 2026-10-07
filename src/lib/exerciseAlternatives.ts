@@ -86,6 +86,7 @@ const FLOW: Record<string, string> = {
   strength: 'lifting', calisthenics: 'lifting',
   cardio: 'cardio', outdoor: 'cardio', sport: 'cardio', martial_arts: 'cardio',
   mindbody: 'mindbody', meditation: 'mindbody',
+  pilates: 'mindbody', hyrox: 'cardio',
 };
 
 export interface AltResult extends AltExercise {

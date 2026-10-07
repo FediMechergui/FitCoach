@@ -5392,5 +5392,47 @@ console.log('\nLocal APK 3.8.0 - built here, signed like EAS, secrets kept out:'
   check('npm run build:apk:local exists', JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts['build:apk:local'] === 'node scripts/build-apk.js');
 }
 
+console.log('\nDeeper libraries - 3.9.1: forearms, Pilates, Hyrox:');
+{
+  const lib = new Map(EXLIB.map((e) => [e.slug, e]));
+  const fa = EXLIB.filter((e) => e.primaryMuscle === 'forearms' && !e.aliasOf);
+  check('The forearms have ninety exercises, every one of the four jobs well served', fa.length >= 85 && ['brachioradialis', 'wrist_flexors', 'wrist_extensors', 'grip'].every((m) => fa.filter((e) => e.subMuscle === m).length >= 10), ['brachioradialis', 'wrist_flexors', 'wrist_extensors', 'grip'].map((m) => `${m}:${fa.filter((e) => e.subMuscle === m).length}`).join());
+  check('...pinch, crush, support and rotation all among them', ['plate-hub-lift', 'block-weight-hold', 'hand-gripper-negative', 'thick-handle-farmers-carry', 'sledgehammer-pronation', 'sledgehammer-levering', 'ez-bar-reverse-curl', 'machine-wrist-curl'].every((k) => lib.get(k)?.primaryMuscle === 'forearms'));
+  check('No grip brand in a name', fa.every((e) => !/captains of crush|rolling thunder|ironmind|fat gripz/i.test(e.name)));
+  const pil = EXLIB.filter((e) => e.sessionType === 'pilates' && !e.aliasOf);
+  check('Pilates has more than 150 exercises, on the mat and on every apparatus', pil.length >= 150 && ['reformer-', 'cadillac-', 'wunda-chair-', 'ladder-barrel-', 'spine-corrector-', 'pilates-magic-circle-', 'pilates-foam-roller-'].every((pre) => pil.filter((e) => e.slug.startsWith(pre)).length >= 3), `${pil.length}`);
+  check('The Wunda chair never takes the chair- prefix of the seniors family', !pil.some((e) => e.slug.startsWith('chair-')) && pil.filter((e) => e.slug.startsWith('wunda-chair-')).every((e) => e.category === 'pilates'));
+  check('Inversions and rolling on the apparatus keep weight off the neck', ['cadillac-breathing', 'cadillac-tower', 'reformer-short-spine-massage', 'reformer-long-spine-massage', 'reformer-semi-circle'].every((k) => /neck/i.test((lib.get(k)?.instructions ?? []).join(' '))));
+  check('A moving carriage is never stepped on or off', ['reformer-horseback', 'reformer-snake-and-twist', 'reformer-up-stretch', 'reformer-scooter'].every((k) => /step on or off|never step|free carriage|mount or dismount|while it is free|step onto a free/i.test((lib.get(k)?.instructions ?? []).join(' ') + (lib.get(k)?.description ?? ''))));
+  const hyx = EXLIB.filter((e) => e.sessionType === 'hyrox' && !e.aliasOf);
+  check('Hyrox has more than fifty exercises: stations, Pro division, formats and bricks', hyx.length >= 55 && hyx.filter((e) => e.slug.startsWith('hyrox-pro-')).length >= 5 && hyx.filter((e) => /brick/.test(e.slug)).length >= 8 && !!lib.get('hyrox-relay'), `${hyx.length}`);
+  check('Pro weights are written as the race standard: 202 kg sled push, 9 kg wall ball for men', /202/.test(JSON.stringify(lib.get('hyrox-pro-sled-push-50'))) && /9 kg/.test(JSON.stringify(lib.get('hyrox-pro-wall-balls-100'))));
+  check('Every one of the 194 has its video', [...fa, ...pil, ...hyx].every((e) => !!EXERCISE_VIDEOS[e.slug]), [...fa, ...pil, ...hyx].filter((e) => !EXERCISE_VIDEOS[e.slug]).map((e) => e.slug).join());
+  check('The new apparatus, props and Hyrox bricks are in ready sessions', ['pilates-props', 'pilates-cadillac-chair', 'pilates-barrels', 'pilates-mat-second-half', 'hyrox-bricks', 'hyrox-pro-stations'].every((k) => !!findReadySession(k)));
+  const boot = fs.readFileSync('src/db/bootstrap.ts', 'utf8');
+  check('Schema 42 re-seeds them', /const SCHEMA_VERSION = (4[2-9]|[5-9]\d);/.test(boot) && /41 → 42 v3\.9\.1/.test(boot));
+}
+
+console.log('\nEvery release is an OTA that lands - 3.9.1:');
+{
+  const rel = fs.readFileSync('scripts/release.js', 'utf8');
+  const at = (re: RegExp) => rel.search(re);
+  const publish = at(/run\(`eas update --branch/);
+  check('Nothing is published from uncommitted or unpushed code', at(/git status --porcelain --untracked-files=no/) > -1 && at(/rev-list --count @\{u\}\.\.HEAD/) > -1 && at(/git status --porcelain/) < publish);
+  check('...nor code that fails the type check or this suite', at(/quiet\('npx tsc --noEmit'\)/) > -1 && at(/quiet\('npx tsx scripts\/verify-engines\.ts'\)/) > -1 && at(/verify-engines\.ts'\)/) < publish);
+  check('...nor code whose native side differs from the installed APK', at(/np\.differences\(base, np\.currentProfile\(\)\)/) > -1 && at(/np\.differences/) < publish);
+  check('A dry run checks everything and publishes nothing', at(/if \(checkOnly\)/) > -1 && at(/if \(checkOnly\)/) < publish);
+  check('The update is read back from EAS before any tag or GitHub Release', at(/eas update:list --branch/) > publish && at(/eas update:list --branch/) < at(/git tag -a/) && /latest\.runtimeVersion === expectedRuntime/.test(rel) && /\/android\/\.test/.test(rel));
+  const np = fs.readFileSync('scripts/native-profile.js', 'utf8');
+  check('The native profile covers permissions, plugins, the runtime, native dependencies and local modules', ['permissions', 'plugins', 'runtimeVersion', 'nativeDependencies', 'localModules', 'configPlugins', 'updates'].every((k) => np.includes(k)));
+  const base = JSON.parse(fs.readFileSync('scripts/native-baseline.json', 'utf8'));
+  check('A baseline is committed for the installed APK, and it holds nothing secret', !!base.apk && Object.keys(base.dependencies).length > 10 && !/password|keystore|secret|token|apiKey/i.test(JSON.stringify(base)));
+  check('The baseline APK listens on the channel releases publish to', base.config.updates?.requestHeaders?.['expo-channel-name'] === 'preview' && /const branch = 'preview'/.test(rel));
+  check('The baseline runtime is the app version, which stays 2.0.0', base.config.runtimeVersion?.policy === 'appVersion' && base.config.version === '2.0.0');
+  const ba = fs.readFileSync('scripts/build-apk.js', 'utf8');
+  check('A local APK lands in builds/, out of reach of the update export that empties dist/', /path\.join\(root, 'builds'\)/.test(ba) && /^\/builds\/\r?$/m.test(fs.readFileSync('.gitignore', 'utf8')));
+  check('...and records its native baseline when it is signed for the phone', /writeBaseline\(path\.basename\(out\)\)/.test(ba) && ba.indexOf('writeBaseline') > ba.indexOf('if (warm)'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

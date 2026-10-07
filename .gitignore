@@ -4,6 +4,8 @@ node_modules/
 # Expo
 .expo/
 dist/
+# Local APKs (npm run build:apk:local)
+/builds/
 web-build/
 expo-env.d.ts
 

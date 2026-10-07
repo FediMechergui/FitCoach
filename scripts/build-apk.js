@@ -145,8 +145,14 @@ const cfg = fs.readFileSync(path.join(root, 'app.config.ts'), 'utf8');
 const vc = (cfg.match(/versionCode:\s*(\d+)/) || [])[1] || 'x';
 // The release name is the newest changelog entry, e.g. 3.8.0.
 const release = (fs.readFileSync(path.join(root, 'src', 'data', 'changelog.ts'), 'utf8').match(/version: '([\d.]+)'/) || [])[1] || 'local';
-const outDir = path.join(root, 'dist');
+// Not dist/: `eas update` exports its bundle there and empties the folder first,
+// which deleted the 3.8.0 APK the first time a release followed a build.
+const outDir = path.join(root, 'builds');
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, `FitCoach-${release}-vc${vc}.apk`);
 fs.copyFileSync(apk, out);
 console.log(`\n✓ ${path.relative(root, out)} — signed with the EAS key, installs over the app and keeps its data.\n`);
+// The native side of this APK is what every later OTA release is checked against
+// (scripts/release.js): commit scripts/native-baseline.json with the next release.
+require('./native-profile').writeBaseline(path.basename(out));
+console.log('✓ Native baseline recorded in scripts/native-baseline.json — commit it, and install this APK before the next release.\n');

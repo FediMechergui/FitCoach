@@ -8,9 +8,18 @@
  *   4. publishes a GitHub Release for that tag with the CHANGELOG.md notes
  *      → the repo's Releases tab shows a titled, "Latest"-badged release
  *
+ * Every release is an OTA release, and it has to land. Before anything is
+ * published it checks that the code is committed and pushed (the update IS that
+ * commit), that it type-checks and passes the guard suite, and that its native
+ * side is the one the installed APK has (scripts/native-profile.js) — an update
+ * that needs native code the APK lacks would crash on the phone. After
+ * publishing, it reads the update back from EAS and only tags and announces
+ * the release once the update is live on the channel the app listens to.
+ *
  * Usage:
  *   npm run release                 # message defaults to the changelog title
  *   npm run release "hotfix: …"     # custom update message
+ *   npm run release -- --check      # run every check, publish nothing
  *
  * Requires: eas-cli installed & logged in (`eas login`), and a clean-ish git tree.
  * For the GitHub Release step, one of:
@@ -82,14 +91,89 @@ function notesForVersion(v) {
   return body ? body.trim() : '';
 }
 
-const message = process.argv.slice(2).join(' ').trim() || title;
+const checkOnly = process.argv.includes('--check');
+const message = process.argv.slice(2).filter((a) => a !== '--check').join(' ').trim() || title;
 const branch = 'preview';
 
 console.log(`\nReleasing FitCoach v${version} to channel "${branch}"`);
 console.log(`Patch note: ${message}`);
 
+// ── 0. Preflight: nothing is published that cannot land ──────────────────────
+let expectedRuntime = null;
+function stop(why) {
+  console.error(`\n✗ Release stopped, nothing was published: ${why}\n`);
+  process.exit(1);
+}
+function quiet(cmd) {
+  try {
+    execSync(cmd, { encoding: 'utf8', stdio: 'pipe', maxBuffer: 64 * 1024 * 1024 });
+    return null;
+  } catch (e) {
+    return String((e.stdout || '') + (e.stderr || '')).trim().split('\n').slice(-25).join('\n');
+  }
+}
+{
+  const dirty = capture('git status --porcelain --untracked-files=no');
+  if (dirty) stop(`uncommitted changes — the update must be exactly a commit:\n${dirty}`);
+  tryCapture('git fetch -q origin');
+  const ahead = tryCapture('git rev-list --count @{u}..HEAD');
+  if (ahead === null) stop('this branch has no upstream to compare with; push it first.');
+  if (Number(ahead) > 0) stop(`${ahead} commit(s) not pushed — push before releasing.`);
+  console.log('\n✓ Committed and pushed');
+
+  const tsc = quiet('npx tsc --noEmit');
+  if (tsc !== null) stop(`the type check failed:\n${tsc}`);
+  console.log('✓ Type check');
+  const suite = quiet('npx tsx scripts/verify-engines.ts');
+  if (suite !== null) stop(`the guard suite failed:\n${suite}`);
+  console.log('✓ Guard suite');
+
+  const np = require('./native-profile');
+  const base = np.readBaseline();
+  if (!base) stop('no native baseline (scripts/native-baseline.json). Build the APK with npm run build:apk:local first.');
+  const diff = np.differences(base, np.currentProfile());
+  if (diff.length) {
+    stop(
+      `the native side changed since ${base.apk ?? 'the installed APK'}, so an update would not run on it:\n  ` +
+        diff.join('\n  ') +
+        '\nBuild a new APK (npm run build:apk:local — it records the new baseline), install it on the phone, then release.'
+    );
+  }
+  console.log(`✓ Same native side as ${base.apk ?? 'the installed APK'}`);
+  expectedRuntime = base.config.runtimeVersion?.policy === 'appVersion' ? base.config.version : String(base.config.runtimeVersion);
+}
+if (checkOnly) {
+  console.log(`\n✓ v${version} would land as an OTA update on runtime ${expectedRuntime}. Nothing was published (--check).`);
+  process.exit(0);
+}
+
 // ── 1. Publish the OTA update ────────────────────────────────────────────────
 run(`eas update --branch ${branch} --message "v${version}: ${shellSafe(message)}"`);
+
+// ── 1b. Read it back: tag and announce only an update that is live ───────────
+{
+  let latest = null;
+  try {
+    const list = JSON.parse(capture(`eas update:list --branch ${branch} --json --non-interactive --limit 1`));
+    latest = (list.currentPage || [])[0] || null;
+  } catch (e) {
+    console.error('\n✗ Could not read the update back from EAS:', e.message);
+  }
+  const ok =
+    latest &&
+    String(latest.message || '').includes(`v${version}:`) &&
+    latest.runtimeVersion === expectedRuntime &&
+    /android/.test(String(latest.platforms || ''));
+  if (!ok) {
+    console.error(
+      `\n✗ The newest update on "${branch}" is not v${version} for Android on runtime ${expectedRuntime}:\n  ` +
+        JSON.stringify(latest) +
+        '\nNo tag and no GitHub Release were made. Check https://expo.dev and run the release again.'
+    );
+    process.exit(1);
+  }
+  console.log(`\n✓ Live: v${version} is the newest update on "${branch}" for runtime ${expectedRuntime} (group ${latest.group}).`);
+}
 
 // ── 2. Tag the release in git (unique even if the version repeats) ────────────
 let tag = `v${version}`;

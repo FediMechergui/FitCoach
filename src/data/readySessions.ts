@@ -1401,6 +1401,37 @@ export const READY_SESSIONS: ReadySession[] = [
     exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-roll-over', 'pilates-corkscrew', 'pilates-open-leg-rocker', 'pilates-neck-pull', 'pilates-scissors', 'pilates-bicycle', 'pilates-jackknife', 'pilates-boomerang', 'pilates-control-balance', 'pilates-leg-pull-back'],
     note: "Keep the head down and rest it whenever the neck takes over from the abdominals. Leave out the rolling exercises with a neck or back injury, osteoporosis, or late in pregnancy. Never roll onto the neck: the weight stays on the shoulder blades.",
   },
+  {
+    key: 'pilates-props', group: 'pilates', name: "Pilates with the ring, the ball and the roller",
+    why: "Small props give feedback the floor cannot: the ring finds the inner thighs, the roller finds your balance.",
+    sessionType: 'pilates', level: 'beginner', minutes: 30, kit: "A mat, a magic circle, a small soft ball, a long foam roller",
+    prescription: "8 to 10 slow reps of each. Squeeze the ring gently; it is feedback, not a weight.",
+    exercises: ['pilates-magic-circle-bridge-squeeze', 'pilates-magic-circle-chest-press', 'pilates-magic-circle-side-lying-leg-press', 'pilates-small-ball-chest-lift', 'pilates-small-ball-roll-back', 'pilates-foam-roller-arm-arcs', 'pilates-foam-roller-marching', 'pilates-foam-roller-swan'],
+  },
+  {
+    key: 'pilates-mat-second-half', group: 'pilates', name: "The rest of the mat order",
+    why: "The exercises the first half leaves out: swan dive, spine twist, the side kicks in full, crab, rocking.",
+    sessionType: 'pilates', level: 'advanced', minutes: 40, kit: "A mat",
+    prescription: "3 to 6 reps of each, after the hundred and the roll-up to warm up.",
+    exercises: ['pilates-hundred', 'pilates-roll-up', 'pilates-swan-dive', 'pilates-spine-twist', 'pilates-side-kick-front-back', 'pilates-side-kick-small-circles', 'pilates-side-kick-bicycle', 'pilates-teaser-ii', 'pilates-hip-twist', 'pilates-kneeling-side-kick', 'pilates-side-twist', 'pilates-crab', 'pilates-rocking'],
+    note: "Keep the head down and rest it whenever the neck takes over from the abdominals. Leave out the rolling exercises with a neck or back injury, osteoporosis, or late in pregnancy. Crab and rocking load the neck and the lower back: leave them out until the rest of the order is easy.",
+  },
+  {
+    key: 'pilates-cadillac-chair', group: 'pilates', name: "Cadillac and Wunda chair",
+    why: "Springs from above and springs from below: the roll back bar, the leg springs, then the chair for legs and balance.",
+    sessionType: 'pilates', level: 'intermediate', minutes: 50, kit: "A Cadillac and a Wunda chair, in a studio",
+    prescription: "6 to 8 reps of each, springs set by the instructor.",
+    exercises: ['cadillac-roll-back-bar', 'cadillac-seated-push-through', 'cadillac-leg-spring-circles', 'cadillac-leg-spring-frog', 'cadillac-standing-arm-springs', 'wunda-chair-footwork', 'wunda-chair-swan-front', 'wunda-chair-going-up-front'],
+    note: "Learn the springs with an instructor. Never let go of a loaded bar or pedal: let it return under control.",
+  },
+  {
+    key: 'pilates-barrels', group: 'pilates', name: "The barrels",
+    why: "The ladder barrel and the spine corrector open the front of the body and strengthen the back and the sides.",
+    sessionType: 'pilates', level: 'intermediate', minutes: 35, kit: "A ladder barrel and a spine corrector",
+    prescription: "5 to 8 reps of each, the stretches held 30 to 45 s.",
+    exercises: ['spine-corrector-arm-series', 'spine-corrector-leg-series', 'spine-corrector-swan', 'ladder-barrel-swan', 'ladder-barrel-side-sit-ups', 'ladder-barrel-short-box', 'ladder-barrel-ballet-stretches'],
+    note: "Stop for a pinch in the lower back. Side sit-ups are hard on the neck and the back: start with small ranges.",
+  },
 
   // ══════════════════════════ HYROX ══════════════════════════
   {
@@ -1450,6 +1481,22 @@ export const READY_SESSIONS: ReadySession[] = [
     prescription: "4 x (1 km run + one station at race volume). Note every split; the last run should be no slower than the first.",
     exercises: ['hybrid-half-race-simulation', 'hyrox-run-1km', 'hyrox-skierg-1000', 'hyrox-sled-push-50', 'hyrox-row-1000', 'hyrox-wall-balls-100'],
     note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
+  },
+  {
+    key: 'hyrox-bricks', group: 'hyrox', name: "Hyrox: run and station bricks",
+    why: "One kilometre, then a station, then straight back out. The transition is where races are lost.",
+    sessionType: 'hyrox', level: 'intermediate', minutes: 60, kit: "A gym with a sled, a SkiErg, a wall ball and room to run",
+    prescription: "4 bricks of 1 km plus a station at race volume, 3 minutes easy between bricks.",
+    exercises: ['hyrox-run-skierg-brick', 'hyrox-run-sled-push-brick', 'hyrox-burpee-run-brick', 'hyrox-run-wall-ball-brick', 'hyrox-roxzone-sprint-drill'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move.",
+  },
+  {
+    key: 'hyrox-pro-stations', group: 'hyrox', name: "Hyrox Pro: the heavy stations",
+    why: "The Pro division changes the weights, not the distances: rehearse the four heavy stations at Pro load.",
+    sessionType: 'hyrox', level: 'advanced', minutes: 60, kit: "A sled on turf, Pro-weight kettlebells, a sandbag and a wall ball",
+    prescription: "2 rounds of the four at half race distance, full rest between stations.",
+    exercises: ['hyrox-pro-sled-push-50', 'hyrox-pro-sled-pull-50', 'hyrox-pro-farmers-carry-200', 'hyrox-pro-sandbag-lunges-100', 'hyrox-pro-wall-balls-100'],
+    note: "Hyrox is a trademark of its owners; FitCoach is not connected to the race. Build the volume over weeks, and stop for chest pain, dizziness or a pain that changes how you move. Brace before each push and pull, and keep the back flat.",
   },
 ];
 

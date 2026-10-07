@@ -79,8 +79,11 @@ import { seedExerciseLibrary } from './seed';
  *                  exercises, and 25 built-ins moved to the new types by slug.
  *                  No new table or column: the bump re-seeds, and logged
  *                  sessions keep the type they were logged as.
+ *   41 → 42 v3.9.1: +194 exercises — 50 for the forearms, 107 Pilates (mat,
+ *                  props, reformer, cadillac, Wunda chair, barrels), 37 Hyrox.
+ *                  No new table or column: the bump re-seeds.
  */
-const SCHEMA_VERSION = 41;
+const SCHEMA_VERSION = 42;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column

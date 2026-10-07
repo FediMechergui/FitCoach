@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '3.9.1',
+    date: '2026-10-07',
+    title: 'Forearms, Pilates and Hyrox, deeper',
+    highlights: [
+      '194 more exercises, 2222 in all, every one with its how-to video.',
+      'Forearms: 50 more, 90 in all. Wrist curls and extensions on the EZ bar, cable, machine, Smith machine and band; reverse curls on the EZ bar, cable, dumbbell, preacher and a thick bar; pronation, supination and levering with a sledgehammer; crush grip with a heavy gripper; pinch grip with plates, hubs and blocks; support grip with trap-bar, thick-handle and towel holds and carries, thick-bar and rope hangs; and the cupping, rising and strap work of arm-wrestling.',
+      'Pilates: 107 more, 159 in all. On the mat, the rest of the classical order (swan dive, spine twist, the side kick series in full, teaser II and III, hip twist, crab, rocking) and the foundations. With props: the magic circle, the small ball, the foam roller, the band, the wall and the arm weights. On the apparatus: 25 reformer exercises, 14 on the Cadillac, the tower, the Wunda chair, the ladder barrel and the spine corrector.',
+      'Hyrox: 37 more, 58 in all. Station technique (low and high sled handles, the walk-back pull, wall balls to the race target, damper and stroke-rate drills), the Pro division at its own weights, the relay and doubles formats, run-and-station bricks, station EMOMs and the strength work behind the sleds.',
+      'Six new ready sessions: Pilates with the ring, the ball and the roller; the rest of the mat order; Cadillac and Wunda chair; the barrels; Hyrox run-and-station bricks; and the Hyrox Pro heavy stations.',
+      'Every release now has to land on the phone. Before publishing, the release checks that the code is committed and pushed, that it type-checks and passes all the guards, and that it needs nothing native the installed APK lacks. After publishing, it reads the update back from the update server and only tags the release once it is live.',
+    ],
+  },
+  {
     version: '3.9.0',
     date: '2026-10-07',
     title: 'Pilates and Hyrox',

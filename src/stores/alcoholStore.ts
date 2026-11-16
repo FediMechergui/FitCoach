@@ -11,26 +11,28 @@ import {
 import { todayISO } from '@/lib/date';
 
 interface AlcoholState {
+  date: string;
   today: AlcoholDay | null;
   impact: AlcoholImpact | null;
-  load: () => void;
-  add: (type: AlcoholType, volumeMl: number, abvPct: number, label?: string) => void;
+  load: (date?: string) => void;
+  add: (type: AlcoholType, volumeMl: number, abvPct: number, label?: string, date?: string) => void;
   remove: (id: number) => void;
 }
 
 export const useAlcoholStore = create<AlcoholState>((set, get) => ({
+  date: todayISO(),
   today: null,
   impact: null,
 
-  load: () => set({ today: alcoholDay(todayISO()), impact: alcoholImpact() }),
+  load: (date = todayISO()) => set({ date, today: alcoholDay(date), impact: alcoholImpact() }),
 
-  add: (type, volumeMl, abvPct, label) => {
-    logDrink({ type, volumeMl, abvPct, label });
-    get().load();
+  add: (type, volumeMl, abvPct, label, date = todayISO()) => {
+    logDrink({ type, volumeMl, abvPct, label, date });
+    get().load(date);
   },
 
   remove: (id) => {
     deleteDrink(id);
-    get().load();
+    get().load(get().date);
   },
 }));

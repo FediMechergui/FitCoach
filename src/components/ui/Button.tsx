@@ -1,4 +1,5 @@
 import React from 'react';
+import { contrastInk } from '@/lib/contrast';
 import { ActivityIndicator, Animated, Easing, Pressable, View, type ViewStyle } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spring } from '@/theme/springs';
@@ -55,7 +56,7 @@ export function Button({
   hint,
 }: ButtonProps) {
   const theme = useTheme();
-  const heights: Record<Size, number> = { sm: 38, md: 48, lg: 56 };
+  const heights: Record<Size, number> = { sm: 44, md: 48, lg: 56 };
   const brand = color ?? theme.colors.primary;
   const isBrand = color == null;
   const scale = React.useRef(new Animated.Value(1)).current;
@@ -67,10 +68,10 @@ export function Button({
     danger: theme.colors.danger,
   };
   const fg: Record<Variant, string> = {
-    primary: isBrand ? lume.ink : '#fff',
+    primary: contrastInk(brand),
     secondary: theme.colors.text,
     ghost: brand,
-    danger: '#fff',
+    danger: contrastInk(theme.colors.danger),
   };
   const pressedBg: Partial<Record<Variant, string>> = {
     primary: isBrand ? theme.colors.primaryDark : brand,

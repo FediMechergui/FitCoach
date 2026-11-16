@@ -11,6 +11,7 @@ export type TabParamList = {
 
 export type RootStackParamList = {
   Onboarding: undefined;
+  Backup: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
 
   LogSession: undefined;
@@ -99,6 +100,8 @@ export type SessionTypeMeta = {
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace ReactNavigation {
+    // Declaration merging is required by React Navigation.
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface RootParamList extends RootStackParamList {}
   }
 }

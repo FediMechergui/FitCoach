@@ -66,6 +66,7 @@ export function GpsLapsPanel({
   const [plan, setPlan] = useState<LapPlan>(() => lastLapPlan(exerciseId) ?? DEFAULT_LAP_PLAN);
 
   const mine = state && state.logId === logId && state.sessionId === sessionId ? state : null;
+  const ownsLaps = mine != null;
   const otherRunning = state && !mine && state.sessionId === sessionId && state.phase !== 'done' ? state : null;
 
   // A second's refresh while this exercise owns the laps; one read otherwise.
@@ -75,10 +76,10 @@ export function GpsLapsPanel({
       setReading(currentReading());
     };
     read();
-    if (!mine) return;
+    if (!ownsLaps) return;
     const t = setInterval(read, 1000);
     return () => clearInterval(t);
-  }, [mine?.logId, mine?.phase]);
+  }, [ownsLaps, logId, sessionId]);
 
   const begin = async () => {
     if (!isSessionGpsOn(sessionId)) {

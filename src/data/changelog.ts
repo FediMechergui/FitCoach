@@ -19,6 +19,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '4.0.0',
+    date: '2026-11-16',
+    title: 'Reliable logs, lighter tracking and private backups',
+    highlights: [
+      'A new midnight and mint icon. Clearer daily screens, readable controls and easier history corrections.',
+      'Safer database upgrades, atomic edits and linked nutrition records. Completed workout totals and personal records now update after edits.',
+      'Walk and run tracking uses motion recognition plus raw GPS evidence to exclude likely vehicle travel. GPS and map viewing are optional; no steps are invented for missing background time.',
+      'Optional account backups encrypt records and photos on the phone before upload to Netlify. Daily background attempts include app-open catch-up, a visible last-success time, recovery keys and restore previews.',
+      'Manual nutrition targets remain manual. Food sources and estimates are labelled, diet plans explain remaining target gaps, and health summaries distinguish missing logs from measurements.',
+      'This native release starts runtime 4.0.0. Future compatible JavaScript and asset updates continue over the air.',
+    ],
+  },
+  {
     version: '3.9.1',
     date: '2026-10-07',
     title: 'Forearms, Pilates and Hyrox, deeper',

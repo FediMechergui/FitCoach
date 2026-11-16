@@ -18,6 +18,9 @@ expo-env.d.ts
 # ...but a local module's BUILD output is generated (its sources above must stay committed).
 /modules/*/android/build/
 /modules/*/android/.cxx/
+/modules/*/android/.gradle/
+/.audit/
+/.netlify/
 
 # Native
 *.orig.*

@@ -35,8 +35,7 @@ const TOTAL_STEPS = 7;
  *  · Gender offers the schema's fifth value, and the BMR-sex control says in
  *    one honest sentence why it exists.
  *  · The targets step is a moment: the calorie numeral in the display face,
- *    the macro trio as tinted Metrics, and the sovereignty mark — on this
- *    device, no account, ever.
+ *    the macro trio as tinted Metrics, and the local-first backup choice.
  */
 export function OnboardingScreen() {
   const theme = useTheme();
@@ -50,6 +49,7 @@ export function OnboardingScreen() {
   const [birthDay, setBirthDay] = useState('1');
   const [birthMonth, setBirthMonth] = useState('1');
   const [birthYear, setBirthYear] = useState('1995');
+  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [waist, setWaist] = useState('');
@@ -59,8 +59,8 @@ export function OnboardingScreen() {
   const [rate, setRate] = useState<OnboardingData['rate']>('moderate');
   const [level, setLevel] = useState<ExperienceLevel>('beginner');
 
-  const heightCm = parseFloat(height) || 0;
-  const weightKg = parseFloat(weight) || 0;
+  const heightCm = (Number(height) || 0) * (units === 'imperial' ? 2.54 : 1);
+  const weightKg = (Number(weight) || 0) * (units === 'imperial' ? 0.45359237 : 1);
 
   /** A real calendar date, or null — 31/02 does not become a birthday. */
   const birthdate = useMemo(() => {
@@ -79,12 +79,12 @@ export function OnboardingScreen() {
         ? estimateBodyType({
             heightCm,
             weightKg,
-            waistCm: parseFloat(waist) || null,
-            hipCm: parseFloat(hip) || null,
+            waistCm: waist ? Number(waist) * (units === 'imperial' ? 2.54 : 1) : null,
+            hipCm: hip ? Number(hip) * (units === 'imperial' ? 2.54 : 1) : null,
             sex,
           })
         : null,
-    [heightCm, weightKg, waist, hip, sex]
+    [heightCm, weightKg, waist, hip, sex, units]
   );
 
   const preview = useMemo(() => {
@@ -106,8 +106,8 @@ export function OnboardingScreen() {
     const gaps: string[] = [];
     if (!name.trim()) gaps.push('your name');
     if (!birthdate) gaps.push('a real birthdate');
-    if (heightCm <= 100) gaps.push('your height');
-    if (weightKg <= 25) gaps.push('your weight');
+    if (!Number.isFinite(heightCm) || heightCm < 100 || heightCm > 250) gaps.push('your height');
+    if (!Number.isFinite(weightKg) || weightKg < 25 || weightKg > 500) gaps.push('your weight');
     return gaps;
   };
   const gaps = missing();
@@ -128,12 +128,13 @@ export function OnboardingScreen() {
       birthdate: birthdate ?? '1995-01-01',
       heightCm,
       weightKg,
-      waistCm: parseFloat(waist) || null,
-      hipCm: parseFloat(hip) || null,
+      waistCm: waist ? Number(waist) * (units === 'imperial' ? 2.54 : 1) : null,
+      hipCm: hip ? Number(hip) * (units === 'imperial' ? 2.54 : 1) : null,
       activityLevel: activity,
       goal,
       rate,
       experienceLevel: level,
+      unitPreference: units,
     });
   };
 
@@ -150,7 +151,7 @@ export function OnboardingScreen() {
           </Text>
         </View>
 
-        <ScrollView
+        <ScrollView key={step}
           contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.lg, paddingBottom: 24 }}
           keyboardShouldPersistTaps="handled"
         >
@@ -229,14 +230,23 @@ export function OnboardingScreen() {
                   </View>
                 </Row>
               </View>
+              <SegmentedControl value={units} onChange={(v) => {
+                if (v === units) return;
+                const factor = v === 'imperial' ? 1 / 2.54 : 2.54;
+                if (height) setHeight(String(Math.round(Number(height) * factor * 10) / 10));
+                if (weight) setWeight(String(Math.round(Number(weight) * (v === 'imperial' ? 1 / 0.45359237 : 0.45359237) * 10) / 10));
+                if (waist) setWaist(String(Math.round(Number(waist) * factor * 10) / 10));
+                if (hip) setHip(String(Math.round(Number(hip) * factor * 10) / 10));
+                setUnits(v);
+              }} options={[{ value: 'metric', label: 'cm / kg' }, { value: 'imperial', label: 'in / lb' }]} />
               <Row>
                 <View style={{ flex: 1 }}>
                   <Input
                     label="Height"
                     value={height}
                     onChangeText={setHeight}
-                    placeholder="175"
-                    suffix="cm"
+                    placeholder={units === 'imperial' ? '69' : '175'}
+                    suffix={units === 'imperial' ? 'in' : 'cm'}
                     keyboardType="numeric"
                   />
                 </View>
@@ -245,8 +255,8 @@ export function OnboardingScreen() {
                     label="Weight"
                     value={weight}
                     onChangeText={setWeight}
-                    placeholder="75"
-                    suffix="kg"
+                    placeholder={units === 'imperial' ? '165' : '75'}
+                    suffix={units === 'imperial' ? 'lb' : 'kg'}
                     keyboardType="numeric"
                   />
                 </View>
@@ -337,9 +347,9 @@ export function OnboardingScreen() {
               <Text variant="eyebrow" color="primary">
                 Optional
               </Text>
-              <Text variant="h1">Body-type check</Text>
+              <Text variant="h1">Body measurements</Text>
               <Text variant="body" color="textMuted">
-                Waist & hip refine your starting macros. You can skip this.
+                Optional measurements help you follow changes over time. They do not predict your metabolism or ability to build muscle.
               </Text>
               <Row>
                 <View style={{ flex: 1 }}>
@@ -347,8 +357,8 @@ export function OnboardingScreen() {
                     label="Waist"
                     value={waist}
                     onChangeText={setWaist}
-                    placeholder="82"
-                    suffix="cm"
+                    placeholder={units === 'imperial' ? '32' : '82'}
+                    suffix={units === 'imperial' ? 'in' : 'cm'}
                     keyboardType="numeric"
                   />
                 </View>
@@ -357,25 +367,13 @@ export function OnboardingScreen() {
                     label="Hip"
                     value={hip}
                     onChangeText={setHip}
-                    placeholder="98"
-                    suffix="cm"
+                    placeholder={units === 'imperial' ? '39' : '98'}
+                    suffix={units === 'imperial' ? 'in' : 'cm'}
                     keyboardType="numeric"
                   />
                 </View>
               </Row>
-              {bodyType && (
-                <Card accent={theme.colors.accent}>
-                  <Row gap={10}>
-                    <Icon icon="stats.bodyFat" color={theme.colors.accent} />
-                    <View style={{ flex: 1 }}>
-                      <Text variant="h3">{BODY_TYPE_LABELS[bodyType]}</Text>
-                      <Text variant="caption" color="textMuted">
-                        {BODY_TYPE_BLURB[bodyType]}
-                      </Text>
-                    </View>
-                  </Row>
-                </Card>
-              )}
+
             </View>
           )}
 
@@ -409,7 +407,7 @@ export function OnboardingScreen() {
               <Row gap={8} style={{ alignItems: 'center', justifyContent: 'center' }}>
                 <Icon icon="core.settings" size={14} color={theme.colors.textFaint} />
                 <Text variant="caption" color="textFaint">
-                  On this device — no account, ever.
+                  Works offline. An account adds optional encrypted backups.
                 </Text>
               </Row>
             </View>
@@ -465,7 +463,7 @@ function Welcome() {
         <Feature icon="core.start" text="Track every set, run, sport & sit" />
         <Feature icon="nutrition.calories" text="Smart calorie & macro targets" />
         <Feature icon="stats.progression" text="Progress charts, PRs & coach tips" />
-        <Feature icon="core.settings" text="100% offline · your data stays on-device" />
+        <Feature icon="core.settings" text="Offline tracking · optional encrypted daily backup" />
       </View>
     </View>
   );

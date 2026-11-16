@@ -10,7 +10,10 @@ import {
 } from '@/db/schema';
 import { todayISO, toISODate } from '@/lib/date';
 import { parseRoute, routeDistanceM, type LatLng } from '@/lib/geo';
-import { filterFixes, RIDE_MAX_SPEED_MS, type GpsFix } from '@/lib/gpsFilter';
+import type { GpsFix } from '@/lib/gpsFilter';
+import { gateRoute, newTrackingGate, type TrackingGate, type MotionEvidence } from '@/lib/trackingGate';
+import { kvGet, kvSetStrict } from './kvRepo';
+import { atomic } from '@/db/atomic';
 import { stepsFromDistance } from '@/lib/pedometer';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
 
@@ -69,57 +72,26 @@ export function endLiveWalk(): void {
  * fixes that survive are stored, so the route's path length and the recorded
  * distance can never disagree.
  */
-export function appendLiveRoutePoints(fixes: GpsFix[]): void {
+export function appendLiveRoutePoints(fixes: GpsFix[], evidence: MotionEvidence | null = null): void {
+  atomic(() => {
+    const row = getLiveWalk();
+    if (!row?.active) return;
+    const route = parseRoute(row.routeJson);
+    const key = `tracking.gate.${row.startTime}`;
+    const gate = kvGet<TrackingGate>(key) ?? newTrackingGate();
+    const { accepted, distanceM, state } = gateRoute(route, fixes, gate, evidence, row.activity === 'cycle');
+    kvSetStrict(key, state);
+    if (!accepted.length) return;
+    route.push(...accepted);
+    const tail = route[route.length - 1];
+    db.update(liveWalks).set({ routeJson: JSON.stringify(route), distanceM: row.distanceM + distanceM,
+      lastLat: tail[0], lastLng: tail[1], updatedAt: Date.now() }).where(eq(liveWalks.id, LIVE_ID)).run();
+  });
+}
+
+export function liveTrackingGate(): TrackingGate {
   const row = getLiveWalk();
-  if (!row?.active) return;
-  const route = parseRoute(row.routeJson);
-  // A ride is allowed a ride's speed; everything else is held to a runner's.
-  const riding = row.activity === 'cycle';
-  const { accepted, distanceM: gained } = filterFixes(route, fixes, riding ? { maxSpeedMs: RIDE_MAX_SPEED_MS } : {});
-
-  /*
-   * Nothing credible arrived — you're indoors, or standing, or turning on the
-   * spot. Still stamp `updatedAt`, because it marks the last moment the session
-   * was *observed*, not the last moment it moved. Leaving it stale would make
-   * the whole stretch look like a blind window when the app comes back, and the
-   * gap estimator would credit steps for it from assumed cadence — re-inventing
-   * exactly the phantom distance the filter just threw away.
-   */
-  if (!accepted.length) {
-    db.update(liveWalks).set({ updatedAt: Date.now() }).where(eq(liveWalks.id, LIVE_ID)).run();
-    return;
-  }
-  route.push(...accepted);
-  const distance = row.distanceM + gained;
-  const tail = route[route.length - 1];
-
-  /*
-   * Checkpoint the step count too — this is what makes steps keep climbing while
-   * the app is backgrounded OR fully killed.
-   *
-   * This function runs inside the expo-location TaskManager task, which the
-   * Android foreground service keeps alive when our main JS runtime is gone. The
-   * hardware step counter can't be read meaningfully from here (expo-sensors'
-   * watchStepCount is subscription-relative, so a fresh read is always ~0 — the
-   * trap that previously wrote zeros over real counts). GPS distance, however, is
-   * measured hardware evidence, so we derive steps from it and only ever raise
-   * the stored count. Monotonic: the pedometer's own total wins when it's higher.
-   */
-  const heightCm = safeUserHeightCm();
-  // A bike covers ground without a single step: never invent them from a ride.
-  const impliedSteps = riding ? 0 : stepsFromDistance(distance, heightCm, row.mode);
-
-  db.update(liveWalks)
-    .set({
-      routeJson: JSON.stringify(route),
-      distanceM: distance,
-      steps: Math.max(row.steps, impliedSteps),
-      lastLat: tail?.[0] ?? row.lastLat,
-      lastLng: tail?.[1] ?? row.lastLng,
-      updatedAt: Date.now(),
-    })
-    .where(eq(liveWalks.id, LIVE_ID))
-    .run();
+  return row ? kvGet<TrackingGate>(`tracking.gate.${row.startTime}`) ?? newTrackingGate() : newTrackingGate();
 }
 
 /** Height for step maths, read from the DB (the store isn't hydrated in a headless task). */
@@ -179,6 +151,7 @@ export function saveWalkSession(
   },
   userId: number = PRIMARY_USER_ID
 ): number {
+  return atomic(() => {
   const res = db
     .insert(walkSessions)
     .values({
@@ -200,6 +173,7 @@ export function saveWalkSession(
   // On the day it started — a walk past midnight belongs to the evening it began.
   addSteps(data.steps, data.distanceM, data.caloriesBurned, toISODate(new Date(data.startTime)), userId);
   return Number(res.lastInsertRowId);
+  });
 }
 
 export function listWalkSessions(limit = 30, userId: number = PRIMARY_USER_ID): WalkSession[] {
@@ -225,10 +199,12 @@ export function getWalkSession(id: number): WalkSession | undefined {
  * was added to.
  */
 export function deleteWalkSession(id: number): void {
+  atomic(() => {
   const row = getWalkSession(id);
   db.delete(walkSessions).where(eq(walkSessions.id, id)).run();
   if (!row) return;
   removeSteps(row.steps, row.distanceM, row.caloriesBurned, toISODate(new Date(row.startTime)), row.userId);
+  });
 }
 
 // ── Daily passive step counter ───────────────────────────────────────────────
@@ -240,70 +216,32 @@ export function getDailySteps(date: string = todayISO(), userId: number = PRIMAR
     .get();
 }
 
-/** Set today's absolute step count (e.g. from the hardware pedometer snapshot). */
-export function setDailySteps(
-  date: string,
-  stepCount: number,
-  distanceM: number,
-  caloriesBurned: number,
-  userId: number = PRIMARY_USER_ID
-): void {
-  const existing = getDailySteps(date, userId);
-  if (existing) {
-    db.update(dailyStepLogs)
-      .set({ stepCount, distanceM, caloriesBurned })
-      .where(eq(dailyStepLogs.id, existing.id))
-      .run();
-  } else {
-    db.insert(dailyStepLogs).values({ userId, date, stepCount, distanceM, caloriesBurned }).run();
-  }
+type StepTotals = { manual: number[]; sensor: number[] };
+function changeTotals(date: string, userId: number, values: number[], kind: 'sensor' | 'add' | 'remove'): void {
+  atomic(() => {
+    const key = `steps.totals.${userId}.${date}`;
+    const existing = getDailySteps(date, userId);
+    const state = kvGet<StepTotals>(key) ?? { manual: [existing?.stepCount ?? 0, existing?.distanceM ?? 0, existing?.caloriesBurned ?? 0], sensor: [0,0,0] };
+    values = values.map(v => { if (!Number.isFinite(v) || v < 0) throw new Error('Invalid activity total'); return v; });
+    if (kind === 'sensor') state.sensor = state.sensor.map((v,i) => Math.max(v,values[i]));
+    else state.manual = state.manual.map((v,i) => Math.max(0,v + (kind === 'add' ? values[i] : -values[i])));
+    // Session estimates and the all-day sensor overlap. Use the larger supported count,
+    // never add both. A deleted workout does not erase independently observed steps.
+    const totals = state.manual.map((v,i) => Math.max(v,state.sensor[i]));
+    const row = {stepCount:Math.round(totals[0]),distanceM:totals[1],caloriesBurned:totals[2]};
+    kvSetStrict(key,state);
+    if (existing) db.update(dailyStepLogs).set(row).where(eq(dailyStepLogs.id,existing.id)).run();
+    else db.insert(dailyStepLogs).values({userId,date,...row}).run();
+  });
 }
-
-/** Increment today's step total (e.g. from a completed walk session). */
-export function addSteps(
-  steps: number,
-  distanceM: number,
-  caloriesBurned: number,
-  date: string = todayISO(),
-  userId: number = PRIMARY_USER_ID
-): void {
-  const existing = getDailySteps(date, userId);
-  if (existing) {
-    db.update(dailyStepLogs)
-      .set({
-        stepCount: existing.stepCount + steps,
-        distanceM: existing.distanceM + distanceM,
-        caloriesBurned: existing.caloriesBurned + caloriesBurned,
-      })
-      .where(eq(dailyStepLogs.id, existing.id))
-      .run();
-  } else {
-    db.insert(dailyStepLogs).values({ userId, date, stepCount: steps, distanceM, caloriesBurned }).run();
-  }
+export function setDailySteps(date: string, stepCount: number, distanceM: number, caloriesBurned: number, userId = PRIMARY_USER_ID): void {
+  changeTotals(date,userId,[stepCount,distanceM,caloriesBurned],'sensor');
 }
-
-/**
- * Subtract a contribution from a day's totals — the inverse of `addSteps`, used
- * when a session or walk is deleted. Clamped at zero: a rounding difference or a
- * double-delete must never leave a negative step count.
- */
-export function removeSteps(
-  steps: number,
-  distanceM: number,
-  caloriesBurned: number,
-  date: string = todayISO(),
-  userId: number = PRIMARY_USER_ID
-): void {
-  const existing = getDailySteps(date, userId);
-  if (!existing) return;
-  db.update(dailyStepLogs)
-    .set({
-      stepCount: Math.max(0, existing.stepCount - Math.max(0, Math.round(steps))),
-      distanceM: Math.max(0, existing.distanceM - Math.max(0, distanceM)),
-      caloriesBurned: Math.max(0, existing.caloriesBurned - Math.max(0, caloriesBurned)),
-    })
-    .where(eq(dailyStepLogs.id, existing.id))
-    .run();
+export function addSteps(steps: number, distanceM: number, caloriesBurned: number, date = todayISO(), userId = PRIMARY_USER_ID): void {
+  if (steps > 0) changeTotals(date,userId,[steps,distanceM,caloriesBurned],'add');
+}
+export function removeSteps(steps: number, distanceM: number, caloriesBurned: number, date = todayISO(), userId = PRIMARY_USER_ID): void {
+  if (steps > 0) changeTotals(date,userId,[steps,distanceM,caloriesBurned],'remove');
 }
 
 export function stepHistorySince(sinceISO: string, userId: number = PRIMARY_USER_ID): DailyStepLog[] {

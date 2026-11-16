@@ -111,7 +111,7 @@ export const darkColors = {
   topLight: 'rgba(255,255,255,0.06)',
   text: '#EDF3F9',
   textMuted: '#9FB0C3',
-  textFaint: '#5F7189',
+  textFaint: '#9AAAC0',
   ...palette,
 } as const;
 
@@ -130,13 +130,13 @@ export const lightColors = {
   topLight: 'rgba(255,255,255,0)',
   text: '#132019',
   textMuted: '#4F625B',
-  textFaint: '#7E938B',
+  textFaint: '#576D64',
   ...palette,
   // Interactive ink must darken on white to keep contrast.
-  primary: '#0FA57F',
+  primary: '#08765C',
   primaryDark: '#0C8A6A',
-  accent: '#0FA57F',
-  success: '#0FA57F',
+  accent: '#08765C',
+  success: '#08765C',
   info: '#4F625B',
 } as const;
 

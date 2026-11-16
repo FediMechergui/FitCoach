@@ -1,7 +1,12 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { atomic } from '@/db/atomic';
+import { calendarDate, finiteNumber } from '@/lib/validation';
+import { resolveEatenAt } from '@/lib/eatenAt';
 import {
   beverageEntries,
+  supplementLogs,
+  alcoholEntries,
   foodEntries,
   type BeverageType,
   type FoodEntry,
@@ -17,6 +22,9 @@ import type { FoodForm } from '@/lib/digestion';
 
 // ── Food entries ─────────────────────────────────────────────────────────────
 export interface PreciseFoodInput {
+  source?: 'manual' | 'catalogue' | 'barcode' | 'ai' | 'supplement' | 'alcohol' | 'plan';
+  sourceRef?: string;
+  isEstimated?: boolean;
   mealType: MealType;
   foodName: string;
   quantity: number;
@@ -39,14 +47,16 @@ export interface PreciseFoodInput {
 }
 
 export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY_USER_ID): number {
-  const q = input.quantity || 1;
+  const q = finiteNumber(input.quantity, 'Servings', 0.001, 1000);
+  const date = calendarDate(input.date ?? todayISO());
+  for (const [label, value] of Object.entries({ calories: input.calories, protein: input.proteinG, carbs: input.carbsG, fat: input.fatG, fiber: input.fiberG ?? 0 })) finiteNumber(value, label, 0, 100000);
   const micros = input.micros ? scaleMicros(input.micros, q) : null;
   const res = db
     .insert(foodEntries)
     .values({
       userId,
-      date: input.date ?? todayISO(),
-      ...(input.eatenAt != null ? { createdAt: input.eatenAt } : {}),
+      date,
+      createdAt: input.eatenAt ?? resolveEatenAt({ kind: 'now' }, date) ?? Date.now(),
       mealType: input.mealType,
       logMode: 'precise',
       foodName: input.foodName,
@@ -59,7 +69,9 @@ export function addPreciseFood(input: PreciseFoodInput, userId: number = PRIMARY
       fiberG: (input.fiberG ?? 0) * q,
       micros: micros ? JSON.stringify(micros) : null,
       form: input.form ?? null,
-      isEstimated: false,
+      isEstimated: input.isEstimated ?? input.source === 'ai',
+      source: input.source ?? 'manual',
+      sourceRef: input.sourceRef ?? null,
     })
     .run();
   return Number(res.lastInsertRowId);
@@ -81,6 +93,7 @@ export function addHonestFood(
   },
   userId: number = PRIMARY_USER_ID
 ): { id: number; estimate: ReturnType<typeof estimateFromDescription> } {
+  const date = calendarDate(input.date ?? todayISO());
   const est = estimateFromDescription(input.description);
   const macros = input.override ?? {
     calories: est.calories,
@@ -92,8 +105,8 @@ export function addHonestFood(
     .insert(foodEntries)
     .values({
       userId,
-      date: input.date ?? todayISO(),
-      ...(input.eatenAt != null ? { createdAt: input.eatenAt } : {}),
+      date,
+      createdAt: input.eatenAt ?? resolveEatenAt({ kind: 'now' }, date) ?? Date.now(),
       mealType: input.mealType,
       logMode: 'honest',
       freeTextDescription: input.description,
@@ -111,7 +124,11 @@ export function addHonestFood(
 }
 
 export function deleteFoodEntry(id: number): void {
+  atomic(() => {
+  db.delete(supplementLogs).where(eq(supplementLogs.foodEntryId, id)).run();
+  db.delete(alcoholEntries).where(eq(alcoholEntries.foodEntryId, id)).run();
   db.delete(foodEntries).where(eq(foodEntries.id, id)).run();
+  });
 }
 
 /**
@@ -127,6 +144,8 @@ export function updateFoodEntry(
   id: number,
   patch: { quantity?: number; mealType?: MealType; eatenAt?: number }
 ): void {
+  if (patch.quantity != null) finiteNumber(patch.quantity, 'Servings', 0.001, 1000);
+  atomic(() => {
   const row = db.select().from(foodEntries).where(eq(foodEntries.id, id)).get();
   if (!row) return;
 
@@ -166,20 +185,47 @@ export function updateFoodEntry(
 
   if (Object.keys(updates).length === 0) return;
   db.update(foodEntries).set(updates).where(eq(foodEntries.id, id)).run();
+  if (newQty != null && row.quantity > 0 && newQty !== row.quantity) {
+    const factor = newQty / row.quantity;
+    for (const linked of db.select().from(supplementLogs).where(eq(supplementLogs.foodEntryId, id)).all()) {
+      db.update(supplementLogs).set({ unitsTaken: linked.unitsTaken == null ? null : linked.unitsTaken * factor,
+        micros: linked.micros ? JSON.stringify(scaleMicros(JSON.parse(linked.micros), factor)) : null
+      }).where(eq(supplementLogs.id, linked.id)).run();
+    }
+    for (const linked of db.select().from(alcoholEntries).where(eq(alcoholEntries.foodEntryId, id)).all()) {
+      db.update(alcoholEntries).set({ volumeMl: linked.volumeMl * factor, alcoholGrams: linked.alcoholGrams * factor,
+        standardDrinks: linked.standardDrinks * factor, calories: linked.calories * factor
+      }).where(eq(alcoholEntries.id, linked.id)).run();
+    }
+  }
+  });
 }
 
 /**
  * Put a deleted entry back exactly as it was — the other half of the Undo
  * toast. Everything but the row id is restored verbatim.
  */
-export function restoreFoodEntry(row: FoodEntry): number {
-  const { id: _dropped, ...values } = row;
-  const res = db.insert(foodEntries).values(values).run();
-  return Number(res.lastInsertRowId);
+export interface FoodSnapshot extends FoodEntry {
+  linkedSupplements?: Array<typeof supplementLogs.$inferSelect>;
+  linkedAlcohol?: Array<typeof alcoholEntries.$inferSelect>;
 }
 
-export function getFoodEntry(id: number): FoodEntry | undefined {
-  return db.select().from(foodEntries).where(eq(foodEntries.id, id)).get();
+export function restoreFoodEntry(row: FoodSnapshot): number {
+  return atomic(() => {
+    const { linkedSupplements, linkedAlcohol, ...values } = row;
+    db.insert(foodEntries).values(values).run();
+    for (const entry of linkedSupplements ?? []) db.insert(supplementLogs).values(entry).run();
+    for (const entry of linkedAlcohol ?? []) db.insert(alcoholEntries).values(entry).run();
+    return row.id;
+  });
+}
+
+export function getFoodEntry(id: number): FoodSnapshot | undefined {
+  const row = db.select().from(foodEntries).where(eq(foodEntries.id, id)).get();
+  return row ? { ...row,
+    linkedSupplements: db.select().from(supplementLogs).where(eq(supplementLogs.foodEntryId, id)).all(),
+    linkedAlcohol: db.select().from(alcoholEntries).where(eq(alcoholEntries.foodEntryId, id)).all(),
+  } : undefined;
 }
 
 export function foodEntriesForDay(date: string, userId: number = PRIMARY_USER_ID): FoodEntry[] {
@@ -252,6 +298,9 @@ export function addBeverage(
   const volumeMl = opts.volumeMl ?? preset.defaultVolumeMl;
   const servings = preset.defaultVolumeMl > 0 ? volumeMl / preset.defaultVolumeMl : 1;
   const caffeineMg = opts.caffeineMg ?? preset.caffeinePerServingMg * servings;
+  finiteNumber(volumeMl, 'Drink volume', 1, 10000);
+  finiteNumber(caffeineMg, 'Caffeine', 0, 2000);
+  calendarDate(opts.date ?? todayISO());
   const res = db
     .insert(beverageEntries)
     .values({

@@ -2,7 +2,7 @@
  * Geo helpers for GPS route tracking (runs / outdoor sessions).
  * A route point is a [latitude, longitude] tuple. Distances are metres.
  */
-export type LatLng = [number, number];
+export type LatLng = [number, number, (0 | 1)?];
 
 const R = 6_371_000; // Earth radius (m)
 const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -21,7 +21,7 @@ export function haversine(a: LatLng, b: LatLng): number {
 /** Total path length of a route (sum of segment distances), metres. */
 export function routeDistanceM(route: LatLng[]): number {
   let total = 0;
-  for (let i = 1; i < route.length; i++) total += haversine(route[i - 1], route[i]);
+  for (let i = 1; i < route.length; i++) if (!route[i][2]) total += haversine(route[i - 1], route[i]);
   return total;
 }
 
@@ -31,7 +31,7 @@ export function routeDistanceM(route: LatLng[]): number {
  * centred in the unit box; latitude is flipped so north is up. Returns null if
  * there aren't enough distinct points to draw.
  */
-export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y: number }> } | null {
+export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y: number; breakBefore?: boolean }> } | null {
   if (route.length < 2) return null;
   // reduce instead of Math.min(...spread): a long route (thousands of GPS fixes)
   // can overflow the call stack when spread on Hermes.
@@ -62,6 +62,7 @@ export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y:
     return {
       x: (offX + xM) / span,
       y: 1 - (offY + yM) / span, // flip so north is up
+      breakBefore: p[2] === 1,
     };
   });
   return { points };
@@ -76,24 +77,26 @@ export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y:
  * scale is used for both axes, and the square is centred in the area.
  */
 export function fitRoute(
-  points: Array<{ x: number; y: number }>,
+  points: Array<{ x: number; y: number; breakBefore?: boolean }>,
   width: number,
   height: number,
   pad = 0
-): Array<{ x: number; y: number }> {
+): Array<{ x: number; y: number; breakBefore?: boolean }> {
   const w = Math.max(0, width - pad * 2);
   const h = Math.max(0, height - pad * 2);
   const side = Math.min(w, h);
   const offX = pad + (w - side) / 2;
   const offY = pad + (h - side) / 2;
-  return points.map((p) => ({ x: offX + p.x * side, y: offY + p.y * side }));
+  return points.map((p) => ({ x: offX + p.x * side, y: offY + p.y * side, breakBefore: p.breakBefore }));
 }
 
 export function parseRoute(json: string | null | undefined): LatLng[] {
   if (!json) return [];
   try {
     const arr = JSON.parse(json);
-    if (Array.isArray(arr)) return arr.filter((p) => Array.isArray(p) && p.length === 2) as LatLng[];
+    if (Array.isArray(arr)) return arr.filter((p) => Array.isArray(p) && p.length >= 2 && p.length <= 3
+      && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180
+      && (p[2] == null || p[2] === 0 || p[2] === 1)) as LatLng[];
   } catch {
     /* ignore malformed */
   }

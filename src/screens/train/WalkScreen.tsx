@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Alert } from 'react-native';
+import { View, Alert, Switch } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pedometer } from 'expo-sensors';
@@ -48,6 +48,8 @@ export function WalkScreen() {
   const activity = activityFor(route.params?.activity ?? route.params?.mode ?? 'walk');
   const initialMode = activity.gait === 'run' ? 'run' : 'walk';
   const [packKg, setPackKg] = useState('');
+  const [useGps, setUseGps] = useState(true);
+  const [showMap, setShowMap] = useState(false);
 
   const walk = useWalkStore();
   const user = useUserStore((s) => s.user);
@@ -63,7 +65,7 @@ export function WalkScreen() {
   // Reconnect to a session that kept running while the app was backgrounded.
   useFocusEffect(
     React.useCallback(() => {
-      walk.resume();
+      useWalkStore.getState().resume();
     }, [])
   );
 
@@ -103,7 +105,7 @@ export function WalkScreen() {
     }
     setSummary(null);
     warnedNoGps.current = false;
-    walk.start(initialMode, activity.key, loadKg);
+    walk.start(initialMode, activity.key, loadKg, useGps || requiresGps(activity));
   };
   const gpsOnly = requiresGps(activity);
 
@@ -114,14 +116,14 @@ export function WalkScreen() {
   React.useEffect(() => {
     if (!walk.active || warnedNoGps.current) return;
     const p = walk.permissions;
-    if (p && !p.gps) {
+    if (p && !p.gps && useGps) {
       warnedNoGps.current = true;
       Alert.alert(
-        'Location off — no route map',
-        'This session is being tracked by steps only. To draw your route and keep tracking with the screen off, enable Location for FitCoach (“Allow all the time”, or at least “While using the app”) in Android Settings → Apps → FitCoach → Permissions.'
+        'GPS unavailable — tracking steps only',
+        'The GPS service could not start. Check that device location is on and FitCoach has Location permission, then finish this session and start again. No route is being recorded for this session.'
       );
     }
-  }, [walk.active, walk.permissions]);
+  }, [walk.active, walk.permissions, useGps]);
   const stop = () => {
     const routeAtStop = walk.route;
     const result = walk.stop();
@@ -230,7 +232,8 @@ export function WalkScreen() {
             <Icon icon="cardio.gps" size={16} color={theme.colors.outdoor} />
             <Text variant="label" color="textMuted">Live route</Text>
           </Row>
-          <RouteMap route={walk.route} height={200} />
+          <Button title={showMap ? "Hide map" : "Show route map"} variant="ghost" onPress={() => setShowMap(!showMap)} />
+          {showMap && <RouteSummaryCard route={walk.route} distanceLabel={formatDistance(distanceM, unit)} />}
         </Card>
       )}
 
@@ -258,7 +261,7 @@ export function WalkScreen() {
               label="Hardware step counter"
               detail={
                 hwActive
-                  ? 'Reading the device step-counter sensor. Keeps counting with the screen off and catches up the moment you return.'
+                  ? 'Counting observed sensor steps. Background coverage depends on Android keeping the tracking service active.'
                   : perms
                     ? 'Not active — using the accelerometer, which only counts while the app is open. Enable “Physical activity” for FitCoach in Android settings.'
                     : 'Connecting…'
@@ -269,9 +272,11 @@ export function WalkScreen() {
               label="GPS route tracking"
               detail={
                 gpsActive
-                  ? 'Foreground service running — records your path and distance even with the app closed or killed. Steps keep climbing from measured distance.'
+                  ? 'Recording GPS while the foreground service runs. Force-stop and some battery restrictions can interrupt recording.'
                   : perms
-                    ? 'Not active — set Location to “Allow all the time” so tracking survives the screen going off.'
+                    ? !useGps && !gpsOnly
+                      ? 'Off by choice. Distance is estimated from observed steps; motion recognition helps filter vehicle travel.'
+                      : 'Not active — enable Location in Android settings to record a route.'
                     : 'Connecting…'
               }
             />
@@ -306,6 +311,14 @@ export function WalkScreen() {
       */}
       {!walk.active ? (
         <>
+        <Card style={{ gap: 8 }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text variant="bodyStrong">Record GPS route</Text>
+            <Switch accessibilityLabel="Record GPS route" value={useGps || gpsOnly} disabled={gpsOnly} onValueChange={setUseGps} />
+          </Row>
+          <Text variant="caption" color="textMuted">{useGps || gpsOnly ? 'Measures distance and helps detect vehicle travel. Viewing the map is optional.' : 'Lower battery use. Distance is estimated from steps; vehicle detection depends on motion recognition.'}</Text>
+          <Text variant="caption" color="textMuted">Vehicle detection is an estimate. Slow traffic and unusual phone placement can be misclassified.</Text>
+        </Card>
         <WeatherCard plannedActiveMin={activity.plannedMin} />
 
         <Card style={{ gap: 8 }}>

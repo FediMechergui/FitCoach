@@ -1,20 +1,31 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
-/**
- * Hardware step counter — absolute steps since device boot.
- *
- * Loaded with `requireOptionalNativeModule`, which returns null when the native
- * side isn't present. That matters: the JS bundle ships over-the-air to builds
- * that predate this module, so every call site must work without it. On an older
- * APK these helpers simply report "unavailable" and tracking falls back to the
- * pedometer + GPS path.
+/** Low-power motion observations. Hardware counts cover periods when the sensor
+ * was activated; Android force-stop or process loss can leave unmeasured gaps.
  */
 interface StepCounterNativeModule {
+  startMonitoring?: () => boolean;
+  dailySteps?: () => { date: string; steps: number; updatedAt: number; observedTotal: number };
+  setGpsVehicleFilter?: (active: boolean) => void;
+  startStepService?: () => boolean;
+  stopStepService?: () => boolean;
+  readMotion?: () => { kind: string; confidence: number; at: number };
+  startMotionRecognition?: () => Promise<boolean>;
+  stopMotionRecognition?: () => Promise<boolean>;
   isAvailable: () => boolean;
   getStepsSinceBoot: () => Promise<number | null>;
 }
 
 const Native = requireOptionalNativeModule<StepCounterNativeModule>('StepCounter');
+
+export function startStepMonitoring(): boolean { try { return Native?.startMonitoring?.() ?? false; } catch { return false; } }
+export function nativeDailySteps() { try { return Native?.dailySteps?.() ?? null; } catch { return null; } }
+export function setGpsVehicleFilter(active: boolean) { try { Native?.setGpsVehicleFilter?.(active); } catch { /* optional module */ } }
+export function startStepService(): boolean { try { return Native?.startStepService?.() ?? false; } catch { return false; } }
+export function stopStepService(): void { try { Native?.stopStepService?.(); } catch { /* already stopped */ } }
+export async function readMotion() { try { return Native?.readMotion?.() ?? null; } catch { return null; } }
+export async function startMotionRecognition(): Promise<boolean> { try { return await Native?.startMotionRecognition?.() ?? false; } catch { return false; } }
+export async function stopMotionRecognition(): Promise<void> { try { await Native?.stopMotionRecognition?.(); } catch { /* optional */ } }
 
 /** True only when the native module AND a hardware step sensor are both present. */
 export function hasHardwareStepCounter(): boolean {

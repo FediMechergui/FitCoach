@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Pressable, Alert, Switch, LayoutAnimation } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -65,6 +65,7 @@ const REST_PRESETS = [60, 90, 120, 180, 300];
 const EXPLOSIVE_RE = /jump|throw|clean|snatch|power|explosive|sprint|plyo|box jump|broad/i;
 
 export function ActiveSessionScreen() {
+  const route = useRoute<RouteProp<RootStackParamList, 'ActiveSession'>>();
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const store = useSessionStore();
@@ -225,6 +226,9 @@ export function ActiveSessionScreen() {
     ]);
   };
 
+  if (store.activeId && route.params.sessionId !== store.activeId) {
+    return <Screen><Text variant="h2">A different workout is active</Text><Text variant="body">Finish your current workout before opening another session.</Text><Button title="Open current workout" onPress={() => navigation.replace('ActiveSession', {sessionId: store.activeId!})} /></Screen>;
+  }
   if (!store.activeId || !meta) {
     return (
       <Screen>
@@ -669,7 +673,7 @@ function ExerciseLogCard({
     };
     // Prescribe from the set BEFORE it is logged, so setIndex counts the sets before it.
     const rx = isLifting ? rxFor(draft) : null;
-    store.logSet(lv.log.id, draft);
+    try { store.logSet(lv.log.id, draft); } catch (e) { Alert.alert('Check this set', e instanceof Error ? e.message : 'Enter valid values.'); return; }
     setReps('');
     setWeight('');
     setRpe('');
@@ -679,7 +683,7 @@ function ExerciseLogCard({
     setDistanceKm('');
     if (isLifting && rx) {
       setLastRx(rx);
-      store.startRest(rx.restSec, rx);
+      store.startRest(rx.restSec, rx, lv.log.id);
     }
   };
 
@@ -734,7 +738,7 @@ function ExerciseLogCard({
     } catch {
       return null;
     }
-  }, [lv.log.exerciseId, goal, focusRaw, history.best1RM]);
+  }, [lv.log.exerciseId, goal, focusRaw, history.best1RM, f.distance, f.weight, isLifting, lv.equipmentType, lv.trackingType, store.activeId]);
   const pairingNote = tip ? focusPhaseNote(sanitizeFocus(focusRaw), PHASE_FROM_GOAL[goal]) : null;
 
   return (
@@ -858,8 +862,12 @@ function ExerciseLogCard({
                 {s.setNumber}
               </Text>
               <Text variant="body" style={{ flex: 1 }}>
-                {describeSet(s)}
+                {s.completed ? '' : 'Planned · '}{describeSet(s)}
               </Text>
+              {!s.completed && <Button title="Done" size="sm" fullWidth={false} onPress={() => {
+                store.editSet(s.id, { completed: true });
+                store.startRest(lv.log.restSeconds ?? 90, undefined, lv.log.id);
+              }} />}
               <View style={{ width: 24, alignItems: 'flex-end' }}>
                 {s.isPr ? (
                   <Icon icon="core.pr" size={16} color={theme.colors.warning} />
@@ -983,8 +991,8 @@ function ExerciseLogCard({
                 ? rxFor({ reps: last.reps, weightKg: last.weightKg, rpe: last.rpe, toFailure: !!last.toFailure, durationS: last.durationS })
                 : null;
               store.repeatLastSet(lv.log.id, lv.log.exerciseId);
-              if (rx) { setLastRx(rx); store.startRest(rx.restSec, rx); }
-              else store.startRest(store.restDurationS);
+              if (rx) { setLastRx(rx); store.startRest(rx.restSec, rx, lv.log.id); }
+              else store.startRest(store.restDurationS, undefined, lv.log.id);
             }}
             style={{ flex: 1 }}
             fullWidth={false}
@@ -1016,7 +1024,7 @@ function ExerciseLogCard({
         <Row gap={6}>
           {/* An override changes how long, not the physiology the banner reads. */}
           {REST_PRESETS.map((sec) => (
-            <Pressable key={sec} onPress={() => store.startRest(sec, lastRx ?? undefined)} style={{ flex: 1 }}>
+            <Pressable key={sec} onPress={() => store.startRest(sec, lastRx ?? undefined, lv.log.id)} style={{ flex: 1 }}>
               <View
                 style={{
                   paddingVertical: 6,
@@ -1121,7 +1129,7 @@ function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
   const done = useMemo(() => {
     const set = new Set(session ? warmupsDoneOf(session) : []);
     return (m: string) => set.has(m);
-  }, [session?.warmupsDone]);
+  }, [session]);
 
   const muscles = useMemo(() => {
     const seen = new Set<string>();

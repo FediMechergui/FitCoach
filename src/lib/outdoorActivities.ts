@@ -56,7 +56,7 @@ export const OUTDOOR_ACTIVITIES: OutdoorActivity[] = [
     metFloor: 0,
     carries: false,
     plannedMin: 60,
-    blurb: 'Steps, distance and pace, counted with the screen off.',
+    blurb: 'Live steps, distance and pace, with an optional GPS route.',
   },
   {
     key: 'run',

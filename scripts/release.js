@@ -127,6 +127,12 @@ function quiet(cmd) {
   const suite = quiet('npx tsx scripts/verify-engines.ts');
   if (suite !== null) stop(`the guard suite failed:\n${suite}`);
   console.log('✓ Guard suite');
+  const repositories = quiet('node scripts/verify-repositories.cjs');
+  if (repositories !== null) stop(`repository checks failed:\n${repositories}`);
+  const upgrade = quiet('node scripts/verify-upgrade.cjs');
+  if (upgrade !== null) stop(`database upgrade checks failed:\n${upgrade}`);
+  const lint = quiet('npx eslint .');
+  if (lint !== null) stop(`lint failed:\n${lint}`);
 
   const np = require('./native-profile');
   const base = np.readBaseline();

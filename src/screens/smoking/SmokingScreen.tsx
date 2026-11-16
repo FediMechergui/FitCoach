@@ -18,6 +18,7 @@ import { PageHero } from '@/components/ui/PageHero';
 import { Skeleton } from '@/components/ui/misc3';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSmokingStore } from '@/stores/smokingStore';
+import { SmokingHistory } from '@/components/SmokingHistory';
 import { NICOTINE_GROUPS, findNicotineProduct } from '@/data/nicotineProducts';
 import { dailySeries, smokingCorrelation, recentSmokeEvents } from '@/repositories/smokingRepo';
 import { DigestionCard } from '@/components/DigestionCard';
@@ -183,6 +184,7 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
       />
 
       {/* Today logger */}
+      <SmokingHistory />
       <Card accent={overTarget ? theme.colors.danger : theme.colors.warning}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <View>

@@ -1,6 +1,9 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { Pedometer } from 'expo-sensors';
+import { Platform } from 'react-native';
+import { nativeDailySteps, startStepMonitoring } from '../../modules/step-counter';
+import { initDatabase } from '@/db/bootstrap';
 import { setDailySteps } from '@/repositories/activityRepo';
 import { distanceFromSteps } from '@/lib/pedometer';
 import { walkCalories } from '@/lib/met';
@@ -17,6 +20,7 @@ export const DAILY_STEPS_TASK = 'fitcoach-daily-steps';
 
 TaskManager.defineTask(DAILY_STEPS_TASK, async () => {
   try {
+    initDatabase();
     const available = await Pedometer.isAvailableAsync();
     if (!available) return BackgroundFetch.BackgroundFetchResult.NoData;
     await syncTodaySteps();
@@ -32,7 +36,14 @@ export async function syncTodaySteps(): Promise<number> {
   if (!available) return 0;
   const start = new Date();
   start.setHours(0, 0, 0, 0);
-  const result = await Pedometer.getStepCountAsync(start, new Date()).catch(() => null);
+  let result: { steps: number } | null = null;
+  if (Platform.OS === 'android') {
+    const permission = await Pedometer.getPermissionsAsync().catch(() => null);
+    if (!permission?.granted) return 0;
+    startStepMonitoring();
+    const observed = nativeDailySteps();
+    if (observed?.date === todayISO()) result = observed;
+  } else result = await Pedometer.getStepCountAsync(start, new Date()).catch(() => null);
   const steps = result?.steps ?? 0;
   if (steps <= 0) return 0;
 

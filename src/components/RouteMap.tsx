@@ -79,14 +79,14 @@ function RoutePaths({
   beaconId,
   markers,
 }: {
-  pts: Array<{ x: number; y: number }>;
+  pts: Array<{ x: number; y: number; breakBefore?: boolean }>;
   stroke: string;
   gradId: string;
   beaconId: string;
   markers: boolean;
 }) {
   const theme = useTheme();
-  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const d = pts.map((p, i) => `${i === 0 || p.breakBefore ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
   const start = pts[0];
   const end = pts[pts.length - 1];
   return (

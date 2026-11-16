@@ -117,7 +117,13 @@ if (!gradle.includes('extraPackagerArgs = ["--max-workers"')) {
 }
 
 // ── build ────────────────────────────────────────────────────────────────────
-const env = { ...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk, NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=4096' };
+// Keep generated caches on the workspace drive; a release can create several GB.
+const buildTemp = path.join(root, 'builds', 'tmp');
+fs.mkdirSync(buildTemp, { recursive: true });
+const env = { ...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk, NODE_ENV: 'production',
+  NODE_OPTIONS: process.env.NODE_OPTIONS || '--max-old-space-size=2048',
+  GRADLE_USER_HOME: process.env.GRADLE_USER_HOME || path.join(root, 'builds', 'gradle-cache'),
+  TEMP: buildTemp, TMP: buildTemp };
 if (javaHome) env.JAVA_HOME = javaHome;
 if (signing) {
   env.FITCOACH_STORE_FILE = signing.storeFile;
@@ -133,7 +139,7 @@ console.log(`JDK: ${javaHome ?? 'from PATH'}\nSDK: ${sdk}\n`);
 // Phones of the last several years are 64-bit ARM; one architecture builds about
 // four times less native code. --all-abis builds the four Expo builds by default.
 const abis = args.includes('--all-abis') ? [] : ['-PreactNativeArchitectures=arm64-v8a'];
-run(path.join(androidDir, isWin ? 'gradlew.bat' : 'gradlew'), ['assembleRelease', '--no-daemon', ...abis], { cwd: androidDir, env });
+run(path.join(androidDir, isWin ? 'gradlew.bat' : 'gradlew'), ['assembleRelease', '--no-daemon', '--max-workers=1', ...abis], { cwd: androidDir, env });
 
 const apk = path.join(androidDir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 if (!fs.existsSync(apk)) fail('Gradle finished but no APK was found.');

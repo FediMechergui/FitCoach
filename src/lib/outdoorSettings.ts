@@ -49,15 +49,15 @@ export const ACCURACY_LABEL: Record<GpsAccuracy, string> = {
 
 export const ACCURACY_NOTE: Record<GpsAccuracy, string> = {
   precise: 'A fix every 2 s and every 3 m. Best for track reps and twisting trails; uses the most battery.',
-  balanced: 'A fix every 3 s and every 5 m. Right for most walks, runs and rides.',
-  saver: 'A fix every 5 s and every 10 m. For long hikes where the battery matters more than the corners.',
+  balanced: 'A fix every 5 s and every 5 m. Right for most walks, runs and rides.',
+  saver: 'A fix every 10 s and every 10 m. For long hikes where the battery matters more than the corners.',
 };
 
 /** Receiver settings per mode: [ms between fixes, metres between fixes]. */
 export const ACCURACY_INTERVALS: Record<GpsAccuracy, { timeMs: number; distanceM: number }> = {
   precise: { timeMs: 2000, distanceM: 3 },
-  balanced: { timeMs: 3000, distanceM: 5 },
-  saver: { timeMs: 5000, distanceM: 10 },
+  balanced: { timeMs: 5000, distanceM: 5 },
+  saver: { timeMs: 10000, distanceM: 10 },
 };
 
 export const SPLIT_OPTIONS_M = [500, 1000, 1609, 2000, 5000] as const;

@@ -36,5 +36,5 @@ export function Chip({ label, icon, active, color, onPress, small }: ChipProps) 
       </Text>
     </View>
   );
-  return onPress ? <Pressable onPress={onPress}>{body}</Pressable> : body;
+  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active }} style={{ minHeight: 44, justifyContent: 'center' }} onPress={onPress}>{body}</Pressable> : body;
 }

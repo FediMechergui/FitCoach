@@ -1,5 +1,6 @@
 import { sqlite } from './client';
 import { seedExerciseLibrary } from './seed';
+import { repairSessionHistory } from '@/repositories/sessionRepo';
 
 /**
  * Schema bootstrap. Runs idempotent `CREATE TABLE IF NOT EXISTS` DDL matching
@@ -83,7 +84,7 @@ import { seedExerciseLibrary } from './seed';
  *                  props, reformer, cadillac, Wunda chair, barrels), 37 Hyrox.
  *                  No new table or column: the bump re-seeds.
  */
-const SCHEMA_VERSION = 42;
+export const SCHEMA_VERSION = 43;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -91,6 +92,18 @@ const SCHEMA_VERSION = 42;
  * CREATE above) and upgrades from an earlier dev database.
  */
 const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
+  { table: 'exercise_logs', column: 'rest_seconds', ddl: 'INTEGER' },
+  { table: 'custom_routines', column: 'style', ddl: 'TEXT' },
+  { table: 'custom_routines', column: 'session_type', ddl: 'TEXT' },
+  { table: 'custom_routines', column: 'prescription', ddl: 'TEXT' },
+  { table: 'path_enrolments', column: 'paused_duration_ms', ddl: 'INTEGER NOT NULL DEFAULT 0' },
+  { table: 'food_entries', column: 'source', ddl: "TEXT NOT NULL DEFAULT 'manual'" },
+  { table: 'food_entries', column: 'source_ref', ddl: 'TEXT' },
+  { table: 'alcohol_entries', column: 'food_entry_id', ddl: 'INTEGER' },
+  { table: 'sessions', column: 'bodyweight_kg', ddl: 'REAL' },
+  { table: 'sessions', column: 'calorie_override', ddl: 'REAL' },
+  { table: 'sessions', column: 'archived_at', ddl: 'INTEGER' },
+  { table: 'nutrition_goals', column: 'manual', ddl: 'INTEGER NOT NULL DEFAULT 1' },
   // v2
   { table: 'users', column: 'gender', ddl: "TEXT NOT NULL DEFAULT 'male'" },
   { table: 'weigh_ins', column: 'fat_mass_kg', ddl: 'REAL' },
@@ -172,13 +185,9 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
 
 function ensureColumns(): void {
   for (const { table, column, ddl } of ADDED_COLUMNS) {
-    try {
-      const cols = sqlite.getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
-      if (!cols.some((c) => c.name === column)) {
-        sqlite.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl};`);
-      }
-    } catch (e) {
-      console.warn(`[db] add column ${table}.${column} failed:`, e);
+    const cols = sqlite.getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
+    if (!cols.some((c) => c.name === column)) {
+      sqlite.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl};`);
     }
   }
 }
@@ -258,6 +267,9 @@ CREATE TABLE IF NOT EXISTS goal_history (
 CREATE INDEX IF NOT EXISTS idx_goal_history_user_date ON goal_history(user_id, date);
 
 CREATE TABLE IF NOT EXISTS sessions (
+  bodyweight_kg REAL,
+  calorie_override REAL,
+  archived_at INTEGER,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   session_type TEXT NOT NULL,
@@ -287,6 +299,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_user_time ON sessions(user_id, start_time);
 
 CREATE TABLE IF NOT EXISTS exercise_logs (
+  rest_seconds INTEGER,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   session_id INTEGER NOT NULL,
   exercise_id INTEGER NOT NULL,
@@ -337,6 +350,9 @@ CREATE INDEX IF NOT EXISTS idx_exercises_type ON exercises(session_type);
 CREATE INDEX IF NOT EXISTS idx_exercises_muscle ON exercises(primary_muscle);
 
 CREATE TABLE IF NOT EXISTS custom_routines (
+  session_type TEXT,
+  prescription TEXT,
+  style TEXT,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   name TEXT NOT NULL,
@@ -392,6 +408,8 @@ CREATE TABLE IF NOT EXISTS daily_step_logs (
 );
 
 CREATE TABLE IF NOT EXISTS food_entries (
+  source TEXT NOT NULL DEFAULT 'manual',
+  source_ref TEXT,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   date TEXT NOT NULL,
@@ -451,6 +469,7 @@ CREATE TABLE IF NOT EXISTS beverage_entries (
 CREATE INDEX IF NOT EXISTS idx_beverage_entries_user_date ON beverage_entries(user_id, date);
 
 CREATE TABLE IF NOT EXISTS nutrition_goals (
+  manual INTEGER NOT NULL DEFAULT 1,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   calorie_target REAL NOT NULL,
@@ -528,6 +547,7 @@ CREATE TABLE IF NOT EXISTS hormone_flags (
 CREATE INDEX IF NOT EXISTS idx_hormone_flags_user ON hormone_flags(user_id, active);
 
 CREATE TABLE IF NOT EXISTS alcohol_entries (
+  food_entry_id INTEGER,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   date TEXT NOT NULL,
@@ -808,6 +828,7 @@ CREATE TABLE IF NOT EXISTS weekly_quests (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_quests_user_week_key ON weekly_quests(user_id, week, quest_key);
 
 CREATE TABLE IF NOT EXISTS path_enrolments (
+  paused_duration_ms INTEGER NOT NULL DEFAULT 0,
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   path_key TEXT NOT NULL,
@@ -874,45 +895,46 @@ let initialized = false;
  */
 export function initDatabase(): void {
   if (initialized) return;
-
-  try {
-    sqlite.execSync('PRAGMA journal_mode = WAL;');
-    sqlite.execSync('PRAGMA foreign_keys = ON;');
-  } catch {
-    // pragmas are best-effort
-  }
-
-  // Run each CREATE statement independently so a single failure can't abort the
-  // rest of the schema (which would leave the app unusable / white-screening).
-  for (const stmt of DDL.split(';')) {
-    const sql = stmt.trim();
-    if (!sql) continue;
-    try {
-      sqlite.execSync(sql + ';');
-    } catch (e) {
-      console.warn('[db] statement failed:', sql.slice(0, 60), e);
+  sqlite.execSync('PRAGMA journal_mode = WAL;');
+  sqlite.execSync('PRAGMA foreign_keys = ON;');
+  // A failed upgrade leaves the previous schema and records intact. The boot
+  // screen offers Retry; initialized remains false until the commit succeeds.
+  sqlite.withTransactionSync(() => {
+    const currentVersion = sqlite.getFirstSync<{ user_version: number }>('PRAGMA user_version;')?.user_version ?? 0;
+    if (currentVersion > SCHEMA_VERSION) throw new Error('This backup needs a newer version of FitCoach.');
+    for (const stmt of DDL.split(';')) {
+      const sql = stmt.trim();
+      if (sql) sqlite.execSync(sql + ';');
     }
-  }
-
-  ensureColumns();
-
-  let currentVersion = 0;
-  try {
-    currentVersion = sqlite.getFirstSync<{ user_version: number }>('PRAGMA user_version;')?.user_version ?? 0;
-  } catch {
-    currentVersion = 0;
-  }
-
-  if (currentVersion < SCHEMA_VERSION) {
-    // First install (or upgrade) — seed the built-in exercise library. Isolated
-    // so a seed hiccup never prevents the app from opening.
-    try {
+    ensureColumns();
+    // Preserve old concurrent timers as recoverable drafts, then enforce one live session.
+    sqlite.execSync(`UPDATE sessions SET archived_at = start_time
+      WHERE end_time IS NULL AND archived_at IS NULL AND id NOT IN
+      (SELECT MAX(id) FROM sessions WHERE end_time IS NULL AND archived_at IS NULL GROUP BY user_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_one_live_session ON sessions(user_id)
+      WHERE end_time IS NULL AND archived_at IS NULL;`);
+    const expectedTables = [...DDL.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g)].map((match) => match[1]);
+    for (const table of expectedTables) {
+      if (!sqlite.getFirstSync(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, table)) {
+        throw new Error(`Database upgrade did not create ${table}.`);
+      }
+    }
+    if (currentVersion < SCHEMA_VERSION) {
+      // Older GPS calorie estimates have no provenance flag. Preserve their value.
+      sqlite.execSync(`UPDATE sessions SET calorie_override = calories_burned
+        WHERE bodyweight_kg IS NULL AND route_json IS NOT NULL AND calories_burned IS NOT NULL;`);
+      sqlite.execSync(`INSERT INTO food_entries
+        (user_id, date, meal_type, log_mode, food_name, quantity, calories, protein_g, carbs_g, fat_g, fiber_g, is_estimated, created_at, source, source_ref, form)
+        SELECT user_id, date, 'snack', 'precise', COALESCE(label, type) || ' (alcohol)', 1, calories, 0,
+          MAX(0, calories - alcohol_grams * 7) / 4, 0, 0, 1, created_at, 'alcohol', CAST(id AS TEXT), 'liquid'
+        FROM alcohol_entries WHERE food_entry_id IS NULL;
+        UPDATE alcohol_entries SET food_entry_id = (SELECT f.id FROM food_entries f
+          WHERE f.source = 'alcohol' AND f.source_ref = CAST(alcohol_entries.id AS TEXT) LIMIT 1)
+          WHERE food_entry_id IS NULL;`);
       seedExerciseLibrary();
+      if (currentVersion > 0) repairSessionHistory();
       sqlite.execSync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
-    } catch (e) {
-      console.warn('[db] seed failed (will retry next launch):', e);
     }
-  }
-
+  });
   initialized = true;
 }

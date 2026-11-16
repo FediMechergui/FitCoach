@@ -1,5 +1,8 @@
+import { LogDatePicker } from '@/components/LogDatePicker';
+import { sleepForDate, logSleep, deleteSleep, logNap } from '@/repositories/sleepRepo';
+import { todayISO } from '@/lib/date';
 import React, { useCallback, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { Alert, View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -25,6 +28,7 @@ const NAP_OPTIONS = [10, 15, 20, 30, 45, 60, 90];
 
 export function SleepScreen() {
   const theme = useTheme();
+  const [date, setDate] = useState(todayISO);
   const { summary, lastNight, naps, napMinutesToday, load, log, logRange, addNap, removeNap } = useSleepStore();
   const [mode, setMode] = useState<'quick' | 'range'>('quick');
   const [hours, setHours] = useState(lastNight ?? 8);
@@ -36,17 +40,20 @@ export function SleepScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      load(date);
+      const row = sleepForDate(date);
+      setHours(row?.hours ?? 8); setQuality(row?.quality ?? null);
+      setBedtime(row?.bedtime ?? '23:30'); setWakeTime(row?.wakeTime ?? '07:00');
       setCorrelation(sleepTrainingCorrelation(30));
-    }, [load])
+    }, [load, date])
   );
 
   const rangeMins = rangeMinutes(bedtime, wakeTime);
   const effectiveHours = mode === 'range' && rangeMins != null ? minutesToHours(rangeMins) : hours;
 
   const save = () => {
-    if (mode === 'range') logRange(bedtime, wakeTime, quality);
-    else log(hours, quality);
+    try { logSleep({ date, hours: effectiveHours, quality, ...(mode === 'range' ? { bedtime, wakeTime } : {}) }); load(date); }
+    catch (e) { Alert.alert('Check sleep', e instanceof Error ? e.message : 'Unable to save.'); }
     setCorrelation(sleepTrainingCorrelation(30));
   };
 
@@ -57,7 +64,12 @@ export function SleepScreen() {
     <Screen>
       <PageHero icon="sleep.moon" color={theme.colors.mindbody} title="Sleep" />
 
-      {/* Log last night */}
+      <LogDatePicker date={date} onChange={setDate} />
+      <Text variant="caption" color="textMuted">Choose the day you woke up. Past entries can be corrected here.</Text>
+      {lastNight != null && <Button title="Delete this sleep log" variant="ghost" onPress={() => Alert.alert('Delete this log?', date, [
+        { text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => { const row = sleepForDate(date); if (row) deleteSleep(row.id); load(date); } }
+      ])} />}
+      {/* Log selected night */}
       <Card style={{ gap: theme.spacing.md }}>
         <Text variant="h3">How did you sleep?</Text>
         <SegmentedControl
@@ -117,7 +129,7 @@ export function SleepScreen() {
                   size={22}
                   color={quality === i + 1 ? theme.colors.mindbody : theme.colors.surfaceAlt}
                 />
-                <Text variant="caption" color={quality === i + 1 ? 'text' : 'textFaint'} style={{ fontSize: 9 }}>
+                <Text variant="caption" color={quality === i + 1 ? 'text' : 'textFaint'} style={{ fontSize: 12 }}>
                   {label}
                 </Text>
               </Pressable>
@@ -125,7 +137,7 @@ export function SleepScreen() {
           </Row>
         </View>
         <Button
-          title="Save last night"
+          title="Save sleep log"
           icon="core.check"
           color={theme.colors.mindbody}
           onPress={save}
@@ -138,7 +150,7 @@ export function SleepScreen() {
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row gap={8} style={{ alignItems: 'center' }}>
             <Icon icon="sleep.bed" size={18} color={theme.colors.info} />
-            <Text variant="h3">Naps today</Text>
+            <Text variant="h3">Naps on selected date</Text>
           </Row>
           {napMinutesToday > 0 && (
             <Text variant="bodyStrong" color={theme.colors.info}>
@@ -177,7 +189,7 @@ export function SleepScreen() {
           title={`Add ${napMinutes}-min nap`}
           icon="core.add"
           variant="secondary"
-          onPress={() => addNap(napMinutes)}
+          onPress={() => (() => { logNap({ date, minutes: napMinutes }); load(date); })()}
         />
         {naps.length > 0 && (
           <View style={{ gap: 6 }}>
@@ -202,7 +214,7 @@ export function SleepScreen() {
                     })()}
                   </View>
                 </Row>
-                <Pressable onPress={() => removeNap(n.id)} hitSlop={8}>
+                <Pressable onPress={() => (() => { removeNap(n.id); load(date); })()} hitSlop={8}>
                   <Icon icon="core.close" size={16} color={theme.colors.textFaint} />
                 </Pressable>
               </Row>

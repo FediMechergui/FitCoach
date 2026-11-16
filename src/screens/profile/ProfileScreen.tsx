@@ -21,7 +21,7 @@ import { APP_RELEASE, APP_RELEASE_DATE } from '@/data/changelog';
 import { BODY_TYPE_LABELS } from '@/lib/bodyType';
 import { GOAL_LABELS, ACTIVITY_LABELS } from '@/lib/calories';
 import { ageFromBirthdate } from '@/lib/date';
-import { formatWeight, kgToLb, lbToKg } from '@/lib/format';
+import { formatWeight, fmtNum, kgToLb, lbToKg } from '@/lib/format';
 import { IdentityHeader } from '@/components/IdentityHeader';
 import { profileIdentity, type ProfileIdentity } from '@/repositories/progressionRepo';
 
@@ -100,11 +100,11 @@ export function ProfileScreen() {
 
   const unit = user.unitPreference;
   const saveWeight = () => {
-    const raw = parseFloat(weighInput);
-    if (!raw) return;
+    const raw = Number(weighInput.replace(',', '.'));
+    if (!Number.isFinite(raw) || raw <= 0) { Alert.alert('Check weight', 'Enter a valid positive weight.'); return; }
     const kg = unit === 'imperial' ? lbToKg(raw) : raw;
-    logWeight(kg);
-    setWeighInput('');
+    try { logWeight(kg); setWeighInput(''); }
+    catch(error) { Alert.alert('Check weight', error instanceof Error ? error.message : 'Unable to save weight.'); }
   };
 
   return (
@@ -114,7 +114,7 @@ export function ProfileScreen() {
       </Text>
       <IdentityHeader
         name={user.name}
-        detail={`${ageFromBirthdate(user.birthdate)} yrs · ${user.heightCm ?? '—'} cm · ${user.bodyType ? BODY_TYPE_LABELS[user.bodyType] : 'Body type —'}`}
+        detail={`${ageFromBirthdate(user.birthdate)} yrs · ${user.heightCm == null ? '—' : fmtNum(user.heightCm / (unit === 'imperial' ? 2.54 : 1), 1)} ${unit === 'imperial' ? 'in' : 'cm'} · ${user.bodyType ? BODY_TYPE_LABELS[user.bodyType] : 'Body type —'}`}
         identity={identity}
         onEdit={() => navigation.navigate('EditProfile')}
         onRank={() => navigation.navigate('Ranks')}
@@ -249,6 +249,8 @@ export function ProfileScreen() {
         <LinkRow icon="faith.fasting" label="Fasting mode" onPress={() => navigation.navigate('Fasting')} />
       </Card>
 
+      <SectionHeader title="Backup & account" />
+      <Card><LinkRow icon="card.download" label="Encrypted backup & restore" onPress={() => navigation.navigate('Backup')} /></Card>
       {/* Version + updates */}
       <SectionHeader title="App version" />
       <Card accent={updateStatus === 'uptodate' ? theme.colors.success : theme.colors.primary} style={{ gap: 10 }}>
@@ -308,9 +310,7 @@ export function ProfileScreen() {
         <Row gap={10} style={{ alignItems: 'flex-start' }}>
           <Icon icon="core.info" size={18} color={theme.colors.accent} />
           <Text variant="caption" color="textMuted" style={{ flex: 1 }}>
-            Local-first & private. All your health, body and nutrition data stays on this
-            device in an on-device SQLite database — no account or internet required. Cloud
-            sync is an explicit opt-in (Phase 2).
+            Your logs stay on this device unless you enable encrypted account backups. FitCoach works offline without an account. Map tiles, food lookup and optional AI tools contact their named providers only when used.
           </Text>
         </Row>
       </Card>
@@ -321,7 +321,7 @@ export function ProfileScreen() {
 function LinkRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   const theme = useTheme();
   return (
-    <Pressable onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{minHeight:44}}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 }}>
         <Row gap={12} style={{ alignItems: 'center' }}>
           <Icon icon={icon} size={20} color={theme.colors.textMuted} />

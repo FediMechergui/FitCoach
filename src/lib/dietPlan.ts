@@ -46,6 +46,7 @@ export interface PlanMeal {
 }
 
 export interface DietPlan {
+  warnings: string[];
   meals: PlanMeal[];
   totals: PlanTotals;
   target: DietTarget;
@@ -100,8 +101,9 @@ function isBuildingBlock(f: FoodItem): boolean {
   return !composite.includes(f.category ?? '') && f.calories > 0;
 }
 
-function poolsFor(style: DietStyle) {
-  let foods = FOOD_DB.filter(isBuildingBlock);
+function poolsFor(style: DietStyle, excluded: string[] = []) {
+  const terms = excluded.map(s => s.trim().toLowerCase()).filter(Boolean);
+  let foods = FOOD_DB.filter(f => isBuildingBlock(f) && !terms.some(term => `${f.name} ${f.category ?? ''}`.toLowerCase().includes(term)));
   if (style === 'vegetarian') {
     foods = foods.filter((f) => !MEAT_CATS.has(f.category ?? '') && !MEAT_NAME.test(f.name));
   }
@@ -152,15 +154,15 @@ const MEAL_SPLITS: Record<number, Array<{ key: PlanMeal['key']; label: string; w
   ],
 };
 
-export function generateDietPlan(
+function candidatePlan(
   target: DietTarget,
-  opts: { style?: DietStyle; meals?: number; seed?: number } = {}
+  opts: { style?: DietStyle; meals?: number; seed?: number; excluded?: string[] } = {}
 ): DietPlan {
   const style = opts.style ?? 'balanced';
   const mealsCount = opts.meals === 3 ? 3 : 4;
   const seed = opts.seed ?? Math.floor(Math.random() * 1e9);
   const r = rng(seed);
-  const pools = poolsFor(style);
+  const pools = poolsFor(style, opts.excluded);
 
   const splits = MEAL_SPLITS[mealsCount];
   const meals: PlanMeal[] = [];
@@ -216,6 +218,7 @@ export function generateDietPlan(
     meals.push({ key: split.key, label: split.label, items, totals });
   }
 
+  fitPortions(meals, target);
   const totals = meals.reduce(
     (t, m) => ({
       calories: t.calories + m.totals.calories,
@@ -227,5 +230,54 @@ export function generateDietPlan(
     { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
 
-  return { meals, totals, target, style, seed };
+  const warnings = (['calories', 'protein', 'carbs', 'fat'] as const)
+    .filter(k => Math.abs(totals[k] - target[k]) > Math.max(5, target[k] * 0.1))
+    .map(k => `${k}: ${totals[k]} planned / ${target[k]} target`);
+  return { meals, totals, target, style, seed, warnings };
+}
+
+const NUTRIENTS = ['calories', 'protein', 'carbs', 'fat'] as const;
+const zeroTotals = (): PlanTotals => ({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+
+/** Bounded coordinate descent accounts for all macros in every food together. */
+function fitPortions(meals: PlanMeal[], target: DietTarget): void {
+  const items = meals.flatMap(m => m.items);
+  const foods = items.map(item => FOOD_DB.find(f => f.id === item.id)!);
+  const quantities = items.map(item => item.servings);
+  const totals = NUTRIENTS.map(k => foods.reduce((sum, f, i) => sum + f[k] * quantities[i], 0));
+  for (let pass = 0; pass < 80; pass++) {
+    let moved = false;
+    for (let i = 0; i < items.length; i++) {
+      let numerator = 0, denominator = 0;
+      NUTRIENTS.forEach((k, j) => {
+        const weight = (k === 'calories' ? 4 : k === 'protein' ? 2 : 1) / Math.max(25, target[k]) ** 2;
+        numerator += weight * foods[i][k] * (target[k] - totals[j]);
+        denominator += weight * foods[i][k] ** 2;
+      });
+      if (denominator === 0) continue;
+      const next = Math.round(clamp(quantities[i] + numerator / denominator, 0.25, foods[i].category === 'Vegetable' ? 3 : 6) * 20) / 20;
+      const delta = next - quantities[i];
+      if (Math.abs(delta) < 0.001) continue;
+      quantities[i] = next;
+      NUTRIENTS.forEach((k, j) => { totals[j] += foods[i][k] * delta; });
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  items.forEach((item, i) => Object.assign(item, scaled(foods[i], quantities[i])));
+  for (const meal of meals) meal.totals = meal.items.reduce((t, item) => {
+    for (const k of [...NUTRIENTS, 'fiber'] as const) t[k] += item[k];
+    return t;
+  }, zeroTotals());
+}
+
+export function generateDietPlan(target: DietTarget, opts: { style?: DietStyle; meals?: number; seed?: number; excluded?: string[] } = {}): DietPlan {
+  const seed = opts.seed ?? Math.floor(Math.random() * 1e9);
+  const score = (plan: DietPlan) => NUTRIENTS.reduce((sum, k) => sum + ((plan.totals[k] - target[k]) / Math.max(25, target[k])) ** 2, 0);
+  let best = candidatePlan(target, { ...opts, seed });
+  for (let attempt = 1; attempt < 8 && best.warnings.length; attempt++) {
+    const candidate = candidatePlan(target, { ...opts, seed: seed + attempt * 7919 });
+    if (score(candidate) < score(best)) best = candidate;
+  }
+  return { ...best, seed };
 }

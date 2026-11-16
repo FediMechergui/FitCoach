@@ -64,6 +64,9 @@ function nativeConfig() {
     version: c.version,
     runtimeVersion: c.runtimeVersion,
     versionCode: c.android?.versionCode ?? null,
+    allowBackup: c.android?.allowBackup ?? null,
+    nativeArtwork: Object.fromEntries(['icon.png', 'adaptive-icon.png', 'splash.png'].map(name => [name,
+      crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'assets', name))).digest('hex')])),
     permissions: [...(c.android?.permissions ?? [])].sort(),
     plugins: c.plugins ?? [],
     updates: c.updates ?? null,
@@ -114,7 +117,7 @@ function differences(base, now) {
 
 function writeBaseline(apk) {
   const profile = currentProfile();
-  const body = { note: 'Native profile of the APK installed on the phone. Written by scripts/build-apk.js; read by scripts/release.js.', apk: apk ?? null, recorded: new Date().toISOString().slice(0, 10), ...profile };
+  const body = { note: 'Native profile of the validated release APK. Written by scripts/build-apk.js or native-profile.js --write; read by scripts/release.js.', apk: apk ?? null, recorded: new Date().toISOString().slice(0, 10), ...profile };
   fs.writeFileSync(BASELINE, JSON.stringify(body, null, 2) + '\n');
   return body;
 }

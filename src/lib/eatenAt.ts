@@ -56,7 +56,7 @@ const todayISOOf = (now: number): string => {
  */
 export function resolveEatenAt(choice: EatenAtChoice, dateISO: string, now = Date.now()): number | undefined {
   const isToday = dateISO === todayISOOf(now);
-  if (choice.kind === 'now') return undefined;
+  if (choice.kind === 'now') return isToday ? undefined : localMidnight(dateISO) + 12 * 3_600_000;
   if (choice.kind === 'ago') {
     const base = isToday ? now : localMidnight(dateISO) + 12 * 3_600_000; // past day: noon-ish anchor
     return Math.min(now, base - Math.max(0, choice.minutes) * 60_000);

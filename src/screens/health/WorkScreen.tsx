@@ -1,5 +1,8 @@
+import { LogDatePicker } from '@/components/LogDatePicker';
+import { workForDate, deleteWork } from '@/repositories/workRepo';
+import { todayISO } from '@/lib/date';
 import React, { useCallback, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { Alert, View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -19,6 +22,7 @@ const FOCUS_LABELS = ['Scattered', 'Low', 'Okay', 'Focused', 'Deep work'];
 
 export function WorkScreen() {
   const theme = useTheme();
+  const [date, setDate] = useState(todayISO);
   const { summary, today, load, log } = useWorkStore();
   const [start, setStart] = useState(today?.startTime ?? '09:00');
   const [end, setEnd] = useState(today?.endTime ?? '17:30');
@@ -27,27 +31,35 @@ export function WorkScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load(date);
+      const row = workForDate(date);
+      setStart(row?.startTime ?? '09:00'); setEnd(row?.endTime ?? '17:30');
+      setBreakMin(String(row?.breakMinutes ?? 60)); setQuality(row?.quality ?? null);
+    }, [load, date])
   );
 
   const span = rangeMinutes(start, end);
   const worked = span != null ? Math.max(0, span - (parseFloat(breakMin) || 0)) : null;
 
   const save = () => {
-    log({ startTime: start, endTime: end, breakMinutes: parseFloat(breakMin) || 0, quality });
+    try { log({ date, startTime: start, endTime: end, breakMinutes: Number(breakMin), quality }); }
+    catch (e) { Alert.alert('Check work hours', e instanceof Error ? e.message : 'Unable to save.'); }
   };
 
   return (
     <Screen>
       <PageHero icon="work.briefcase" color={theme.colors.info} title="Work hours" subtitle="Log your work day as a time range. Long hours quietly compete with sleep and recovery — seeing them next to your training makes the trade-offs visible." />
 
+      <LogDatePicker date={date} onChange={setDate} />
+      {today && <Button title="Delete this work log" variant="ghost" onPress={() => Alert.alert('Delete this log?', date, [
+        { text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => { deleteWork(today.id); load(date); } }
+      ])} />}
       <Card style={{ gap: theme.spacing.md }}>
         <View style={{ alignItems: 'center' }}>
           <Text variant="display" style={{ color: theme.colors.info }}>
             {worked != null ? minutesToHM(worked) : '—'}
           </Text>
-          <Text variant="caption" color="textMuted">worked today</Text>
+          <Text variant="caption" color="textMuted">worked on selected date</Text>
         </View>
         <Row>
           <View style={{ flex: 1 }}>
@@ -66,7 +78,7 @@ export function WorkScreen() {
             {FOCUS_LABELS.map((label, i) => (
               <Pressable key={i} onPress={() => setQuality(i + 1)} style={{ alignItems: 'center', flex: 1 }}>
                 <Icon icon="work.focus" size={20} color={quality === i + 1 ? theme.colors.info : theme.colors.surfaceAlt} />
-                <Text variant="caption" color={quality === i + 1 ? 'text' : 'textFaint'} style={{ fontSize: 8 }}>{label}</Text>
+                <Text variant="caption" color={quality === i + 1 ? 'text' : 'textFaint'} style={{ fontSize: 12 }}>{label}</Text>
               </Pressable>
             ))}
           </Row>

@@ -9,7 +9,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'FitCoach',
   slug: 'fitcoach',
   owner: 'fedimechergui',
-  version: '2.0.0',
+  version: '4.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'fitcoach',
@@ -40,23 +40,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   android: {
     package: 'com.fitcoach.app',
-    /**
-     * 2 → the build that added the native step-counter module.
-     * 3 → the 3.x build: the Lume icon set and splash live in the binary.
-     * 4 → the 3.8 build: the crest icon, and vibration for split and interval
-     *     alerts (VIBRATE). Built locally with the same signing key as 2 and 3.
-     * Android only accepts an install over an existing app when versionCode is
-     * >= the installed one, so each bump is a clean in-place update that KEEPS
-     * all app data (the SQLite database lives in app storage and is untouched).
-     * `version` deliberately stays 2.0.0 so runtimeVersion — and therefore
-     * over-the-air update compatibility — is unchanged: every 3.x OTA update
-     * already published applies to this binary too.
-     */
-    versionCode: 4,
+    // Runtime 4.0.0 adds secure storage and tracking changes. The same signing
+    // identity and higher versionCode preserve existing installations and data.
+    // Later JS-only releases stay on runtime 4.0.0 and the preview OTA channel.
+    versionCode: 5,
+    allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       // The crest's own night blue, so the padded foreground melts into it.
-      backgroundColor: '#051021',
+      backgroundColor: '#070C14',
     },
     permissions: [
       'ACTIVITY_RECOGNITION',
@@ -90,9 +82,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     './plugins/withJitpackExclusive',
+    './plugins/withReleaseSize',
     'expo-asset',
     'expo-font',
     'expo-sqlite',
+    'expo-secure-store',
     [
       'expo-location',
       {

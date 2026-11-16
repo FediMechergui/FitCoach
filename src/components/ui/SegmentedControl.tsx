@@ -1,4 +1,5 @@
 import React from 'react';
+import { contrastInk } from '@/lib/contrast';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from './Text';
@@ -33,6 +34,9 @@ export function SegmentedControl<T extends string>({
     return (
       <Pressable
         key={opt.value}
+        accessibilityRole="tab"
+        accessibilityLabel={opt.label}
+        accessibilityState={{ selected: active }}
         onPress={() => onChange(opt.value)}
         style={{
           flex: scrollable ? undefined : 1,
@@ -41,15 +45,16 @@ export function SegmentedControl<T extends string>({
           justifyContent: 'center',
           gap: 6,
           paddingVertical: 10,
+          minHeight: 44,
           paddingHorizontal: 14,
           borderRadius: theme.radius.md,
           backgroundColor: active ? brand : 'transparent',
         }}
       >
         {opt.icon ? (
-          <Icon icon={opt.icon} size={16} color={active ? '#fff' : theme.colors.textMuted} />
+          <Icon icon={opt.icon} size={16} color={active ? contrastInk(brand) : theme.colors.textMuted} />
         ) : null}
-        <Text variant="label" color={active ? '#fff' : theme.colors.textMuted}>
+        <Text variant="label" color={active ? contrastInk(brand) : theme.colors.textMuted}>
           {opt.label}
         </Text>
       </Pressable>

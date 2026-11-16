@@ -26,12 +26,12 @@ export function SessionHistoryScreen() {
   const [view, setView] = useState<'sessions' | 'walks'>('sessions');
   // Synchronous reads, so the first paint is the truth — a user with
   // history never sees "No sessions yet" flash as fact.
-  const [sessions, setSessions] = useState<Session[]>(() => listSessions({ limit: 200 }));
+  const [sessions, setSessions] = useState<Session[]>(() => listSessions({ limit: 200, includeUnfinished: true }));
   const [walks, setWalks] = useState<ReturnType<typeof listWalkSessions>>(() => listWalkSessions(200));
 
   useFocusEffect(
     useCallback(() => {
-      setSessions(listSessions({ limit: 200 }));
+      setSessions(listSessions({ limit: 200, includeUnfinished: true }));
       setWalks(listWalkSessions(200));
     }, [])
   );
@@ -70,7 +70,7 @@ export function SessionHistoryScreen() {
                     <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
                       <Icon icon={sessionTypeIcon(item.sessionType)} size={22} color={meta.color} />
                       <View style={{ flex: 1 }}>
-                        <Text variant="bodyStrong">{item.label ?? meta.label}</Text>
+                        <Text variant="bodyStrong">{item.endTime == null ? 'Draft · ' : ''}{item.label ?? meta.label}</Text>
                         <Text variant="caption" color="textMuted">
                           {friendlyDate(item.startTime)} · {formatDurationLong(item.durationS ?? 0)}
                           {item.totalVolume ? ` · ${Math.round(item.totalVolume).toLocaleString()} kg` : ''}

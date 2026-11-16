@@ -1,5 +1,6 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
-import { db } from '@/db/client';
+import { db, sqlite } from '@/db/client';
+import { calendarDate, finiteNumber } from '@/lib/validation';
 import { napLogs, sessions, sleepLogs, type NapLog, type SleepLog } from '@/db/schema';
 import { averageSleep, sleepDebt, sleepPerformanceFactor } from '@/lib/sleep';
 import { dayRest, napValue, type NapInput } from '@/lib/naps';
@@ -10,11 +11,12 @@ export function logSleep(
   data: { date?: string; hours: number; quality?: number | null; bedtime?: string | null; wakeTime?: string | null; notes?: string | null },
   userId: number = PRIMARY_USER_ID
 ): void {
-  const date = data.date ?? todayISO();
-  // One record per night: replace an existing same-date entry.
-  db.delete(sleepLogs).where(and(eq(sleepLogs.userId, userId), eq(sleepLogs.date, date))).run();
-  db.insert(sleepLogs)
-    .values({
+  const date = calendarDate(data.date ?? todayISO());
+  finiteNumber(data.hours, 'Sleep hours', 0, 24);
+  if (data.quality != null) finiteNumber(data.quality, 'Sleep quality', 1, 5);
+  sqlite.withTransactionSync(() => {
+    const previous = sleepForDate(date, userId);
+    const values = {
       userId,
       date,
       hours: data.hours,
@@ -22,8 +24,10 @@ export function logSleep(
       bedtime: data.bedtime ?? null,
       wakeTime: data.wakeTime ?? null,
       notes: data.notes ?? null,
-    })
-    .run();
+    };
+    if (previous) db.update(sleepLogs).set(values).where(eq(sleepLogs.id, previous.id)).run();
+    else db.insert(sleepLogs).values(values).run();
+  });
 }
 
 export function deleteSleep(id: number): void {
@@ -91,7 +95,7 @@ export function sleepSummary(userId: number = PRIMARY_USER_ID): SleepSummary {
 
   const today = todayISO();
   const napsToday = napsForDate(today, userId).map((n) => ({ minutes: n.minutes, startTime: n.startTime }));
-  const lastNight = sleepForDate(today, userId)?.hours ?? rows[rows.length - 1]?.hours ?? null;
+  const lastNight = sleepForDate(today, userId)?.hours ?? null;
   const restTodayCalc = dayRest(lastNight, napsToday);
 
   return {
@@ -113,6 +117,8 @@ export function logNap(
   data: { date?: string; minutes: number; startTime?: string | null; quality?: number | null },
   userId: number = PRIMARY_USER_ID
 ): void {
+  calendarDate(data.date ?? todayISO());
+  finiteNumber(data.minutes, 'Nap minutes', 1, 1440);
   db.insert(napLogs)
     .values({
       userId,

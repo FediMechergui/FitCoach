@@ -18,6 +18,9 @@ import {
   type DietPlan,
   type PlanMeal,
 } from '@/lib/dietPlan';
+import { Input } from '@/components/ui/Input';
+import { kvGet, kvSet } from '@/repositories/kvRepo';
+import { atomic } from '@/db/atomic';
 import { FOOD_DB } from '@/data/foods';
 import { mealIcon } from '@/constants/icon-map';
 import { recommendedFiberG } from '@/lib/calories';
@@ -37,19 +40,23 @@ export function DietPlanScreen() {
     [goal]
   );
 
+  const [excluded, setExcluded] = useState(() => kvGet<string>('diet.exclusions') ?? '');
   const [style, setStyle] = useState<DietStyle>('balanced');
   const [meals, setMeals] = useState(4);
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9));
 
   const plan: DietPlan = useMemo(
-    () => generateDietPlan(target, { style, meals, seed }),
-    [target, style, meals, seed]
+    () => generateDietPlan(target, { style, meals, seed, excluded: excluded.split(',') }),
+    [target, style, meals, seed, excluded]
   );
 
-  const logMeal = (meal: PlanMeal) => {
+  const logMeal = (meal: PlanMeal, announce = true) => {
+    atomic(() => {
     for (const item of meal.items) {
       const food = FOOD_DB.find((f) => f.id === item.id);
       addPrecise({
+        source: 'plan',
+        sourceRef: item.id,
         mealType: meal.key,
         foodName: item.name,
         quantity: item.servings,
@@ -63,18 +70,20 @@ export function DietPlanScreen() {
         form: food?.form,
       });
     }
-    Alert.alert('Added to diary ✓', `${meal.label}: ${meal.items.length} item${meal.items.length === 1 ? '' : 's'} logged.`);
+    });
+    if (announce) Alert.alert('Added to diary ✓', `${meal.label}: ${meal.items.length} item${meal.items.length === 1 ? '' : 's'} logged.`);
   };
 
   const logAll = () => {
-    for (const meal of plan.meals) logMeal(meal);
+    atomic(() => { for (const meal of plan.meals) logMeal(meal, false); });
+    Alert.alert('Day added', 'The planned portions have been added to the selected diary day.');
   };
 
   const pct = (got: number, tgt: number) => (tgt > 0 ? Math.round((got / tgt) * 100) : 0);
 
   return (
     <Screen>
-      <PageHero icon="nutrition.calories" color={theme.colors.calories} title="Diet plan" subtitle="A day of meals built to hit your targets. Tap “Shuffle” for a fresh combination with the same macros, switch the style, or log a meal straight to your diary." />
+      <PageHero icon="nutrition.calories" color={theme.colors.calories} title="Diet plan" subtitle="A meal suggestion matched as closely as possible to your targets. Review the totals and portions before logging." />
 
       {/* Target summary */}
       <Card accent={theme.colors.calories}>
@@ -90,6 +99,9 @@ export function DietPlanScreen() {
         </Text>
       </Card>
 
+      <Input label="Exclude food names or categories" helper="Comma-separated, e.g. milk, peanut. Check ingredients yourself; the catalogue cannot verify allergens."
+        value={excluded} onChangeText={v => { setExcluded(v); kvSet('diet.exclusions', v); }} />
+      {plan.warnings.length > 0 && <Card><Text color="warning">This combination is outside 10% of your targets. Adjust your choices or shuffle.</Text><Text>{plan.warnings.join(' · ')}</Text></Card>}
       {/* Controls */}
       <SectionHeader title="Style" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
@@ -145,7 +157,7 @@ export function DietPlanScreen() {
                     <Icon icon={mealIcon(meal.key)} size={16} color={theme.colors.textMuted} />
                     <View style={{ flex: 1 }}>
                       <Text variant="body" numberOfLines={1}>
-                        {item.servings % 1 === 0 ? item.servings : item.servings.toFixed(1)}× {item.name}
+                        {item.servings % 1 === 0 ? item.servings : Number(item.servings.toFixed(2))}× {item.name}
                       </Text>
                       <Text variant="caption" color="textFaint">{item.serving}</Text>
                     </View>

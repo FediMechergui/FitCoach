@@ -315,7 +315,7 @@ export function offPortion(p: OffProduct, basis: OffBasis): { label: string; mac
  */
 export function cleanSearchWords(words: string): string {
   return (words ?? '')
-    .replace(/["'`:()\[\]{}\\/^~*?!+\-&|<>=]/g, ' ')
+    .replace(/["'`:()[\]{}\\/^~*?!+\-&|<>=]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 60);

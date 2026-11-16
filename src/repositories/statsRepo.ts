@@ -1,6 +1,7 @@
 import { bridgedStreak } from '@/lib/streaks';
 import { restDaySet } from './restDaysRepo';
 import { and, desc, eq } from 'drizzle-orm';
+import { isNotNull } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   exerciseLogs,
@@ -40,7 +41,7 @@ export function exerciseProgression(
     .where(
       and(
         eq(exerciseLogs.exerciseId, exerciseId),
-        eq(sessions.userId, userId),
+        and(eq(sessions.userId, userId), isNotNull(sessions.endTime)),
         eq(setEntries.completed, true)
       )
     )
@@ -82,7 +83,7 @@ export function personalRecords(limit = 50, userId: number = PRIMARY_USER_ID): P
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
     .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
-    .where(and(eq(sessions.userId, userId), eq(setEntries.isPr, true)))
+    .where(and(and(eq(sessions.userId, userId), isNotNull(sessions.endTime)), eq(setEntries.isPr, true)))
     .orderBy(desc(sessions.startTime))
     .limit(limit)
     .all();
@@ -109,7 +110,7 @@ export function weeklyVolume(weeks = 8, userId: number = PRIMARY_USER_ID): Weekl
   const rows = db
     .select()
     .from(sessions)
-    .where(and(eq(sessions.userId, userId)))
+    .where(and(and(eq(sessions.userId, userId), isNotNull(sessions.endTime))))
     .all()
     .filter((s) => toISODate(new Date(s.startTime)) >= since);
 
@@ -132,7 +133,7 @@ export interface DayActivity {
 
 export function trainingCalendar(days = 84, userId: number = PRIMARY_USER_ID): DayActivity[] {
   const since = daysAgoISO(days);
-  const rows = db.select().from(sessions).where(eq(sessions.userId, userId)).all();
+  const rows = db.select().from(sessions).where(and(eq(sessions.userId, userId), isNotNull(sessions.endTime))).all();
   const map = new Map<string, number>();
   for (const s of rows) {
     const d = toISODate(new Date(s.startTime));
@@ -179,7 +180,7 @@ export function strictTrainingRun(userId: number = PRIMARY_USER_ID): number {
 // ── Session-type breakdown & muscle balance ─────────────────────────────────
 export function sessionTypeCounts(days = 30, userId: number = PRIMARY_USER_ID): Record<string, number> {
   const since = daysAgoISO(days);
-  const rows = db.select().from(sessions).where(eq(sessions.userId, userId)).all();
+  const rows = db.select().from(sessions).where(and(eq(sessions.userId, userId), isNotNull(sessions.endTime))).all();
   const counts: Record<string, number> = {};
   for (const s of rows) {
     if (toISODate(new Date(s.startTime)) >= since) {
@@ -205,14 +206,14 @@ export function muscleGroupBalance(days = 30, userId: number = PRIMARY_USER_ID):
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
     .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
-    .where(and(eq(sessions.userId, userId), eq(setEntries.completed, true)))
+    .where(and(and(eq(sessions.userId, userId), isNotNull(sessions.endTime)), eq(setEntries.completed, true)))
     .all();
 
   const balance: Record<string, number> = {};
   for (const r of rows) {
     if (r.startTime < since) continue;
     const vol = (r.weightKg ?? 0) * (r.reps ?? 0) || (r.reps ?? 0);
-    let groups: string[] = [];
+    let groups: string[];
     try {
       groups = r.muscleGroups ? (JSON.parse(r.muscleGroups) as string[]) : [];
     } catch {
@@ -228,7 +229,7 @@ export function daysSinceType(userId: number = PRIMARY_USER_ID): Partial<Record<
   const rows = db
     .select({ sessionType: sessions.sessionType, startTime: sessions.startTime })
     .from(sessions)
-    .where(eq(sessions.userId, userId))
+    .where(and(eq(sessions.userId, userId), isNotNull(sessions.endTime)))
     .orderBy(desc(sessions.startTime))
     .all();
   const out: Partial<Record<SessionType, number>> = {};
@@ -255,7 +256,7 @@ export function daysSinceLastSession(userId: number = PRIMARY_USER_ID): number |
   const last = db
     .select({ startTime: sessions.startTime })
     .from(sessions)
-    .where(eq(sessions.userId, userId))
+    .where(and(eq(sessions.userId, userId), isNotNull(sessions.endTime)))
     .orderBy(desc(sessions.startTime))
     .limit(1)
     .get();
@@ -281,7 +282,7 @@ export function recentVolumeDrops(userId: number = PRIMARY_USER_ID): Array<{ exe
     .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
     .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id))
     .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
-    .where(and(eq(sessions.userId, userId), eq(setEntries.completed, true)))
+    .where(and(and(eq(sessions.userId, userId), isNotNull(sessions.endTime)), eq(setEntries.completed, true)))
     .all();
 
   const recent = new Map<string, number>();

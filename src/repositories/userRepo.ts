@@ -1,5 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { db } from '@/db/client';
+import { db, sqlite } from '@/db/client';
+import { calendarDate, finiteNumber } from '@/lib/validation';
 import {
   nutritionGoals,
   profilePhotos,
@@ -28,6 +29,11 @@ export function ensureUser(): User {
 }
 
 export function updateUser(patch: Partial<NewUser>, id: number = PRIMARY_USER_ID): User {
+  if (patch.birthdate) {
+    calendarDate(patch.birthdate);
+    if (patch.birthdate > todayISO()) throw new Error('Birthdate cannot be in the future.');
+  }
+  if (patch.heightCm != null) finiteNumber(patch.heightCm, 'Height', 50, 300);
   db.update(users).set(patch).where(eq(users.id, id)).run();
   return getUser(id)!;
 }
@@ -87,7 +93,13 @@ export function addWeighIn(
   extra: WeighInExtra = {},
   userId: number = PRIMARY_USER_ID
 ): void {
-  const date = extra.date ?? todayISO();
+  finiteNumber(weightKg, 'Weight in kg', 10, 500);
+  const date = calendarDate(extra.date ?? todayISO());
+  for (const field of WEIGH_IN_FIELDS) {
+    const value = extra[field];
+    if (value != null) finiteNumber(value, field, 0, field.endsWith('Pct') ? 100 : field === 'bmrKcal' ? 10000 : 1000);
+  }
+  sqlite.withTransactionSync(() => {
   // One weigh-in per day. Carry forward any measurement the user didn't re-enter
   // today, so a quick weight-only log never wipes last entry's tape numbers.
   const previous = db
@@ -102,8 +114,9 @@ export function addWeighIn(
     values[f] = given ?? (previous ? (previous as Record<string, unknown>)[f] ?? null : null);
   }
 
-  db.delete(weighIns).where(and(eq(weighIns.userId, userId), eq(weighIns.date, date))).run();
-  db.insert(weighIns).values(values as never).run();
+  if (previous) db.update(weighIns).set(values).where(eq(weighIns.id, previous.id)).run();
+  else db.insert(weighIns).values(values as never).run();
+  });
 }
 
 export function latestWeight(userId: number = PRIMARY_USER_ID): WeighIn | undefined {
@@ -195,13 +208,21 @@ export function upsertNutritionGoal(
     waterGoalMl: number;
     caffeineSoftLimitMg: number;
     tdee?: number | null;
+    manual?: boolean;
   },
   userId: number = PRIMARY_USER_ID
 ): NutritionGoal {
+  finiteNumber(goal.calorieTarget, 'Daily calories', 500, 10000);
+  finiteNumber(goal.proteinG, 'Protein', 0, 1000);
+  finiteNumber(goal.carbsG, 'Carbohydrates', 0, 2000);
+  finiteNumber(goal.fatG, 'Fat', 0, 1000);
+  finiteNumber(goal.waterGoalMl, 'Water', 250, 15000);
+  finiteNumber(goal.caffeineSoftLimitMg, 'Caffeine limit', 0, 2000);
   const existing = getNutritionGoal(userId);
   const payload = {
     userId,
     ...goal,
+    manual: goal.manual ?? true,
     tdee: goal.tdee ?? null,
     lastRecalculatedDate: todayISO(),
   };

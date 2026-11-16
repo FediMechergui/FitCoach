@@ -1,5 +1,6 @@
+import { finiteNumber } from '@/lib/validation';
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Pressable, FlatList, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Alert, View, Pressable, FlatList, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,7 +38,7 @@ export function AddFoodScreen() {
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={{ padding: theme.spacing.lg, gap: theme.spacing.md }}>
+        <View style={{ padding: theme.spacing.md, gap: theme.spacing.xs }}>
           {/* Fasting-aware banner — logging still allowed, but the state is explicit. */}
           {fasting && (
             <Card accent={fasting.fasting ? theme.colors.warning : theme.colors.success}>
@@ -61,19 +62,27 @@ export function AddFoodScreen() {
           />
           {/* The photograph path: the model names the plate, the catalogue
               supplies the numbers, and nothing logs before you have seen it. */}
+          <Row>
           <Button
-            title="Photograph the meal"
+            title="Photo"
+            size="sm"
+            fullWidth={false}
+            style={{ flex: 1 }}
             variant="ghost"
             icon="card.camera"
             onPress={() => navigation.navigate('PhotoFood', { meal })}
           />
           {/* A packaged product: its barcode or its name, read from Open Food Facts. */}
           <Button
-            title="Look up a packaged product"
+            title="Packaged food"
+            size="sm"
+            fullWidth={false}
+            style={{ flex: 1 }}
             variant="ghost"
             icon="nutrition.search"
             onPress={() => navigation.navigate('BarcodeFood', { meal })}
           />
+          </Row>
         </View>
         {mode === 'precise' ? <PreciseMode meal={meal} /> : <HonestMode meal={meal} />}
       </KeyboardAvoidingView>
@@ -113,8 +122,12 @@ function PreciseMode({ meal }: { meal: MealType }) {
 
   const save = () => {
     if (!selected) return;
-    const q = parseFloat(qty) || 1;
+    try {
+    const q = finiteNumber(qty, 'Servings', 0.001, 1000);
     addPrecise({
+      source: selected.aiSourced ? 'ai' : selected.fromLabel ? 'barcode' : selected.isCustom ? 'manual' : 'catalogue',
+      sourceRef: selected.id,
+      isEstimated: !!selected.aiSourced,
       mealType: meal,
       foodName: selected.name,
       quantity: q,
@@ -129,12 +142,13 @@ function PreciseMode({ meal }: { meal: MealType }) {
       eatenAt: resolveEatenAt(eatenAt, diaryDate),
     });
     navigation.goBack();
+    } catch (error) { Alert.alert('Check your serving', error instanceof Error ? error.message : 'Enter a valid serving.'); }
   };
 
   if (selected) {
     const q = parseFloat(qty) || 1;
     return (
-      <View style={{ flex: 1, padding: theme.spacing.lg, gap: theme.spacing.md }}>
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: theme.spacing.md, paddingBottom: 36, gap: theme.spacing.md }}>
         <Card style={{ gap: 12 }}>
           <Row gap={10} style={{ alignItems: 'center' }}>
             <Icon icon="nutrition.calories" color={theme.colors.calories} />
@@ -160,7 +174,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
           <Button title="Back" variant="secondary" onPress={() => setSelected(null)} style={{ flex: 1 }} fullWidth={false} />
           <Button title="Add to diary" icon="core.add" onPress={save} style={{ flex: 2 }} fullWidth={false} />
         </Row>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -172,7 +186,7 @@ function PreciseMode({ meal }: { meal: MealType }) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ marginTop: theme.spacing.sm, flexGrow: 0 }}
+        style={{ marginTop: theme.spacing.sm, flexGrow: 0, minHeight: 48 }}
         contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
       >
         <Chip label="All" active={category === null} onPress={() => setCategory(null)} small />
@@ -314,7 +328,7 @@ function HonestMode({ meal }: { meal: MealType }) {
   };
 
   return (
-    <View style={{ flex: 1, padding: theme.spacing.lg, gap: theme.spacing.md }}>
+    <View style={{ flex: 1, padding: theme.spacing.md, gap: theme.spacing.xs }}>
       <Row gap={10} style={{ alignItems: 'flex-start' }}>
         <Icon icon="nutrition.honestAlt" size={22} color={theme.colors.accent} />
         <Text variant="body" color="textMuted" style={{ flex: 1 }}>

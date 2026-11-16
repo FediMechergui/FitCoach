@@ -156,6 +156,9 @@ export const SESSION_TYPES = [
 export type SessionType = (typeof SESSION_TYPES)[number];
 
 export const sessions = sqliteTable('sessions', {
+  bodyweightKg: real('bodyweight_kg'),
+  calorieOverride: real('calorie_override'),
+  archivedAt: integer('archived_at'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   sessionType: text('session_type', { enum: SESSION_TYPES }).notNull(),
@@ -200,6 +203,7 @@ export const sessions = sqliteTable('sessions', {
 
 // ── ExerciseLog ──────────────────────────────────────────────────────────────
 export const exerciseLogs = sqliteTable('exercise_logs', {
+  restSeconds: integer('rest_seconds'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   sessionId: integer('session_id').notNull(),
   exerciseId: integer('exercise_id').notNull(),
@@ -287,6 +291,9 @@ export const exercises = sqliteTable('exercises', {
 
 // ── CustomRoutine (saved, updatable workout templates) ───────────────────────
 export const customRoutines = sqliteTable('custom_routines', {
+  style: text('style'),
+  sessionType: text('session_type', { enum: SESSION_TYPES }),
+  prescription: text('prescription'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   name: text('name').notNull(),
@@ -368,6 +375,8 @@ export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
 export const foodEntries = sqliteTable('food_entries', {
+  source: text('source').notNull().default('manual'),
+  sourceRef: text('source_ref'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   date: text('date').notNull(), // ISO date
@@ -467,6 +476,7 @@ export const beverageEntries = sqliteTable('beverage_entries', {
 
 // ── NutritionGoal ────────────────────────────────────────────────────────────
 export const nutritionGoals = sqliteTable('nutrition_goals', {
+  manual: integer('manual', { mode: 'boolean' }).notNull().default(true),
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   calorieTarget: real('calorie_target').notNull(),
@@ -571,6 +581,7 @@ export const ALCOHOL_TYPES = ['beer', 'wine', 'spirit', 'cocktail', 'other'] as 
 export type AlcoholType = (typeof ALCOHOL_TYPES)[number];
 
 export const alcoholEntries = sqliteTable('alcohol_entries', {
+  foodEntryId: integer('food_entry_id'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   date: text('date').notNull(),
@@ -981,6 +992,7 @@ export const weeklyQuests = sqliteTable('weekly_quests', {
 
 /** A path someone is walking: which one, and which stage they are in. One row per path. */
 export const pathEnrolments = sqliteTable('path_enrolments', {
+  pausedDurationMs: integer('paused_duration_ms').notNull().default(0),
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   pathKey: text('path_key').notNull(),

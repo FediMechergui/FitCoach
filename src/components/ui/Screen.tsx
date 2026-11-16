@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
+import { HeaderHeightContext } from '@react-navigation/elements';
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -16,11 +17,12 @@ export function Screen({
   children,
   scroll = true,
   padded = true,
-  edges = ['top'],
+  edges,
   contentStyle,
   refreshControl,
 }: ScreenProps) {
   const theme = useTheme();
+  const headerHeight = React.useContext(HeaderHeightContext) ?? 0;
   const pad = padded ? theme.spacing.lg : 0;
 
   const body = scroll ? (
@@ -40,7 +42,7 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+    <SafeAreaView edges={edges ?? (headerHeight > 0 ? ['bottom'] : ['top', 'bottom'])} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       {body}
     </SafeAreaView>
   );

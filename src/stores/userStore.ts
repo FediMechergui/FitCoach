@@ -33,6 +33,8 @@ interface UserState {
 }
 
 export interface RecalcOptions {
+  preview?: boolean;
+  resetManual?: boolean;
   /** force a history entry even if the numbers didn't move */
   record?: boolean;
   targetWeightKg?: number | null;
@@ -41,6 +43,7 @@ export interface RecalcOptions {
 
 export interface OnboardingData {
   name: string;
+  unitPreference?: 'metric' | 'imperial';
   gender: User['gender'];
   sex: 'male' | 'female'; // biological, for BMR
   birthdate: string;
@@ -121,7 +124,8 @@ export const useUserStore = create<UserState>((set, get) => ({
     const inputs = inputsFor(user, weightKg);
     const result = computeTargets(inputs);
     const previous = get().goal;
-    const goal = upsertNutritionGoal({
+    if (previous?.manual && !opts?.resetManual) return previous;
+    const proposed = {
       calorieTarget: result.calorieTarget,
       proteinG: result.macros.protein,
       carbsG: result.macros.carbs,
@@ -130,7 +134,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       waterGoalMl: recommendedWaterMl(weightKg),
       caffeineSoftLimitMg: previous?.caffeineSoftLimitMg ?? CAFFEINE_SOFT_LIMIT_MG,
       tdee: result.tdee,
-    });
+      manual: false,
+    };
+    if (opts?.preview) return { ...previous, id: previous?.id ?? 0, userId: user.id,
+      createdAt: previous?.createdAt ?? Date.now(), lastRecalculatedDate: previous?.lastRecalculatedDate ?? null, ...proposed };
+    const goal = upsertNutritionGoal(proposed);
     set({ goal });
 
     // Log the change so targets have a history, like weigh-ins do. Only when
@@ -175,6 +183,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     });
     updateUser({
       name: data.name,
+      unitPreference: data.unitPreference ?? 'metric',
       gender: data.gender,
       sex: data.sex,
       birthdate: data.birthdate,
@@ -182,7 +191,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       activityLevel: data.activityLevel,
       goal: data.goal,
       rateOfChange: data.rate,
-      bodyType,
+      bodyType: null,
       ...(data.experienceLevel ? { experienceLevel: data.experienceLevel } : {}),
     });
     addWeighIn(data.weightKg, {
@@ -195,6 +204,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     const user = getUser()!;
     const result = computeTargets(inputsFor(user, data.weightKg));
     upsertNutritionGoal({
+      manual: false,
       calorieTarget: result.calorieTarget,
       proteinG: result.macros.protein,
       carbsG: result.macros.carbs,

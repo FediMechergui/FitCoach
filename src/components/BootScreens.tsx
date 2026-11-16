@@ -55,7 +55,7 @@ export function BootView() {
       <RNText style={{ color: darkColors.text, fontSize: 22, fontWeight: '700', letterSpacing: 0.5 }}>
         FitCoach
       </RNText>
-      <RNText style={{ color: darkColors.textFaint, fontSize: 12 }}>On this device — no account, ever.</RNText>
+      <RNText style={{ color: darkColors.textFaint, fontSize: 12 }}>On your device. Optional encrypted backup.</RNText>
     </View>
   );
 }

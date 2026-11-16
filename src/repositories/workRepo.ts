@@ -1,5 +1,6 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
-import { db } from '@/db/client';
+import { db, sqlite } from '@/db/client';
+import { calendarDate, finiteNumber } from '@/lib/validation';
 import { workLogs, type WorkLog } from '@/db/schema';
 import { rangeMinutes } from '@/lib/time';
 import { daysAgoISO, lastNDates, todayISO } from '@/lib/date';
@@ -17,17 +18,20 @@ export function logWork(
   },
   userId: number = PRIMARY_USER_ID
 ): void {
-  const date = input.date ?? todayISO();
+  const date = calendarDate(input.date ?? todayISO());
+  finiteNumber(input.breakMinutes ?? 0, 'Break minutes', 0, 1440);
   // Derive minutes from the time range if provided.
   let minutes = input.minutes ?? 0;
   if (input.startTime && input.endTime) {
     const span = rangeMinutes(input.startTime, input.endTime);
-    if (span != null) minutes = Math.max(0, span - (input.breakMinutes ?? 0));
+    if (span == null) throw new Error('Enter start and end times as HH:MM.');
+    if ((input.breakMinutes ?? 0) > span) throw new Error('Break time cannot exceed the shift.');
+    minutes = span - (input.breakMinutes ?? 0);
   }
-  // One record per day: replace.
-  db.delete(workLogs).where(and(eq(workLogs.userId, userId), eq(workLogs.date, date))).run();
-  db.insert(workLogs)
-    .values({
+  finiteNumber(minutes, 'Work minutes', 0, 1440);
+  sqlite.withTransactionSync(() => {
+    const previous = workForDate(date, userId);
+    const values = {
       userId,
       date,
       startTime: input.startTime ?? null,
@@ -36,8 +40,10 @@ export function logWork(
       breakMinutes: input.breakMinutes ?? 0,
       quality: input.quality ?? null,
       notes: input.notes ?? null,
-    })
-    .run();
+    };
+    if (previous) db.update(workLogs).set(values).where(eq(workLogs.id, previous.id)).run();
+    else db.insert(workLogs).values(values).run();
+  });
 }
 
 export function deleteWork(id: number): void {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Pressable, Linking } from 'react-native';
+import { View, Pressable, Linking, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,6 +34,9 @@ import { keepOffImage } from '@/services/foodPhoto';
 import { FoodImage } from '@/components/FoodImage';
 import { createCustomFood, findByBarcode, toFoodItem } from '@/repositories/customFoodRepo';
 import { useNutritionStore } from '@/stores/nutritionStore';
+import type { FoodItem } from '@/data/foods';
+import { EatenAtPicker } from '@/components/EatenAtPicker';
+import { resolveEatenAt, type EatenAtChoice } from '@/lib/eatenAt';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -56,6 +59,9 @@ export function BarcodeFoodScreen() {
   const meal = params.meal;
   const addPrecise = useNutritionStore((s) => s.addPrecise);
 
+  const diaryDate = useNutritionStore(s => s.date);
+  const [eatenAt, setEatenAt] = useState<EatenAtChoice>({ kind: 'now' });
+  const [cached, setCached] = useState<FoodItem | null>(null);
   const [mode, setMode] = useState<Mode>('barcode');
   const [code, setCode] = useState('');
   const [words, setWords] = useState('');
@@ -81,6 +87,7 @@ export function BarcodeFoodScreen() {
     setProblem(null);
     setFailure(null);
     setProduct(null);
+    setCached(null);
     setKept(false);
   };
 
@@ -104,8 +111,8 @@ export function BarcodeFoodScreen() {
     const saved = findByBarcode(verdict.code);
     if (saved) {
       const item = toFoodItem(saved);
-      toast({ message: `${saved.name} is already in your foods` });
-      addAndLeave(item.name, item.serving, { calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat, fiber: item.fiber }, item.micros, item.form === 'liquid', false);
+      setCached(item);
+      setServings('1');
       return;
     }
     setBusy(true);
@@ -212,8 +219,12 @@ export function BarcodeFoodScreen() {
     liquid: boolean,
     announce = true
   ) => {
-    const q = Math.max(0.1, Math.min(20, parseFloat(servings.replace(',', '.')) || 1));
+    const q = Number(servings.replace(',', '.'));
+    if (!Number.isFinite(q) || q <= 0 || q > 20) { Alert.alert('Check servings', 'Enter a number greater than 0 and no more than 20.'); return; }
     addPrecise({
+      source: 'barcode',
+      sourceRef: product?.barcode ?? code,
+      eatenAt: resolveEatenAt(eatenAt, diaryDate),
       mealType: meal,
       foodName: name,
       quantity: q,
@@ -275,6 +286,15 @@ export function BarcodeFoodScreen() {
         subtitle="Read the label of a packaged product from a free, open database, then keep it on your phone."
       />
 
+      {cached && <Card style={{ gap: 12 }}>
+        <Text variant="h3">{cached.name}</Text>
+        <Text>{cached.serving} · {cached.calories} kcal per serving · saved label</Text>
+        <Input label="Servings" value={servings} onChangeText={setServings} keyboardType="decimal-pad" />
+        <EatenAtPicker value={eatenAt} onChange={setEatenAt} dateISO={diaryDate} />
+        <Button title="Add to diary" onPress={() => addAndLeave(cached.name, cached.serving,
+          { calories: cached.calories, protein: cached.protein, carbs: cached.carbs, fat: cached.fat, fiber: cached.fiber },
+          cached.micros, cached.form === 'liquid')} />
+      </Card>}
       <SegmentedControl
         value={mode}
         onChange={(v) => {
@@ -446,6 +466,7 @@ export function BarcodeFoodScreen() {
 
           <Card style={{ gap: 12 }}>
             <Input label={`How many (${portion.label} each)`} value={servings} onChangeText={setServings} keyboardType="decimal-pad" placeholder="1" maxLength={5} />
+            <EatenAtPicker value={eatenAt} onChange={setEatenAt} dateISO={diaryDate} />
             <Button title={saving ? 'Saving…' : `Save and log to ${meal}`} icon="core.check" loading={saving} onPress={() => keep(true)} />
             {!kept ? <Button title="Save to my foods only" variant="secondary" disabled={saving} onPress={() => keep(false)} /> : null}
             {product.imageUrl ? (

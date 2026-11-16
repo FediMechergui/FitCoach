@@ -93,6 +93,8 @@ export const CONFINEMENT_RADIUS_M = 15;
 export const STRAIGHTNESS_MIN = 0.35;
 
 export interface GpsFix {
+  /** Receiver timestamp in epoch milliseconds, including batched fixes. */
+  at?: number;
   lat: number;
   lng: number;
   /** horizontal accuracy in metres, as reported by the receiver */
@@ -150,7 +152,7 @@ export function spreadRadiusM(points: LatLng[]): number {
 /** Sum of consecutive segment lengths. */
 export function pathLengthM(points: LatLng[]): number {
   let total = 0;
-  for (let i = 1; i < points.length; i++) total += haversine(points[i - 1], points[i]);
+  for (let i = 1; i < points.length; i++) if (!points[i][2]) total += haversine(points[i - 1], points[i]);
   return total;
 }
 

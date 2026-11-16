@@ -10,6 +10,25 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v4.0.0 — Reliable logs, lighter tracking and private backups (2026-11-16)
+
+- New midnight-and-mint launcher, adaptive and splash artwork.
+- Atomic migrations and linked log edits; corrected workout PRs, historical calories,
+  draft handling, manual goals, diary dates, alcohol/supplement totals and routine prescriptions.
+- Walk/run vehicle filtering uses motion recognition and raw GPS timestamps, preserves
+  route breaks and stops extrapolating steps during missing background periods.
+- Optional GPS and maps, slower battery-saver sampling, ARM64 APK and release shrinking.
+- Optional Netlify accounts and encrypted daily backups, recovery-key setup, restore
+  previews, transaction rollback, integrity checks and three completed backup versions.
+- Clearer onboarding, accessible controls, health-log correction, honest estimate labels,
+  diet exclusions and report preview/selection.
+- Native runtime 4.0.0 / Android versionCode 5. Compatible JS-only OTA updates continue.
+- Regression coverage adds real SQLite fault injection and backup isolation tests to CI.
+
+Background backup timing and tracking depend on Android scheduling and service limits.
+Vehicle recognition is probabilistic and should be checked on a real phone.
+
+
 ## v2.16 — 2026-07-26 · Outdoor activities feed your steps + a don't-over-train line
 Two connected additions: on-foot activities now contribute to your daily step count, and every
 session shows where today's training leaves your calorie goal.

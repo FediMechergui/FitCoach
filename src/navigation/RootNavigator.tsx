@@ -58,6 +58,7 @@ import { PlacesScreen } from '@/screens/places/PlacesScreen';
 import { PlaceEditScreen } from '@/screens/places/PlaceEditScreen';
 import { PathDetailScreen } from '@/screens/train/PathDetailScreen';
 import { AchievementsScreen } from '@/screens/profile/AchievementsScreen';
+import { BackupScreen } from '@/screens/profile/BackupScreen';
 import { ReportsScreen } from '@/screens/profile/ReportsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -185,6 +186,7 @@ export function RootNavigator() {
           <Stack.Screen name="PlaceEdit" component={PlaceEditScreen} options={{ title: '' }} />
           <Stack.Screen name="PathDetail" component={PathDetailScreen} options={{ title: '' }} />
           <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: '' }} />
+          <Stack.Screen name="Backup" component={BackupScreen} options={{title: ''}} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: '' }} />
           <Stack.Screen name="Changelog" component={ChangelogScreen} options={{ title: '' }} />
           <Stack.Screen name="Prayers" component={PrayersScreen} options={{ title: '' }} />

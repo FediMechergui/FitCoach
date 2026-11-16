@@ -1,14 +1,20 @@
 {
-  "note": "Native profile of the APK installed on the phone. Written by scripts/build-apk.js; read by scripts/release.js.",
-  "apk": "FitCoach-3.8.0-vc4.apk",
-  "recorded": "2026-10-07",
+  "note": "Native profile of the validated release APK. Written by scripts/build-apk.js or native-profile.js --write; read by scripts/release.js.",
+  "apk": "FitCoach-4.0.0-vc5.apk",
+  "recorded": "2026-11-16",
   "config": {
     "package": "com.fitcoach.app",
-    "version": "2.0.0",
+    "version": "4.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "versionCode": 4,
+    "versionCode": 5,
+    "allowBackup": false,
+    "nativeArtwork": {
+      "icon.png": "5f3faf7293b0805944139521504a60b35a3d5c034de60870fbce35884c000832",
+      "adaptive-icon.png": "39bb3ca8766f29a97a3c82a28d76aa80e551ddbb0d6ae7a8a90d671f6d805641",
+      "splash.png": "39bb3ca8766f29a97a3c82a28d76aa80e551ddbb0d6ae7a8a90d671f6d805641"
+    },
     "permissions": [
       "android.permission.ACCESS_BACKGROUND_LOCATION",
       "android.permission.ACCESS_COARSE_LOCATION",
@@ -29,9 +35,11 @@
     ],
     "plugins": [
       "./plugins/withJitpackExclusive",
+      "./plugins/withReleaseSize",
       "expo-asset",
       "expo-font",
       "expo-sqlite",
+      "expo-secure-store",
       [
         "expo-location",
         {
@@ -77,6 +85,7 @@
     "expo-asset": "11.0.5",
     "expo-background-fetch": "13.0.6",
     "expo-constants": "17.0.8",
+    "expo-crypto": "14.0.2",
     "expo-file-system": "18.0.12",
     "expo-font": "13.0.4",
     "expo-image-picker": "16.0.6",
@@ -84,9 +93,11 @@
     "expo-media-library": "17.0.6",
     "expo-notifications": "0.29.14",
     "expo-print": "14.0.3",
+    "expo-secure-store": "14.0.1",
     "expo-sensors": "14.0.2",
     "expo-sharing": "13.0.1",
     "expo-sqlite": "15.1.4",
+    "expo-system-ui": "4.0.9",
     "expo-task-manager": "12.0.6",
     "expo-updates": "0.27.5",
     "react-native": "0.76.9",
@@ -97,7 +108,7 @@
     "react-native-view-shot": "4.0.3"
   },
   "localModules": {
-    "step-counter": "042d97c1f0e10ab0"
+    "step-counter": "466eac4dd137ec5c"
   },
-  "configPlugins": "d1d597b52b380bb1"
+  "configPlugins": "5ba571aad921accc"
 }

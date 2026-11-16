@@ -65,31 +65,9 @@ export function EnergyBalanceCard({ date }: { date?: string }) {
         </View>
       </Row>
 
-      <Divider />
-
-      {/* The "line": training burn against the over-training ceiling. */}
-      <View style={{ gap: 4 }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Text variant="label" color="textMuted">Training load</Text>
-          <Text variant="caption" color={over ? 'danger' : 'textMuted'}>
-            {bal.exerciseBurned} / {bal.lineKcal} kcal to the line
-          </Text>
-        </Row>
-        <View style={{ height: 8, borderRadius: 4, backgroundColor: theme.colors.surfaceAlt, overflow: 'hidden' }}>
-          <View
-            style={{
-              width: `${Math.round(frac * 100)}%`,
-              height: '100%',
-              backgroundColor: over ? theme.colors.danger : frac > 0.8 ? theme.colors.warning : theme.colors.success,
-            }}
-          />
-        </View>
-      </View>
-
       <Text variant="caption" color={over ? 'danger' : 'textMuted'}>{bal.message}</Text>
       <Text variant="caption" color="textFaint">
-        Your target already assumes everyday activity; logged training counts on top, so this leans
-        cautious. The line is where energy left for your body would drop below what your goal needs.
+        Your target includes your selected activity level. Training calories are estimates shown separately; they do not automatically increase your food target.
       </Text>
     </Card>
   );
@@ -126,7 +104,7 @@ export function EnergyBalanceStrip({ onPress }: { onPress?: () => void }) {
     { label: 'Eaten', value: bal.consumed, color: theme.colors.text },
     { label: 'Burned', value: bal.exerciseBurned, color: theme.colors.calories },
     { label: bal.leftToEat >= 0 ? 'Left' : 'Over', value: Math.abs(bal.leftToEat), color: bal.leftToEat >= 0 ? theme.colors.success : theme.colors.warning },
-    { label: 'Restore', value: bal.restoreKcal, color: bal.restoreKcal > 0 ? theme.colors.danger : theme.colors.textFaint },
+
   ];
 
   const body = (
@@ -146,11 +124,7 @@ export function EnergyBalanceStrip({ onPress }: { onPress?: () => void }) {
           </View>
         ))}
       </Row>
-      {bal.restoreKcal > 0 && (
-        <Text variant="caption" color="danger" center>
-          Eat back ~{bal.restoreKcal} kcal to protect your goal.
-        </Text>
-      )}
+      <Text variant="caption" color="textMuted">{bal.status === 'incomplete' ? 'No food logged yet' : 'Logged so far · exercise shown separately'}</Text>
     </Card>
   );
 

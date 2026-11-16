@@ -1,5 +1,7 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { calendarDate, finiteNumber } from '@/lib/validation';
+import { resolveEatenAt } from '@/lib/eatenAt';
 import {
   sessions,
   smokingEntries,
@@ -70,10 +72,13 @@ export function logCigarettes(
   opts: { date?: string; trigger?: string; productKey?: string | null } = {},
   userId: number = PRIMARY_USER_ID
 ): void {
+  const date = calendarDate(opts.date ?? todayISO());
+  finiteNumber(quantity, 'Quantity', 1, 1000);
   db.insert(smokingEntries)
     .values({
       userId,
-      date: opts.date ?? todayISO(),
+      date,
+      createdAt: resolveEatenAt({ kind: 'now' }, date) ?? Date.now(),
       quantity,
       // null means cigarettes, which is what every pre-v2.28 entry was.
       productKey: opts.productKey ?? null,
@@ -84,6 +89,11 @@ export function logCigarettes(
 
 export function deleteSmokingEntry(id: number): void {
   db.delete(smokingEntries).where(eq(smokingEntries.id, id)).run();
+}
+
+export function updateSmokingEntry(id: number, quantity: number): void {
+  finiteNumber(quantity, 'Quantity', 1, 1000);
+  db.update(smokingEntries).set({ quantity }).where(eq(smokingEntries.id, id)).run();
 }
 
 /**

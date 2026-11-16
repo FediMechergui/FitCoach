@@ -22,9 +22,9 @@ export const BODY_TYPE_LABELS: Record<BodyType, string> = {
 };
 
 export const BODY_TYPE_BLURB: Record<BodyType, string> = {
-  ectomorph: 'Naturally lean, gains muscle slowly. Slightly higher carbs help.',
-  mesomorph: 'Builds muscle readily, responds well to balanced macros.',
-  endomorph: 'Stores energy easily; a modest carb pull-back and more protein help.',
+  ectomorph: 'A legacy size label, not a measurement of metabolism or muscle-building potential.',
+  mesomorph: 'A legacy size label, not a measurement of metabolism or muscle-building potential.',
+  endomorph: 'A legacy size label, not a measurement of metabolism or muscle-building potential.',
 };
 
 export function bmi(heightCm: number, weightKg: number): number {
@@ -56,13 +56,4 @@ export function estimateBodyType(input: BodyTypeInputs): BodyType {
  * Small macro bias applied on top of the base split (fractions added to
  * carb/fat/protein ratios, normalized by the caller). Kept intentionally gentle.
  */
-export function bodyTypeCarbBias(type: BodyType): number {
-  switch (type) {
-    case 'ectomorph':
-      return 0.05; // a touch more carbs
-    case 'endomorph':
-      return -0.05; // a touch fewer carbs
-    default:
-      return 0;
-  }
-}
+export function bodyTypeCarbBias(_type: BodyType): number { return 0; }

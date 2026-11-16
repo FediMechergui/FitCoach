@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Switch, View } from 'react-native';
+import { REPORT_SECTIONS, buildReportHtml, reportPreviewSections, type ReportSection } from '@/lib/reportHtml';
+import { buildReportData, type ReportData } from '@/repositories/reportRepo';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -14,11 +16,14 @@ import { recordReport } from '@/repositories/eventsRepo';
 export function ReportsScreen() {
   const theme = useTheme();
   const [busy, setBusy] = useState<'nutritionist' | 'coach' | null>(null);
+  const [snapshot, setSnapshot] = useState<ReportData | null>(null);
+  const [included, setIncluded] = useState<ReportSection[]>(['Nutrition', 'Training & Activity', 'Sleep']);
+  const preview = snapshot ? reportPreviewSections(buildReportHtml(snapshot, included)) : [];
 
   const generate = async (audience: 'nutritionist' | 'coach') => {
     try {
       setBusy(audience);
-      await exportReport(audience);
+      await exportReport(audience, included, snapshot ?? undefined);
       recordReport(audience);
     } catch (e) {
       Alert.alert('Could not generate report', String(e instanceof Error ? e.message : e));
@@ -42,11 +47,11 @@ export function ReportsScreen() {
           hydration, caffeine, alcohol, sleep, and any declared health conditions.
         </Text>
         <Button
-          title="Generate nutritionist PDF"
+          title="Review nutritionist report"
           icon="report.pdf"
           color={theme.colors.accent}
           loading={busy === 'nutritionist'}
-          onPress={() => generate('nutritionist')}
+          onPress={() => setSnapshot(buildReportData('nutritionist'))}
         />
       </Card>
 
@@ -61,13 +66,25 @@ export function ReportsScreen() {
           your athlete rating, and health considerations.
         </Text>
         <Button
-          title="Generate coach PDF"
+          title="Review coach report"
           icon="report.pdf"
           loading={busy === 'coach'}
-          onPress={() => generate('coach')}
+          onPress={() => setSnapshot(buildReportData('coach'))}
         />
       </Card>
 
+      {snapshot && <View style={{ gap: 12 }}>
+        <SectionHeader title="Choose what to share" />
+        <Text color="textMuted">Only selected sections appear in the PDF. Personal details and sensitive health sections start off.</Text>
+        {REPORT_SECTIONS.map(section => <Row key={section} style={{ justifyContent: 'space-between' }}>
+          <Text style={{ flex: 1 }}>{section}</Text><Switch accessibilityLabel={`Include ${section}`} value={included.includes(section)}
+            onValueChange={on => setIncluded(old => on ? [...old, section] : old.filter(s => s !== section))} />
+        </Row>)}
+        <SectionHeader title="Report preview" />
+        {preview.map(section => <Card key={section.title} style={{ gap: 8 }}><Text variant="h3">{section.title}</Text><Text selectable>{section.text}</Text></Card>)}
+        {!preview.length && <Text>No selected sections contain data.</Text>}
+        <Button title="Create PDF and open share sheet" disabled={!preview.length || !!busy} loading={!!busy} onPress={() => generate(snapshot.audience)} />
+      </View>}
       <Text variant="caption" color="textFaint" center>
         Reports are generated on-device from your local data. Nothing is uploaded.
       </Text>

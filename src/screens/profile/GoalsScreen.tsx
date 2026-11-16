@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { finiteNumber } from '@/lib/validation';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -28,28 +29,34 @@ export function GoalsScreen() {
   const [fat, setFat] = useState(goal ? String(goal.fatG) : '');
   const [water, setWater] = useState(goal ? String(goal.waterGoalMl) : '2500');
   const [caffeine, setCaffeine] = useState(goal ? String(goal.caffeineSoftLimitMg) : '400');
+  const [automatic, setAutomatic] = useState(false);
 
   const save = () => {
+    try {
     upsertNutritionGoal({
-      calorieTarget: parseFloat(calories) || goal?.calorieTarget || 2200,
-      proteinG: parseFloat(protein) || goal?.proteinG || 140,
-      carbsG: parseFloat(carbs) || goal?.carbsG || 220,
-      fatG: parseFloat(fat) || goal?.fatG || 70,
-      waterGoalMl: parseFloat(water) || 2500,
-      caffeineSoftLimitMg: parseFloat(caffeine) || 400,
+      calorieTarget: finiteNumber(calories, 'Daily calories', 500, 10000),
+      proteinG: finiteNumber(protein, 'Protein', 0, 1000),
+      carbsG: finiteNumber(carbs, 'Carbohydrates', 0, 2000),
+      fatG: finiteNumber(fat, 'Fat', 0, 1000),
+      waterGoalMl: finiteNumber(water, 'Water', 250, 15000),
+      caffeineSoftLimitMg: finiteNumber(caffeine, 'Caffeine limit', 0, 2000),
+      manual: !automatic,
       tdee: goal?.tdee ?? null,
     });
     load();
     navigation.goBack();
+    } catch (error) { Alert.alert('Check your targets', error instanceof Error ? error.message : 'Please enter valid targets.'); }
   };
 
   const autoRecalc = () => {
-    const g = recalc();
+    const g = recalc({ preview: true, resetManual: true });
     if (g) {
       setCalories(String(g.calorieTarget));
       setProtein(String(g.proteinG));
       setCarbs(String(g.carbsG));
       setFat(String(g.fatG));
+      setWater(String(g.waterGoalMl));
+      setAutomatic(true);
     }
   };
 
@@ -58,23 +65,23 @@ export function GoalsScreen() {
       <PageHero icon="nutrition.calories" color={theme.colors.calories} title="Targets" subtitle="These override the auto-calculated targets. Use “Auto-recalculate” to reset them from your profile & latest weight." />
 
       <Card style={{ gap: theme.spacing.md }}>
-        <Input label="Daily calories" value={calories} onChangeText={setCalories} suffix="kcal" keyboardType="numeric" />
+        <Input label="Daily calories" value={calories} onChangeText={(v) => { setAutomatic(false); setCalories(v); }} suffix="kcal" keyboardType="numeric" />
         <Row>
           <View style={{ flex: 1 }}>
-            <Input label="Protein" value={protein} onChangeText={setProtein} suffix="g" keyboardType="numeric" />
+            <Input label="Protein" value={protein} onChangeText={(v) => { setAutomatic(false); setProtein(v); }} suffix="g" keyboardType="numeric" />
           </View>
           <View style={{ flex: 1 }}>
-            <Input label="Carbs" value={carbs} onChangeText={setCarbs} suffix="g" keyboardType="numeric" />
+            <Input label="Carbs" value={carbs} onChangeText={(v) => { setAutomatic(false); setCarbs(v); }} suffix="g" keyboardType="numeric" />
           </View>
           <View style={{ flex: 1 }}>
-            <Input label="Fat" value={fat} onChangeText={setFat} suffix="g" keyboardType="numeric" />
+            <Input label="Fat" value={fat} onChangeText={(v) => { setAutomatic(false); setFat(v); }} suffix="g" keyboardType="numeric" />
           </View>
         </Row>
       </Card>
 
       <Card style={{ gap: theme.spacing.md }}>
-        <Input label="Water goal" value={water} onChangeText={setWater} suffix="ml" keyboardType="numeric" />
-        <Input label="Caffeine soft limit" value={caffeine} onChangeText={setCaffeine} suffix="mg" keyboardType="numeric" />
+        <Input label="Water goal" value={water} onChangeText={(v) => { setAutomatic(false); setWater(v); }} suffix="ml" keyboardType="numeric" />
+        <Input label="Caffeine soft limit" value={caffeine} onChangeText={(v) => { setAutomatic(false); setCaffeine(v); }} suffix="mg" keyboardType="numeric" />
       </Card>
 
       <Button title="Auto-recalculate from profile" variant="secondary" icon="core.settings" onPress={autoRecalc} />

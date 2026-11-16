@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { appKv } from '@/db/schema';
+import * as SecureStore from 'expo-secure-store';
 
 /**
  * Small JSON key–value store (`app_kv`) for app-level state that is neither a
@@ -27,16 +28,17 @@ export function kvGet<T>(key: string): T | null {
 }
 
 export function kvSet(key: string, value: unknown): void {
+  try { kvSetStrict(key, value); } catch { /* non-critical preference */ }
+}
+
+/** Persistence errors must reach callers that depend on this checkpoint. */
+export function kvSetStrict(key: string, value: unknown): void {
   const json = JSON.stringify(value);
   const now = Date.now();
-  try {
     db.insert(appKv)
       .values({ key, value: json, updatedAt: now })
       .onConflictDoUpdate({ target: appKv.key, set: { value: json, updatedAt: now } })
       .run();
-  } catch {
-    // Losing a convenience value is survivable; never let it reach the UI.
-  }
 }
 
 export function kvDelete(key: string): void {
@@ -49,12 +51,18 @@ export function kvDelete(key: string): void {
 
 /** The stored OpenRouter key, or null when the feature hasn't been set up. */
 export function openRouterKey(): string | null {
-  const v = kvGet<string>(KV_OPENROUTER_KEY);
+  let v = SecureStore.getItem(KV_OPENROUTER_KEY);
+  if (!v) {
+    const legacy = kvGet<string>(KV_OPENROUTER_KEY);
+    if (legacy) { SecureStore.setItem(KV_OPENROUTER_KEY, legacy); v = legacy; }
+  }
+  // Delete only after secure persistence succeeded, preserving the key on errors.
+  if (v) kvDelete(KV_OPENROUTER_KEY);
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
 }
 
 export function setOpenRouterKey(key: string): void {
   const trimmed = key.trim();
-  if (trimmed) kvSet(KV_OPENROUTER_KEY, trimmed);
-  else kvDelete(KV_OPENROUTER_KEY);
+  SecureStore.setItem(KV_OPENROUTER_KEY, trimmed);
+  kvDelete(KV_OPENROUTER_KEY);
 }

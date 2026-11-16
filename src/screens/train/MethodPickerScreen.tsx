@@ -60,7 +60,7 @@ export function MethodPickerScreen() {
   };
 
   const startRoutine = (r: RoutineView) => {
-    begin(sessionType, { label: r.name, prefillExerciseIds: r.exerciseIds });
+    begin(r.sessionType, { label: r.name, style: r.style ?? undefined, ...(r.prescription.length ? { prescription: r.prescription } : { prefillExerciseIds: r.exerciseIds }) });
     const id = useSessionStore.getState().activeId!;
     navigation.replace('ActiveSession', { sessionId: id });
   };

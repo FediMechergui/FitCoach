@@ -123,7 +123,7 @@ export function TrainScreen() {
   );
 
   const startRoutine = (r: RoutineView) => {
-    begin('strength', { label: r.name, prefillExerciseIds: r.exerciseIds });
+    begin(r.sessionType, { label: r.name, style: r.style ?? undefined, ...(r.prescription.length ? { prescription: r.prescription } : { prefillExerciseIds: r.exerciseIds }) });
     const id = useSessionStore.getState().activeId!;
     navigation.navigate('ActiveSession', { sessionId: id });
   };

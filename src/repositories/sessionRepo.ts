@@ -1,6 +1,10 @@
-import { and, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, isNotNull, lt, lte } from 'drizzle-orm';
+import { atomic } from '@/db/atomic';
+import { profileFor } from '@/lib/loadProfile';
+import { finiteNumber } from '@/lib/validation';
 import { db } from '@/db/client';
 import {
+  weighIns,
   exerciseLogs,
   exercises,
   sessions,
@@ -17,7 +21,7 @@ import { estimateActivitySteps } from '@/lib/activitySteps';
 import { estimate1RMFromSet } from '@/lib/oneRepMax';
 import { getUser, PRIMARY_USER_ID } from './userRepo';
 import { addSteps, removeSteps } from './activityRepo';
-import { toISODate } from '@/lib/date';
+import { fromISODate, nextDayMs, toISODate } from '@/lib/date';
 
 export interface SetDraft {
   reps?: number | null;
@@ -67,6 +71,8 @@ export function startSession(
   } = {},
   userId: number = PRIMARY_USER_ID
 ): number {
+  const existing = activeSession(userId);
+  if (existing) return existing.id;
   const payload: NewSession = {
     userId,
     sessionType,
@@ -100,12 +106,14 @@ export function addExerciseToSession(sessionId: number, exerciseId: number, orde
  * which quietly rewrote the order you had planned to work through.
  */
 export function replaceExerciseLog(logId: number, newExerciseId: number): number | null {
+  return atomic(() => {
   const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
   if (!row) return null;
   const slot = row.orderIndex;
   const sessionId = row.sessionId;
   removeExerciseLog(logId);
   return addExerciseToSession(sessionId, newExerciseId, slot);
+  });
 }
 
 /** How many completed sets an exercise log holds — "have I started this one". */
@@ -118,6 +126,8 @@ export function completedSetsOf(logId: number): number {
 }
 
 export function addSet(exerciseLogId: number, draft: SetDraft): number {
+  validateSet(draft, exerciseLogId);
+  return atomic(() => {
   const existing = db
     .select()
     .from(setEntries)
@@ -127,7 +137,7 @@ export function addSet(exerciseLogId: number, draft: SetDraft): number {
     .insert(setEntries)
     .values({
       exerciseLogId,
-      setNumber: existing.length + 1,
+      setNumber: Math.max(0, ...existing.map(s => s.setNumber)) + 1,
       reps: draft.reps ?? null,
       weightKg: draft.weightKg ?? null,
       // A set taken to failure IS RPE 10; store both so anything reading only
@@ -141,43 +151,67 @@ export function addSet(exerciseLogId: number, draft: SetDraft): number {
       gpsTo: draft.gpsTo ?? null,
     })
     .run();
+  refreshLogSession(exerciseLogId);
   return Number(res.lastInsertRowId);
+  });
+}
+
+export function setExerciseRest(logId: number, seconds: number): void {
+  finiteNumber(seconds, 'Rest seconds', 0, 3600);
+  db.update(exerciseLogs).set({ restSeconds: seconds }).where(eq(exerciseLogs.id, logId)).run();
+}
+
+function validateSet(draft: SetDraft, logId: number): void {
+  const exercise = db.select({ slug: exercises.slug }).from(exerciseLogs)
+    .innerJoin(exercises, eq(exerciseLogs.exerciseId, exercises.id)).where(eq(exerciseLogs.id, logId)).get();
+  const fields = { reps: 10000, weightKg: 1500, durationS: 604800, distanceM: 1000000, rpe: 10 };
+  for (const [key, max] of Object.entries(fields)) {
+    const value = draft[key as keyof typeof fields];
+    if (value != null) finiteNumber(value, key, key === 'weightKg' && profileFor(exercise ?? {}).assistable ? -500 : 0, max);
+  }
 }
 
 export function updateSet(setId: number, patch: SetDraft): void {
-  db.update(setEntries)
-    .set({
-      reps: patch.reps ?? null,
-      weightKg: patch.weightKg ?? null,
-      rpe: patch.toFailure ? 10 : patch.rpe ?? null,
-      toFailure: patch.toFailure ?? false,
-      durationS: patch.durationS ?? null,
-      distanceM: patch.distanceM ?? null,
-      ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
-    })
-    .where(eq(setEntries.id, setId))
-    .run();
+  atomic(() => {
+    const row = db.select().from(setEntries).where(eq(setEntries.id, setId)).get();
+    if (!row) return;
+    validateSet(patch, row.exerciseLogId);
+    const values = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+    if (patch.toFailure) values.rpe = 10;
+    db.update(setEntries).set(values).where(eq(setEntries.id, setId)).run();
+    refreshLogSession(row.exerciseLogId);
+  });
 }
 
 export function deleteSet(setId: number): void {
-  db.delete(setEntries).where(eq(setEntries.id, setId)).run();
+  atomic(() => {
+    const row = db.select().from(setEntries).where(eq(setEntries.id, setId)).get();
+    if (!row) return;
+    db.delete(setEntries).where(eq(setEntries.id, setId)).run();
+    refreshLogSession(row.exerciseLogId);
+  });
 }
 
 export type SetRow = typeof setEntries.$inferSelect;
 
-/**
- * Put a deleted set back exactly as it was — set number, PR flag,
- * completion state and all. Only the row id is new.
- */
+/** Undo preserves row identity and rebuilds all derived history. */
 export function restoreSetEntry(row: SetRow): number {
-  const { id: _dropped, ...values } = row;
-  const res = db.insert(setEntries).values(values).run();
-  return Number(res.lastInsertRowId);
+  return atomic(() => {
+    db.insert(setEntries).values(row).run();
+    refreshLogSession(row.exerciseLogId);
+    return row.id;
+  });
 }
 
 export function removeExerciseLog(logId: number): void {
-  db.delete(setEntries).where(eq(setEntries.exerciseLogId, logId)).run();
-  db.delete(exerciseLogs).where(eq(exerciseLogs.id, logId)).run();
+  atomic(() => {
+    const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
+    if (!row) return;
+    db.delete(setEntries).where(eq(setEntries.exerciseLogId, logId)).run();
+    db.delete(exerciseLogs).where(eq(exerciseLogs.id, logId)).run();
+    refreshSessionDerived(row.sessionId);
+    rebuildExercisePRs(row.exerciseId);
+  });
 }
 
 /**
@@ -316,118 +350,102 @@ export function finalizeSession(
   sessionId: number,
   opts: { moodAfter?: number | null; activity?: ActivityDetail; weightKg?: number; notes?: string | null; onFoot?: boolean } = {}
 ): FinalizeResult {
-  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!session) throw new Error(`Session ${sessionId} not found`);
-
-  const endTime = Date.now();
-  const durationS = Math.max(0, Math.round((endTime - session.startTime) / 1000));
-
-  const detail = getSessionDetail(sessionId);
-  let totalVolume = 0;
-  let prCount = 0;
-
-  const isLifting = session.sessionType === 'strength' || session.sessionType === 'calisthenics';
-  if (isLifting) {
-    for (const lv of detail.logs) {
-      for (const s of lv.sets) {
-        if (s.completed && s.weightKg && s.reps) totalVolume += s.weightKg * s.reps;
-      }
-      prCount += detectAndFlagPRs(lv, sessionId);
+  return atomic(() => {
+    let session = getSession(sessionId);
+    if (!session) throw new Error(`Session ${sessionId} not found`);
+    if (session.endTime == null) {
+      const endTime = Date.now();
+      const durationS = Math.max(0, Math.round((endTime - session.startTime) / 1000));
+      const bodyweightKg = finiteNumber(opts.weightKg ?? historicalWeight(session), 'Bodyweight', 10, 500);
+      if (opts.activity?.distanceM != null) finiteNumber(opts.activity.distanceM, 'Distance', 0, 1000000);
+      if (opts.activity?.caloriesBurned != null) finiteNumber(opts.activity.caloriesBurned, 'Calories', 0, 100000);
+      db.update(sessions).set({
+        endTime, durationS, bodyweightKg, archivedAt: null,
+        calorieOverride: opts.activity?.caloriesBurned ?? null,
+        distanceM: opts.activity?.distanceM ?? session.distanceM,
+        pace: opts.activity?.pace ?? session.pace,
+        elevationM: opts.activity?.elevationM ?? session.elevationM,
+        score: opts.activity?.score ?? session.score,
+        routeJson: opts.activity?.routeJson ?? session.routeJson,
+        moodAfter: opts.moodAfter ?? session.moodAfter,
+        notes: opts.notes ?? session.notes,
+      }).where(eq(sessions.id, sessionId)).run();
+      contributeSteps({ onFoot: opts.onFoot, distanceM: opts.activity?.distanceM,
+        durationS, dateISO: toISODate(new Date(session.startTime)), userId: session.userId, sessionId });
     }
-  }
-
-  // Calorie estimate. When there are logged exercises we attribute the burn per
-  // movement using each one's real MET; otherwise fall back to the session-type
-  // MET. A caller-provided figure (e.g. a GPS run) always wins.
-  const bodyKg = opts.weightKg ?? 75;
-  const providedCals = opts.activity?.caloriesBurned ?? null;
-  const fallbackMet = SESSION_TYPE_MET[session.sessionType] ?? 4;
-  const caloriesBurned =
-    providedCals ??
-    distributeSessionCalories({
-      durationS,
-      weightKg: bodyKg,
-      fallbackMet,
-      exercises: logsToBurn(detail.logs),
-    }).total;
-
-  db.update(sessions)
-    .set({
-      endTime,
-      durationS,
-      totalVolume: isLifting ? Math.round(totalVolume) : null,
-      distanceM: opts.activity?.distanceM ?? null,
-      pace: opts.activity?.pace ?? null,
-      elevationM: opts.activity?.elevationM ?? null,
-      score: opts.activity?.score ?? null,
-      routeJson: opts.activity?.routeJson ?? session.routeJson ?? null,
-      caloriesBurned,
-      moodAfter: opts.moodAfter ?? session.moodAfter ?? null,
-      notes: opts.notes ?? session.notes ?? null,
-    })
-    .where(eq(sessions.id, sessionId))
-    .run();
-
-  const stepsAdded = contributeSteps({
-    onFoot: opts.onFoot,
-    distanceM: opts.activity?.distanceM ?? null,
-    durationS,
-    dateISO: toISODate(new Date(session.startTime)),
-    userId: session.userId,
-    sessionId,
+    refreshSessionDerived(sessionId);
+    const detail = getSessionDetail(sessionId);
+    session = detail.session;
+    return { session, totalVolume: session.totalVolume ?? 0, durationS: session.durationS ?? 0,
+      caloriesBurned: session.caloriesBurned ?? 0, stepsAdded: session.stepsAdded ?? 0,
+      prCount: detail.logs.flatMap(l => l.sets).filter(s => s.isPr).length };
   });
-
-  return {
-    session: db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!,
-    totalVolume: Math.round(totalVolume),
-    durationS,
-    caloriesBurned,
-    prCount,
-    stepsAdded,
-  };
 }
 
-/**
- * Flag PRs: for each set in this exercise log, mark it a PR if its estimated
- * 1RM exceeds the best estimated 1RM this user previously achieved on the same
- * exercise (before this session).
- */
-function detectAndFlagPRs(lv: ExerciseLogView, sessionId: number): number {
-  const exerciseId = lv.log.exerciseId;
-  const priorBest = bestPrior1RM(exerciseId, sessionId);
-  let running = priorBest;
-  let count = 0;
-  for (const s of lv.sets) {
-    if (s.completed && s.weightKg && s.reps) {
-      const e = estimate1RMFromSet(s);
-      if (e > running + 0.01) {
-        db.update(setEntries).set({ isPr: true }).where(eq(setEntries.id, s.id)).run();
-        running = e;
-        count++;
-      }
-    }
-  }
-  return count;
+function historicalWeight(session: Session): number {
+  if (session.bodyweightKg != null) return session.bodyweightKg;
+  return db.select().from(weighIns).where(and(eq(weighIns.userId, session.userId),
+    lte(weighIns.date, toISODate(new Date(session.startTime))))).orderBy(desc(weighIns.date)).limit(1).get()?.weightKg ?? 75;
 }
 
-function bestPrior1RM(exerciseId: number, excludeSessionId: number): number {
-  const rows = db
-    .select({
-      reps: setEntries.reps,
-      weightKg: setEntries.weightKg,
-      rpe: setEntries.rpe,
-      toFailure: setEntries.toFailure,
-    })
-    .from(setEntries)
-    .innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
-    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(setEntries.completed, true)))
-    .all();
-  let best = 0;
-  for (const r of rows) {
-    const e = estimate1RMFromSet(r);
-    if (e > best) best = e;
+function refreshLogSession(logId: number): void {
+  const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
+  if (row) refreshSessionDerived(row.sessionId);
+}
+
+/** Recalculate completed sessions without changing their time or adding steps again. */
+export function refreshSessionDerived(sessionId: number, rebuildPRs = true): void {
+  const detail = getSessionDetail(sessionId);
+  const { session, logs } = detail;
+  if (session.endTime == null) return;
+  const weightKg = historicalWeight(session);
+  const lifting = session.sessionType === 'strength' || session.sessionType === 'calisthenics';
+  const totalVolume = logs.flatMap(l => l.sets).reduce((sum, s) => sum + (s.completed ? (s.weightKg ?? 0) * (s.reps ?? 0) : 0), 0);
+  const caloriesBurned = session.calorieOverride ?? distributeSessionCalories({ durationS: session.durationS ?? 0,
+    weightKg, fallbackMet: SESSION_TYPE_MET[session.sessionType] ?? 4, exercises: logsToBurn(logs) }).total;
+  db.update(sessions).set({ totalVolume: lifting ? Math.round(totalVolume) : null, caloriesBurned,
+    bodyweightKg: weightKg }).where(eq(sessions.id, sessionId)).run();
+  if (rebuildPRs) for (const id of new Set(logs.map(l => l.log.exerciseId))) rebuildExercisePRs(id);
+}
+
+/** Once on upgrade: repair old stale totals and flags without touching raw sets. */
+export function repairSessionHistory(): void {
+  for (const session of db.select().from(sessions).where(isNotNull(sessions.endTime)).all()) refreshSessionDerived(session.id, false);
+  for (const id of new Set(db.select({ id: exerciseLogs.exerciseId }).from(exerciseLogs).all().map(r => r.id))) rebuildExercisePRs(id);
+}
+
+/** Backdated edits can change later PRs. Compare only finished sessions in chronological order. */
+function rebuildExercisePRs(exerciseId: number): void {
+  const rows = db.select({ set: setEntries, start: sessions.startTime, sessionId: sessions.id,
+    end: sessions.endTime, userId: sessions.userId, order: exerciseLogs.orderIndex })
+    .from(setEntries).innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
+    .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
+    .where(eq(exerciseLogs.exerciseId, exerciseId)).all()
+    .sort((a, b) => a.start - b.start || a.sessionId - b.sessionId || a.order - b.order || a.set.setNumber - b.set.setNumber || a.set.id - b.set.id);
+  const best = new Map<number, number>();
+  for (const row of rows) {
+    const estimate = row.end != null && row.set.completed ? estimate1RMFromSet(row.set) : 0;
+    const previous = best.get(row.userId) ?? 0;
+    const isPr = estimate > previous + 0.01;
+    best.set(row.userId, Math.max(previous, estimate));
+    if (row.set.isPr !== isPr) db.update(setEntries).set({ isPr }).where(eq(setEntries.id, row.set.id)).run();
   }
-  return best;
+}
+
+/** Recover an old draft only after the current workout has finished. */
+export function resumeDraft(sessionId: number): void {
+  atomic(() => {
+    const session = getSession(sessionId);
+    if (!session || session.endTime != null) throw new Error('This session is already finished.');
+    const active = activeSession(session.userId);
+    if (active && active.id !== sessionId) throw new Error('Finish or cancel your current workout before resuming this draft.');
+    if (active?.id === sessionId && session.archivedAt == null) return;
+    // A recovered draft restarts its timer; preserve its original time in the notes.
+    const original = new Date(session.startTime).toISOString();
+    db.update(sessions).set({ archivedAt: null, startTime: Date.now(),
+      notes: `${session.notes ?? ''}\nRecovered draft originally started ${original}. Timer restarted on recovery.`.trim()
+    }).where(eq(sessions.id, sessionId)).run();
+  });
 }
 
 /**
@@ -453,7 +471,11 @@ export function logPastSession(
   },
   userId: number = PRIMARY_USER_ID
 ): { session: Session; stepsAdded: number } {
-  const durationS = Math.max(1, Math.round((input.endTime - input.startTime) / 1000));
+  return atomic(() => {
+  finiteNumber(input.startTime, 'Start time', 0, Date.now());
+  finiteNumber(input.endTime, 'End time', input.startTime + 1000, Date.now() + 60000);
+  if (input.distanceM != null) finiteNumber(input.distanceM, 'Distance', 0, 1000000);
+  const durationS = Math.round((input.endTime - input.startTime) / 1000);
   const fallbackMet = SESSION_TYPE_MET[input.sessionType] ?? 4;
   const bodyKg = input.weightKg ?? 75;
   // Value each listed exercise at its own MET (evenly over the elapsed time,
@@ -480,6 +502,7 @@ export function logPastSession(
     .values({
       userId,
       sessionType: input.sessionType,
+      bodyweightKg: finiteNumber(bodyKg, 'Bodyweight', 10, 500),
       label: input.label ?? null,
       startTime: input.startTime,
       endTime: input.endTime,
@@ -505,6 +528,7 @@ export function logPastSession(
     sessionId: id,
   });
   return { session: getSession(id)!, stepsAdded };
+  });
 }
 
 /** Adapt exercise-log views into the shape the calorie distributor expects. */
@@ -551,6 +575,7 @@ export function sessionCalorieBreakdown(
   bodyKg = 75
 ): SessionCalorieBreakdown {
   const { session, logs } = detail;
+  bodyKg = session.endTime != null ? historicalWeight(session) : bodyKg;
   const durationS = session.durationS ?? 0;
   const fallbackMet = SESSION_TYPE_MET[session.sessionType] ?? 4;
   const dist = distributeSessionCalories({
@@ -559,15 +584,17 @@ export function sessionCalorieBreakdown(
     fallbackMet,
     exercises: logsToBurn(logs),
   });
+  const recordedTotal = session.calorieOverride ?? dist.total;
+  const ratio = dist.total > 0 ? recordedTotal / dist.total : 0;
   const byLogId: Record<number, number> = {};
   logs.forEach((lv, i) => {
-    byLogId[lv.log.id] = dist.perExercise[i] ?? 0;
+    byLogId[lv.log.id] = (dist.perExercise[i] ?? 0) * ratio;
   });
   return {
     byLogId,
-    total: dist.total,
+    total: recordedTotal,
     basis: dist.basis,
-    restCalories: dist.restCalories,
+    restCalories: dist.total > 0 ? dist.restCalories * ratio : recordedTotal,
     restSeconds: dist.restSeconds,
     workSeconds: dist.workSeconds,
     restMet: dist.restMet,
@@ -694,12 +721,13 @@ export function getSessionDetail(sessionId: number): SessionDetail {
 }
 
 export function listSessions(
-  opts: { limit?: number; since?: string; until?: string; type?: SessionType } = {},
+  opts: { limit?: number; since?: string; until?: string; type?: SessionType; includeUnfinished?: boolean } = {},
   userId: number = PRIMARY_USER_ID
 ): Session[] {
   const clauses = [eq(sessions.userId, userId)];
-  if (opts.since) clauses.push(gte(sessions.startTime, new Date(opts.since).getTime()));
-  if (opts.until) clauses.push(lte(sessions.startTime, new Date(opts.until).getTime() + 86_400_000));
+  if (!opts.includeUnfinished) clauses.push(isNotNull(sessions.endTime));
+  if (opts.since) clauses.push(gte(sessions.startTime, fromISODate(opts.since).getTime()));
+  if (opts.until) clauses.push(lt(sessions.startTime, nextDayMs(opts.until)));
   if (opts.type) clauses.push(eq(sessions.sessionType, opts.type));
   let q = db
     .select()
@@ -716,7 +744,7 @@ export function activeSession(userId: number = PRIMARY_USER_ID): Session | undef
   return db
     .select()
     .from(sessions)
-    .where(and(eq(sessions.userId, userId), isNull(sessions.endTime)))
+    .where(and(eq(sessions.userId, userId), isNull(sessions.endTime), isNull(sessions.archivedAt)))
     .orderBy(desc(sessions.startTime))
     .limit(1)
     .get();
@@ -733,9 +761,10 @@ export function activeSession(userId: number = PRIMARY_USER_ID): Session | undef
  * was contributed so it can be subtracted exactly.
  */
 export function deleteSession(sessionId: number): void {
+  return atomic(() => {
   const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   const logs = db
-    .select({ id: exerciseLogs.id })
+    .select({ id: exerciseLogs.id, exerciseId: exerciseLogs.exerciseId })
     .from(exerciseLogs)
     .where(eq(exerciseLogs.sessionId, sessionId))
     .all();
@@ -754,6 +783,8 @@ export function deleteSession(sessionId: number): void {
       session.userId
     );
   }
+  for (const id of new Set(logs.map(l => l.exerciseId))) rebuildExercisePRs(id);
+  });
 }
 
 /**

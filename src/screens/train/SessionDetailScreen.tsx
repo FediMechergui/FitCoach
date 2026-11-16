@@ -20,6 +20,7 @@ import {
   deleteSession,
   getSessionDetail,
   removeExerciseLog,
+  resumeDraft,
   sessionCalorieBreakdown,
   type ExerciseLogView,
   type SessionDetail,
@@ -30,10 +31,11 @@ import { toISODate } from '@/lib/date';
 import { formatDurationLong, formatDistance, formatPace, formatDuration } from '@/lib/format';
 import type { SetEntry } from '@/db/schema';
 import { useUserStore } from '@/stores/userStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import { PostSessionCard } from '@/components/PostSessionCard';
 import { SessionPlaceCard } from '@/components/SessionPlaceCard';
 import { postSessionFor } from '@/repositories/postSessionRepo';
-import { saveRoutine, sessionExerciseIds, findRoutineByName } from '@/repositories/routinesRepo';
+import { saveSessionRoutine, findRoutineByName } from '@/repositories/routinesRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DetailRoute = RouteProp<RootStackParamList, 'SessionDetail'>;
@@ -102,6 +104,14 @@ export function SessionDetailScreen() {
 
   return (
     <Screen>
+      {session.endTime == null && <Card style={{ gap: 12 }}>
+        <Text variant="bodyStrong">Unfinished workout</Text>
+          <Text color="textMuted">This draft does not count in statistics. Recovering an archived draft keeps its sets and restarts the timer; its original start time stays in the notes.</Text>
+        <Button title="Resume workout" onPress={() => {
+          try { resumeDraft(session.id); useSessionStore.getState().resume(); navigation.navigate('ActiveSession', { sessionId: session.id }); }
+          catch (error) { Alert.alert('Current workout', error instanceof Error ? error.message : 'Unable to resume.'); }
+        }} />
+      </Card>}
       {/* Just finished — the recap moment lives here now, on the same screen
           that can edit, price and delete the session. */}
       {justFinished && (
@@ -345,7 +355,7 @@ function SaveAsRoutine({ sessionId, defaultName }: { sessionId: number; defaultN
     const trimmed = name.trim();
     if (!trimmed) return;
     const existed = !!findRoutineByName(trimmed);
-    saveRoutine(trimmed, sessionExerciseIds(sessionId));
+    saveSessionRoutine(trimmed, sessionId);
     setSavedAs(existed ? `Updated routine “${trimmed}”` : `Saved routine “${trimmed}”`);
   };
 

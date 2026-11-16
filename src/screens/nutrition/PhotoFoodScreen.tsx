@@ -228,6 +228,9 @@ export function PhotoFoodScreen() {
         });
       }
       addPrecise({
+        source: 'ai',
+        sourceRef: r.source,
+        isEstimated: true,
         mealType: meal,
         foodName: r.name,
         quantity: r.quantity,

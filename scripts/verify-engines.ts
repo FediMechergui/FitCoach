@@ -841,19 +841,19 @@ console.log('\nEnergy balance & the over-training line:');
 const bmrBase = 1600, tdeeBase = 2480, target = 1980;
 // Fat loss, ate 1500, burned 300 → available 1200 < floor(max(bmr, target-500)=1600) → over-trained.
 const ebCut = computeEnergyBalance({ goal: 'lose_fat', calorieTarget: target, tdee: tdeeBase, bmr: bmrBase, consumedKcal: 1500, exerciseKcal: 300 });
-check('Aggressive deficit + big burn flags over-training', ebCut.status === 'over_trained', `${ebCut.status}, avail ${ebCut.availableAfterExercise}, floor ${ebCut.floorKcal}`);
+check('Incomplete logs do not diagnose overtraining', ebCut.status === 'eat_more' && ebCut.restoreKcal === 0);
 check('Left-to-eat is target minus consumed', ebCut.leftToEat === target - 1500);
 // Same day but ate to target and only light burn → on track with headroom.
 const okDay = computeEnergyBalance({ goal: 'lose_fat', calorieTarget: target, tdee: tdeeBase, bmr: bmrBase, consumedKcal: 1980, exerciseKcal: 150 });
-check('Eating to target with light training is on track', okDay.status === 'on_track' && okDay.headroomKcal > 0, `${okDay.status}, head ${okDay.headroomKcal}`);
+check('Eating to target compares intake without an exercise credit', okDay.status === 'on_track' && okDay.leftToEat === 0);
 // Bulk: surplus wiped by cardio → over-trained, message says eat back.
 const bulk = computeEnergyBalance({ goal: 'build_muscle', calorieTarget: 3000, tdee: 2700, bmr: 1700, consumedKcal: 2900, exerciseKcal: 500 });
-check('A bulk that burns off its surplus is flagged', bulk.status === 'over_trained' && /surplus/i.test(bulk.message));
-check('The line is a burn ceiling, not the calorie target', ebCut.lineKcal >= 0 && okDay.lineKcal === Math.max(0, 1980 - okDay.floorKcal));
+check('Activity-adjusted targets do not add exercise twice', bulk.targetIntake === 3000 && bulk.leftToEat === 100 && bulk.restoreKcal === 0);
+check('No calorie-based training ceiling is invented', ebCut.lineKcal === 0 && okDay.lineKcal === 0);
 check('Training-load fraction stays within 0..1', [ebCut, okDay, bulk].every((b) => { const f = trainingLoadFraction(b); return f >= 0 && f <= 1; }));
-check('Never lets the floor drop below BMR', computeEnergyBalance({ goal: 'lose_fat', calorieTarget: 1200, tdee: 1800, bmr: 1500, consumedKcal: 1400, exerciseKcal: 0 }).floorKcal >= 1500);
+check('No food logged is explicitly incomplete', computeEnergyBalance({ goal: 'maintain', calorieTarget: 2400, tdee: 2400, bmr: 1600, consumedKcal: 0, exerciseKcal: 25 }).status === 'incomplete');
 // The Home "restore" value: eat-back needed to reach the floor, 0 when fine.
-check('Restore = eat-back to the floor when over-trained', ebCut.restoreKcal === Math.max(0, ebCut.floorKcal - ebCut.availableAfterExercise) && ebCut.restoreKcal > 0);
+check('Does not prescribe calories to eat back from partial logs', ebCut.restoreKcal === 0);
 check('Restore is 0 when on track', okDay.restoreKcal === 0);
 
 console.log('\nWalk recovery (screen off / app killed):');
@@ -940,7 +940,7 @@ console.log('\nDeletes undo their side effects:');
 {
   const actSrc = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
   const sessSrc = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
-  check('activityRepo exposes a clamped removeSteps', /export function removeSteps/.test(actSrc) && /Math\.max\(0, existing\.stepCount/.test(actSrc));
+  check('activityRepo reverses manual contributions without subtracting sensor evidence', /export function removeSteps/.test(actSrc) && /Math\.max\(0,v/.test(actSrc) && /Math\.max\(v,state\.sensor/.test(actSrc));
   check('Deleting a walk subtracts its steps/distance/calories', /export function deleteWalkSession[\s\S]{0,400}removeSteps\(/.test(actSrc));
   check('A walk is rolled back on the day it counted, not today', /removeSteps\([\s\S]{0,120}toISODate\(new Date\(row\.startTime\)\)/.test(actSrc));
   check('Sessions record what they contributed', /stepsAdded: steps, distanceAddedM: distanceM/.test(sessSrc));
@@ -997,19 +997,19 @@ console.log('\nSchema ↔ migration integrity:');
   // The background location task must checkpoint steps so they keep climbing
   // while the app is killed — and must only ever raise the stored count.
   const repoSrc = fs.readFileSync('src/repositories/activityRepo.ts', 'utf8');
-  check('Background task checkpoints steps from GPS distance', /stepsFromDistance\(distance/.test(repoSrc));
-  check('Step checkpoint is monotonic (never lowers the count)', /steps: Math\.max\(row\.steps, impliedSteps\)/.test(repoSrc));
+  check('GPS distance no longer manufactures steps', !/stepsFromDistance\(distance/.test(repoSrc));
+  check('Observed sensor totals never regress after a stale snapshot', /Math\.max\(v,values\[i\]\)/.test(repoSrc));
   // Every GPS fix must go through the filter — the raw haversine loop inflated
   // distance indoors and while turning on the spot.
   // Superseded by 3.8.0: a ride passes its own speed ceiling as a third argument.
-  check('Route append filters fixes before crediting distance', /filterFixes\(route, fixes, riding \? \{ maxSpeedMs: RIDE_MAX_SPEED_MS \} : \{\}\)/.test(repoSrc));
+  check('Route append gates raw timestamped motion before crediting distance', /gateRoute\(route, fixes, gate, evidence/.test(repoSrc));
   check('Raw unfiltered segment accumulation is gone', !/const seg = haversine\(last, p\)/.test(repoSrc));
   // Rejecting every fix still counts as observing the session; leaving updatedAt
   // stale would make the stretch look like a blind window and let the gap
   // estimator re-credit the steps the filter just discarded.
   check(
-    'A fully-rejected batch still stamps updatedAt',
-    /if \(!accepted\.length\)/.test(repoSrc) && /set\(\{ updatedAt: Date\.now\(\) \}\)/.test(repoSrc)
+    'A rejected batch persists motion evidence without inventing recovery steps',
+    /kvSetStrict\(key, state\)/.test(repoSrc) && !/recoverGapSteps\(/.test(walkSrc)
   );
   // Accuracy and Doppler speed are the filter's two best signals; the task must
   // hand them over rather than throwing them away at the boundary.
@@ -2109,7 +2109,7 @@ console.log('\nCustom foods — calories from macros:');
   // reader of `rpe` seeing a blank where the hardest set of the day was.
   const sessSrc = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
   check('Logging to failure also records RPE 10', /rpe: draft\.toFailure \? 10 : draft\.rpe/.test(sessSrc));
-  check('PR detection uses the effort-corrected estimate', /estimate1RMFromSet\(s\)/.test(sessSrc) && !/estimate1RM\(s\.weightKg/.test(sessSrc));
+  check('PR detection uses effort-corrected sets in chronological history', /estimate1RMFromSet\(row\.set\)/.test(sessSrc) && /row\.end != null && row\.set\.completed/.test(sessSrc));
 
   /*
    * A 1RM estimate needs rpe and to_failure in its query, or the correction is
@@ -2477,7 +2477,7 @@ console.log('\nReports — the PDF document renders from full and sparse data:')
   check('User text is escaped in the document', /&lt;script&gt;/.test(nasty) && !/<script>alert/.test(nasty) && /&amp; co/.test(nasty));
   // The service is a thin shell around the pure builder, and never fails silently.
   const svc = fs.readFileSync('src/services/pdfReport.ts', 'utf8');
-  check('pdfReport renders the pure builder', /buildReportHtml\(data\)/.test(svc) && /Print\.printToFileAsync\(\{ html/.test(svc));
+  check('pdfReport renders the selected sections from the reviewed snapshot', /buildReportHtml\(data, included\)/.test(svc) && /snapshot \?\? buildReportData/.test(svc) && /Print\.printToFileAsync\(\{ html/.test(svc));
   check('…and tells the user where the file is when no share sheet exists', /Alert\.alert\('Report generated'/.test(svc));
   check('The Reports screen catches and shows generation errors', /Alert\.alert\('Could not generate report'/.test(fs.readFileSync('src/screens/profile/ReportsScreen.tsx', 'utf8')));
   // Data side: fibre rides along in daily intake, micros averaged over days WITH data.
@@ -2507,7 +2507,7 @@ console.log('\nFinished eating at — the forgotten meal, timed right:');
   check('An invalid clock falls back to the default rather than a wrong time', resolveEatenAt({ kind: 'clock', hhmm: '99:99' }, todayL, NOW) === undefined);
   const yEight = resolveEatenAt({ kind: 'clock', hhmm: '20:00' }, yesterdayL, NOW)!;
   check('"At 20:00" on a past diary day lands on THAT day at 20:00', clockOf(yEight) === '20:00' && yEight < NOW && yEight > NOW - 24 * 60 * M);
-  check('"Just now" on a past day means unknown → the default', resolveEatenAt({ kind: 'now' }, yesterdayL, NOW) === undefined);
+  check('Unknown meal time on a past day is anchored to local noon', resolveEatenAt({ kind: 'now' }, yesterdayL, NOW) === new Date(`${yesterdayL}T12:00:00`).getTime());
   check('"1 h ago" on a past day is anchored to that day, not to now', resolveEatenAt({ kind: 'ago', minutes: 60 }, yesterdayL, NOW)! < NOW - 12 * 60 * M);
   check('Presets start with "Just now" as the default', EATEN_AT_PRESETS[0].choice.kind === 'now' && EATEN_AT_PRESETS.length >= 4);
   // The digestion clock honours it: a 600 kcal meal "finished 2 h ago" is far along.
@@ -2517,7 +2517,7 @@ console.log('\nFinished eating at — the forgotten meal, timed right:');
   check('…and already clear for a normal session, as 2 h after 600 kcal should be', currentDigestion([{ calories: 600, proteinG: 30, carbsG: 60, fatG: 20, fiberG: 6, eatenAt: eaten }], 'moderate', NOW) === null);
   // Wiring
   const nutRepoE = fs.readFileSync('src/repositories/nutritionRepo.ts', 'utf8');
-  check('addPreciseFood stores eatenAt as createdAt only when given', (nutRepoE.match(/\.\.\.\(input\.eatenAt != null \? \{ createdAt: input\.eatenAt \} : \{\}\)/g) ?? []).length === 2);
+  check('All food sources fall back to a timestamp on the selected date', (nutRepoE.match(/createdAt: input\.eatenAt \?\? resolveEatenAt/g) ?? []).length === 2);
   const addSrcE = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
   check('AddFood asks in both modes and resolves against the diary date', (addSrcE.match(/<EatenAtPicker value=\{eatenAt\} onChange=\{setEatenAt\} dateISO=\{diaryDate\} \/>/g) ?? []).length === 2 && (addSrcE.match(/eatenAt: resolveEatenAt\(eatenAt, diaryDate\)/g) ?? []).length === 2);
   check('…defaulting to just now', (addSrcE.match(/useState<EatenAtChoice>\(\{ kind: 'now' \}\)/g) ?? []).length === 2);
@@ -2702,7 +2702,7 @@ console.log('\nRest prescription — ATP-PCr, glycolytic, oxidative; the nervous
   // ── Wiring ──
   const actSrc = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
   check('The rest presets include 5 minutes', /const REST_PRESETS = \[60, 90, 120, 180, 300\];/.test(actSrc));
-  check('Logging a set starts the rest the set earned, from the set BEFORE it is written', /const rx = isLifting \? rxFor\(draft\) : null;\s*store\.logSet\(lv\.log\.id, draft\);/.test(actSrc) && /store\.startRest\(rx\.restSec, rx\)/.test(actSrc));
+  check('Logging a set persists its rest prescription after validation', /const rx = isLifting \? rxFor\(draft\) : null;/.test(actSrc) && /store\.startRest\(rx\.restSec, rx, lv\.log\.id\)/.test(actSrc));
   check('…using the movement pattern, bodyweight flag, history 1RM, set index, session clock, level and progress', /compound: COMPOUND_PATTERNS\.has\(lv\.pattern \?\? ''\)/.test(actSrc) && /bodyweight: lv\.equipmentType === 'bodyweight'/.test(actSrc) && /best1RMKg: effBest,/.test(actSrc) && /setIndex: completed\.length/.test(actSrc) && /sessionElapsedMin: \(Date\.now\(\) - sessionStart\)/.test(actSrc) && /isProgress: d\.weightKg != null && topWeightBefore > 0 && d\.weightKg > topWeightBefore/.test(actSrc));
   check('The card says how long and why (energy system, %1RM, CNS, tap for reasons)', /Rest set to/.test(actSrc) && /SYSTEM_LABEL\[lastRx\.system\]/.test(actSrc) && /lastRx\.reasons\.map/.test(actSrc));
   check('The rest banner shows the creatine-phosphate tank refilling', /Creatine phosphate ~\{pcr\}% refilled/.test(actSrc) && /pcrRecovered\(elapsed, rx\?\.physiology\?\.tauS\)/.test(actSrc));
@@ -2894,7 +2894,7 @@ console.log('\nRest between sets — paid at its own rate, not the exercise\'s:'
   check('A past session with no set timing still splits by MET, with no rest to find', run(1800, [{ met: 10, trackingType: 'duration' as const, sets: [] }]).restSeconds === 0);
   check('Zero duration is zero, not a divide by zero', run(0, [lift]).total === 0);
   const repoRest = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
-  check('The session breakdown carries the work / rest split for the UI', /restCalories: dist\.restCalories/.test(repoRest) && /restSeconds: dist\.restSeconds/.test(repoRest));
+  check('The session breakdown carries the work / rest split for the UI', /restCalories: dist\.total > 0 \? dist\.restCalories \* ratio/.test(repoRest) && /restSeconds: dist\.restSeconds/.test(repoRest));
 }
 
 console.log('\nRunning order — top to bottom, and it stays where you put it:');
@@ -3651,7 +3651,7 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
   // ── The accent. Lume is the only colour allowed to mean "interactive". ──
   check('The brand is Lume, not the old blue', darkTheme.colors.primary === lume.base && darkTheme.colors.primary === '#3FE0B6');
   check('Success shares the brand, as it always quietly did', darkTheme.colors.success === lume.base);
-  check('On Salt the interactive ink darkens for contrast', lightTheme.colors.primary === '#0FA57F');
+  check('On Salt the interactive ink darkens for contrast', lightTheme.colors.primary === '#08765C');
   check('There is no fourth status colour - info reads as ink', darkTheme.colors.info === darkTheme.colors.textMuted);
   check('Carbs keep blue, which is why the brand could not', darkTheme.colors.carbs === '#6FA7F5' && darkTheme.colors.carbs !== darkTheme.colors.primary);
 
@@ -3728,7 +3728,7 @@ console.log('\n3.0 "Lume" - the design platform holds its own rules:');
   check('A tappable Card is a real Pressable with a role', /accessibilityRole="button"/.test(cardSrc) && /android_ripple/.test(cardSrc));
   check('The 3px accent bar survives - it is a learned pattern', /borderLeftWidth: 3/.test(cardSrc));
   const buttonSrc = fs.readFileSync('src/components/ui/Button.tsx', 'utf8');
-  check('The primary wears Lume ink, not white-on-mint', /isBrand \? lume\.ink : '#fff'/.test(buttonSrc));
+  check('Filled buttons choose ink for their background contrast', /contrastInk\(/.test(buttonSrc));
   check('A disabled button can say why', /hint\?: string/.test(buttonSrc) && /disabled && hint/.test(buttonSrc));
   const inputSrc = fs.readFileSync('src/components/ui/Input.tsx', 'utf8');
   check('Inputs gained focus ring, error and helper', /focused/.test(inputSrc) && /error\?: string/.test(inputSrc) && /helper\?: string/.test(inputSrc));
@@ -3750,7 +3750,7 @@ console.log('\n3.0.1 - the slick pass keeps its own discipline:');
   const bezelSrc = fs.readFileSync('src/components/ui/Bezel.tsx', 'utf8');
   check('The Bezel exists: tray, hairline ring, concentric core', /padding: inset/.test(bezelSrc) && /borderRadius: outer - inset/.test(bezelSrc));
   const heroSrc2 = fs.readFileSync('src/components/ui/PageHero.tsx', 'utf8');
-  check('PageHero wears it on every pushed page', /<Bezel tint=\{tint\}>/.test(heroSrc2));
+  check('Pushed-page titles use compact padding', /paddingVertical: 4/.test(heroSrc2) && !/<Bezel/.test(heroSrc2));
   check('...without touching the guarded geometry', /width: 44/.test(heroSrc2) && /size=\{24\}/.test(heroSrc2) && /INLINE_SUBTITLE_MAX = 100/.test(heroSrc2));
   check('...and its tint is a token, not a hex concat', /theme\.alpha\.tint14\(tint\)/.test(heroSrc2) && !/tint \+ '/.test(heroSrc2));
   check('The eyebrow speaks in the coach register', typography.eyebrow.letterSpacing === 2.2 && typography.eyebrow.textTransform === 'uppercase' && typography.eyebrow.fontSize === 11);
@@ -3845,7 +3845,7 @@ console.log("\nThe first hour - boot, crash and onboarding stop being hostile:")
 
   // ── The targets step is a moment, marked sovereign.
   check('The calorie target lands as the display numeral', /variant="numeralXL"/.test(ob) && /<Bezel tint=\{theme\.colors\.calories\}>/.test(ob));
-  check('The sovereignty mark is on the last step', /On this device/.test(ob) && /no account, ever/.test(ob));
+  check('Onboarding explains offline use and optional encrypted backups', /Works offline/.test(ob) && /optional encrypted backups/.test(ob));
 
   // ── Boot is branded; the fatal moment is survivable.
   const boot = fs.readFileSync('src/components/BootScreens.tsx', 'utf8');
@@ -3892,7 +3892,7 @@ console.log('\nNutrition 3.0 - the diary earns edit:');
   check('A malformed micros blob survives the edit untouched', /} catch \{\s*\n\s*\/\/ A malformed micros blob stays as it was/.test(repo));
   check('Honest-log rows never pretend to have a serving to rescale', /row\.logMode === 'precise' &&\s*\n\s*row\.quantity > 0/.test(repo));
   check('Eaten-at edits land in createdAt, where every reader looks', /if \(patch\.eatenAt != null && Number\.isFinite\(patch\.eatenAt\)\) updates\.createdAt = patch\.eatenAt;/.test(repo));
-  check('Restore puts the row back verbatim, id aside', /const \{ id: _dropped, \.\.\.values \} = row;/.test(repo) && /db\.insert\(foodEntries\)\.values\(values\)\.run\(\);/.test(repo));
+  check('Food undo preserves identity and linked records atomically', /export function restoreFoodEntry/.test(repo) && /linkedSupplements, linkedAlcohol/.test(repo) && /return row\.id/.test(repo));
 
   const store = fs.readFileSync('src/stores/nutritionStore.ts', 'utf8');
   check('The store exposes edit, snapshot and restore, each refreshing the day', /editFood/.test(store) && /snapshotFood/.test(store) && /restoreFood/.test(store) && /updateFoodEntry\(id, patch\);/.test(store));
@@ -3936,11 +3936,11 @@ console.log('\nActiveSession 3.0 - the rest banner earns its numbers:');
   // restBeforeStateSec was computed on every prescription and rendered nowhere.
   check('The physiology delta is finally visible, both directions', /rx\?\.restBeforeStateSec != null && rx\.restSec !== rx\.restBeforeStateSec/.test(act9) && /for the state you arrived in/.test(act9) && /baseline \$\{formatRest\(rx\.restBeforeStateSec\)\}/.test(act9));
   check('...and only when the state actually moved the number', !/rx\?\.restBeforeStateSec != null &&\s*\(/.test(act9));
-  check('A preset overrides the duration, not the physiology', /store\.startRest\(sec, lastRx \?\? undefined\)/.test(act9));
+  check('A rest preset keeps physiology and persists the exercise setting', /store\.startRest\(sec, lastRx \?\? undefined, lv\.log\.id\)/.test(act9));
   check('Deleting a set forgives - Undo restores the captured row', /store\.removeSet\(s\.id\);\s*\n\s*toast\(\{/.test(act9) && /onAction: \(\) => store\.restoreSet\(s\)/.test(act9));
 
   const sessRepo = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
-  check('restoreSetEntry puts the row back verbatim, id aside', /export function restoreSetEntry\(row: SetRow\)/.test(sessRepo) && /const \{ id: _dropped, \.\.\.values \} = row;\s*\n\s*const res = db\.insert\(setEntries\)/.test(sessRepo));
+  check('Set undo preserves identity and refreshes derived totals', /db\.insert\(setEntries\)\.values\(row\)/.test(sessRepo) && /refreshLogSession\(row\.exerciseLogId\)/.test(sessRepo));
   const sessStore = fs.readFileSync('src/stores/sessionStore.ts', 'utf8');
   check('The store refreshes after a restore, like every other write', /restoreSet: \(row\) => \{\s*\n\s*restoreSetEntry\(row\);\s*\n\s*get\(\)\.refresh\(\);/.test(sessStore));
 }
@@ -4027,7 +4027,7 @@ console.log('\nSession 3.0 - one screen tells the story:');
   check('The celebration renders only on the finish, not on history visits', /\{justFinished && \(/.test(det) && /Nice work!/.test(det) && /\{justFinished && <Button title="Done"/.test(det));
   check('PRs are passed fresh and derived for any later visit', /route\.params\.prCount \?\? logs\.flatMap\(\(l\) => l\.sets\)\.filter\(\(x\) => x\.isPr\)\.length/.test(det));
   check('The margins card lives for its 12 hours, then becomes history', /after && Date\.now\(\) - after\.endedAt < 12 \* 3_600_000/.test(det));
-  check('Routine creation survives the recap - SaveAsRoutine lives here now', /function SaveAsRoutine\(/.test(det) && /saveRoutine\(trimmed, sessionExerciseIds\(sessionId\)\)/.test(det));
+  check('SaveAsRoutine captures the session prescription', /function SaveAsRoutine\(/.test(det) && /saveSessionRoutine\(trimmed, sessionId\)/.test(det));
   check('The steps card appears only with the finish that earned it', /justFinished && route\.params\.stepsAdded \?/.test(det));
   check('The header tile wash is a token', /theme\.alpha\.tint14\(meta\.color\)/.test(det) && !det.includes("meta.color + '"));
   check('The recap screen left cleanly - no file, no route, no callers', !fs.existsSync('src/screens/train/SessionRecapScreen.tsx') && !/SessionRecap/.test(fs.readFileSync('src/navigation/types.ts', 'utf8')) && !/SessionRecap/.test(fs.readFileSync('src/navigation/RootNavigator.tsx', 'utf8')));
@@ -4050,7 +4050,7 @@ console.log('\nStates doctrine 3.0 - nothing lies about why it is absent:');
   check('Trends headings only exist over living sections', ['Nutrition', 'Training', 'Rest & recovery', 'Habits impact'].every((t) => new RegExp(`\\|\\| has\\(data\\.[A-Za-z]+\\)\\) && \\(\\s*\\n\\s*<SectionHeader title="${t.replace('&', '&')}"`).test(tr)));
 
   const hist = fs.readFileSync('src/screens/train/SessionHistoryScreen.tsx', 'utf8');
-  check('History paints the truth on its first frame', /useState<Session\[\]>\(\(\) => listSessions\(\{ limit: 200 \}\)\)/.test(hist) && /\(\(\) => listWalkSessions\(200\)\)/.test(hist));
+  check('History includes recoverable drafts on its first frame', /listSessions\(\{ limit: 200, includeUnfinished: true \}\)/.test(hist) && /\(\(\) => listWalkSessions\(200\)\)/.test(hist));
   check('...and its empty states invite instead of shrugging', /start one from the Train tab/.test(hist) && /route maps included/.test(hist));
 
   const add15 = fs.readFileSync('src/screens/nutrition/AddFoodScreen.tsx', 'utf8');
@@ -4142,7 +4142,7 @@ console.log('\nMotion 3.1.2 - springs where motion is physical, the icon in the 
   const cfg = fs.readFileSync('app.config.ts', 'utf8');
   // Superseded by 3.8.0: the launcher icon is the user's crest, and its adaptive background is the crest's
   // own night blue so the padded foreground melts into it. The splash stays Night Sea.
-  check('Splash is Night Sea; the adaptive icon sits on the crest night blue', (cfg.match(/backgroundColor: '#070C14'/g) ?? []).length === 1 && /backgroundColor: '#051021'/.test(cfg) && !/#0B1220/.test(cfg));
+  check('Splash and adaptive icon share the new midnight background', (cfg.match(/backgroundColor: '#070C14'/g) ?? []).length === 2 && !/#0B1220/.test(cfg));
   check('The icon set is present and freshly rendered', ['assets/icon.png', 'assets/adaptive-icon.png', 'assets/splash.png', 'assets/favicon.png'].every((f) => fs.existsSync(f) && fs.statSync(f).size > 1500));
 }
 
@@ -4438,7 +4438,7 @@ console.log('\nProgression 3.3.0 - level, titles, pins, and badges that can fina
   check('The two report badges unlock on a generated report', evaluateAchievement(A(9), { ...zeroStats, coachReports: 1 }).unlocked && evaluateAchievement(A(10), { ...zeroStats, nutritionReports: 1 }).unlocked && !evaluateAchievement(A(9), { ...zeroStats, nutritionReports: 1 }).unlocked);
   const card = fs.readFileSync('src/screens/profile/ProfileCardScreen.tsx', 'utf8');
   check('An export is stamped only once a file exists', /if \(r\.saved \|\| r\.shared\) recordCardExport\(rating\?\.overall \?\? 0\);/.test(card));
-  check('A report is stamped after it is generated, never before', /await exportReport\(audience\);\s*\n\s*recordReport\(audience\);/.test(fs.readFileSync('src/screens/profile/ReportsScreen.tsx', 'utf8')));
+  check('A report is stamped after the reviewed snapshot is exported', /await exportReport\(audience, included, snapshot \?\? undefined\);\s*\n\s*recordReport\(audience\);/.test(fs.readFileSync('src/screens/profile/ReportsScreen.tsx', 'utf8')));
   const ach = fs.readFileSync('src/screens/profile/AchievementsScreen.tsx', 'utf8');
   check('The badge list no longer promises what it cannot do', !/unlock when you do them/.test(ach) && /the app cannot see this one/.test(ach));
   check('An earned badge can be pinned from the list', /toggleShowcase\(id, unlockedIds\)/.test(ach) && /label=\{pinned \? 'Pinned' : 'Pin'\}/.test(ach));
@@ -4587,7 +4587,7 @@ console.log('\nPaths 3.3.1 - the long road to becoming something:');
   const repo = fs.readFileSync('src/repositories/pathsRepo.ts', 'utf8');
   check('Progress is counted from finished sessions that carry the stage tag, since the stage began', /isNotNull\(sessions\.endTime\), gte\(sessions\.startTime, e\.stageStartedAt\)/.test(repo) && /tag\.pathKey !== e\.pathKey \|\| tag\.stageKey !== stage\.key/.test(repo));
   check('Graduating reads the gate again, from the record', /if \(!s\.gate\.met\) return \{ ok: false, reason: 'gate' \};/.test(repo) && repo.indexOf("if (!s.gate.met)") < repo.indexOf('db.insert(pathGraduations)'));
-  check('The last stage completes the path; the others begin the next', /last \? \{ completedAt: now \} : \{ stageIndex: s\.stageIndex \+ 1, stageStartedAt: now \}/.test(repo));
+  check('Advancing a path clears its accumulated pause time', /last \? \{ completedAt: now \} : \{ stageIndex: s\.stageIndex \+ 1, stageStartedAt: now, pausedDurationMs: 0, pausedAt: null \}/.test(repo));
   check('Graduated stages feed experience', /import \{ graduatedStageCount \} from '\.\/pathsRepo';/.test(fs.readFileSync('src/repositories/progressionRepo.ts', 'utf8')));
   const det = fs.readFileSync('src/screens/train/PathDetailScreen.tsx', 'utf8');
   check('A path session is tagged with its path, stage and day', /style: pathStyleTag\(path\.key, stage\.key, day\.key\)/.test(det) && /prefillSlugs: day\.exercises/.test(det));
@@ -4665,7 +4665,7 @@ console.log('\nNetwork 3.3.1 - planned, not switched on:');
   check('Nothing in the app imports the network yet', importers.length === 0, importers.join());
   const calls = srcFiles('src').filter((f) => /\bfetch\(/.test(fs.readFileSync(f, 'utf8')));
   // Superseded by 3.4.0: Open Food Facts is the third, and the list is still closed.
-  check('The app makes network calls from three files only', calls.length === 3 && calls.every((f) => /services\/(weatherFetch|foodVision|openFoodFacts)\.ts$/.test(f)), calls.join());
+  check('Network calls stay in the four explicit provider services, including encrypted backup', calls.length === 4 && calls.every((f) => /services\/(weatherFetch|foodVision|openFoodFacts|backup)\.ts$/.test(f)), calls.join());
   const plan = fs.readFileSync('docs/SOCIAL-PLAN.md', 'utf8');
   check('The plan says it is a plan, lists what never leaves the phone, and what is yours to decide', /Nothing in this document is switched on/.test(plan) && /Never leaves the phone/.test(plan) && /Decisions that are yours to make/.test(plan) && /with a lawyer in Tunisia/.test(plan));
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -5215,7 +5215,7 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   const wt = rd('src/services/walkTracking.ts');
   check('The tracker judges motion over the window and honours the auto-pause setting', /motionWindow\.push\(/.test(wt) && /outdoorSettings\(\)\.autoPause/.test(wt) && !/segmentSpeedMs\(distDelta, elapsedMs\)/.test(wt));
   check('The accelerometer is timed by the sensor, not by when JavaScript got to it', /timestamp \* 1000/.test(wt) && /detector!\.onSample\(x, y, z, ts\)/.test(wt));
-  check('A ride attaches no step source and recovers no steps', /if \(!mem\.countSteps\) return;/.test(wt) && /const baseline = mem\.countSteps \? await getStepsSinceBoot\(\) : null;/.test(wt));
+  check('A ride attaches no step source and uses only measured GPS distance', /if \(!mem\.countSteps\) return;/.test(wt) && /const steps = riding \? 0 : snapshot.steps;/.test(wt) && !/await getStepsSinceBoot\(/.test(wt));
   check('Resuming asks the permission, not the saved row, whether the step counter can be used', /Pedometer\.getPermissionsAsync\(\)/.test(wt));
   check('A training session trace is never resumed as a walk', /row\.activity !== 'session'/.test(wt) && /row\.activity === 'session'\) return;/.test(wt));
   const det = new StepDetector();
@@ -5225,7 +5225,7 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   const fastFix = [{ lat: 36.8, lng: 10.18, accuracy: 5, speed: 12 }, { lat: 36.801, lng: 10.18, accuracy: 5, speed: 12 }];
   check('A 43 km/h fix is impossible on foot and fine on a bike', filterFixes380([], fastFix).accepted.length < filterFixes380([], fastFix, { maxSpeedMs: RIDE_MAX_SPEED_MS }).accepted.length);
   const ar = rd('src/repositories/activityRepo.ts');
-  check('A ride invents no steps from its distance', /const impliedSteps = riding \? 0 :/.test(ar));
+  check('No outdoor activity invents sensor steps from distance', !/stepsFromDistance\(distance/.test(ar));
   check('The live route is parsed once per change, and its length read from the row', /if \(json === cachedJson\) return cachedRoute;/.test(ar) && /return row\.distanceM > 0 \? row\.distanceM/.test(ar));
 
   // ── GPS laps ──
@@ -5260,7 +5260,7 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   const sg = rd('src/services/sessionGps.ts');
   check('Whether GPS is on is asked of the session, not the screen', /useState\(\(\) => isSessionGpsOn\(store\.activeId\)\)/.test(act) && /setSessionGpsMarker\(\{ sessionId, startedAt: Date\.now\(\) \}\)/.test(sg));
   check('A discarded session stops its GPS', /if \(gpsOn \|\| isSessionGpsOn\(store\.activeId\)\) void stopSessionGps\(\);/.test(act));
-  check('A finished session keeps its route', /routeJson: opts\.activity\?\.routeJson \?\? session\.routeJson \?\? null,/.test(rd('src/repositories/sessionRepo.ts')) && /const routeJson = route\.length > 1 \? JSON\.stringify\(route\) : null;/.test(act));
+  check('A finished session keeps its route', /routeJson: opts\.activity\?\.routeJson \?\? session\.routeJson,/.test(rd('src/repositories/sessionRepo.ts')) && /const routeJson = route\.length > 1 \? JSON\.stringify\(route\) : null;/.test(act));
   check('A trace whose session is gone is stopped at start-up', /cleanupOrphanSessionGps\(activeSession\(\)\?\.id \?\? null\)/.test(rd('App.tsx')));
   check('A walk cannot take over a session trace', /if \(sessionGpsMarker\(\) && getLiveWalk\(\)\?\.active\)/.test(wscr));
 
@@ -5340,7 +5340,7 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   const boot = rd('src/db/bootstrap.ts');
   check('Schema 40 adds what 3.8.0 stores, for fresh installs and old ones alike', /const SCHEMA_VERSION = (4\d|[5-9]\d);/.test(boot) && ['training_focus', 'route_json', 'gps_from', 'gps_to', 'activity'].every((col) => new RegExp(`column: '${col}'`).test(boot)) && /gps_to INTEGER\n\);/.test(boot.replace(/\r\n/g, '\n')));
   const cfg = rd('app.config.ts');
-  check('The new binary is versionCode 4 and may vibrate', /versionCode: 4,/.test(cfg) && /'VIBRATE'/.test(cfg) && /version: '2\.0\.0'/.test(cfg));
+  check('The new binary uses a new native runtime and higher versionCode', /versionCode: 5,/.test(cfg) && /'VIBRATE'/.test(cfg) && /version: '4\.0\.0'/.test(cfg));
   const srcAll = (function walk(dir: string): string[] { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : /\.(ts|tsx)$/.test(d.name) ? [`${dir}/${d.name}`] : [])); })('src');
   check('Nothing calls the Vibration API: the update also runs on the older binary that lacks the permission', srcAll.every((f) => !/Vibration\.vibrate\(/.test(fs.readFileSync(f, 'utf8'))));
 }
@@ -5428,7 +5428,7 @@ console.log('\nEvery release is an OTA that lands - 3.9.1:');
   const base = JSON.parse(fs.readFileSync('scripts/native-baseline.json', 'utf8'));
   check('A baseline is committed for the installed APK, and it holds nothing secret', !!base.apk && Object.keys(base.dependencies).length > 10 && !/password|keystore|secret|token|apiKey/i.test(JSON.stringify(base)));
   check('The baseline APK listens on the channel releases publish to', base.config.updates?.requestHeaders?.['expo-channel-name'] === 'preview' && /const branch = 'preview'/.test(rel));
-  check('The baseline runtime is the app version, which stays 2.0.0', base.config.runtimeVersion?.policy === 'appVersion' && base.config.version === '2.0.0');
+  check('The baseline runtime matches the v4 native release', base.config.runtimeVersion?.policy === 'appVersion' && base.config.version === '4.0.0');
   const ba = fs.readFileSync('scripts/build-apk.js', 'utf8');
   check('A local APK lands in builds/, out of reach of the update export that empties dist/', /path\.join\(root, 'builds'\)/.test(ba) && /^\/builds\/\r?$/m.test(fs.readFileSync('.gitignore', 'utf8')));
   check('...and records its native baseline when it is signed for the phone', /writeBaseline\(path\.basename\(out\)\)/.test(ba) && ba.indexOf('writeBaseline') > ba.indexOf('if (warm)'));

@@ -210,7 +210,7 @@ export function compareToActual(
   const points: ComparisonPoint[] = projected.map((p) => {
     const a = actualByDate.get(p.date);
     let expected: number | null;
-    let actual: number | null = null;
+    let actual: number | null;
     if (metric === 'bodyFatPct') {
       expected = p.fatMassKg != null && p.weightKg > 0 ? r2((p.fatMassKg / p.weightKg) * 100) : null;
       actual = a?.bodyFatPct ?? (a?.fatMassKg != null && a.weightKg > 0 ? r2((a.fatMassKg / a.weightKg) * 100) : null);

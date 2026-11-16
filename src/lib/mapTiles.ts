@@ -119,7 +119,7 @@ export function routePath(vp: MapViewport, route: LatLng[], tileDp = TILE_DP): s
   let d = '';
   for (let i = 0; i < route.length; i++) {
     const { x, y } = project(vp, route[i], tileDp);
-    d += `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)} `;
+    d += `${i === 0 || route[i][2] ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)} `;
   }
   return d.trim();
 }
@@ -137,7 +137,7 @@ export function distanceMarks(route: LatLng[], everyM = 1000, max = 60): Array<{
   for (let i = 1; i < route.length && marks.length < max; i++) {
     const a = route[i - 1];
     const b = route[i];
-    const seg = haversine(a, b);
+    const seg = b[2] ? 0 : haversine(a, b);
     while (seg > 0 && walked + seg >= next && marks.length < max) {
       const t = (next - walked) / seg;
       marks.push({ m: next, at: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t] });
@@ -167,7 +167,7 @@ export function markSpacingM(totalM: number): number {
 export function trimRouteEnds(route: LatLng[], metres: number): LatLng[] {
   if (!(metres > 0) || route.length < 3) return route;
   const cum: number[] = [0];
-  for (let i = 1; i < route.length; i++) cum.push(cum[i - 1] + haversine(route[i - 1], route[i]));
+  for (let i = 1; i < route.length; i++) cum.push(cum[i - 1] + (route[i][2] ? 0 : haversine(route[i - 1], route[i])));
   const total = cum[cum.length - 1];
   if (total <= metres * 2 + 50) {
     const mid = Math.floor(route.length / 2);

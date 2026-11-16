@@ -107,7 +107,7 @@ export function FastingScreen() {
               { value: 'intermittent', label: 'Intermittent (16:8…)' },
             ]}
             value={mode}
-            onChange={(m) => upsertFastingProfile({ mode: m })}
+            onChange={(m) => { upsertFastingProfile({ mode: m }); reload(); }}
           />
           <Button title="Enable fasting mode" icon="core.check" color={theme.colors.warning} onPress={enable} />
         </>

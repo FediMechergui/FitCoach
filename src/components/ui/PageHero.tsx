@@ -42,7 +42,7 @@ export function PageHero({ icon, color, title, subtitle, eyebrow, right }: PageH
   const inline = !!subtitle && subtitle.length <= INLINE_SUBTITLE_MAX;
   const below = !!subtitle && !inline;
   return (
-    <Bezel tint={tint}>
+    <View style={{ paddingVertical: 4 }}>
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           {icon ? (
@@ -80,6 +80,6 @@ export function PageHero({ icon, color, title, subtitle, eyebrow, right }: PageH
           </Text>
         ) : null}
       </View>
-    </Bezel>
+    </View>
   );
 }

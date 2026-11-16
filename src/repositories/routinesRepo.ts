@@ -1,6 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { customRoutines, exerciseLogs, type CustomRoutine } from '@/db/schema';
+import { atomic } from '@/db/atomic';
+import { customRoutines, exerciseLogs, type CustomRoutine, type SessionType } from '@/db/schema';
+import { getSessionDetail, type SetDraft } from './sessionRepo';
+
+export interface RoutinePrescription { exerciseId: number; sets: SetDraft[]; restSeconds: number }
 import { getExercise, type ExerciseView } from './exerciseRepo';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -10,13 +14,15 @@ import { PRIMARY_USER_ID } from './userRepo';
  * routine (so templates evolve with you instead of piling up duplicates).
  */
 
-export interface RoutineView extends Omit<CustomRoutine, 'exerciseIds'> {
+export interface RoutineView extends Omit<CustomRoutine, 'exerciseIds' | 'prescription' | 'sessionType'> {
+  prescription: RoutinePrescription[];
+  sessionType: SessionType;
   exerciseIds: number[];
   exercises: ExerciseView[];
 }
 
 function hydrate(r: CustomRoutine): RoutineView {
-  let ids: number[] = [];
+  let ids: number[];
   try {
     ids = JSON.parse(r.exerciseIds) as number[];
   } catch {
@@ -25,7 +31,24 @@ function hydrate(r: CustomRoutine): RoutineView {
   const exercises = ids
     .map((id) => getExercise(id))
     .filter((e): e is ExerciseView => !!e);
-  return { ...r, exerciseIds: ids, exercises };
+  let prescription: RoutinePrescription[] = [];
+  try { prescription = JSON.parse(r.prescription ?? '[]'); } catch { /* old routine has no set template */ }
+  return { ...r, exerciseIds: ids, exercises, prescription: ids.map(id => prescription.find(p => p.exerciseId === id) ?? {exerciseId:id,restSeconds:90,sets:[]}),
+    sessionType: r.sessionType ?? exercises[0]?.sessionType ?? 'strength' };
+}
+
+export function saveSessionRoutine(name: string, sessionId: number): RoutineView {
+  return atomic(() => {
+  const detail = getSessionDetail(sessionId);
+  const routine = saveRoutine(name, detail.logs.map(l => l.log.exerciseId));
+  const prescription: RoutinePrescription[] = detail.logs.map(l => ({ exerciseId: l.log.exerciseId,
+    restSeconds: l.log.restSeconds ?? 90, sets: l.sets.map(s => ({ reps: s.reps, weightKg: s.weightKg, durationS: s.durationS,
+      distanceM: s.distanceM, rpe: s.rpe, toFailure: false, completed: false })) }));
+  db.update(customRoutines).set({ sessionType: detail.session.sessionType,
+    style: detail.session.style,
+    prescription: JSON.stringify(prescription) }).where(eq(customRoutines.id, routine.id)).run();
+  return getRoutine(routine.id)!;
+  });
 }
 
 export function listRoutines(userId: number = PRIMARY_USER_ID): RoutineView[] {

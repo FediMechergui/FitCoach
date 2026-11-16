@@ -4,6 +4,9 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Bound memory use during local builds and OTA exports on development machines.
+config.maxWorkers = 2;
+
 // Allow importing drizzle .sql migration files if drizzle-kit generate is used.
 config.resolver.sourceExts.push('sql');
 

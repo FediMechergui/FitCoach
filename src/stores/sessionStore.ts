@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toast } from '@/components/ui/Toast';
 import type { Session, SessionType } from '@/db/schema';
 import {
   addExerciseToSession,
@@ -21,6 +22,7 @@ import {
   restoreSetEntry,
   toggleWarmupDone,
   replaceExerciseLog,
+  setExerciseRest,
 } from '@/repositories/sessionRepo';
 import { exercisesBySlugs } from '@/repositories/exerciseRepo';
 import { metaFor } from '@/constants/sessionTypes';
@@ -30,6 +32,7 @@ import {
 } from '@/services/sessionNotifications';
 import { useUserStore } from './userStore';
 import type { RestPrescription } from '@/lib/restPrescription';
+import type { RoutinePrescription } from '@/repositories/routinesRepo';
 
 interface SessionState {
   activeId: number | null;
@@ -56,6 +59,7 @@ interface SessionState {
       prefillSlugs?: string[];
       /** exercise ids to pre-populate (from a saved custom routine) */
       prefillExerciseIds?: number[];
+      prescription?: RoutinePrescription[];
     }
   ) => void;
   refresh: () => void;
@@ -70,7 +74,7 @@ interface SessionState {
   moveExercise: (logId: number, direction: 'up' | 'down') => void;
   /** Replace an exercise with an easier alternative (removes old log, adds new). */
   swapExercise: (logId: number, newExerciseId: number) => number | null;
-  startRest: (seconds: number, rx?: RestPrescription | null) => void;
+  startRest: (seconds: number, rx?: RestPrescription | null, logId?: number) => void;
   /** tick / untick a warm-up muscle — persisted on the session row */
   toggleWarmup: (muscle: string) => void;
   clearRest: () => void;
@@ -107,6 +111,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   begin: (type, opts) => {
+    if (activeSession()) { get().resume(); toast({ message: 'Resumed your current workout. Finish or cancel it before starting another.' }); return; }
     const id = startSession(type, opts);
     // Pre-populate the session with the split day's / routine's exercises, in order.
     if (opts?.prefillSlugs?.length) {
@@ -117,6 +122,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (opts?.prefillExerciseIds?.length) {
       for (const exId of opts.prefillExerciseIds) {
         addExerciseToSession(id, exId);
+      }
+    }
+    if (opts?.prescription?.length) {
+      for (const entry of opts.prescription) {
+        const logId = addExerciseToSession(id, entry.exerciseId);
+        setExerciseRest(logId, entry.restSeconds);
+        for (const draft of entry.sets) addSet(logId, { ...draft, completed: false });
       }
     }
     set({
@@ -198,7 +210,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return newLogId;
   },
 
-  startRest: (seconds, rx) => set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds, restRx: rx ?? null }),
+  startRest: (seconds, rx, logId) => {
+    if (logId) setExerciseRest(logId, seconds);
+    set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds, restRx: rx ?? null });
+  },
   toggleWarmup: (muscle) => {
     const id = get().activeId;
     if (!id) return;

@@ -5,21 +5,84 @@
 
 ---
 
-## ⬇️ Download the app
+## Download the app
 
-### **[→ GET THE LATEST APK ←](https://expo.dev/accounts/fedimechergui/projects/fitcoach/builds/1c166545-e815-446d-ab85-25d64a1c6181)**
+[Download the latest APK from GitHub Releases](https://github.com/FediMechergui/FitCoach/releases/latest).
 
-> **This is the build to install.** It is the first one carrying the native
-> hardware step-counter module, so step counting reads the phone's sensor
-> directly — exact counts that survive the screen being off and the app being
-> killed. Earlier APKs fall back to the software pedometer.
->
-> **Installing over an existing FitCoach keeps everything.** Same package name
-> (`com.fitcoach.app`) and same signing key, so your logs, history, weigh-ins and
-> streaks are all preserved — no uninstall, no wipe.
->
-> Everything since ships over-the-air, so this stays the APK you need until the
-> next change to native code.
+Version 4.0.0 uses runtime **4.0.0**, Android versionCode **5**, package
+`com.fitcoach.app` and the existing signing key. Install over the previous app to
+keep local records. The phone APK targets **ARM64** and enables release code and
+resource shrinking. An x86_64 build profile is also available for emulators.
+
+Compatible JavaScript and asset updates continue on the **preview** OTA channel.
+Native changes require another APK; `scripts/native-profile.js` guards that boundary.
+
+### What changed in 4.0.0
+
+- Database migrations and linked edits are transactional. Daily corrections keep
+  record IDs; workouts recalculate calories, volume and chronological PRs after edits.
+- One workout can be active at a time. Older unfinished workouts remain recoverable
+  drafts and are excluded from completed-workout statistics.
+- Manual nutrition targets survive profile edits. Automatic target previews do not
+  save until confirmed. Alcohol and supplements stay linked to their diary calories.
+- Food forms scroll above the keyboard; barcode portions are confirmed; backdated
+  records use their selected local day. Food sources and AI estimates are retained.
+- Diet suggestions respect exclusions, refine portions and disclose remaining target
+  mismatches. Missing health logs no longer imply recovery or alcohol-free days.
+- Onboarding uses the selected units from the start. Daily screens have less repeated
+  chrome, stronger contrast and labelled controls. Health history can be corrected;
+  report sections are previewed and selected before export.
+- Walk/run vehicle detection combines Android activity recognition and timestamped
+  raw GPS evidence. Suspected vehicle distance is excluded before route accumulation;
+  route gaps are drawn as gaps. Motion recognition is probabilistic, particularly in
+  slow traffic or with unusual phone placement.
+- GPS is optional, map rendering is on demand, and street-map tiles remain opt-in.
+  Balanced GPS samples every five seconds; battery saver every ten. Hardware counts
+  cover observed periods only. Force-stop or OS restrictions can interrupt tracking;
+  missing time is never filled with invented steps. Daily sensor totals and recorded
+  sessions are combined conservatively instead of being added twice.
+
+### Encrypted account backups
+
+The backup-only deployment is [fitcoach-private-backups.netlify.app](https://fitcoach-private-backups.netlify.app).
+Code lives in `backup-backend/`; health calculations remain on the phone.
+
+In **You → Backup & account**, create and verify an email account, sign in, then save
+your recovery key and enable daily backup. A 24-hour interval makes a backup due;
+Android schedules the actual background run. Opening the app catches up missed runs.
+The screen shows last success, errors and manual retry. Uploads use available internet,
+including mobile data. Signing out pauses backups.
+
+Snapshots include profile, logs, routes, routines and saved photos. They are compressed
+and encrypted using XChaCha20-Poly1305 on the device, with a native random nonce.
+Account tokens, API keys and the recovery key are stored in SecureStore and excluded
+from snapshots. The server verifies Netlify Identity credentials and scopes storage to
+the verified account. Chunk hashes and a final manifest prevent partial uploads from
+replacing completed backups. The latest three completed versions are retained.
+
+Save the recovery key outside the phone: a password reset cannot decrypt old backups.
+Restore downloads and validates the snapshot, shows a preview, saves an encrypted local
+safety copy, then replaces records in one transaction. Finish active sessions first.
+The current limits are 20 MB of photo files and 24 MB per encrypted snapshot; exceeding
+a limit reports an error and preserves existing cloud backups.
+
+Netlify setup: deploy with `netlify deploy --prod --build`, enable Identity email/password
+registration with email confirmation in the project's dashboard, and retain the provided
+account confirmation/password-reset page. No client health-processing API is deployed.
+
+### Verification and releases
+
+Run `npm run typecheck`, `npm run lint`, `npm run verify:engines`,
+`npm run verify:repositories` and `npm run verify:upgrade`. Backend isolation/upload tests run with
+`npm test --prefix backup-backend`. CI runs repository checks in three time zones.
+The repository suite uses real SQLite and injected write failures; engine tests cover
+the pure calculations and established feature contracts. Emulator tests complement
+these checks; real vehicle recognition and OEM background limits also need a phone.
+
+`npm run release` checks committed/pushed code, tests and the recorded native profile
+before publishing an OTA update and GitHub release. After a successful signed native
+build, record its baseline with `node scripts/native-profile.js --write --apk=<name>`.
+Never record a baseline for a failed or untested build.
 
 ---
 
@@ -44,7 +107,7 @@ A **daily check-in streak meter** on the Home dashboard rewards you for opening 
 app every day — with a flame count, a 7-day dot row, your best streak, and progress
 toward the next milestone.
 
-It ships with a **550-exercise library** split by muscle group, **individual muscle**
+It ships with a **2,222-exercise library** split by muscle group, **individual muscle**
 (lats, traps, front/side/rear delts, upper/lower abs, obliques…) and equipment — each
 with a beginner illustration, step-by-step form cues and a **mandatory warm-up** — plus
 one-tap **training splits** (Push/Pull/Legs, Upper/Lower, Bro, Full-Body, Arnold),
@@ -53,8 +116,8 @@ one-tap **training splits** (Push/Pull/Legs, Upper/Lower, Bro, Full-Body, Arnold
 **muscle-growth readiness** engine, a 12-week **Trends** dashboard, and offline
 **prayer times** + **fasting mode** (Ramadan & intermittent).
 
-Everything works **100% offline** on an on-device SQLite database — no account,
-no internet required.
+Core logging works offline in an on-device SQLite database without an account.
+Cloud backups, online food lookup, optional AI tools and street-map tiles need internet.
 
 ---
 
@@ -126,7 +189,7 @@ Pure, unit-testable TypeScript — the "insight" half of the app:
 - **`time.ts`** — time-range math for logging sleep/work as bedtime→wake (handles
   overnight spans and `HH:MM` parsing).
 
-Every formula above is exercised by `npm run verify:engines` (**322 checks**), which
+Every formula above is exercised by `npm run verify:engines` (**2,365 checks**), which
 asserts them against known values (BMR, TDEE, 1RM, MET, BAC, FFMI, cycle dates,
 time ranges…) and validates library/split integrity.
 
@@ -185,7 +248,7 @@ Stats and Coach Tips:
 
 ## v2 update highlights
 
-- **Per-muscle library (550 exercises)** — every muscle individually: traps (shrugs, high
+- **Per-muscle library (2,222 exercises)** — every muscle individually: traps (shrugs, high
   pulls), lower back (back extensions, good mornings, bird-dog), glutes (hip thrust,
   kickbacks, abduction machine), each delt head, upper/lower abs and obliques — split by
   barbell / dumbbell / machine-cable / bodyweight, with a `sub_muscle` filter.
@@ -218,7 +281,7 @@ Stats and Coach Tips:
 
 ## Exercise library, splits & beginner guides
 
-- **550 exercises** ([src/data/exercises.ts](src/data/exercises.ts)) organized by muscle
+- **2,222 exercises** ([src/data/exercises.ts](src/data/exercises.ts)) organized by muscle
   group and split by equipment family. The library screen filters by **session type ·
   muscle · equipment** and searches by name.
 - **Beginner how-to**: each exercise detail shows an SVG **movement illustration**
@@ -255,21 +318,23 @@ Sleep and work can be logged as a **from → to** time range (`HH:MM`), which de
 duration in **hours + minutes** (handling overnight spans like 23:30 → 07:00) while
 keeping the quick-entry buttons and quality ratings.
 
-## Walk & run tracking (pedometer-first, no GPS)
+## Walk & run tracking
 
-Tuned for smoothness and battery — GPS was dropped in favour of the phone's own
-step hardware ([walkTracking.ts](src/services/walkTracking.ts)):
+Use the phone's step hardware for a lighter session, or enable GPS for measured
+distance and an optional route map ([walkTracking.ts](src/services/walkTracking.ts)):
 
 - On **Start**, FitCoach requests the **Physical-activity** (pedometer) and
   **Notification** permissions in-app — no digging through system settings.
-- **Hardware step counter** (TYPE_STEP_COUNTER) is the primary source: it keeps
-  counting at the OS level with the screen off and the batched total catches up
-  the moment you return. The **accelerometer fallback** runs at 25 Hz (foreground).
+- **Hardware step counter** (TYPE_STEP_COUNTER) is the primary source. A foreground
+  service keeps observations running during a session; Android can still stop it.
+  The **accelerometer fallback** runs at 25 Hz while the app can execute.
+- Motion recognition and raw GPS evidence filter likely vehicle travel. Recovery
+  excludes unobserved gaps; GPS jumps never become straight-line route shortcuts.
 - **No more lag**: steps live in an in-memory counter the UI polls directly; SQLite
   is only a crash-safe backup flushed every 3 s (the old per-step DB writes are gone).
-- A **sticky notification** pins to the bar for every active session — walk, run
-  **and training** — and is dismissed when you finish or discard. Sessions survive
-  app restarts and reattach with their step base intact.
+- A **sticky notification** accompanies active sessions and is dismissed when you
+  finish or discard. Sessions reattach after a restart using saved observations;
+  force-stopped or unobserved time is never presented as measured steps.
 
 > Requires a native build (EAS or a dev client); runtime permissions don't work in
 > Expo Go.
@@ -366,8 +431,8 @@ ship straight into installed builds — no new APK.
 npm run release                       # message = latest CHANGELOG title
 npm run release "hotfix: …"           # custom patch-note message
 
-# or a bare update with no tag/notes
-npm run update:push                   # = eas update --branch preview
+# alias using the same compatibility and validation gates
+npm run update:push                   # = node scripts/release.js
 ```
 
 `npm run release` reads the current version from [`src/data/changelog.ts`](src/data/changelog.ts),
@@ -400,7 +465,9 @@ titled, "Latest"-badged entry (not just a bare tag). Add a new entry to the top 
 | `npm run start` | Expo dev server |
 | `npm run android` | Launch on Android |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify:engines` | Run the 322 pure-domain formula checks |
+| `npm run verify:engines` | Run 2,365 domain and regression checks |
+| `npm run verify:repositories` | Test real SQLite transactions, tracking and encrypted restore |
+| `npm run verify:upgrade` | Test the captured v42 database migration and rollback |
 | `npm run db:generate` | Generate Drizzle SQL migrations (optional; runtime uses a bootstrap DDL) |
 | `npm run build:apk` | EAS preview APK |
 | `npm run build:aab` | EAS production AAB |
@@ -417,7 +484,7 @@ cleanly.
 **upserted by a stable `slug`** (falling back to name for older databases) rather
 than deleted and re-inserted — see [src/db/seed.ts](src/db/seed.ts). Because
 `exercise_logs.exercise_id` references those rows, this keeps every past workout
-pointing at the right exercise even as the library grows from 46 to 550 entries.
+pointing at the right exercise even as the library grows from 46 to 2,222 entries.
 Nutrition/alcohol/session logs likewise store their values denormalized at log
 time, so editing a food or exercise definition never rewrites history.
 
@@ -429,7 +496,9 @@ runtime, which keeps the managed Expo build free of a Metro `.sql` transformer.
 Local-first by design: all health, body, nutrition, smoking, alcohol, sleep and
 cycle data stays in an on-device SQLite database. No account or connection is
 required; PDF/PNG exports are generated on-device and only leave via the share
-sheet you invoke. Cloud sync is an explicit opt-in planned for Phase 2.
+sheet you invoke. Optional encrypted account backups upload snapshots to Netlify;
+this is backup and restore, not live multi-device synchronization. Android system
+backup is disabled to avoid unencrypted copies of the health database.
 
 Health features (smoking, alcohol, cycle, conditions, BAC, body composition)
 surface **general, educational estimates — not medical advice**. FitCoach always
@@ -442,8 +511,9 @@ defers to your clinician.
   calculator, onboarding, local storage, EAS APK — **plus** the health & wellness
   suite: smoking, sleep, alcohol, body composition, gender & menstrual-cycle
   tracking, chronic conditions, the athlete card (PNG), and PDF reports — plus a
-  550-exercise library with beginner guides, training splits, a Tunisian food
+  2,222-exercise library with beginner guides, training splits, a Tunisian food
   database, habit & work-hours trackers, and a daily check-in streak.
-- **Phase 2:** dynamic TDEE auto-tuning, barcode scanning, cloud sync, routine
-  builder, GPS route maps.
+- **Delivered since the original spec:** barcode scanning, saved routine prescriptions,
+  optional GPS maps and encrypted account backup/restore.
+- **Future:** wearable imports, explicit multi-device conflict resolution and more export formats.
 - **Phase 3:** ML recommendations, wearables, deeper report exports (CSV).

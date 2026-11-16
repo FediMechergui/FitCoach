@@ -47,6 +47,8 @@ export function Input({ label, suffix, multiline, error, helper, style, ...rest 
         }}
       >
         <TextInput
+          accessibilityLabel={rest.accessibilityLabel ?? [label ?? rest.placeholder, suffix].filter(Boolean).join(', ')}
+          accessibilityHint={error ?? helper ?? rest.accessibilityHint}
           placeholderTextColor={theme.colors.textFaint}
           multiline={multiline}
           onFocus={(e) => {

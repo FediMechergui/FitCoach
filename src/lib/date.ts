@@ -1,4 +1,5 @@
 /** Date helpers. All "day" values are ISO 'YYYY-MM-DD' in local time. */
+import { calendarDate } from './validation';
 
 export function toISODate(d: Date = new Date()): string {
   const y = d.getFullYear();
@@ -18,6 +19,7 @@ export function addDays(iso: string, days: number): string {
 }
 
 export function fromISODate(iso: string): Date {
+  calendarDate(iso);
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
@@ -31,6 +33,13 @@ export function daysBetween(a: string, b: string): number {
 /** Start-of-day epoch ms for an ISO date. */
 export function startOfDayMs(iso: string): number {
   return fromISODate(iso).getTime();
+}
+
+/** Exclusive upper bound; calendar arithmetic also handles 23/25-hour DST days. */
+export function nextDayMs(iso: string): number {
+  const date = fromISODate(iso);
+  date.setDate(date.getDate() + 1);
+  return date.getTime();
 }
 
 /** ISO date N days ago (0 = today). */

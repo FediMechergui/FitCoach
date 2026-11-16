@@ -18,7 +18,7 @@ interface SleepState {
   lastNight: number | null;
   naps: NapLog[];
   napMinutesToday: number;
-  load: () => void;
+  load: (date?: string) => void;
   log: (hours: number, quality?: number | null, extra?: { bedtime?: string; wakeTime?: string; notes?: string }) => void;
   logRange: (bedtime: string, wakeTime: string, quality?: number | null) => number | null;
   addNap: (minutes: number, opts?: { startTime?: string; quality?: number | null }) => void;
@@ -31,12 +31,12 @@ export const useSleepStore = create<SleepState>((set, get) => ({
   naps: [],
   napMinutesToday: 0,
 
-  load: () => {
+  load: (date = todayISO()) => {
     set({
       summary: sleepSummary(),
-      lastNight: sleepForDate(todayISO())?.hours ?? null,
-      naps: napsForDate(todayISO()),
-      napMinutesToday: napMinutesForDate(todayISO()),
+      lastNight: sleepForDate(date)?.hours ?? null,
+      naps: napsForDate(date),
+      napMinutesToday: napMinutesForDate(date),
     });
   },
 

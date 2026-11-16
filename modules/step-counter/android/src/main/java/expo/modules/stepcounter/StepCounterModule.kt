@@ -1,6 +1,9 @@
 package expo.modules.stepcounter
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
+import com.google.android.gms.location.ActivityRecognition
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -11,24 +14,8 @@ import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
-/**
- * Reads Android's hardware step counter (Sensor.TYPE_STEP_COUNTER) *absolute*
- * value — the number of steps the device has counted since it last booted.
- *
- * Why this module exists: expo-sensors' `Pedometer.watchStepCount` normalises
- * the same sensor to "steps since you subscribed", and `getStepCountAsync` (the
- * only API that can read an absolute range) is iOS-only. So from JavaScript
- * there is no way to ask "how many steps since my session started?" after the
- * app has been killed — the subscription is gone and its origin with it.
- *
- * TYPE_STEP_COUNTER is maintained by the sensor hub in hardware and keeps
- * counting while the CPU sleeps and while our process is dead. By storing the
- * absolute value at session start, we can compute exact session steps later as
- * (now − baseline), regardless of what happened to the app in between.
- *
- * This is a low-power on-change sensor: it delivers its current value shortly
- * after a listener is registered, so we register, take the first reading,
- * unregister, and resolve.
+/** Low-power motion observations. Hardware counts cover periods when the sensor
+ * was activated; Android force-stop or process loss can leave unmeasured gaps.
  */
 class StepCounterModule : Module() {
   private val context: Context
@@ -41,6 +28,40 @@ class StepCounterModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("StepCounter")
+
+    Function("startMonitoring") { StepMonitor.start(context) }
+    Function("dailySteps") {
+      val prefs = context.getSharedPreferences("fitcoach.steps", Context.MODE_PRIVATE)
+      mapOf("date" to StepMonitor.today(), "steps" to
+        (if (prefs.getString("day", "") == StepMonitor.today()) prefs.getLong("count", 0) else 0),
+        "updatedAt" to prefs.getLong("updatedAt", 0), "observedTotal" to prefs.getLong("observedTotal", 0))
+    }
+    Function("setGpsVehicleFilter") { active: Boolean ->
+      context.getSharedPreferences("fitcoach.motion", Context.MODE_PRIVATE).edit()
+        .putBoolean("gpsVehicle", active).putLong("gpsAt", System.currentTimeMillis()).apply()
+    }
+    Function("startStepService") {
+      val intent = Intent(context, StepTrackingService::class.java)
+      if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent) else context.startService(intent)
+      true
+    }
+    Function("stopStepService") { context.stopService(Intent(context, StepTrackingService::class.java)); true }
+    Function("readMotion") {
+      val prefs = context.getSharedPreferences("fitcoach.motion", Context.MODE_PRIVATE)
+      mapOf("kind" to prefs.getString("kind", "unknown"), "confidence" to prefs.getInt("confidence", 0), "at" to prefs.getLong("at", 0))
+    }
+    AsyncFunction("startMotionRecognition") { promise: Promise ->
+      runCatching {
+        ActivityRecognition.getClient(context).requestActivityUpdates(5_000, MotionReceiver.pending(context))
+          .addOnSuccessListener { promise.resolve(true) }.addOnFailureListener { promise.resolve(false) }
+      }.onFailure { promise.resolve(false) }
+    }
+    AsyncFunction("stopMotionRecognition") { promise: Promise ->
+      runCatching {
+        ActivityRecognition.getClient(context).removeActivityUpdates(MotionReceiver.pending(context))
+          .addOnSuccessListener { promise.resolve(true) }.addOnFailureListener { promise.resolve(false) }
+      }.onFailure { promise.resolve(false) }
+    }
 
     /** Whether this device actually has a hardware step counter. */
     Function("isAvailable") {
@@ -84,7 +105,7 @@ class StepCounterModule : Module() {
       }
 
       val registered = runCatching {
-        manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_FASTEST)
+        manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
       }.getOrDefault(false)
 
       if (!registered) {

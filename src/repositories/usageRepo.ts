@@ -49,7 +49,7 @@ export function usageStreak(userId: number = PRIMARY_USER_ID): UsageStreak {
 
   // Current streak: consecutive days ending today (or yesterday if not opened yet today).
   let current = 0;
-  let cursor = openedToday ? 0 : 1;
+  const cursor = openedToday ? 0 : 1;
   for (let i = cursor; i < 3650; i++) {
     if (opened.has(daysAgoISO(i))) current++;
     else break;

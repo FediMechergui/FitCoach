@@ -1,5 +1,7 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
+import { atomic } from '@/db/atomic';
+import { calendarDate, finiteNumber } from '@/lib/validation';
 import { foodEntries, supplementLogs, supplementStack, type SupplementLog, type SupplementStack } from '@/db/schema';
 import { findSupplement, servingUnits } from '@/data/supplements';
 import { scaleMicros } from '@/lib/micros';
@@ -90,6 +92,9 @@ export function logSupplement(
   opts: { dose?: string; date?: string; unitsTaken?: number | null } = {},
   userId: number = PRIMARY_USER_ID
 ): void {
+  atomic(() => {
+  if (opts.unitsTaken != null) finiteNumber(opts.unitsTaken, 'Units taken', 0.01, 1000);
+  calendarDate(opts.date ?? todayISO());
   const def = findSupplement(key);
   if (!def) return;
   /*
@@ -127,6 +132,8 @@ export function logSupplement(
     foodEntryId = addPreciseFood(
       {
         mealType: 'snack',
+        source: 'supplement',
+        sourceRef: key,
         foodName: `${def.label} (supplement)`,
         quantity: 1,
         servingSize: servingUnits(def) ?? def.defaultDose,
@@ -167,6 +174,7 @@ export function logSupplement(
         : null,
     })
     .run();
+  });
 }
 
 /** Pills swallowed today for one supplement, across every entry. */
@@ -217,6 +225,7 @@ export function supplementFoodEntryIds(
 }
 
 export function deleteSupplementLog(id: number): void {
+  atomic(() => {
   // A macro-bearing supplement wrote a diary row when it was logged; removing
   // the log must remove those calories with it, or an undone fish-oil tap
   // would keep its fat in the day forever.
@@ -225,6 +234,7 @@ export function deleteSupplementLog(id: number): void {
     db.delete(foodEntries).where(eq(foodEntries.id, row.foodEntryId)).run();
   }
   db.delete(supplementLogs).where(eq(supplementLogs.id, id)).run();
+  });
 }
 
 export function loggedToday(key: string, date: string = todayISO(), userId: number = PRIMARY_USER_ID): boolean {

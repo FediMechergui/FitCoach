@@ -6,16 +6,16 @@ import type { WorkLog } from '@/db/schema';
 interface WorkState {
   summary: WorkSummary | null;
   today: WorkLog | null;
-  load: () => void;
+  load: (date?: string) => void;
   log: (input: Parameters<typeof logWork>[0]) => void;
 }
 
 export const useWorkStore = create<WorkState>((set, get) => ({
   summary: null,
   today: null,
-  load: () => set({ summary: workSummary(), today: workForDate(todayISO()) ?? null }),
+  load: (date = todayISO()) => set({ summary: workSummary(), today: workForDate(date) ?? null }),
   log: (input) => {
     logWork(input);
-    get().load();
+    get().load(input.date);
   },
 }));

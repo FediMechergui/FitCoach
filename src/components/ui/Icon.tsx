@@ -55,7 +55,7 @@ export function Icon({ icon, def, size = 22, color, artistic }: IconProps) {
             <Circle cx={totalSize / 2} cy={totalSize / 2} r={totalSize / 2} fill="url(#icon_glow)" />
           </Svg>
         </View>
-        <Comp name={resolved.name} size={size} color={finalColor} />
+        <Comp accessible={false} importantForAccessibility="no" name={resolved.name} size={size} color={finalColor} />
       </View>
     );
   }
@@ -91,7 +91,7 @@ export function Icon({ icon, def, size = 22, color, artistic }: IconProps) {
             <Circle cx={totalSize / 2} cy={totalSize / 2} r={totalSize / 2} fill="url(#minted_glow)" />
           </Svg>
         </View>
-        <Comp name={resolved.name} size={size} color={finalColor} />
+        <Comp accessible={false} importantForAccessibility="no" name={resolved.name} size={size} color={finalColor} />
       </View>
     );
   }
@@ -112,10 +112,10 @@ export function Icon({ icon, def, size = 22, color, artistic }: IconProps) {
         borderTopColor: theme.alpha.tint14('#FFFFFF'),
         borderLeftColor: theme.alpha.tint14('#FFFFFF'),
       }}>
-        <Comp name={resolved.name} size={size} color={finalColor} />
+        <Comp accessible={false} importantForAccessibility="no" name={resolved.name} size={size} color={finalColor} />
       </View>
     );
   }
 
-  return <Comp name={resolved.name} size={size} color={finalColor} />;
+  return <Comp accessible={false} importantForAccessibility="no" name={resolved.name} size={size} color={finalColor} />;
 }

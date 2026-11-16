@@ -1,4 +1,6 @@
 import 'react-native-gesture-handler';
+import { AppState } from 'react-native';
+import { registerDailyBackup, runBackup } from '@/services/backup';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -78,6 +80,14 @@ export default function App() {
   const resumeWalk = useWalkStore((s) => s.resume);
 
   const [bootAttempt, setBootAttempt] = useState(0);
+  useEffect(() => {
+    if (!ready || fatal) return;
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') { void runBackup().catch(() => {}); void syncTodaySteps().catch(() => {}); }
+    });
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void syncTodaySteps().catch(() => {}); }, 30_000);
+    return () => { subscription.remove(); clearInterval(timer); };
+  }, [ready, fatal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +123,8 @@ export default function App() {
       if (!cancelled) setReady(true);
 
       registerBackgroundSteps();
+      void registerDailyBackup();
+      void runBackup().catch(() => {});
       syncTodaySteps().catch(() => {});
       cleanupOrphanWalk().catch(() => {});
       // A session's GPS trace with no session left behind it (discarded, or a crash).

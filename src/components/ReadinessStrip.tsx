@@ -44,6 +44,7 @@ export function ReadinessStrip({
   const [open, setOpen] = useState(false);
 
   const verdict = useMemo(() => {
+    if (meals.length === 0 && smokes.length === 0) return { clear: false, title: 'Not enough information', line: 'No recent food or smoking logs. How you feel matters more than a timer.' };
     const digestion = currentDigestion(meals, intensity);
     const smoke = smokingEnabled ? currentSmoke(smokes, intensity) : null;
     const dWait = digestion?.remainingMin ?? 0;
@@ -52,8 +53,8 @@ export function ReadinessStrip({
     if (wait <= 0) {
       return {
         clear: true,
-        title: 'Clear to train',
-        line: 'Nothing in the way — stomach settled' + (smokingEnabled ? ', smoke clock clear' : '') + '.',
+        title: 'No recent log-based flags',
+        line: 'An estimate from your logs, not a measure of recovery or fitness to train.',
       };
     }
     const governor = sWait >= dWait ? 'smoke clock' : 'stomach';
@@ -61,8 +62,8 @@ export function ReadinessStrip({
     const hh = `${readyAt.getHours()}:${String(readyAt.getMinutes()).padStart(2, '0')}`;
     return {
       clear: false,
-      title: `Wait ${formatWait(wait)}`,
-      line: `The ${governor} governs — ${intensity === 'hard' ? 'sprints or heavy lifting' : 'a normal session'} at ${hh}; fine now for a walk or mobility.`,
+      title: 'Consider an easier start',
+      line: `Recent ${governor === 'stomach' ? 'food' : 'smoking'} may affect comfort. Timing varies; ease off if you feel unwell.`,
     };
   }, [meals, smokes, smokingEnabled, intensity]);
 

@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, isNull, or } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { pathEnrolments, pathGraduations, sessions, walkSessions, type PathEnrolment } from '@/db/schema';
 import { findPath, type PathStage, type TrainingPath } from '@/data/paths';
@@ -48,7 +48,7 @@ export function enrol(pathKey: string, userId: number = PRIMARY_USER_ID): PathEn
   if (existing) {
     if (existing.pausedAt != null) {
       // Time away does not count as time in the stage: the clock restarts, the sessions stay.
-      db.update(pathEnrolments).set({ pausedAt: null }).where(eq(pathEnrolments.id, existing.id)).run();
+      db.update(pathEnrolments).set({ pausedAt: null, pausedDurationMs: existing.pausedDurationMs + Math.max(0, now - existing.pausedAt) }).where(eq(pathEnrolments.id, existing.id)).run();
     }
     return enrolmentFor(pathKey, userId);
   }
@@ -65,7 +65,7 @@ export function pausePath(pathKey: string, userId: number = PRIMARY_USER_ID): vo
 
 function stageFacts(e: PathEnrolment, stage: PathStage, userId: number) {
   const rows = db
-    .select({ style: sessions.style, startTime: sessions.startTime, distanceM: sessions.distanceM })
+    .select({ style: sessions.style, sessionType: sessions.sessionType, startTime: sessions.startTime, distanceM: sessions.distanceM })
     .from(sessions)
     .where(and(eq(sessions.userId, userId), isNotNull(sessions.endTime), gte(sessions.startTime, e.stageStartedAt)))
     .all();
@@ -74,7 +74,7 @@ function stageFacts(e: PathEnrolment, stage: PathStage, userId: number) {
   let count = 0;
   let longestM = 0;
   for (const r of rows) {
-    if ((r.distanceM ?? 0) > longestM) longestM = r.distanceM ?? 0;
+    if (/^(run|running|treadmill)$/i.test(r.style ?? '') && (r.distanceM ?? 0) > longestM) longestM = r.distanceM ?? 0;
     const tag = parsePathStyle(r.style);
     if (!tag || tag.pathKey !== e.pathKey || tag.stageKey !== stage.key) continue;
     count++;
@@ -84,7 +84,7 @@ function stageFacts(e: PathEnrolment, stage: PathStage, userId: number) {
     for (const w of db
       .select({ distanceM: walkSessions.distanceM })
       .from(walkSessions)
-      .where(and(eq(walkSessions.userId, userId), gte(walkSessions.startTime, e.stageStartedAt)))
+      .where(and(eq(walkSessions.userId, userId), eq(walkSessions.mode, 'run'), or(eq(walkSessions.activity, 'run'), isNull(walkSessions.activity)), gte(walkSessions.startTime, e.stageStartedAt)))
       .all()) {
       if ((w.distanceM ?? 0) > longestM) longestM = w.distanceM ?? 0;
     }
@@ -106,7 +106,7 @@ export function pathState(pathKey: string, userId: number = PRIMARY_USER_ID): Pa
     stage.gate,
     {
       sessions: facts.count,
-      daysIn: Math.max(0, (Date.now() - enrolment.stageStartedAt) / 86_400_000),
+      daysIn: Math.max(0, ((enrolment.pausedAt ?? Date.now()) - enrolment.stageStartedAt - enrolment.pausedDurationMs) / 86_400_000),
       longestRunKm: facts.longestRunKm,
       overallTier: rank ? rank.placement.tierIndex : -1,
     },
@@ -160,7 +160,7 @@ export function graduate(pathKey: string, userId: number = PRIMARY_USER_ID): Gra
   }
   const last = s.stageIndex >= s.path.stages.length - 1;
   db.update(pathEnrolments)
-    .set(last ? { completedAt: now } : { stageIndex: s.stageIndex + 1, stageStartedAt: now })
+    .set(last ? { completedAt: now } : { stageIndex: s.stageIndex + 1, stageStartedAt: now, pausedDurationMs: 0, pausedAt: null })
     .where(eq(pathEnrolments.id, s.enrolment.id))
     .run();
   return { ok: true, finished: last, stage: s.stage, next: last ? null : s.path.stages[s.stageIndex + 1] };

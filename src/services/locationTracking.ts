@@ -1,7 +1,9 @@
+import { readMotion, startMotionRecognition, stopMotionRecognition, setGpsVehicleFilter } from '../../modules/step-counter';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { appendLiveRoutePoints } from '@/repositories/activityRepo';
+import { appendLiveRoutePoints, liveTrackingGate } from '@/repositories/activityRepo';
 import type { GpsFix } from '@/lib/gpsFilter';
+import { stepCreditAllowed } from '@/lib/trackingGate';
 import { runOutdoorTick } from './outdoorAlerts';
 import { outdoorSettings } from '@/repositories/outdoorRepo';
 import { ACCURACY_INTERVALS } from '@/lib/outdoorSettings';
@@ -44,10 +46,13 @@ TaskManager.defineTask(ROUTE_TASK, async ({ data, error }) => {
       lng: l.coords.longitude,
       accuracy: l.coords.accuracy,
       speed: l.coords.speed,
+      at: l.timestamp,
     }));
   if (fixes.length) {
     try {
-      appendLiveRoutePoints(fixes);
+      appendLiveRoutePoints(fixes, await readMotion());
+      const gate = liveTrackingGate();
+      setGpsVehicleFilter(!stepCreditAllowed(gate));
     } catch {
       // never let a bad DB write crash the background task
     }
@@ -67,7 +72,7 @@ export interface LocationPermissions {
 }
 
 export async function requestLocationPermissions(): Promise<LocationPermissions> {
-  let foreground = false;
+  let foreground: boolean;
   let background = false;
   try {
     const fg = await Location.requestForegroundPermissionsAsync();
@@ -109,7 +114,7 @@ export async function startRouteTracking(mode: 'walk' | 'run', label?: string): 
     const acc = outdoorSettings().accuracy;
     const every = ACCURACY_INTERVALS[acc];
     await Location.startLocationUpdatesAsync(ROUTE_TASK, {
-      accuracy: acc === 'saver' ? Location.Accuracy.High : Location.Accuracy.BestForNavigation,
+      accuracy: acc === 'precise' ? Location.Accuracy.BestForNavigation : Location.Accuracy.High,
       timeInterval: every.timeMs,
       distanceInterval: every.distanceM, // metres between fixes
       pausesUpdatesAutomatically: false,
@@ -122,14 +127,18 @@ export async function startRouteTracking(mode: 'walk' | 'run', label?: string): 
         killServiceOnDestroy: false,
       },
     });
+    await startMotionRecognition();
     return true;
-  } catch {
+  } catch (error) {
     // GPS unavailable / permission race / Expo Go — fall back to step tracking.
+    console.warn('[route] GPS startup failed:', error instanceof Error ? error.message : String(error));
     return false;
   }
 }
 
 export async function stopRouteTracking(): Promise<void> {
+  setGpsVehicleFilter(false);
+  await stopMotionRecognition();
   try {
     if (await isRouteTrackingActive()) {
       await Location.stopLocationUpdatesAsync(ROUTE_TASK);

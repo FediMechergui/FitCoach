@@ -1,5 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { Alert, View, Pressable } from 'react-native';
+import { markAlcoholFree } from '@/repositories/alcoholRepo';
+import { LogDatePicker } from '@/components/LogDatePicker';
+import { todayISO } from '@/lib/date';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
@@ -21,6 +24,7 @@ const TYPES: AlcoholType[] = ['beer', 'wine', 'spirit', 'cocktail', 'other'];
 
 export function AlcoholScreen() {
   const theme = useTheme();
+  const [date, setDate] = useState(todayISO);
   const { today, impact, load, add, remove } = useAlcoholStore();
   const [type, setType] = useState<AlcoholType>('beer');
   const [volume, setVolume] = useState(String(ALCOHOL_PRESETS.beer.defaultVolumeMl));
@@ -28,8 +32,8 @@ export function AlcoholScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load(date);
+    }, [load, date])
   );
 
   const selectType = (t: AlcoholType) => {
@@ -43,13 +47,18 @@ export function AlcoholScreen() {
     [type, volume, abv]
   );
 
-  const save = () => add(type, parseFloat(volume) || 0, parseFloat(abv) || 0, ALCOHOL_PRESETS[type].label);
+  const save = () => { try { add(type, Number(volume), Number(abv), ALCOHOL_PRESETS[type].label, date); }
+    catch (e) { Alert.alert('Check your drink', e instanceof Error ? e.message : 'Enter valid values.'); } };
 
   const overLimit = impact ? impact.weekGrams > impact.weeklyLimitG : false;
 
   return (
     <Screen>
       <PageHero icon="alcohol.beer" color={theme.colors.warning} title="Alcohol" />
+      <LogDatePicker date={date} onChange={setDate} />
+      <Button title="Confirm this day was alcohol-free" variant="secondary" onPress={() => {
+        try { markAlcoholFree(date); load(date); } catch (e) { Alert.alert('Check this day', e instanceof Error ? e.message : 'Unable to save.'); }
+      }} />
 
       {/* Logger */}
       <Card style={{ gap: theme.spacing.md }}>
@@ -67,7 +76,7 @@ export function AlcoholScreen() {
                 }}
               >
                 <Icon icon={ALCOHOL_PRESETS[t].icon} size={20} color={type === t ? '#fff' : theme.colors.textMuted} />
-                <Text variant="caption" color={type === t ? '#fff' : theme.colors.textMuted} style={{ fontSize: 9 }}>
+                <Text variant="caption" color={type === t ? '#fff' : theme.colors.textMuted} style={{ fontSize: 12 }}>
                   {ALCOHOL_PRESETS[t].label}
                 </Text>
               </View>
@@ -102,8 +111,7 @@ export function AlcoholScreen() {
           {impact.estimatedPeakBAC > 0 && (
             <Card accent={theme.colors.info}>
               <Text variant="caption" color="textMuted">
-                Estimated peak BAC ≈ {impact.estimatedPeakBAC.toFixed(3)}% (Widmark). Roughly{' '}
-                {impact.hoursToSober}h to return to zero. Estimate only — never use to decide if you're fit to drive.
+                This model uses logged quantities, not a breath or blood measurement. It cannot tell you when you are sober or safe to drive.
               </Text>
             </Card>
           )}
@@ -113,7 +121,7 @@ export function AlcoholScreen() {
           <Card style={{ gap: 10 }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="bodyStrong">{impact.weekGrams}g · {impact.weekDrinks} std drinks</Text>
-              <Badge label={overLimit ? 'Over guideline' : `${impact.dryDays7d} dry days`} color={overLimit ? theme.colors.danger : theme.colors.success} />
+              <Badge label={overLimit ? 'Over guideline' : `${impact.dryDays7d} confirmed free days`} color={overLimit ? theme.colors.danger : theme.colors.success} />
             </Row>
             <ProgressBar progress={impact.weekGrams / impact.weeklyLimitG} color={overLimit ? theme.colors.danger : theme.colors.warning} />
             <Text variant="caption" color="textFaint">
@@ -135,7 +143,7 @@ export function AlcoholScreen() {
       {/* Today entries */}
       {today && today.entries.length > 0 && (
         <Card style={{ gap: 6 }}>
-          <Text variant="label" color="textMuted">Today's drinks</Text>
+          <Text variant="label" color="textMuted">Drinks on {date}</Text>
           {today.entries.map((e, idx) => (
             <View key={e.id}>
               {idx > 0 ? <Divider /> : null}

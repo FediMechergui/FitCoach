@@ -51,7 +51,7 @@ interface WalkState {
 
   /** Reattach to a walk that survived a background/app restart. */
   resume: () => void;
-  start: (mode: 'walk' | 'run', activity?: string, loadKg?: number) => void;
+  start: (mode: 'walk' | 'run', activity?: string, loadKg?: number, useGps?: boolean) => void;
   /** Pull the latest numbers from the in-memory tracker (cheap; no DB read). */
   refresh: () => void;
   /** Reconcile against the hardware step counter (catches up background steps), then refresh. */
@@ -111,7 +111,7 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     }
   },
 
-  start: (mode, activity, loadKg) => {
+  start: (mode, activity, loadKg, useGps = true) => {
     if (get().starting || get().active) return;
     const key = activityFor(activity ?? mode).key;
     set({ starting: true, steps: 0, distanceM: 0, elapsedS: 0, route: [], activity: key, loadKg: loadKg && loadKg > 0 ? loadKg : 0 });
@@ -119,7 +119,7 @@ export const useWalkStore = create<WalkState>((set, get) => ({
     // `startWalkTracking` brings the session up synchronously and finishes the
     // slow parts (permission dialogs, hardware counter, GPS) in the background,
     // so the UI can switch to the tracking view with no delay.
-    void startWalkTracking(mode, key);
+    void startWalkTracking(mode, key, useGps);
 
     const snap = getLiveSnapshot();
     set({

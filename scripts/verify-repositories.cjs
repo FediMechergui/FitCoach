@@ -209,6 +209,21 @@ test('sensor snapshots and session steps do not double-count or erase each other
   activity.setDailySteps(day,0,0,0);
   assert.equal(activity.getDailySteps(day).stepCount,1500);
 });
+test('new GPS sessions ignore cached fixes from before their start', () => {
+  const activity=require('../src/repositories/activityRepo.ts');
+  activity.startLiveWalk({mode:'walk',source:'gps'});
+  const at=activity.getLiveWalk().startTime;
+  activity.appendLiveRoutePoints([{lat:39.2,lng:-123.1,at:at-60000,accuracy:4,speed:0}]);
+  assert.equal(activity.getLiveWalk().routeJson,null);
+  assert.equal(activity.liveTrackingGate().last,undefined);
+  activity.appendLiveRoutePoints([
+    {lat:36.8,lng:10.18,at:at+1000,accuracy:4,speed:1},
+    {lat:36.8001,lng:10.18,at:at+11000,accuracy:4,speed:1},
+  ]);
+  assert.equal(JSON.parse(activity.getLiveWalk().routeJson).length,2);
+  assert.ok(activity.getLiveWalk().distanceM>10 && activity.getLiveWalk().distanceM<12);
+  activity.endLiveWalk();
+});
 test('vehicle route filtering survives batches and excludes the exit-to-reentry gap', () => {
   const {gateRoute,newTrackingGate,stepCreditAllowed}=require('../src/lib/trackingGate.ts');
   const {routeDistanceM}=require('../src/lib/geo.ts');

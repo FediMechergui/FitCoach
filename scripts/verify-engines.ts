@@ -38,7 +38,7 @@ import { parseYouTubeId, youtubeThumb, youtubeWatchUrl } from '../src/lib/youtub
 import { resolveWindow, fastingState } from '../src/lib/fasting';
 import { scoreMuscle, naturalGainRangeKgPerMonth } from '../src/lib/growth';
 import { sumMicros, scaleMicros, percentRdi, microStatus, microGaps, MICRO_KEYS } from '../src/lib/micros';
-import { haversine, routeDistanceM, normalizeRoute, parseRoute, type LatLng } from '../src/lib/geo';
+import { haversine, routeDistanceM, normalizeRoute, parseRoute, routeForDrawing, type LatLng } from '../src/lib/geo';
 import { segmentGateM, MIN_SEGMENT_M, ACCURACY_SLACK, VAGUE_SLACK, VAGUE_ACCURACY_M } from '../src/lib/gpsFilter';
 import { parsePhotoIdentification, parseNutritionPer100g, sanitiseMicros, DEFAULT_MODEL, FALLBACK_MODELS, extractJson, MICRO_SANITY_MULTIPLE, modelRoute, MAX_ROUTE_MODELS, isUsableVisionModel, firstBalancedJson } from '../src/lib/aiFood';
 import { matchFood, scoreFoodMatch, nameTokens, MATCH_MIN_SCORE } from '../src/lib/foodMatch';
@@ -1002,7 +1002,7 @@ console.log('\nSchema ↔ migration integrity:');
   // Every GPS fix must go through the filter — the raw haversine loop inflated
   // distance indoors and while turning on the spot.
   // Superseded by 3.8.0: a ride passes its own speed ceiling as a third argument.
-  check('Route append gates raw timestamped motion before crediting distance', /gateRoute\(route, fixes, gate, evidence/.test(repoSrc));
+  check('Route append gates raw timestamped motion before crediting distance', /gateRoute\(route, currentFixes, gate, evidence/.test(repoSrc));
   check('Raw unfiltered segment accumulation is gone', !/const seg = haversine\(last, p\)/.test(repoSrc));
   // Rejecting every fix still counts as observing the session; leaving updatedAt
   // stale would make the stretch look like a blind window and let the gap
@@ -5275,6 +5275,11 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   const vp = fitViewport(route, 360, 380, { pad: 34 })!;
   check('A 3.6 km city loop fits at street zoom on a handful of tiles', vp.z >= 14 && vp.z <= 16 && vp.tiles.length > 0 && vp.tiles.length <= MAX_TILES, `z${vp.z} ${vp.tiles.length} tiles`);
   check('Every point of the route lands inside the box', route.every((p) => { const q = projectTile(vp, p); return q.x >= 0 && q.y >= 0 && q.x <= 360 && q.y <= 380; }));
+  const splitRoute: LatLng[] = [[39.237255,-123.1500317], [36.8,10.18,1], [36.8004,10.18], [36.8038,10.18,1], [36.8041,10.18], [40,-120,1]];
+  const drawing = routeForDrawing(splitRoute);
+  const splitViewport = fitViewport(drawing,260,260,{pad:34})!;
+  check('Isolated GPS fixes cannot zoom an otherwise local route out of sight', drawing.length === 4 && splitViewport.z >= 14 && drawing.every(p => { const q=projectTile(splitViewport,p); return q.x>=34 && q.x<=226 && q.y>=34 && q.y<=226; }));
+  check('Removing isolated map points preserves credited distance and vehicle gaps', Math.abs(routeDistanceM(drawing)-routeDistanceM(splitRoute))<.001 && drawing[2][2]===1 && routeForDrawing([[0,0],[1,1,1]]).length===0);
   const t0t = vp.tiles[0];
   check('Tiles sit where the projection says', Math.abs(t0t.left - (t0t.x * TILE_DP - vp.originX)) < 1e-6 || t0t.x * TILE_DP - vp.originX < 0);
   check('North is up on the map', worldY(37, 15) < worldY(36, 15) && worldX(11, 15) > worldX(10, 15));

@@ -13,7 +13,7 @@ import {
   routePath,
   type MapViewport,
 } from '@/lib/mapTiles';
-import { routeDistanceM } from '@/lib/geo';
+import { routeDistanceM, routeForDrawing } from '@/lib/geo';
 import { loadTiles } from '@/services/mapTiles';
 import type { MapStyle } from '@/lib/outdoorSettings';
 
@@ -75,10 +75,11 @@ export function RealRouteMap({
   const width = fixedWidth ?? measured;
   const uid = React.useId().replace(/:/g, '');
   const look = MAP_TINT[tint];
+  const drawnRoute = React.useMemo(() => routeForDrawing(route), [route]);
 
   const vp: MapViewport | null = React.useMemo(
-    () => (width > 0 ? fitViewport(route, width, height, { pad: 34 }) : null),
-    [route, width, height]
+    () => (width > 0 ? fitViewport(drawnRoute, width, height, { pad: 34 }) : null),
+    [drawnRoute, width, height]
   );
 
   const [files, setFiles] = React.useState<Record<string, string | null>>({});
@@ -125,14 +126,14 @@ export function RealRouteMap({
     return () => clearTimeout(t);
   }, [tileKeys, onReady]);
 
-  const d = vp ? routePath(vp, route) : '';
+  const d = vp ? routePath(vp, drawnRoute) : '';
   const totalM = React.useMemo(() => routeDistanceM(route), [route]);
   const marksList = React.useMemo(
     () => (vp && marks ? distanceMarks(route, markSpacingM(totalM)) : []),
     [vp, marks, route, totalM]
   );
-  const start = vp && route.length ? project(vp, route[0]) : null;
-  const end = vp && route.length ? project(vp, route[route.length - 1]) : null;
+  const start = vp && drawnRoute.length ? project(vp, drawnRoute[0]) : null;
+  const end = vp && drawnRoute.length ? project(vp, drawnRoute[drawnRoute.length - 1]) : null;
   const gradId = `rrm-${uid}`;
 
   return (
@@ -180,7 +181,7 @@ export function RealRouteMap({
               <Path d={d} stroke={`url(#${gradId})`} strokeWidth={5} fill="none" strokeLinejoin="round" strokeLinecap="round" />
 
               {segments?.map((sg, i) => {
-                const part = route.slice(Math.max(0, sg.from), Math.min(route.length, sg.to + 1));
+                const part = routeForDrawing(route.slice(Math.max(0, sg.from), Math.min(route.length, sg.to + 1)));
                 if (part.length < 2) return null;
                 return <Path key={i} d={routePath(vp, part)} stroke="#FFD166" strokeWidth={4} fill="none" strokeLinejoin="round" strokeLinecap="round" />;
               })}

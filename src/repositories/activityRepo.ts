@@ -79,7 +79,11 @@ export function appendLiveRoutePoints(fixes: GpsFix[], evidence: MotionEvidence 
     const route = parseRoute(row.routeJson);
     const key = `tracking.gate.${row.startTime}`;
     const gate = kvGet<TrackingGate>(key) ?? newTrackingGate();
-    const { accepted, distanceM, state } = gateRoute(route, fixes, gate, evidence, row.activity === 'cycle');
+    // Android can deliver its cached location when a new foreground task starts.
+    // A fix from before this session must not anchor its route or motion state.
+    const startedAt = row.startTime ?? 0;
+    const currentFixes = fixes.filter(fix => fix.at != null && fix.at >= startedAt);
+    const { accepted, distanceM, state } = gateRoute(route, currentFixes, gate, evidence, row.activity === 'cycle');
     kvSetStrict(key, state);
     if (!accepted.length) return;
     route.push(...accepted);

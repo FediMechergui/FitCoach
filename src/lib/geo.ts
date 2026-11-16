@@ -4,6 +4,11 @@
  */
 export type LatLng = [number, number, (0 | 1)?];
 
+/** Isolated fixes have no credited segment and must not set a map's bounds. */
+export function routeForDrawing(route: LatLng[]): LatLng[] {
+  return route.filter((p, i) => (i > 0 && !p[2]) || (i + 1 < route.length && !route[i + 1][2]));
+}
+
 const R = 6_371_000; // Earth radius (m)
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -32,6 +37,7 @@ export function routeDistanceM(route: LatLng[]): number {
  * there aren't enough distinct points to draw.
  */
 export function normalizeRoute(route: LatLng[]): { points: Array<{ x: number; y: number; breakBefore?: boolean }> } | null {
+  route = routeForDrawing(route);
   if (route.length < 2) return null;
   // reduce instead of Math.min(...spread): a long route (thousands of GPS fixes)
   // can overflow the call stack when spread on Hermes.

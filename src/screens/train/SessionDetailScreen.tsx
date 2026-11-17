@@ -36,6 +36,11 @@ import { PostSessionCard } from '@/components/PostSessionCard';
 import { SessionPlaceCard } from '@/components/SessionPlaceCard';
 import { postSessionFor } from '@/repositories/postSessionRepo';
 import { saveSessionRoutine, findRoutineByName } from '@/repositories/routinesRepo';
+import { WorkoutTiming } from '@/components/WorkoutTiming';
+import { parseDuration } from '@/lib/duration';
+import { updateSet } from '@/repositories/sessionRepo';
+import { SetReview } from '@/components/SetReview';
+import { EvidenceLink } from '@/components/EvidenceLink';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DetailRoute = RouteProp<RootStackParamList, 'SessionDetail'>;
@@ -45,7 +50,7 @@ function describeSet(s: SetEntry): string {
   const parts: string[] = [];
   if (s.weightKg != null) parts.push(`${s.weightKg} kg`);
   if (s.reps != null) parts.push(`${s.reps} reps`);
-  if (s.durationS != null) parts.push(formatDuration(s.durationS));
+  if (s.durationS != null) parts.push(`${formatDuration(s.durationS)} (${s.durationSource === 'wall_clock' ? 'clock' : s.durationSource === 'gps' ? 'GPS' : 'entered'})`);
   if (s.distanceM != null) parts.push(`${(s.distanceM / 1000).toFixed(2)} km`);
   if (s.toFailure) parts.push('to failure');
   else if (s.rpe != null) parts.push(`RPE ${s.rpe}`);
@@ -165,9 +170,11 @@ export function SessionDetailScreen() {
 
       <Row>
         <StatTile icon="core.timer" label="Duration" value={formatDurationLong(session.durationS ?? 0)} />
-        <StatTile icon="nutrition.calories" label="Calories" value={`${Math.round(session.caloriesBurned ?? 0)}`} sub="kcal" accent={theme.colors.calories} />
+        <StatTile icon="nutrition.calories" label="Estimated calories" value={`${Math.round(session.caloriesBurned ?? 0)}`} sub="kcal" accent={theme.colors.calories} />
       </Row>
 
+      <WorkoutTiming sessionId={sessionId} />
+      <EvidenceLink />
       {isLifting ? (
         <Row>
           <StatTile icon="stats.volume" label="Volume" value={`${Math.round(session.totalVolume ?? 0).toLocaleString()}`} sub="kg" accent={theme.colors.primary} />
@@ -276,7 +283,10 @@ export function SessionDetailScreen() {
                   ) : null}
                 </Row>
               ))}
-              {editing && <AddSetRow lv={lv} onAdded={reload} />}
+              {editing && <>
+                {lv.sets.map(s => <SetReview key={s.id} entry={s} onSave={patch => { updateSet(s.id, patch); reload(); }} />)}
+                <AddSetRow lv={lv} onAdded={reload} />
+              </>}
             </View>
           ))}
           {editing && (
@@ -291,10 +301,9 @@ export function SessionDetailScreen() {
       )}
       {burn.basis === 'per-exercise' && logs.length > 0 && !editing && (
         <Text variant="caption" color="textFaint" style={{ marginTop: -4 }}>
-          Calories are attributed to each movement from its own effort (MET) and time at your
-          bodyweight{burn.restCalories > 0
-            ? ` — plus ${Math.round(burn.restCalories)} kcal over ${Math.round(burn.restSeconds / 60)} min of rest between sets, priced at recovery rate, not at the exercise's.`
-            : ' — so heavier, harder work shows its real share.'}
+          Calories are a model estimate using bodyweight, MET and logged time. Where set time is missing,
+          the model assumes 3 seconds per rep (or 60 seconds with no reps). Its remaining time is an
+          allocation assumption, not measured rest. These numbers are not individual calorimetry.
         </Text>
       )}
 
@@ -320,21 +329,23 @@ function AddSetRow({ lv, onAdded }: { lv: ExerciseLogView; onAdded: () => void }
   const [distanceKm, setDistanceKm] = useState('');
 
   const add = () => {
+    try {
     addSet(lv.log.id, {
       reps: f.reps && reps ? parseInt(reps, 10) : null,
       weightKg: f.weight && weight ? parseFloat(weight) : null,
-      durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
+      durationS: parseDuration(minutes),
       distanceM: f.distance && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
     });
     setReps(''); setWeight(''); setMinutes(''); setDistanceKm('');
     onAdded();
+    } catch (e) { Alert.alert('Check set', (e as Error).message); }
   };
 
   return (
     <Row style={{ alignItems: 'flex-end', paddingLeft: 26 }} gap={6}>
       {f.weight && <View style={{ flex: 1 }}><Input label="kg" value={weight} onChangeText={setWeight} placeholder="0" keyboardType="numeric" /></View>}
       {f.reps && <View style={{ flex: 1 }}><Input label="reps" value={reps} onChangeText={setReps} placeholder="0" keyboardType="numeric" /></View>}
-      {f.duration && <View style={{ flex: 1 }}><Input label="min" value={minutes} onChangeText={setMinutes} placeholder="0" keyboardType="numeric" /></View>}
+      <View style={{ flex: 1 }}><Input label="Time" value={minutes} onChangeText={setMinutes} placeholder="45s / 1:30" /></View>
       {f.distance && <View style={{ flex: 1 }}><Input label="km" value={distanceKm} onChangeText={setDistanceKm} placeholder="0" keyboardType="numeric" /></View>}
       <Button title="Add" size="sm" icon="core.add" onPress={add} fullWidth={false} color={theme.colors.primary} />
     </Row>

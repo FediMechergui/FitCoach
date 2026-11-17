@@ -24,7 +24,7 @@ async function removeVersion(store, prefix, id) {
 }
 
 /** Account identity comes exclusively from a verified auth provider, never a body/path user ID. */
-export function createBackupHandler({ store, authenticate, now = Date.now }) {
+export function createBackupHandler({ store, authenticate, deleteAccount, now = Date.now }) {
   return async request => {
     try {
       const user = await authenticate(request);
@@ -32,6 +32,23 @@ export function createBackupHandler({ store, authenticate, now = Date.now }) {
       const prefix = `users/${user.id}/`;
       const segments = new URL(request.url).pathname.replace(/^\/api\/backups\/?/, '').split('/').filter(Boolean);
       const [id, part] = segments;
+      if (id === 'account' && segments.length === 1 && request.method === 'DELETE') {
+        const input = await json(request);
+        if (input.confirm !== 'DELETE MY ACCOUNT' || typeof deleteAccount !== 'function') return response({ error: 'Confirm deletion of your own account.' }, 400);
+        // Block concurrent uploads first. Keep the marker if identity deletion fails so retry is safe.
+        await store.setJSON(`${prefix}deleting`, { at: now() });
+        for (const key of await keys(store, prefix)) if (key !== `${prefix}deleting`) await store.delete(key);
+        try { await deleteAccount(user.id); }
+        catch { return response({ error: 'Cloud backups were deleted, but account deletion failed. Retry account deletion.' }, 503); }
+        // Keep an opaque tombstone so an upload already in flight cannot recreate data after deletion.
+        return response({ deleted: true });
+      }
+      if (await store.get(`${prefix}deleting`, { type: 'json' })) return response({ error: 'Account deletion is in progress. Retry deletion to finish.' }, 409);
+      const writeOwned = async (key, value, binary = false) => {
+        if (await store.get(`${prefix}deleting`, { type:'json' })) throw new Error('Account deletion is in progress');
+        if (binary) await store.set(key, value); else await store.setJSON(key, value);
+        if (await store.get(`${prefix}deleting`, { type:'json' })) { await store.delete(key); throw new Error('Account deletion is in progress'); }
+      };
       if (id && !uuid.test(id)) return response({ error: 'Invalid backup ID' }, 400);
       if (!id && request.method === 'GET') {
         const manifests = await Promise.all((await keys(store, `${prefix}manifests/`)).map(key => store.get(key, { type: 'json' })));
@@ -52,7 +69,7 @@ export function createBackupHandler({ store, authenticate, now = Date.now }) {
         const backup = { id: randomUUID(), createdAt: now(), format: 1, schema: input.schema, keyId: input.keyId,
           chunks: input.chunks.map(c => ({ size: c.size, sha256: c.sha256 })), sha256: input.sha256,
           bytes: input.chunks.reduce((n, c) => n + c.size, 0) };
-        await store.setJSON(`${prefix}drafts/${backup.id}`, backup);
+        await writeOwned(`${prefix}drafts/${backup.id}`, backup);
         return response(backup, 201);
       }
       if (id && part != null && /^\d+$/.test(part)) {
@@ -64,7 +81,7 @@ export function createBackupHandler({ store, authenticate, now = Date.now }) {
           if (typeof input.data !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(input.data)) return response({ error: 'Invalid chunk' }, 400);
           const bytes = Buffer.from(input.data, 'base64');
           if (bytes.length !== draft.chunks[index].size || sha256(bytes) !== draft.chunks[index].sha256) return response({ error: 'Chunk integrity check failed' }, 400);
-          await store.set(`${prefix}chunks/${id}/${index}`, bytes);
+          await writeOwned(`${prefix}chunks/${id}/${index}`, bytes, true);
           return response({ uploaded: index });
         }
         if (request.method === 'GET') {
@@ -86,7 +103,8 @@ export function createBackupHandler({ store, authenticate, now = Date.now }) {
           digest.update(Buffer.from(bytes));
         }
         if (digest.digest('hex') !== draft.sha256) return response({ error: 'Backup integrity check failed' }, 409);
-        await store.setJSON(`${prefix}manifests/${id}`, draft);
+        if (await store.get(`${prefix}deleting`, { type: 'json' })) return response({ error: 'Account deletion is in progress.' }, 409);
+        await writeOwned(`${prefix}manifests/${id}`, draft);
         await store.delete(`${prefix}drafts/${id}`);
         const manifests = await Promise.all((await keys(store, `${prefix}manifests/`)).map(k => store.get(k, { type: 'json' })));
         for (const old of manifests.filter(Boolean).sort((a, b) => b.createdAt - a.createdAt).slice(3)) await removeVersion(store, prefix, old.id);
@@ -98,7 +116,7 @@ export function createBackupHandler({ store, authenticate, now = Date.now }) {
       }
       return response({ error: 'Not found' }, 404);
     } catch {
-      return response({ error: 'Backup request failed. Your previous completed backups are unchanged.' }, 400);
+      return response({ error: 'Backup request failed. Refresh the backup list before retrying; an interrupted deletion may have removed some records.' }, 400);
     }
   };
 }

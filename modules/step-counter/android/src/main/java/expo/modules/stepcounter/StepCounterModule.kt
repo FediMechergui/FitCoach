@@ -10,6 +10,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
+import org.json.JSONObject
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -30,6 +31,36 @@ class StepCounterModule : Module() {
     Name("StepCounter")
 
     Function("startMonitoring") { StepMonitor.start(context) }
+    Function("stepHistory") {
+      val prefs = context.getSharedPreferences("fitcoach.steps", Context.MODE_PRIVATE)
+      val history = runCatching { JSONObject(prefs.getString("history", "{}") ?: "{}") }.getOrDefault(JSONObject())
+      history.keys().asSequence().toList().sorted().map { date -> mapOf("date" to date, "steps" to history.optLong(date, 0)) }
+    }
+    Function("alwaysOnStatus") {
+      val prefs = context.getSharedPreferences("fitcoach.tracking", Context.MODE_PRIVATE)
+      mapOf("enabled" to StepTrackingService.enabled(context), "running" to StepTrackingService.running,
+        "available" to (stepSensor() != null), "motionAvailable" to prefs.getBoolean("motionAvailable", false),
+        "permission" to StepTrackingService.motionPermission(context), "error" to prefs.getString("error", null))
+    }
+    Function("setAlwaysOn") { enabled: Boolean ->
+      if (enabled && (stepSensor() == null || !StepTrackingService.motionPermission(context))) throw IllegalStateException("A hardware step counter and Physical activity permission are required.")
+      val prefs = context.getSharedPreferences("fitcoach.tracking", Context.MODE_PRIVATE)
+      val previous = StepTrackingService.enabled(context)
+      prefs.edit().putBoolean("alwaysOn", enabled).apply()
+      try {
+        if (enabled) StepTrackingService.launch(context)
+        else if (StepTrackingService.running) context.startService(Intent(context, StepTrackingService::class.java).setAction(StepTrackingService.ACTION_DISABLE))
+      } catch (e: Exception) { prefs.edit().putBoolean("alwaysOn", previous).apply(); throw e }
+      true
+    }
+    Function("resumeAlwaysOn") {
+      if (StepTrackingService.enabled(context) && StepTrackingService.motionPermission(context) && !StepTrackingService.running) {
+        StepTrackingService.launch(context)
+      }
+    }
+    Function("stopIdleMonitoring") {
+      if (!StepTrackingService.running && !context.getSharedPreferences("fitcoach.tracking", Context.MODE_PRIVATE).getBoolean("sessionMotion", false)) StepMonitor.stop()
+    }
     Function("dailySteps") {
       val prefs = context.getSharedPreferences("fitcoach.steps", Context.MODE_PRIVATE)
       mapOf("date" to StepMonitor.today(), "steps" to
@@ -41,22 +72,28 @@ class StepCounterModule : Module() {
         .putBoolean("gpsVehicle", active).putLong("gpsAt", System.currentTimeMillis()).apply()
     }
     Function("startStepService") {
-      val intent = Intent(context, StepTrackingService::class.java)
-      if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent) else context.startService(intent)
+      StepTrackingService.launch(context, StepTrackingService.ACTION_MANUAL)
       true
     }
-    Function("stopStepService") { context.stopService(Intent(context, StepTrackingService::class.java)); true }
+    Function("stopStepService") {
+      if (StepTrackingService.running) context.startService(Intent(context, StepTrackingService::class.java).setAction(StepTrackingService.ACTION_END_MANUAL))
+      true
+    }
     Function("readMotion") {
       val prefs = context.getSharedPreferences("fitcoach.motion", Context.MODE_PRIVATE)
       mapOf("kind" to prefs.getString("kind", "unknown"), "confidence" to prefs.getInt("confidence", 0), "at" to prefs.getLong("at", 0))
     }
     AsyncFunction("startMotionRecognition") { promise: Promise ->
+      context.getSharedPreferences("fitcoach.tracking", Context.MODE_PRIVATE).edit().putBoolean("sessionMotion", true).apply()
       runCatching {
         ActivityRecognition.getClient(context).requestActivityUpdates(5_000, MotionReceiver.pending(context))
           .addOnSuccessListener { promise.resolve(true) }.addOnFailureListener { promise.resolve(false) }
       }.onFailure { promise.resolve(false) }
     }
     AsyncFunction("stopMotionRecognition") { promise: Promise ->
+      context.getSharedPreferences("fitcoach.tracking", Context.MODE_PRIVATE).edit().putBoolean("sessionMotion", false).apply()
+      if (StepTrackingService.enabled(context)) { promise.resolve(true); return@AsyncFunction }
+      if (!StepTrackingService.running) StepMonitor.stop()
       runCatching {
         ActivityRecognition.getClient(context).removeActivityUpdates(MotionReceiver.pending(context))
           .addOnSuccessListener { promise.resolve(true) }.addOnFailureListener { promise.resolve(false) }

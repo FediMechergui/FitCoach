@@ -1,6 +1,6 @@
 {
   "name": "fitcoach",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "main": "index.ts",
   "scripts": {
     "postinstall": "node scripts/patch-build-tools.cjs",
@@ -12,9 +12,11 @@
     "lint": "eslint .",
     "verify:engines": "tsx scripts/verify-engines.ts",
     "db:generate": "drizzle-kit generate",
-    "build:apk": "eas build -p android --profile preview",
+    "build:apk": "node scripts/build-apk.js",
+    "build:apk:cloud": "eas build -p android --profile preview",
     "build:apk:local": "node scripts/build-apk.js",
-    "build:aab": "eas build -p android --profile production",
+    "build:aab": "node scripts/build-apk.js --aab",
+    "build:aab:cloud": "eas build -p android --profile production",
     "update:push": "node scripts/release.js",
     "release": "node scripts/release.js",
     "verify:repositories": "node scripts/verify-repositories.cjs",

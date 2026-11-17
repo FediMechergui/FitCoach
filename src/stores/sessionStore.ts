@@ -33,6 +33,8 @@ import {
 import { useUserStore } from './userStore';
 import type { RestPrescription } from '@/lib/restPrescription';
 import type { RoutinePrescription } from '@/repositories/routinesRepo';
+import { changeTiming, flagRecoveredTiming, openTiming, settleRest } from '@/repositories/timingRepo';
+import { setCircuitGroup } from '@/repositories/gymRepo';
 
 interface SessionState {
   activeId: number | null;
@@ -94,7 +96,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   resume: () => {
     const active: Session | undefined = activeSession();
     if (active) {
+      flagRecoveredTiming(active.id);
+      const timer = openTiming(active.id);
       set({
+        restEndsAt: timer?.phase === 'rest' ? timer.target_end : null,
+        restDurationS: timer?.phase === 'rest' && timer.target_end != null ? Math.max(0, (timer.target_end - timer.started_at) / 1000) : 90,
         activeId: active.id,
         sessionType: active.sessionType,
         startedAt: active.startTime,
@@ -128,6 +134,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       for (const entry of opts.prescription) {
         const logId = addExerciseToSession(id, entry.exerciseId);
         setExerciseRest(logId, entry.restSeconds);
+        setCircuitGroup(logId, entry.circuitGroup ?? null);
         for (const draft of entry.sets) addSet(logId, { ...draft, completed: false });
       }
     }
@@ -167,7 +174,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   repeatLastSet: (logId, exerciseId) => {
-    const last = lastSetForExercise(exerciseId);
+    const equipmentId = get().detail?.logs.find(l => l.log.id === logId)?.log.equipmentId ?? null;
+    const last = lastSetForExercise(exerciseId, undefined, equipmentId);
     addSet(logId, {
       reps: last?.reps ?? null,
       weightKg: last?.weightKg ?? null,
@@ -212,7 +220,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   startRest: (seconds, rx, logId) => {
     if (logId) setExerciseRest(logId, seconds);
-    set({ restEndsAt: Date.now() + seconds * 1000, restDurationS: seconds, restRx: rx ?? null });
+    const ends = Date.now() + seconds * 1000;
+    const id = get().activeId;
+    if (id) changeTiming(id, 'rest', logId ?? null, ends);
+    set({ restEndsAt: ends, restDurationS: seconds, restRx: rx ?? null });
   },
   toggleWarmup: (muscle) => {
     const id = get().activeId;
@@ -220,7 +231,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     toggleWarmupDone(id, muscle);
     get().refresh();
   },
-  clearRest: () => set({ restEndsAt: null }),
+  clearRest: () => {
+    const id = get().activeId;
+    if (id) { settleRest(id); if (openTiming(id)?.phase === 'rest') changeTiming(id, 'transition'); }
+    set({ restEndsAt: null });
+  },
 
   finish: (opts) => {
     const id = get().activeId;

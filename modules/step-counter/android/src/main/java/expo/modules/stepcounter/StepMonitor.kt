@@ -8,6 +8,7 @@ import android.hardware.SensorManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONObject
 
 /** On-change hardware listener. Records only observed deltas; never extrapolates missing hours. */
 object StepMonitor : SensorEventListener {
@@ -24,6 +25,10 @@ object StepMonitor : SensorEventListener {
     return registered
   }
   fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+  fun stop() {
+    (context?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager)?.unregisterListener(this)
+    registered = false
+  }
   override fun onSensorChanged(event: SensorEvent) {
     val ctx = context ?: return
     val absolute = event.values[0].toLong()
@@ -38,7 +43,11 @@ object StepMonitor : SensorEventListener {
     val vehicle = recognizedVehicle || gpsVehicle
     val delta = if (sameDay && !vehicle && absolute >= last) absolute - last else 0
     val count = (if (sameDay) prefs.getLong("count", 0) else 0) + delta
+    val history = runCatching { JSONObject(prefs.getString("history", "{}") ?: "{}") }.getOrDefault(JSONObject())
+    history.put(day, count)
+    history.keys().asSequence().toList().sortedDescending().drop(35).forEach { history.remove(it) }
     prefs.edit().putString("day", day).putLong("count", count).putLong("absolute", absolute)
+      .putString("history", history.toString())
       .putLong("observedTotal", prefs.getLong("observedTotal", 0) + delta)
       .putLong("updatedAt", System.currentTimeMillis()).apply()
   }

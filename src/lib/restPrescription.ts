@@ -41,9 +41,9 @@
  *     fraction refilled after t seconds is modelled as 1 − e^(−t/45).
  *
  * ── This model ──
- * The set decides the skeleton; lib/restPhysiology then adjusts it for the
- * state you arrived in — carbon monoxide, a full stomach, a short night — each
- * through the mechanism that actually connects it to recovery.
+ * These are coaching heuristics informed by group studies, not a measurement
+ * of an individual's energy systems or nervous-system recovery. Lifestyle
+ * logs add qualitative context; they do not apply a physiological multiplier.
  *
  * Classify the set by its duration and load (energy system), give it the base
  * rest that system wants for the intent, add for neural demand (near-maximal

@@ -9,13 +9,62 @@
 
 [Download the latest APK from GitHub Releases](https://github.com/FediMechergui/FitCoach/releases/latest).
 
-Version 4.0.0 uses runtime **4.0.0**, Android versionCode **5**, package
+Version 4.1.0 uses runtime **4.1.0**, Android versionCode **6**, package
 `com.fitcoach.app` and the existing signing key. Install over the previous app to
 keep local records. The phone APK targets **ARM64** and enables release code and
 resource shrinking. An x86_64 build profile is also available for emulators.
 
 Compatible JavaScript and asset updates continue on the **preview** OTA channel.
 Native changes require another APK; `scripts/native-profile.js` guards that boundary.
+
+### Local Android builds
+
+`npm run build:apk` builds and signs the ARM64 APK on this PC. It requires JDK 17,
+Android SDK 35, and the existing ignored `credentials.json` and keystore. It checks
+the original signing certificate before and after compilation. Artifacts and SHA256
+files go to `builds/`; Gradle caches and temporary files also stay on the build drive.
+The existing global cache is not moved or deleted. Gradle is pinned to 8.10.2 for
+this Expo SDK / React Native version. Kotlin runs inside Gradle, and a CMake job
+pool limits the app's C++ compilation/linking to one job. Metro uses two workers.
+Every build regenerates and verifies the embedded update manifest so an APK upgrade
+cannot accidentally select cached JavaScript from an earlier local build.
+Close memory-heavy applications before building if Windows has little commit
+memory available; free GPU memory alone does not resolve compiler memory limits.
+
+- `npm run build:apk -- --check` checks prerequisites and the release key.
+- `npm run build:apk -- --emulator` builds a signed x86_64 test APK.
+- `npm run build:aab` builds a signed Android App Bundle locally.
+- `npm run build:apk:cloud` remains an optional EAS cloud build.
+- `npm run release` continues to ship compatible JS/assets through OTA.
+
+### What changed in 4.1.0
+
+- Persisted set, rest, transition and pause clocks; seconds/minutes input and
+  editable durations with manual versus clock provenance. Failure sets retain reps.
+- Library favorites, recent exercises and aliases; My gym equipment and setup notes;
+  machine-specific history and PRs, planned sets, circuits and substitutions.
+  Exercise names have their own row; optional setup controls expand on demand.
+- Bundled offline Latin-text OCR for equipment and nutrition labels, optional confirmed
+  AI equipment suggestions, programme photo/PDF imports and editable voice logs.
+  AI uses the user's OpenRouter key and sends records only after explicit selection.
+- Native libraries are compressed to reduce the APK download. Android extracts them
+  during installation, so installed storage is larger than the APK file size.
+- Plate calculator, warm-up load guide, interval and tempo tools, calendar and
+  weekly review, pinned/reordered Home sections and a snapshot Android widget.
+- Evidence pages explain formulas, populations and limitations. Estimates are not
+  presented as measured muscle gain, recovery, calories or personal oxygen loss.
+- CSV/GPX exports, reversible activity corrections and manually named saved routes.
+- Optional Health Connect summaries and explicit workout exports on Android 14+.
+- Always-on walk detection in Walk and Outdoor settings. This opt-in foreground
+  service counts observed hardware steps without starting GPS, excludes recognized
+  vehicle motion, retains 35 days of unsynced step history and attempts restart after
+  reboot. It has a notification off action; manual walks remain separately controlled.
+  Android force-stop, revoked permissions and OEM battery restrictions can leave gaps.
+- Wi-Fi-only backup selection, overdue status and confirmed backup-account deletion.
+
+Real-world OCR accuracy, vehicle classification and OEM background behavior still
+need representative phone testing. Camera-based rep counting and form assessment are
+not included: pose landmarks alone do not validate a coaching or measurement claim.
 
 ### What changed in 4.0.0
 
@@ -50,8 +99,9 @@ Code lives in `backup-backend/`; health calculations remain on the phone.
 In **You → Backup & account**, create and verify an email account, sign in, then save
 your recovery key and enable daily backup. A 24-hour interval makes a backup due;
 Android schedules the actual background run. Opening the app catches up missed runs.
-The screen shows last success, errors and manual retry. Uploads use available internet,
-including mobile data. Signing out pauses backups.
+The screen shows last success, overdue status, errors and manual retry. Enable
+Wi-Fi-only to defer uploads on mobile data. Signing out pauses backups. Account
+deletion removes the cloud account and its backups while keeping local records.
 
 Snapshots include profile, logs, routes, routines and saved photos. They are compressed
 and encrypted using XChaCha20-Poly1305 on the device, with a native random nonce.

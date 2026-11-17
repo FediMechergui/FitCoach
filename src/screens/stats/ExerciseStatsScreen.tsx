@@ -18,6 +18,10 @@ import type { RootStackParamList } from '@/navigation/types';
 import { exerciseProgression } from '@/repositories/statsRepo';
 import { getExercise, type ExerciseView } from '@/repositories/exerciseRepo';
 import type { ORMFormula } from '@/lib/oneRepMax';
+import { EvidenceLink } from '@/components/EvidenceLink';
+import { equipmentList, exercisePreferences, saveExercisePreference } from '@/repositories/gymRepo';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 type StatsRoute = RouteProp<RootStackParamList, 'ExerciseStats'>;
 
@@ -27,11 +31,14 @@ export function ExerciseStatsScreen() {
   const { exerciseId, name } = route.params;
   const [formula, setFormula] = useState<ORMFormula>('epley');
   const [metric, setMetric] = useState<'orm' | 'volume'>('orm');
+  const [equipmentId, setEquipmentId] = useState('unassigned');
+  const equipment = equipmentList();
+  const equipmentFilter = <SegmentedControl scrollable value={equipmentId} onChange={setEquipmentId} options={[{value:'unassigned',label:'Unassigned'}, ...equipment.map(item => ({value:String(item.id),label:item.name}))]} />;
   const exercise = useMemo(() => getExercise(exerciseId), [exerciseId]);
 
   const progression = useMemo(
-    () => exerciseProgression(exerciseId, formula),
-    [exerciseId, formula]
+    () => exerciseProgression(exerciseId, formula, undefined, equipmentId === 'unassigned' ? null : Number(equipmentId)),
+    [exerciseId, formula, equipmentId]
   );
 
   if (progression.length === 0) {
@@ -39,6 +46,9 @@ export function ExerciseStatsScreen() {
       <Screen>
         <PageHero icon="stats.progression" color={theme.colors.primary} title={name} />
         {exercise && <ExerciseGuide exercise={exercise} />}
+        {equipmentFilter}
+        <ExerciseNotes exerciseId={exerciseId} />
+        <EvidenceLink />
         <EmptyState
           icon="stats.progression"
           title="No history yet"
@@ -61,6 +71,10 @@ export function ExerciseStatsScreen() {
     <Screen>
       <PageHero icon="stats.progression" color={theme.colors.primary} title={name} />
       {exercise && <ExerciseGuide exercise={exercise} />}
+      <EvidenceLink />
+      {equipmentFilter}
+      <Text variant="caption" color="textMuted">Compare only the same machine, attachment and setup. Historical entries without a machine stay unassigned.</Text>
+      <ExerciseNotes exerciseId={exerciseId} />
 
       <Row>
         <StatTile icon="core.pr" label="Best est. 1RM" value={`${Math.round(best1RM)}`} sub="kg" accent={theme.colors.warning} />
@@ -110,4 +124,11 @@ export function ExerciseStatsScreen() {
 /** The shared how-to block — video, both figures, targets, warm-up, cues. */
 function ExerciseGuide({ exercise }: { exercise: ExerciseView }) {
   return <ExerciseHowToBlock exercise={exercise} />;
+}
+function ExerciseNotes({exerciseId}:{exerciseId:number}) {
+  const old = exercisePreferences().find(p=>p.exercise_id===exerciseId);
+  const [aliases,setAliases] = useState(old?.aliases ?? '');
+  const [notes,setNotes] = useState(old?.notes ?? '');
+  const [saved,setSaved] = useState(false);
+  return <Card style={{gap:8}}><Input label="Your names / translations for this exercise" value={aliases} onChangeText={v=>{setAliases(v);setSaved(false);}} /><Input label="Technique and setup notes" multiline value={notes} onChangeText={v=>{setNotes(v);setSaved(false);}} /><Button title={saved?'Saved':'Save aliases and notes'} size="sm" variant="secondary" onPress={()=>{saveExercisePreference(exerciseId,{aliases,notes});setSaved(true);}} /></Card>;
 }

@@ -60,6 +60,13 @@ import { PathDetailScreen } from '@/screens/train/PathDetailScreen';
 import { AchievementsScreen } from '@/screens/profile/AchievementsScreen';
 import { BackupScreen } from '@/screens/profile/BackupScreen';
 import { ReportsScreen } from '@/screens/profile/ReportsScreen';
+import { MyGymScreen } from '@/screens/train/MyGymScreen';
+import { EvidenceScreen } from '@/screens/stats/EvidenceScreen';
+import { TrainingToolsScreen } from '@/screens/train/TrainingToolsScreen';
+import { TrainingCalendarScreen } from '@/screens/train/TrainingCalendarScreen';
+import { CoachWorkbenchScreen } from '@/screens/train/CoachWorkbenchScreen';
+import { ConnectionsScreen } from '@/screens/profile/ConnectionsScreen';
+import { HomeLayoutScreen } from '@/screens/profile/HomeLayoutScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -97,6 +104,13 @@ export function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
+          <Stack.Screen name="MyGym" component={MyGymScreen} options={{ title: '' }} />
+          <Stack.Screen name="Evidence" component={EvidenceScreen} options={{ title: '' }} />
+          <Stack.Screen name="TrainingTools" component={TrainingToolsScreen} options={{ title: '' }} />
+          <Stack.Screen name="TrainingCalendar" component={TrainingCalendarScreen} options={{ title: '' }} />
+          <Stack.Screen name="CoachWorkbench" component={CoachWorkbenchScreen} options={{ title: '' }} />
+          <Stack.Screen name="Connections" component={ConnectionsScreen} options={{ title: '' }} />
+          <Stack.Screen name="HomeLayout" component={HomeLayoutScreen} options={{ title: '' }} />
           <Stack.Screen name="LogSession" component={LogSessionScreen} options={{ title: '', presentation: 'modal' }} />
           <Stack.Screen name="SplitPicker" component={SplitPickerScreen} options={{ title: '' }} />
           <Stack.Screen name="MethodPicker" component={MethodPickerScreen} options={{ title: '' }} />

@@ -21,6 +21,9 @@
     "node_modules",
     "backup-backend",
     "android",
+    "builds",
+    "dist",
+    ".netlify",
     ".audit"
   ]
 }

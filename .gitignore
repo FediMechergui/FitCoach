@@ -39,6 +39,8 @@ credentials.json
 
 # Debug
 npm-debug.*
+/hs_err_pid*.log
+/replay_pid*.log
 yarn-debug.*
 yarn-error.*
 

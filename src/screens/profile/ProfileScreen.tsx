@@ -283,6 +283,8 @@ export function ProfileScreen() {
       </Card>
 
       <SectionHeader title="More" />
+      <Button title="Health Connect, widget & data export" variant="secondary" onPress={() => navigation.navigate('Connections')} />
+      <Button title="How statistics are calculated" variant="secondary" onPress={() => navigation.navigate('Evidence')} />
       <Card style={{ gap: 0 }}>
         <LinkRow icon="core.calendar" label="Session history" onPress={() => navigation.navigate('SessionHistory')} />
         <Divider />

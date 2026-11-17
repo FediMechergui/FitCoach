@@ -1,4 +1,6 @@
-import { and, eq, like, or } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import { exerciseMatches } from '@/lib/exerciseSearch';
+import { exercisePreferences } from './gymRepo';
 import { db } from '@/db/client';
 import {
   exercises,
@@ -56,13 +58,10 @@ export function listExercises(
   if (opts.sessionType) clauses.push(eq(exercises.sessionType, opts.sessionType));
   if (opts.muscle) clauses.push(eq(exercises.primaryMuscle, opts.muscle));
   if (opts.equipmentType) clauses.push(eq(exercises.equipmentType, opts.equipmentType));
-  if (opts.search && opts.search.trim()) {
-    const q = `%${opts.search.trim().toLowerCase()}%`;
-    clauses.push(or(like(exercises.name, q), like(exercises.category, q), like(exercises.primaryMuscle, q)));
-  }
   const where = clauses.length ? and(...clauses) : undefined;
   const rows = db.select().from(exercises).where(where).orderBy(exercises.name).all();
-  return rows.map(hydrate);
+  const preferences = opts.search?.trim() ? new Map(exercisePreferences().map(p => [p.exercise_id, p.aliases])) : new Map<number, string>();
+  return rows.filter(e => !opts.search?.trim() || exerciseMatches(opts.search, [e.name, e.slug, e.category, e.primaryMuscle, e.equipment, preferences.get(e.id)])).map(hydrate);
 }
 
 /** Resolve a list of slugs to exercises, preserving the given order. */

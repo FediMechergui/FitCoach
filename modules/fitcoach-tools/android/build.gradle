@@ -1,0 +1,16 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+group = 'expo.modules.fitcoachtools'
+version = '1.0.0'
+apply from: new File(project(':expo-modules-core').projectDir.absolutePath, 'ExpoModulesCorePlugin.gradle')
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useDefaultAndroidSdkVersions()
+useExpoPublishing()
+dependencies {
+  implementation 'com.google.mlkit:text-recognition:16.0.1'
+}
+android {
+  namespace 'expo.modules.fitcoachtools'
+  defaultConfig { versionCode 1; versionName '1.0.0' }
+}

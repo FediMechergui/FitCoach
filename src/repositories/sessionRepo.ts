@@ -2,7 +2,8 @@ import { and, desc, eq, gte, inArray, isNull, isNotNull, lt, lte } from 'drizzle
 import { atomic } from '@/db/atomic';
 import { profileFor } from '@/lib/loadProfile';
 import { finiteNumber } from '@/lib/validation';
-import { db } from '@/db/client';
+import { db, sqlite } from '@/db/client';
+import { attachWorkToSet, changeTiming, closeTiming, pendingWorkSeconds, stopWork } from './timingRepo';
 import {
   weighIns,
   exerciseLogs,
@@ -24,6 +25,7 @@ import { addSteps, removeSteps } from './activityRepo';
 import { fromISODate, nextDayMs, toISODate } from '@/lib/date';
 
 export interface SetDraft {
+  durationSource?: 'manual' | 'wall_clock' | 'gps' | null;
   reps?: number | null;
   weightKg?: number | null;
   rpe?: number | null;
@@ -71,6 +73,7 @@ export function startSession(
   } = {},
   userId: number = PRIMARY_USER_ID
 ): number {
+  return atomic(() => {
   const existing = activeSession(userId);
   if (existing) return existing.id;
   const payload: NewSession = {
@@ -84,7 +87,10 @@ export function startSession(
     startTime: Date.now(),
   };
   const res = db.insert(sessions).values(payload).run();
-  return Number(res.lastInsertRowId);
+  const id = Number(res.lastInsertRowId);
+  changeTiming(id, 'transition', null, null, payload.startTime);
+  return id;
+  });
 }
 
 export function addExerciseToSession(sessionId: number, exerciseId: number, orderIndex?: number): number {
@@ -109,10 +115,13 @@ export function replaceExerciseLog(logId: number, newExerciseId: number): number
   return atomic(() => {
   const row = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, logId)).get();
   if (!row) return null;
-  const slot = row.orderIndex;
-  const sessionId = row.sessionId;
-  removeExerciseLog(logId);
-  return addExerciseToSession(sessionId, newExerciseId, slot);
+  if (completedSetsOf(logId)) throw new Error('Keep completed history. Add the alternative as a new exercise instead.');
+  if (pendingWorkSeconds(row.sessionId,logId)!=null) throw new Error('Save or discard the timed set before changing exercise.');
+  if (!db.select().from(exercises).where(eq(exercises.id,newExerciseId)).get()) throw new Error('Alternative exercise not found.');
+  db.update(exerciseLogs).set({exerciseId:newExerciseId,equipmentId:null}).where(eq(exerciseLogs.id,logId)).run();
+  // Preserve the planned set count/rest/order, but a different exercise needs its own load.
+  db.update(setEntries).set({weightKg:null,rpe:null,toFailure:false,isPr:false}).where(eq(setEntries.exerciseLogId,logId)).run();
+  return logId;
   });
 }
 
@@ -128,6 +137,12 @@ export function completedSetsOf(logId: number): number {
 export function addSet(exerciseLogId: number, draft: SetDraft): number {
   validateSet(draft, exerciseLogId);
   return atomic(() => {
+  const log = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, exerciseLogId)).get();
+  if (!log) throw new Error('Exercise no longer exists.');
+  const completed = draft.completed ?? true;
+  const live = getSession(log.sessionId)?.endTime == null;
+  const measured = completed && live ? pendingWorkSeconds(log.sessionId, exerciseLogId) : null;
+  if (measured != null) stopWork(log.sessionId, exerciseLogId);
   const existing = db
     .select()
     .from(setEntries)
@@ -144,13 +159,16 @@ export function addSet(exerciseLogId: number, draft: SetDraft): number {
       // rpe still sees the truth.
       rpe: draft.toFailure ? 10 : draft.rpe ?? null,
       toFailure: draft.toFailure ?? false,
-      durationS: draft.durationS ?? null,
+      durationS: draft.durationS ?? measured,
+      durationSource: draft.durationS != null ? (draft.durationSource ?? (draft.gpsFrom != null ? 'gps' : 'manual')) : measured != null ? 'wall_clock' : null,
       distanceM: draft.distanceM ?? null,
       completed: draft.completed ?? true,
       gpsFrom: draft.gpsFrom ?? null,
       gpsTo: draft.gpsTo ?? null,
     })
     .run();
+  if (measured != null) attachWorkToSet(log.sessionId, exerciseLogId, Number(res.lastInsertRowId));
+  if (completed) db.update(exerciseLogs).set({ skipped: false }).where(eq(exerciseLogs.id, exerciseLogId)).run();
   refreshLogSession(exerciseLogId);
   return Number(res.lastInsertRowId);
   });
@@ -177,6 +195,20 @@ export function updateSet(setId: number, patch: SetDraft): void {
     if (!row) return;
     validateSet(patch, row.exerciseLogId);
     const values = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+    if (patch.durationS !== undefined) values.durationSource = patch.durationS == null ? null : patch.durationSource ?? 'manual';
+    if (patch.completed === true && !row.completed) {
+      db.update(exerciseLogs).set({skipped:false}).where(eq(exerciseLogs.id,row.exerciseLogId)).run();
+      const log = db.select().from(exerciseLogs).where(eq(exerciseLogs.id, row.exerciseLogId)).get();
+      if (log && getSession(log.sessionId)?.endTime == null) {
+        const measured = pendingWorkSeconds(log.sessionId, log.id);
+        if (measured != null) {
+          stopWork(log.sessionId, log.id);
+          values.durationS = measured;
+          values.durationSource = 'wall_clock';
+          attachWorkToSet(log.sessionId, log.id, row.id);
+        }
+      }
+    }
     if (patch.toFailure) values.rpe = 10;
     db.update(setEntries).set(values).where(eq(setEntries.id, setId)).run();
     refreshLogSession(row.exerciseLogId);
@@ -261,19 +293,19 @@ export function moveExerciseLog(logId: number, direction: 'up' | 'down'): boolea
 }
 
 /** Last set logged for an exercise (for the "Repeat last set" quick-button). */
-export function lastSetForExercise(exerciseId: number, userId: number = PRIMARY_USER_ID): SetEntry | undefined {
+export function lastSetForExercise(exerciseId: number, userId: number = PRIMARY_USER_ID, equipmentId: number | null = null): SetEntry | undefined {
   const logs = db
     .select({ id: exerciseLogs.id })
     .from(exerciseLogs)
     .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
-    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(sessions.userId, userId)))
+    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(sessions.userId, userId), equipmentId === null ? isNull(exerciseLogs.equipmentId) : eq(exerciseLogs.equipmentId, equipmentId)))
     .all();
   if (logs.length === 0) return undefined;
   const ids = logs.map((l) => l.id);
   return db
     .select()
     .from(setEntries)
-    .where(inArray(setEntries.exerciseLogId, ids))
+    .where(and(inArray(setEntries.exerciseLogId, ids), eq(setEntries.completed, true)))
     .orderBy(desc(setEntries.id))
     .limit(1)
     .get();
@@ -355,6 +387,7 @@ export function finalizeSession(
     if (!session) throw new Error(`Session ${sessionId} not found`);
     if (session.endTime == null) {
       const endTime = Date.now();
+      closeTiming(sessionId, endTime);
       const durationS = Math.max(0, Math.round((endTime - session.startTime) / 1000));
       const bodyweightKg = finiteNumber(opts.weightKg ?? historicalWeight(session), 'Bodyweight', 10, 500);
       if (opts.activity?.distanceM != null) finiteNumber(opts.activity.distanceM, 'Distance', 0, 1000000);
@@ -417,17 +450,18 @@ export function repairSessionHistory(): void {
 /** Backdated edits can change later PRs. Compare only finished sessions in chronological order. */
 function rebuildExercisePRs(exerciseId: number): void {
   const rows = db.select({ set: setEntries, start: sessions.startTime, sessionId: sessions.id,
-    end: sessions.endTime, userId: sessions.userId, order: exerciseLogs.orderIndex })
+    end: sessions.endTime, userId: sessions.userId, order: exerciseLogs.orderIndex, equipmentId: exerciseLogs.equipmentId })
     .from(setEntries).innerJoin(exerciseLogs, eq(setEntries.exerciseLogId, exerciseLogs.id))
     .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
     .where(eq(exerciseLogs.exerciseId, exerciseId)).all()
     .sort((a, b) => a.start - b.start || a.sessionId - b.sessionId || a.order - b.order || a.set.setNumber - b.set.setNumber || a.set.id - b.set.id);
-  const best = new Map<number, number>();
+  const best = new Map<string, number>();
   for (const row of rows) {
     const estimate = row.end != null && row.set.completed ? estimate1RMFromSet(row.set) : 0;
-    const previous = best.get(row.userId) ?? 0;
+    const scope = `${row.userId}:${row.equipmentId ?? 'unassigned'}`;
+    const previous = best.get(scope) ?? 0;
     const isPr = estimate > previous + 0.01;
-    best.set(row.userId, Math.max(previous, estimate));
+    best.set(scope, Math.max(previous, estimate));
     if (row.set.isPr !== isPr) db.update(setEntries).set({ isPr }).where(eq(setEntries.id, row.set.id)).run();
   }
 }
@@ -762,6 +796,8 @@ export function activeSession(userId: number = PRIMARY_USER_ID): Session | undef
  */
 export function deleteSession(sessionId: number): void {
   return atomic(() => {
+  sqlite.runSync("UPDATE training_calendar SET session_id=NULL,status='planned' WHERE session_id=?", sessionId);
+  sqlite.runSync('DELETE FROM workout_timing WHERE session_id = ?', sessionId);
   const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   const logs = db
     .select({ id: exerciseLogs.id, exerciseId: exerciseLogs.exerciseId })
@@ -791,12 +827,12 @@ export function deleteSession(sessionId: number): void {
  * The completed sets of an exercise from the most recent FINISHED session
  * before this one — what the training tip compares today against.
  */
-export function lastSessionSets(exerciseId: number, excludeSessionId: number | null, userId: number = PRIMARY_USER_ID): SetEntry[] {
+export function lastSessionSets(exerciseId: number, excludeSessionId: number | null, userId: number = PRIMARY_USER_ID, equipmentId?: number | null): SetEntry[] {
   const logs = db
     .select({ id: exerciseLogs.id, sessionId: exerciseLogs.sessionId, start: sessions.startTime, end: sessions.endTime })
     .from(exerciseLogs)
     .innerJoin(sessions, eq(exerciseLogs.sessionId, sessions.id))
-    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(sessions.userId, userId)))
+    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(sessions.userId, userId), equipmentId === undefined ? undefined : equipmentId === null ? isNull(exerciseLogs.equipmentId) : eq(exerciseLogs.equipmentId, equipmentId)))
     .all()
     .filter((l) => l.sessionId !== excludeSessionId && l.end != null)
     .sort((a, b) => b.start - a.start);

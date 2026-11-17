@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { PageHero } from '@/components/ui/PageHero';
+import { AlwaysOnWalkCard } from '@/components/AlwaysOnWalkCard';
 import { Row } from '@/components/ui/misc';
 import { outdoorSettings, setOutdoorSettings } from '@/repositories/outdoorRepo';
 import {
@@ -44,6 +45,7 @@ export function OutdoorSettingsScreen() {
     <Screen>
       <PageHero icon="cardio.gps" color={theme.colors.outdoor} eyebrow="Settings" title="Outdoor & GPS" subtitle="How the GPS works while you move, what it tells you on the way, and how a route is drawn and shared." />
 
+      <AlwaysOnWalkCard />
       <Card style={{ gap: 10 }}>
         <Text variant="h3">GPS precision</Text>
         <Row gap={8} style={{ flexWrap: 'wrap' }}>

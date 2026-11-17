@@ -12,6 +12,13 @@ export type TabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Backup: undefined;
+  MyGym: undefined;
+  TrainingTools: undefined;
+  TrainingCalendar: undefined;
+  CoachWorkbench: undefined;
+  Evidence: undefined;
+  Connections: undefined;
+  HomeLayout: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
 
   LogSession: undefined;

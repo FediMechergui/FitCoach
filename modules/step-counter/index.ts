@@ -4,6 +4,11 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
  * was activated; Android force-stop or process loss can leave unmeasured gaps.
  */
 interface StepCounterNativeModule {
+  alwaysOnStatus?: () => AlwaysOnStatus;
+  setAlwaysOn?: (enabled:boolean) => boolean;
+  resumeAlwaysOn?: () => void;
+  stopIdleMonitoring?: () => void;
+  stepHistory?: () => Array<{date:string;steps:number}>;
   startMonitoring?: () => boolean;
   dailySteps?: () => { date: string; steps: number; updatedAt: number; observedTotal: number };
   setGpsVehicleFilter?: (active: boolean) => void;
@@ -17,6 +22,18 @@ interface StepCounterNativeModule {
 }
 
 const Native = requireOptionalNativeModule<StepCounterNativeModule>('StepCounter');
+export interface AlwaysOnStatus { enabled:boolean; running:boolean; available:boolean; permission:boolean; motionAvailable:boolean; error:string|null }
+export function alwaysOnStatus(): AlwaysOnStatus {
+  try { return Native?.alwaysOnStatus?.() ?? {enabled:false,running:false,available:false,permission:false,motionAvailable:false,error:'Install the 4.1 APK to use always-on detection.'}; }
+  catch { return {enabled:false,running:false,available:false,permission:false,motionAvailable:false,error:'Activity detection is unavailable.'}; }
+}
+export function setAlwaysOn(enabled:boolean):void {
+  if (!Native?.setAlwaysOn) throw new Error('Install the 4.1 APK to use always-on detection.');
+  Native.setAlwaysOn(enabled);
+}
+export function resumeAlwaysOn():void { try { Native?.resumeAlwaysOn?.(); } catch { /* show inactive status; never claim coverage */ } }
+export function stopIdleMonitoring():void { try { Native?.stopIdleMonitoring?.(); } catch { /* optional module */ } }
+export function nativeStepHistory():Array<{date:string;steps:number}> { try { return Native?.stepHistory?.() ?? []; } catch { return []; } }
 
 export function startStepMonitoring(): boolean { try { return Native?.startMonitoring?.() ?? false; } catch { return false; } }
 export function nativeDailySteps() { try { return Native?.dailySteps?.() ?? null; } catch { return null; } }

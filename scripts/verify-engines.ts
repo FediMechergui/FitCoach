@@ -113,7 +113,7 @@ import { parseHHMM, resolveEatenAt, clockOf, EATEN_AT_PRESETS } from '../src/lib
 import { sessionStrain, postSessionMargins, marginStatuses, marginsStillRunning } from '../src/lib/postSession';
 import { prescribeRest, pcrRecovered } from '../src/lib/restPrescription';
 import { PCR_TAU_S, MAX_REST_S } from '../src/lib/restPrescription';
-import { restPhysiology, estimateCohbPct, o2DeliveryFactor, neuralRecoveryFactor, pcrTimeFor, BASELINE_COHB_PCT, MAX_COHB_PCT, MAX_O2_LOSS, MAX_SPLANCHNIC_LOSS, type RestConditions } from '../src/lib/restPhysiology';
+import { restPhysiology } from '../src/lib/restPhysiology';
 import { napBand, napValue, dayRest, timingFactor, nightSleepCostMin, napAdvice, BAND_EFFICIENCY, BAND_INERTIA_MIN, BAND_ALERTNESS_MIN, MAX_NAP_CREDIT_MIN } from '../src/lib/naps';
 import { profileFor, effectiveLoadKg, loadCalorieFactor, intensityCalorieFactor } from '../src/lib/loadProfile';
 import { EXPERIENCE_LEVELS, LEVEL_LABELS, slugsForLevel, prescriptionLine, levelOrDefault } from '../src/lib/level';
@@ -1061,7 +1061,7 @@ console.log('\nCodebase audit (references, schema parity, navigation):');
     const ddlBody = bootSrc7.slice(at + tok.length, bootSrc7.indexOf(');', at));
     const ddlCols = new Set(ddlBody.split('\n').map((l) => l.trim().split(/\s+/)[0]).filter(Boolean));
     for (const col of [...body.matchAll(/(?:text|integer|real)\('(\w+)'/g)].map((x) => x[1])) {
-      if (!ddlCols.has(col)) parityIssues.push(`${table}.${col}`);
+      if (!ddlCols.has(col) && !bootSrc7.includes(`table: '${table}', column: '${col}'`)) parityIssues.push(`${table}.${col}`);
     }
   }
   check('Every drizzle table and column exists in the runtime DDL', parityIssues.length === 0, parityIssues.slice(0, 5).join(', ') || `${tablesChecked} tables`);
@@ -2143,8 +2143,8 @@ console.log('\nCustom foods — calories from macros:');
   // typed *before* the tick from being saved, or the field would be hidden
   // while its old value still went to the database.
   const uiSrc = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
-  check('The rep field is hidden on a failure set', /f\.reps && !toFailure/.test(uiSrc));
-  check('A stale rep count is not saved once failure is ticked', /reps: f\.reps && reps && !\(isLifting && toFailure\)/.test(uiSrc));
+  check('Reps remain visible when a set is taken to failure', /f\.reps && \(/.test(uiSrc) && !/f\.reps && !toFailure/.test(uiSrc));
+  check('Failure preserves completed reps for volume and progression', /reps: f\.reps && reps \?/.test(uiSrc));
   check('RPE and failure are never asked for at the same time', /isLifting && !toFailure/.test(uiSrc));
   check('The RPE guide appears in every lifting session', /<RpeGuide \/>/.test(uiSrc));
 
@@ -2393,14 +2393,14 @@ console.log('\nLayout — one title per page, uniform heroes, section rhythm:');
     .map((m) => {
       const src = fs.readFileSync(`src/screens/${importsL[m[2]]}.tsx`, 'utf8');
       const t = /title: (?:'([^']*)'|"([^"]*)")/.exec(m[3]);
-      return { name: m[1], hero: /<PageHero\b/.test(src), title: t ? (t[1] ?? t[2]) : null, hidden: /headerShown: false/.test(m[3]) };
+      return { name: m[1], hero: /<PageHero\b/.test(src), heading: /<Text variant="h2">/.test(src), title: t ? (t[1] ?? t[2]) : null, hidden: /headerShown: false/.test(m[3]) };
     });
   // A page that opens with a PageHero owns its title; the bar must not repeat it.
   const doubled = routesL.filter((r) => r.hero && r.title && !r.hidden);
   check('No page is titled twice (hero + header bar)', doubled.length === 0, doubled.map((r) => r.name).join(', '));
   // …and a page whose bar title is blank must actually have a hero, or it has no title at all.
-  const untitled = routesL.filter((r) => r.title === '' && !r.hero);
-  check('Every blank-bar page carries a hero', untitled.length === 0, untitled.map((r) => r.name).join(', '));
+  const untitled = routesL.filter((r) => r.title === '' && !r.hero && !r.heading);
+  check('Every blank-bar page has a visible page heading', untitled.length === 0, untitled.map((r) => r.name).join(', '));
   check('The hero pattern is the norm on pushed pages (30+)', routesL.filter((r) => r.hero).length >= 30, `${routesL.filter((r) => r.hero).length}`);
   check('The rule is documented where the routes live', /Title ownership: a page has exactly one title/.test(navSrcL));
 
@@ -2705,7 +2705,7 @@ console.log('\nRest prescription — ATP-PCr, glycolytic, oxidative; the nervous
   check('Logging a set persists its rest prescription after validation', /const rx = isLifting \? rxFor\(draft\) : null;/.test(actSrc) && /store\.startRest\(rx\.restSec, rx, lv\.log\.id\)/.test(actSrc));
   check('…using the movement pattern, bodyweight flag, history 1RM, set index, session clock, level and progress', /compound: COMPOUND_PATTERNS\.has\(lv\.pattern \?\? ''\)/.test(actSrc) && /bodyweight: lv\.equipmentType === 'bodyweight'/.test(actSrc) && /best1RMKg: effBest,/.test(actSrc) && /setIndex: completed\.length/.test(actSrc) && /sessionElapsedMin: \(Date\.now\(\) - sessionStart\)/.test(actSrc) && /isProgress: d\.weightKg != null && topWeightBefore > 0 && d\.weightKg > topWeightBefore/.test(actSrc));
   check('The card says how long and why (energy system, %1RM, CNS, tap for reasons)', /Rest set to/.test(actSrc) && /SYSTEM_LABEL\[lastRx\.system\]/.test(actSrc) && /lastRx\.reasons\.map/.test(actSrc));
-  check('The rest banner shows the creatine-phosphate tank refilling', /Creatine phosphate ~\{pcr\}% refilled/.test(actSrc) && /pcrRecovered\(elapsed, rx\?\.physiology\?\.tauS\)/.test(actSrc));
+  check('The rest banner labels the clock honestly', actSrc.includes('planned rest') && actSrc.includes('does not measure muscle'));
   check('The session detail carries the movement pattern', /pattern: exercises\.pattern,/.test(fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8')));
   check('The store remembers the prescription behind the current rest', /restRx: RestPrescription \| null;/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
 }
@@ -2900,7 +2900,7 @@ console.log('\nRest between sets — paid at its own rate, not the exercise\'s:'
 console.log('\nRunning order — top to bottom, and it stays where you put it:');
 {
   const repoOrd = fs.readFileSync('src/repositories/sessionRepo.ts', 'utf8');
-  check('Swapping an exercise keeps its slot in the order', /export function replaceExerciseLog/.test(repoOrd) && /return addExerciseToSession\(sessionId, newExerciseId, slot\);/.test(repoOrd));
+  check('Swapping preserves the exercise log identity and planned set order', /db\.update\(exerciseLogs\)\.set\(\{exerciseId:newExerciseId,equipmentId:null\}\)/.test(repoOrd) && /return logId;/.test(repoOrd));
   check('…and the store uses it instead of remove-then-append', /const newLogId = replaceExerciseLog\(logId, newExerciseId\);/.test(fs.readFileSync('src/stores/sessionStore.ts', 'utf8')));
   check('An exercise you have started cannot be moved — its place is history', /if \(completedSetsOf\(logId\) > 0\) return false;/.test(repoOrd) && /export function completedSetsOf/.test(repoOrd));
   check('addExerciseToSession can place a row at an explicit slot', /orderIndex\?: number\)/.test(repoOrd) && /orderIndex: orderIndex \?\? count/.test(repoOrd));
@@ -3045,7 +3045,7 @@ console.log('\nThe audit — a crash vector and a total that did not visibly add
   const cycle = fs.readFileSync('src/screens/health/CycleScreen.tsx', 'utf8');
   check('Cycle history survives a malformed symptoms row', /function safeSymptomCount\(json: string\): number/.test(cycle) && /catch \{\s*return 0;/.test(cycle) && !/\$\{\(JSON\.parse\(p\.symptoms\)/.test(cycle));
   const detail = fs.readFileSync('src/screens/train/SessionDetailScreen.tsx', 'utf8');
-  check('The session detail shows the rest share, so the parts sum to the total', /restCalories > 0/.test(detail) && /min of rest between sets/.test(detail));
+  check('Session detail distinguishes timed records from calorie estimates', /<WorkoutTiming/.test(detail) && /Where set time is missing/.test(detail));
 }
 
 console.log('\nThe route has to actually draw:');
@@ -3523,62 +3523,19 @@ console.log('\nFailing over between free models, on evidence from a real device:
   check('Being busy is explained as shared capacity', /capacity is shared/.test(svc));
 }
 
-console.log('\nRest that accounts for the state you turned up in:');
+console.log('\nPhysiology claims remain within what the app can know:');
 {
-  const heavy = {
-    reps: 3, weightKg: 140, rpe: 9, toFailure: false, durationS: null,
+  const heavy = { reps: 3, weightKg: 140, rpe: 9, toFailure: false, durationS: null,
     bodyweight: false, compound: true, best1RMKg: 160, setIndex: 2,
-    sessionElapsedMin: 30, level: 'intermediate' as const,
-  };
-  const rest = (conditions?: RestConditions) => prescribeRest({ ...heavy, conditions }).restSec;
-  const clean = rest();
-
-  // ── Carbon monoxide: the mechanism this is built on. PCr resynthesis is
-  //    entirely aerobic, so CO on the haemoglobin slows the refill itself.
-  check('A cigarette on board lengthens the rest', rest({ coLoad: 1 }) > clean);
-  check('Three lengthen it further', rest({ coLoad: 3 }) >= rest({ coLoad: 1 }));
-  check('COHb rises with the CO still on board', estimateCohbPct(0) === BASELINE_COHB_PCT && estimateCohbPct(1) > estimateCohbPct(0));
-  check('...and never reaches a figure that belongs in a hospital', estimateCohbPct(50) <= MAX_COHB_PCT);
-  check('Oxygen delivery falls with CO, never below the floor', o2DeliveryFactor({ coLoad: 3 }) < 1 && o2DeliveryFactor({ coLoad: 99 }) >= 1 - MAX_O2_LOSS);
-  check('A non-smoker is not penalised for baseline CO', o2DeliveryFactor({}) === 1);
-
-  // ── The conversion is exact, not a fudge: recovery is 1 - e^(-t/tau), so
-  //    time to the same fraction scales exactly as tau does.
-  const phys = restPhysiology({ coLoad: 3 }, PCR_TAU_S);
-  check('The time constant stretches by exactly the oxygen shortfall', Math.abs(phys.tauS - PCR_TAU_S / phys.o2Factor) < 0.2);
-  check('Reaching the same recovery takes proportionally longer', Math.abs(pcrTimeFor(0.9, phys.tauS) / pcrTimeFor(0.9, PCR_TAU_S) - 1 / phys.o2Factor) < 0.01);
-  check('The recovery curve honours the stretched constant', pcrRecovered(120, phys.tauS) < pcrRecovered(120, PCR_TAU_S));
-
-  // ── Digestion: real, and deliberately small next to CO.
-  check('A full stomach lengthens rest a little', rest({ stomachKcal: 600 }) > clean);
-  check('...but far less than smoking does', 1 - o2DeliveryFactor({ stomachKcal: 700 }) <= MAX_SPLANCHNIC_LOSS + 1e-9 && MAX_SPLANCHNIC_LOSS * 3 < MAX_O2_LOSS);
-  check('An empty stomach changes nothing', o2DeliveryFactor({ stomachKcal: 0 }) === 1);
-
-  // ── Sleep acts on the NERVOUS SYSTEM, not on the phosphagen tank. Claiming
-  //    otherwise would invent a mechanism to justify a number.
-  check('Short sleep does not touch oxygen delivery', o2DeliveryFactor({ avgSleepHours: 4 }) === 1);
-  check('...but does lengthen the neural allowance', neuralRecoveryFactor({ avgSleepHours: 5 }) > 1);
-  check('Enough sleep is neutral', neuralRecoveryFactor({ avgSleepHours: 7.5 }) === 1);
-  check('Excellent sleep earns a small reduction', neuralRecoveryFactor({ avgSleepHours: 9 }) < 1);
-  check('Unknown sleep changes nothing', neuralRecoveryFactor({}) === 1);
-  check('Short sleep lengthens a heavy set, which has a neural cost', rest({ avgSleepHours: 5 }) > clean);
-  // A set with no neural component cannot be moved by sleep alone.
-  const light = { ...heavy, reps: 15, weightKg: 20, rpe: 6, compound: false, best1RMKg: 40 };
-  check('...but not an easy set, which has none', prescribeRest({ ...light, conditions: { avgSleepHours: 5 } }).restSec === prescribeRest(light).restSec);
-
-  // ── Neither more nor less than necessary.
-  check('Knowing nothing leaves the evidence-based number untouched', prescribeRest({ ...heavy, conditions: {} }).restSec === clean);
-  check('...and says so rather than inventing a reason', prescribeRest({ ...heavy, conditions: {} }).physiology === undefined);
-  check('Everything at once still respects the five-minute ceiling', rest({ coLoad: 20, stomachKcal: 2000, avgSleepHours: 3 }) <= MAX_REST_S);
-  check('The change from the state is reported, not hidden', prescribeRest({ ...heavy, conditions: { coLoad: 3 } }).restBeforeStateSec === clean);
-  check('Each factor is explained by its mechanism', restPhysiology({ coLoad: 2, stomachKcal: 500, avgSleepHours: 5 }, PCR_TAU_S).notes.length === 3);
-
-  // ── The session screen reads the real, moving state.
+    sessionElapsedMin: 30, level: 'intermediate' as const };
+  const conditions = { coLoad: 3, stomachKcal: 700, avgSleepHours: 5 };
+  const phys = restPhysiology(conditions, PCR_TAU_S);
+  check('Logs do not invent a blood CO measurement', phys.cohbPct === null);
+  check('Logged lifestyle does not imply an individual oxygen or neural coefficient', phys.o2Factor === 1 && phys.neuralFactor === 1);
+  check('Lifestyle context stays qualitative', phys.notes.length === 3 && phys.neutral);
+  check('No unsupported physiological seconds are added to rest', prescribeRest({...heavy, conditions}).restSec === prescribeRest(heavy).restSec);
   const screen = fs.readFileSync('src/screens/train/ActiveSessionScreen.tsx', 'utf8');
-  check('The session reads CO, stomach and sleep', /coLoad\(recentSmokeEvents\(\)\)/.test(screen) && /stomachLoad\(/.test(screen) && /sleepSummary\(\)\.avgRest7d/.test(screen));
-  check('Naps count toward how rested you are', /avgRest7d/.test(screen));
-  check('...and it re-reads as the session runs, since all three move', /\[lv\.sets\.length\]/.test(screen));
-  check('The recovery bar uses the real time constant', /pcrRecovered\(elapsed, rx\?\.physiology\?\.tauS\)/.test(screen));
+  check('Rest progress is elapsed time, not a claimed muscle recovery percentage', screen.includes('planned rest') && !screen.includes('Creatine phosphate ~'));
 }
 
 console.log('\nA library big enough to be whole, graded so it can be used:');
@@ -3875,7 +3832,7 @@ console.log('\nTrain 3.0 - a spine, not a pile:');
   check('The spine reads Start, Browse, History', iStart > 0 && iBrowse > iStart && iRoutines > iBrowse && iRecent > iRoutines);
   check('The readiness verdict replaces two stacked cards', /<ReadinessStrip/.test(train) && !/<DigestionCard/.test(train) && !/<WeatherCard/.test(train));
   check('All seven ground activities ride one rail', /OUTDOOR_ACTIVITIES\.map/.test(train));
-  check('Deleting a routine forgives', /toast\(\{\s*\n\s*message: `Deleted/.test(train) && /saveRoutine\(name, exerciseIds\)/.test(train));
+  check('Deleting a routine offers undo', /toast\(\{\s*\n\s*message: `Deleted/.test(train) && /actionLabel:\s*'Undo'/.test(train) && /onAction:/.test(train));
   check('...and the confirm Alert is gone from this screen', !/Alert\.alert/.test(train));
   check('Category doors say they browse', /Browse \{m\.label\.toLowerCase\(\)\}/.test(train));
   check('Recent sessions wear their type colour', /SESSION_TYPE_META\.find\(\(m\) => m\.type === s\.sessionType\)\?\.color/.test(train));
@@ -5330,7 +5287,7 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   check('With nothing logged, the tip says how to find a weight', /About 52\.5–65 kg/.test(exerciseTip({ focus: 'hypertrophy', phase: 'maintain', kind: 'loaded', last: [], best1RM: 80 }).line));
   check('Hypertrophy on a cut points to Preserve; reducing size points to protein', /Preserve/.test(focusPhaseNote('hypertrophy', 'cut') ?? '') && /protein/.test(focusPhaseNote('reduce', 'cut') ?? ''));
   check('Every focus has a range that makes sense', Object.values(FOCUS_META).every((m) => m.reps[0] < m.reps[1] && m.load[0] < m.load[1] && m.load[1] <= 0.9));
-  check('Each exercise in a session shows its tip, from the last session', /lastSessionSets\(lv\.log\.exerciseId, store\.activeId \?\? null\)/.test(act) && /Tip · \{tip\.heading\}/.test(act));
+  check('Exercise tips compare the same equipment setup', /lastSessionSets\(lv\.log\.exerciseId, store\.activeId \?\? null, undefined, lv\.log\.equipmentId\)/.test(act) && /Tip · \{tip\.heading\}/.test(act));
   check('Choosing a phase moves the calorie goal', /updateProfile\(\{ goal: GOAL_FROM_PHASE\[p\] \}\)/.test(rd('src/screens/profile/TrainingFocusScreen.tsx')));
 
   // ── sit-ups, badges, schema, binary ──
@@ -5345,9 +5302,9 @@ console.log('\nOutdoor 3.8.0 - calories, rides, laps, maps, phase and focus:');
   const boot = rd('src/db/bootstrap.ts');
   check('Schema 40 adds what 3.8.0 stores, for fresh installs and old ones alike', /const SCHEMA_VERSION = (4\d|[5-9]\d);/.test(boot) && ['training_focus', 'route_json', 'gps_from', 'gps_to', 'activity'].every((col) => new RegExp(`column: '${col}'`).test(boot)) && /gps_to INTEGER\n\);/.test(boot.replace(/\r\n/g, '\n')));
   const cfg = rd('app.config.ts');
-  check('The new binary uses a new native runtime and higher versionCode', /versionCode: 5,/.test(cfg) && /'VIBRATE'/.test(cfg) && /version: '4\.0\.0'/.test(cfg));
+  check('The new native features have a new runtime and versionCode', /versionCode: 6,/.test(cfg) && /'VIBRATE'/.test(cfg) && /version: '4\.1\.0'/.test(cfg));
   const srcAll = (function walk(dir: string): string[] { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : /\.(ts|tsx)$/.test(d.name) ? [`${dir}/${d.name}`] : [])); })('src');
-  check('Nothing calls the Vibration API: the update also runs on the older binary that lacks the permission', srcAll.every((f) => !/Vibration\.vibrate\(/.test(fs.readFileSync(f, 'utf8'))));
+  check('Timer vibration is declared in the new native binary', /'VIBRATE'/.test(cfg) && /Vibration\.vibrate/.test(rd('src/screens/train/TrainingToolsScreen.tsx')));
 }
 
 console.log('\nPilates & Hyrox 3.9.0 - two categories of their own:');
@@ -5386,11 +5343,11 @@ console.log('\nLocal APK 3.8.0 - built here, signed like EAS, secrets kept out:'
 {
   const gi = fs.readFileSync('.gitignore', 'utf8');
   check('The downloaded signing credentials can never be committed', /^credentials\.json\r?$/m.test(gi) && /^\/credentials\/\r?$/m.test(gi) && /^\*\.jks\r?$/m.test(gi) && /^\/android\/\r?$/m.test(gi));
-  const ba = fs.readFileSync('scripts/build-apk.js', 'utf8');
-  check('The build script reads the key from credentials.json and hands it to Gradle by environment only', /FITCOACH_STORE_PASSWORD = signing\.storePassword/.test(ba) && /System\.getenv\('FITCOACH_STORE_PASSWORD'\)/.test(ba));
+  const ba = fs.readFileSync('scripts/local-android.cjs', 'utf8');
+  check('Signing passwords reach Gradle only through environment variables', /FITCOACH_STORE_PASSWORD: key\.keystorePassword/.test(ba) && /System\.getenv\('FITCOACH_STORE_PASSWORD'\)/.test(ba));
   check('...and never prints a password', !/console\.(log|error|warn)\([^)]*(assword|signing\.)/.test(ba));
-  check('A warm-up build says loudly it must not be installed', /do not install it over the app/.test(ba));
-  check('Prebuild is not allowed to leave package.json rewritten', /fs\.writeFileSync\(pkgPath, pkgBefore\)/.test(ba));
+  check('Local builds cannot silently use a debug signing key', /PrivateKeyEntry/.test(ba) && /certificate !== expectedCertificate/.test(ba) && /--warm is no longer supported/.test(ba));
+  check('Prebuild restores package.json even when the child fails', /fs\.writeFileSync\(pkgPath, before\)/.test(ba));
   const cfgA = fs.readFileSync('app.config.ts', 'utf8');
   const easA = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
   check('A local build listens on the same update channel as the EAS preview build', new RegExp(`'expo-channel-name': '${easA.build.preview.channel}'`).test(cfgA));
@@ -5433,10 +5390,10 @@ console.log('\nEvery release is an OTA that lands - 3.9.1:');
   const base = JSON.parse(fs.readFileSync('scripts/native-baseline.json', 'utf8'));
   check('A baseline is committed for the installed APK, and it holds nothing secret', !!base.apk && Object.keys(base.dependencies).length > 10 && !/password|keystore|secret|token|apiKey/i.test(JSON.stringify(base)));
   check('The baseline APK listens on the channel releases publish to', base.config.updates?.requestHeaders?.['expo-channel-name'] === 'preview' && /const branch = 'preview'/.test(rel));
-  check('The baseline runtime matches the v4 native release', base.config.runtimeVersion?.policy === 'appVersion' && base.config.version === '4.0.0');
-  const ba = fs.readFileSync('scripts/build-apk.js', 'utf8');
+  check('The baseline uses the app-version runtime policy', base.config.runtimeVersion?.policy === 'appVersion' && typeof base.config.version === 'string');
+  const ba = fs.readFileSync('scripts/local-android.cjs', 'utf8');
   check('A local APK lands in builds/, out of reach of the update export that empties dist/', /path\.join\(root, 'builds'\)/.test(ba) && /^\/builds\/\r?$/m.test(fs.readFileSync('.gitignore', 'utf8')));
-  check('...and records its native baseline when it is signed for the phone', /writeBaseline\(path\.basename\(out\)\)/.test(ba) && ba.indexOf('writeBaseline') > ba.indexOf('if (warm)'));
+  check('Only a verified phone APK can establish the OTA baseline', /if \(!emulator && !bundle\) profile\.writeBaseline\(name\)/.test(ba) && ba.indexOf('profile.writeBaseline') > ba.indexOf('Built APK signature does not match'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

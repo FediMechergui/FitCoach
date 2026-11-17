@@ -1,10 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { db } from '@/db/client';
+import { db, sqlite } from '@/db/client';
 import { atomic } from '@/db/atomic';
 import { customRoutines, exerciseLogs, type CustomRoutine, type SessionType } from '@/db/schema';
 import { getSessionDetail, type SetDraft } from './sessionRepo';
 
-export interface RoutinePrescription { exerciseId: number; sets: SetDraft[]; restSeconds: number }
+export interface RoutinePrescription { exerciseId: number; sets: SetDraft[]; restSeconds: number; circuitGroup?: number | null }
 import { getExercise, type ExerciseView } from './exerciseRepo';
 import { PRIMARY_USER_ID } from './userRepo';
 
@@ -42,6 +42,7 @@ export function saveSessionRoutine(name: string, sessionId: number): RoutineView
   const detail = getSessionDetail(sessionId);
   const routine = saveRoutine(name, detail.logs.map(l => l.log.exerciseId));
   const prescription: RoutinePrescription[] = detail.logs.map(l => ({ exerciseId: l.log.exerciseId,
+    circuitGroup: l.log.supersetGroup,
     restSeconds: l.log.restSeconds ?? 90, sets: l.sets.map(s => ({ reps: s.reps, weightKg: s.weightKg, durationS: s.durationS,
       distanceM: s.distanceM, rpe: s.rpe, toFailure: false, completed: false })) }));
   db.update(customRoutines).set({ sessionType: detail.session.sessionType,
@@ -107,8 +108,18 @@ export function updateRoutineExercises(id: number, exerciseIds: number[]): void 
     .run();
 }
 
-export function deleteRoutine(id: number): void {
+export function deleteRoutine(id: number): () => void {
+  return atomic(() => {
+  const snapshot = db.select().from(customRoutines).where(eq(customRoutines.id, id)).get();
+  const planned = sqlite.getAllSync<{id:number}>('SELECT id FROM training_calendar WHERE routine_id=?',id);
+  sqlite.runSync('UPDATE training_calendar SET routine_id=NULL WHERE routine_id=?',id);
   db.delete(customRoutines).where(eq(customRoutines.id, id)).run();
+  return () => atomic(() => {
+    if (!snapshot) return;
+    db.insert(customRoutines).values(snapshot).run();
+    for (const row of planned) sqlite.runSync('UPDATE training_calendar SET routine_id=? WHERE id=? AND routine_id IS NULL',id,row.id);
+  });
+  });
 }
 
 /** The ordered exercise ids of a logged session — for "save session as routine". */

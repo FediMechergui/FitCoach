@@ -48,7 +48,6 @@ import { todayISO } from '@/lib/date';
 import type { RestConditions } from '@/lib/restPhysiology';
 import {
   prescribeRest,
-  pcrRecovered,
   formatRest,
   COMPOUND_PATTERNS,
   SYSTEM_LABEL,
@@ -58,6 +57,9 @@ import {
 import { profileFor, effectiveLoadKg, LOAD_FIELD_LABEL } from '@/lib/loadProfile';
 import { toast } from '@/components/ui/Toast';
 import { ExerciseHowToSheet } from '@/components/ExerciseHowTo';
+import { SetClock, WorkoutTiming } from '@/components/WorkoutTiming';
+import { parseDuration } from '@/lib/duration';
+import { ExerciseSetup } from '@/components/ExerciseSetup';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const REST_PRESETS = [60, 90, 120, 180, 300];
@@ -267,6 +269,7 @@ export function ActiveSessionScreen() {
       </Card>
 
       <RestTimerBanner />
+      <WorkoutTiming sessionId={store.activeId} live />
 
       {/* Exercises / activities — available for every session type, not just lifting */}
       <ExerciseSection detail={detail?.logs ?? []} accent={meta.color} isLifting={flow === 'lifting'} onGpsStarted={() => setGpsOn(true)} />
@@ -406,7 +409,7 @@ function RestTimerBanner() {
   if (!showing) return null;
   const elapsed = Math.max(0, restDurationS - remaining);
   // Against the tank's ACTUAL refill rate, which slows when oxygen is short.
-  const pcr = Math.round(pcrRecovered(elapsed, rx?.physiology?.tauS) * 100);
+  const restProgress = Math.min(1, elapsed / Math.max(1, restDurationS));
   return (
     <Card accent={theme.colors.warning} style={{ gap: 6 }}>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -431,9 +434,9 @@ function RestTimerBanner() {
         </Pressable>
       </Row>
       {/* The phosphagen tank refilling — the thing the rest is actually for. */}
-      <ProgressBar progress={pcr / 100} color={pcr >= 90 ? theme.colors.success : theme.colors.warning} height={5} />
+      <ProgressBar progress={restProgress} color={theme.colors.warning} height={5} />
       <Text variant="caption" color="textFaint">
-        Creatine phosphate ~{pcr}% refilled{rx && rx.system === 'phosphagen' ? ' — a heavy set wants 90%+' : ''}.
+        {formatDuration(elapsed)} of planned rest. This clock does not measure muscle or energy-system recovery.
       </Text>
       {/* restBeforeStateSec was computed on every prescription and never
           rendered anywhere — the whole point of measuring the state
@@ -469,6 +472,16 @@ function RestTimerBanner() {
 function ExerciseSection({ detail, accent, isLifting, onGpsStarted }: { detail: ExerciseLogView[]; accent: string; isLifting: boolean; onGpsStarted: () => void }) {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
+  const [focused,setFocused] = useState(true);
+  const [focusIndex,setFocusIndex] = useState(0);
+  const currentIndex = Math.min(focusIndex,Math.max(0,detail.length-1));
+  const nextExercise = () => {
+    const group=detail[currentIndex]?.log.supersetGroup;
+    const peers=group==null?[]:detail.map((lv,i)=>({lv,i})).filter(({lv})=>lv.log.supersetGroup===group&&!lv.log.skipped&&(lv.sets.length===0||lv.sets.some(s=>!s.completed)));
+    if(peers.length>1){setFocusIndex(peers.find(p=>p.i>currentIndex)?.i??peers[0].i);return;}
+    const next=detail.findIndex((lv,i)=>i>currentIndex&&!lv.log.skipped);
+    setFocusIndex(next>=0?next:0);
+  };
 
   const totalVolume = useMemo(
     () =>
@@ -498,6 +511,7 @@ function ExerciseSection({ detail, accent, isLifting, onGpsStarted }: { detail: 
           )}
         </Row>
       )}
+      {detail.length>0&&<View style={{gap:8}}><Button title={focused?'Show all exercises':'Focus one exercise'} variant="ghost" size="sm" onPress={()=>setFocused(v=>!v)}/>{focused&&<Row><Button title="Previous" variant="secondary" size="sm" fullWidth={false} disabled={currentIndex===0} onPress={()=>setFocusIndex(v=>Math.max(0,v-1))}/><Button title={detail[currentIndex]?.log.supersetGroup?`Next in circuit ${detail[currentIndex].log.supersetGroup}`:'Next exercise'} variant="secondary" size="sm" fullWidth={false} onPress={nextExercise}/></Row>}</View>}
 
       {detail.length === 0 ? (
         <EmptyState
@@ -511,13 +525,14 @@ function ExerciseSection({ detail, accent, isLifting, onGpsStarted }: { detail: 
         />
       ) : (
         detail.map((lv, i) => {
+          if(focused&&i!==currentIndex)return null;
           // The session runs top to bottom: "up next" is the first exercise
           // with nothing logged on it yet. Nothing reorders on its own.
           const started = lv.sets.some((s) => s.completed);
           const upNextIndex = detail.findIndex((x) => !x.sets.some((s) => s.completed));
           return (
             <ExerciseLogCard
-              key={lv.log.id}
+              key={`${lv.log.id}:${lv.log.exerciseId}`}
               lv={lv}
               accent={accent}
               isLifting={isLifting}
@@ -603,12 +618,12 @@ function ExerciseLogCard({
   // History for this exercise: best 1RM and top weight ever, so the set can
   // be placed as a share of 1RM and recognised as a step up.
   const history = useMemo(() => {
-    const pts = exerciseProgression(lv.log.exerciseId);
+    const pts = exerciseProgression(lv.log.exerciseId, 'epley', undefined, lv.log.equipmentId);
     return {
       best1RM: pts.reduce((m, p) => Math.max(m, p.best1RM), 0),
       topWeight: pts.reduce((m, p) => Math.max(m, p.topWeight), 0),
     };
-  }, [lv.log.exerciseId]);
+  }, [lv.log.exerciseId, lv.log.equipmentId]);
 
   /*
    * The state the lifter is actually in, re-read as the session runs.
@@ -663,12 +678,14 @@ function ExerciseLogCard({
   };
 
   const addSet = () => {
+    let seconds: number | null;
+    try { seconds = parseDuration(minutes); } catch (e) { Alert.alert('Check duration', (e as Error).message); return; }
     const draft = {
-      reps: f.reps && reps && !(isLifting && toFailure) ? parseInt(reps, 10) : null,
+      reps: f.reps && reps ? parseInt(reps, 10) : null,
       weightKg: showLoad && weight ? parseFloat(weight) : null,
       rpe: isLifting && rpe ? parseFloat(rpe) : null,
       toFailure: isLifting && toFailure,
-      durationS: f.duration && minutes ? Math.round(parseFloat(minutes) * 60) : null,
+      durationS: seconds,
       distanceM: f.distance && distanceKm ? Math.round(parseFloat(distanceKm) * 1000) : null,
     };
     // Prescribe from the set BEFORE it is logged, so setIndex counts the sets before it.
@@ -721,7 +738,7 @@ function ExerciseLogCard({
     const kind: TipKind | null = f.distance ? 'distance' : f.weight ? 'loaded' : lv.trackingType === 'reps_only' ? 'bodyweight' : null;
     if (!kind || (!isLifting && kind !== 'distance')) return null;
     try {
-      const last = lastSessionSets(lv.log.exerciseId, store.activeId ?? null).map((x) => ({
+      const last = lastSessionSets(lv.log.exerciseId, store.activeId ?? null, undefined, lv.log.equipmentId).map((x) => ({
         reps: x.reps,
         weightKg: x.weightKg,
         durationS: x.durationS,
@@ -738,7 +755,7 @@ function ExerciseLogCard({
     } catch {
       return null;
     }
-  }, [lv.log.exerciseId, goal, focusRaw, history.best1RM, f.distance, f.weight, isLifting, lv.equipmentType, lv.trackingType, store.activeId]);
+  }, [lv.log.exerciseId, lv.log.equipmentId, goal, focusRaw, history.best1RM, f.distance, f.weight, isLifting, lv.equipmentType, lv.trackingType, store.activeId]);
   const pairingNote = tip ? focusPhaseNote(sanitizeFocus(focusRaw), PHASE_FROM_GOAL[goal]) : null;
 
   return (
@@ -911,14 +928,14 @@ function ExerciseLogCard({
             />
           </View>
         )}
-        {f.reps && !toFailure && (
+        {f.reps && (
           <View style={{ flex: 1 }}>
             <Input label="Reps" value={reps} onChangeText={setReps} placeholder="0" keyboardType="numeric" />
           </View>
         )}
         {f.duration && (
           <View style={{ flex: 1 }}>
-            <Input label="Minutes" value={minutes} onChangeText={setMinutes} placeholder="0" keyboardType="numeric" />
+            <Input label="Time" value={minutes} onChangeText={setMinutes} placeholder="45s / 1:30" autoCapitalize="none" />
           </View>
         )}
         {f.distance && (
@@ -932,6 +949,9 @@ function ExerciseLogCard({
           </View>
         )}
       </Row>
+      {!f.duration && <Input label="Set time (optional)" value={minutes} onChangeText={setMinutes} placeholder="45s, 1:30 or 1.5m" autoCapitalize="none" />}
+      <ExerciseSetup lv={lv} />
+      {store.activeId != null && <SetClock sessionId={store.activeId} logId={lv.log.id} />}
       {f.weight && isDumbbell && (
         <Text variant="caption" color="textFaint">
           One dumbbell, not the pair — 20 kg means 20 in each hand. Keep it the same every time and
@@ -962,7 +982,7 @@ function ExerciseLogCard({
             />
             <Text variant="caption" color={toFailure ? 'warning' : 'textMuted'} style={{ flex: 1 }}>
               {toFailure
-                ? 'To failure — no rep left. Counts as RPE 10, and the reps become a real capacity test.'
+                ? 'To failure — RPE 10. Enter the reps you completed; an estimated 1RM is still an estimate.'
                 : 'To failure? Tick if you could not have done one more.'}
             </Text>
           </Row>
@@ -1071,8 +1091,8 @@ function AlternativePicker({
   const targetSub = target?.subMuscle ? SUB_MUSCLE_LABELS[target.subMuscle] ?? null : null;
 
   const swap = (newId: number) => {
-    store.swapExercise(logId, newId);
-    onDone();
+    try { store.swapExercise(logId, newId); onDone(); }
+    catch (error) { Alert.alert('Change exercise', (error as Error).message); }
   };
 
   return (
@@ -1155,7 +1175,7 @@ function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
     <Card accent={theme.colors.warning} style={{ gap: 10 }}>
       <Row gap={8} style={{ alignItems: 'center' }}>
         <Icon icon="core.timer" size={18} color={theme.colors.warning} />
-        <Text variant="h3" style={{ flex: 1 }}>Warm up first (mandatory)</Text>
+        <Text variant="h3" style={{ flex: 1 }}>Warm-up checklist</Text>
       </Row>
       {muscles.map((m) => (
         <Pressable key={m} onPress={() => toggleWarmup(m)}>
@@ -1175,8 +1195,8 @@ function WarmupChecklist({ detail }: { detail: ExerciseLogView[] }) {
         </Pressable>
       ))}
       <Text variant="caption" color="textFaint">
-        Warming up raises muscle temperature and primes the joints — it directly cuts injury
-        risk before your working sets.
+        Rehearse today's movements with easy repetitions before your working sets.
+        Adjust this checklist for your experience and comfort.
       </Text>
     </Card>
   );

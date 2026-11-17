@@ -209,7 +209,7 @@ async function post(
   }
 }
 
-async function ask(
+export async function ask(
   content: ChatMessageContent[],
   schema: Record<string, unknown>,
   schemaName: string,

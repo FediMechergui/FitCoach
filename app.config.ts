@@ -9,7 +9,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'FitCoach',
   slug: 'fitcoach',
   owner: 'fedimechergui',
-  version: '4.0.0',
+  version: '4.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'fitcoach',
@@ -40,10 +40,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   android: {
     package: 'com.fitcoach.app',
-    // Runtime 4.0.0 adds secure storage and tracking changes. The same signing
+    // Runtime 4.1.0 adds on-device OCR, Health Connect and a home-screen widget. The same signing
     // identity and higher versionCode preserve existing installations and data.
-    // Later JS-only releases stay on runtime 4.0.0 and the preview OTA channel.
-    versionCode: 5,
+    // Later JS-only releases stay on runtime 4.1.0 and the preview OTA channel.
+    versionCode: 6,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',

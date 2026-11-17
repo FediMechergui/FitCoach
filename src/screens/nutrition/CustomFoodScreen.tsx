@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { nativeTools } from '../../../modules/fitcoach-tools';
+import { nutritionLabelDraft } from '@/lib/nutritionLabel';
 import { View, ScrollView, KeyboardAvoidingView, Platform, Pressable, Alert } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -63,6 +65,16 @@ export function CustomFoodScreen() {
   const [imageUri, setImageUri] = useState<string | null>(existing?.imageUri ?? null);
   /** pictures taken in this visit and then replaced: deleted when the screen saves */
   const [discarded, setDiscarded] = useState<string[]>([]);
+  const [labelText,setLabelText] = useState('');
+  const [labelBusy,setLabelBusy] = useState(false);
+  const [labelApplied,setLabelApplied] = useState(false);
+  const scanLabel = async () => {
+    if(!imageUri)return;
+    setLabelBusy(true);
+    try {const result=await nativeTools().readText(imageUri);setLabelText(result.text);if(!result.text.trim())Alert.alert('No label text','Take a clear, close photo of the nutrition panel.');}
+    catch(e){Alert.alert('Label recognition',(e as Error).message);}
+    finally{setLabelBusy(false);}
+  };
 
   const addPhoto = async (fromCamera: boolean) => {
     const r = await pickFoodPhoto(fromCamera);
@@ -73,6 +85,7 @@ export function CustomFoodScreen() {
     }
     if (imageUri && imageUri !== existing?.imageUri) setDiscarded((d) => [...d, imageUri]);
     setImageUri(r.uri);
+    setLabelText('');
   };
 
   const macros = {
@@ -85,7 +98,7 @@ export function CustomFoodScreen() {
   const entered = parseAmount(calories);
   const shown = entered > 0 ? entered : derived;
   const estimated = entered <= 0;
-  const complete = isCompleteCustomFood({ name, ...macros });
+  const complete = isCompleteCustomFood({ name, ...macros }) && (!labelApplied || !!serving.trim());
 
   const save = () => {
     if (!complete) return;
@@ -157,6 +170,15 @@ export function CustomFoodScreen() {
             <Text variant="caption" color="textFaint">
               The picture stays on your phone. Without one, the food shows a tile in the colour of its kind.
             </Text>
+            {imageUri && <View style={{gap:8}}>
+              <Button title={labelBusy?'Reading label…':'Read nutrition label from photo'} variant="secondary" disabled={labelBusy} onPress={()=>void scanLabel()}/>
+              <Button title="Check on-device OCR" variant="ghost" size="sm" onPress={()=>void nativeTools().prepareOcr().then(()=>Alert.alert('OCR','Built-in text recognition is ready and works offline.')).catch(e=>Alert.alert('OCR',e.message))}/>
+              {!!labelText && <>
+                <Input label="Recognized label text — verify the column and serving" multiline value={labelText} onChangeText={setLabelText}/>
+                <Text variant="caption" color="textMuted">OCR can confuse decimal points, columns, kJ/kcal and serving sizes. Values below are suggestions from the first matching column. Confirm the printed basis and every value before saving.</Text>
+                <Button title="Use label suggestions in the form" size="sm" variant="secondary" onPress={()=>{const d=nutritionLabelDraft(labelText);if(d.calories!=null)setCalories(String(d.calories));if(d.protein!=null)setProtein(String(d.protein));if(d.carbs!=null)setCarbs(String(d.carbs));if(d.fat!=null)setFat(String(d.fat));if(d.fiber!=null)setFiber(String(d.fiber));setServing('');setLabelApplied(true);Alert.alert('Confirm serving','Enter the serving basis shown on the label (for example 100 g or one 30 g portion). All nutrient values must refer to that same amount.');}}/>
+              </>}
+            </View>}
             <Input label="Name" value={name} onChangeText={setName} placeholder="e.g. Mum's couscous" />
             <Input
               label="Serving"
@@ -217,7 +239,7 @@ export function CustomFoodScreen() {
             />
             <Text variant="caption" color="textFaint">
               {estimated
-                ? "Worked out from the macros — 4 kcal a gram for protein and carbs, 9 for fat, with fibre at 2. That lands within 10% for 97 of every 100 foods in the database. Type a figure from the label to use it instead."
+                ? "Worked out from the macros — 4 kcal a gram for protein and carbs, 9 for fat, with fibre at 2. This is an approximation; label conventions and food composition vary. Type a figure from the label to use it instead."
                 : 'Using the figure you entered.'}
             </Text>
           </Card>
@@ -234,7 +256,7 @@ export function CustomFoodScreen() {
             />
             <Text variant="caption" color="textFaint">
               {form === 'liquid'
-                ? 'A drink leaves the stomach about twice as fast as the same calories as food, and settles in a quarter of the time — the training clock runs it that way.'
+                ? 'Liquid meals can digest differently. Composition, portion size and individual tolerance affect timing; the app uses a rough comfort estimate.'
                 : 'Food eaten with a fork or a spoon. If it is a shake, a juice, a soup or a milk, pick Liquid — the training clock will run it faster.'}
             </Text>
           </Card>
@@ -277,7 +299,7 @@ export function CustomFoodScreen() {
           />
           {!complete && (
             <Text variant="caption" color="textFaint" style={{ textAlign: 'center' }}>
-              Needs a name and at least one macro.
+              Needs a name, at least one macro, and a confirmed serving when using OCR.
             </Text>
           )}
           {editingId && (

@@ -11,13 +11,13 @@ export const BACKUP_TABLES = [
   'habit_entries', 'work_logs', 'prayer_settings', 'fasting_profiles', 'fasting_logs', 'self_care_logs',
   'prayer_logs', 'app_open_logs', 'profile_photos', 'custom_foods', 'daily_challenges', 'meal_routines',
   'rest_days', 'challenge_spins', 'point_purchases', 'weekly_quests', 'path_enrolments', 'path_graduations',
-  'places', 'place_visits',
+  'places', 'place_visits', 'gym_equipment', 'exercise_preferences', 'workout_timing', 'training_calendar', 'walk_annotations',
 ] as const;
 type Row = Record<string, string | number | null>;
 export interface BackupSnapshot { format: 1; schema: number; createdAt: number; tables: Record<string, Row[]>;
   preferences: Row[]; media: Record<string, string> }
 // Explicit known preference namespaces. No token, key, tracking checkpoint or backup settings.
-const safePreference = (key: string) => /^(theme\.preference|outdoor\.settings|openrouter\.model|alcohol\.freeDays\.\d+|diet\.exclusions)$/.test(key);
+const safePreference = (key: string) => /^(theme\.preference|outdoor\.settings|openrouter\.model|alcohol\.freeDays\.\d+|diet\.exclusions|home\.sections)$/.test(key);
 export function captureSnapshot(): BackupSnapshot {
   return atomic(() => ({ format: 1, schema: SCHEMA_VERSION, createdAt: Date.now(),
     tables: Object.fromEntries(BACKUP_TABLES.map(table => [table, sqlite.getAllSync<Row>(`SELECT * FROM "${table}"`)])),
@@ -30,6 +30,8 @@ export function validateSnapshot(value: unknown): BackupSnapshot {
     || !Array.isArray(s.preferences)) throw new Error('This backup is unsupported. Update FitCoach before restoring it.');
   for (const table of Object.keys(s.tables)) if (!(BACKUP_TABLES as readonly string[]).includes(table)) throw new Error('Backup contains an unsupported table.');
   for (const table of BACKUP_TABLES) {
+    // Version 43 backups predate these tables. Restore them as empty, never reject old backups.
+    if (s.schema < 44 && ['gym_equipment','exercise_preferences','workout_timing','training_calendar','walk_annotations'].includes(table) && s.tables[table] === undefined) s.tables[table] = [];
     if (!Array.isArray(s.tables[table]) || s.tables[table].length > 500_000) throw new Error(`Invalid backup table: ${table}`);
     const columns = new Set(sqlite.getAllSync<{name: string}>(`PRAGMA table_info("${table}")`).map(c => c.name));
     for (const row of s.tables[table]) {
@@ -45,6 +47,10 @@ export function validateSnapshot(value: unknown): BackupSnapshot {
     ['exercise_logs','session_id','sessions'], ['exercise_logs','exercise_id','exercises'],
     ['set_entries','exercise_log_id','exercise_logs'], ['supplement_logs','food_entry_id','food_entries'],
     ['alcohol_entries','food_entry_id','food_entries'], ['place_visits','place_id','places'],
+    ['workout_timing','session_id','sessions'], ['workout_timing','log_id','exercise_logs'],
+    ['exercise_preferences','exercise_id','exercises'], ['walk_annotations','walk_id','walk_sessions'],
+    ['exercise_logs','equipment_id','gym_equipment'], ['training_calendar','routine_id','custom_routines'],
+    ['training_calendar','session_id','sessions'],
   ];
   // Older databases were created without SQL FK constraints; validate these links explicitly too.
   for (const [table,column,parent] of links) {
@@ -73,6 +79,7 @@ export function restoreSnapshot(value: unknown): void {
     sqlite.execSync('DELETE FROM live_walks');
     sqlite.execSync('DELETE FROM coach_tips; DELETE FROM weather_readings');
     sqlite.execSync('UPDATE sessions SET archived_at = start_time WHERE end_time IS NULL');
+    sqlite.execSync('UPDATE workout_timing SET ended_at = started_at, review_required = 1 WHERE ended_at IS NULL');
     const failures = sqlite.getAllSync('PRAGMA foreign_key_check');
     if (failures.length) throw new Error('Backup relationships are damaged. Your current data has been preserved.');
   });

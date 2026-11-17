@@ -4,12 +4,12 @@ import { createBackupHandler, sha256 } from '../functions/lib/backups.mjs';
 
 const alice = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
 const bob = 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
-function harness() {
+function harness(deleteAccount = async () => {}) {
   const values = new Map();
   const store = { get: async key => values.get(key) ?? null, set: async (k,v) => values.set(k,v),
     setJSON: async (k,v) => values.set(k,structuredClone(v)), delete: async k => values.delete(k),
     list: async function* ({prefix}) { yield { blobs: [...values.keys()].filter(k => k.startsWith(prefix)).map(key => ({key})) }; } };
-  const handler = createBackupHandler({ store, authenticate: async r => r.headers.get('authorization') ? { id: r.headers.get('authorization') } : null });
+  const handler = createBackupHandler({ store, deleteAccount, authenticate: async r => r.headers.get('authorization') ? { id: r.headers.get('authorization') } : null });
   const call = async (user, method, path = '', body) => {
     const response = await handler(new Request(`https://example.test/api/backups${path}`, { method, headers: user ? { authorization:user } : {}, body: body ? JSON.stringify(body) : undefined }));
     return { status: response.status, body: await response.json() };
@@ -46,4 +46,21 @@ test('bounded manifests and retention keep three completed versions', async () =
     assert.equal((await call(alice,'POST',`/${draft.id}`)).status,200);
   }
   assert.equal((await call(alice,'GET')).body.length,3);
+});
+
+test('account deletion removes only authenticated owner data and blocks later writes',async()=>{
+  const deleted=[];const {call,values,manifest}=harness(async id=>deleted.push(id));
+  const a=(await call(alice,'POST','',manifest)).body;const b=(await call(bob,'POST','',manifest)).body;
+  assert.equal((await call(alice,'DELETE','/account',{confirm:'no'})).status,400);
+  assert.equal((await call(alice,'DELETE','/account',{confirm:'DELETE MY ACCOUNT',userId:bob})).status,200);
+  assert.deepEqual(deleted,[alice]);assert.equal(values.has(`users/${alice}/drafts/${a.id}`),false);
+  assert.equal(values.has(`users/${bob}/drafts/${b.id}`),true);
+  assert.equal((await call(alice,'POST','',manifest)).status,409);
+});
+test('identity deletion failure is explicit and retryable after backups were erased',async()=>{
+  let fail=true;const {call,values,manifest}=harness(async()=>{if(fail)throw new Error('temporary outage');});
+  await call(alice,'POST','',manifest);
+  const first=await call(alice,'DELETE','/account',{confirm:'DELETE MY ACCOUNT'});assert.equal(first.status,503);
+  assert.match(first.body.error,/backups were deleted/);assert.equal([...values.keys()].filter(k=>!k.endsWith('/deleting')).length,0);
+  fail=false;assert.equal((await call(alice,'DELETE','/account',{confirm:'DELETE MY ACCOUNT'})).status,200);
 });

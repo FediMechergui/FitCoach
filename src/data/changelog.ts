@@ -19,6 +19,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '4.1.0',
+    date: '2026-11-17',
+    title: 'Recorded timing, your gym and reviewable coaching',
+    highlights: [
+      'Start/end set timing with separate work, rest, transition and pause intervals. Seconds, minutes and m:ss inputs; correctable sets and preserved rep counts on failure sets.',
+      'Favorites, recent exercises, personal search aliases and My gym equipment. Machine-specific history, setup notes and available-equipment substitutions.',
+      'Built-in offline nutrition/equipment label OCR for Latin text. Optional AI equipment suggestions, programme imports, voice-log drafts and training reviews require confirmation.',
+      'Plate and warm-up calculators, tempo cues, interval timers, a training calendar and weekly review. Home sections can be pinned, reordered or hidden.',
+      'Clear calculation sources and limits. Rest clocks no longer claim to measure muscle recovery, blood oxygen or personal muscle gain.',
+      'Health Connect on Android 14+, a home-screen snapshot widget, private CSV/GPX exports, saved route comparisons and reversible activity corrections.',
+      'Optional always-on walk detection counts observed daily steps without GPS, with vehicle filtering, a visible status, a notification off switch and best-effort reboot recovery.',
+      'Wi-Fi-only backup option, overdue notices and account/cloud-backup deletion. Signed APK builds now run locally; compatible JS updates continue on runtime 4.1.0.',
+    ],
+  },
+  {
     version: '4.0.0',
     date: '2026-11-16',
     title: 'Reliable logs, lighter tracking and private backups',

@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { WalkReview } from '@/components/WalkReview';
+import { EvidenceLink } from '@/components/EvidenceLink';
 import { View, Alert } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,7 +30,8 @@ export function WalkDetailScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<DetailRoute>();
   const unit = useUserStore((s) => s.user?.unitPreference ?? 'metric');
-  const session = useMemo(() => getWalkSession(route.params.walkId), [route.params.walkId]);
+  const [revision,setRevision] = useState(0);
+  const session = useMemo(() => getWalkSession(route.params.walkId), [route.params.walkId,revision]);
 
   if (!session) {
     return (
@@ -111,6 +114,8 @@ export function WalkDetailScreen() {
         </Row>
       ) : null}
 
+      <WalkReview key={`${session.id}:${revision}`} walk={session} onChange={()=>setRevision(v=>v+1)} />
+      <EvidenceLink />
       <Button title="Delete session" variant="ghost" icon="core.delete" color={theme.colors.danger} onPress={confirmDelete} />
     </Screen>
   );

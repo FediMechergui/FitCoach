@@ -1,9 +1,11 @@
 import { getStore } from '@netlify/blobs';
 import { createBackupHandler } from './lib/backups.mjs';
+import { admin } from '@netlify/identity';
 
 export default async request => {
   const handler = createBackupHandler({
     store: getStore({ name: 'fitcoach-encrypted-backups', consistency: 'strong' }),
+    deleteAccount: id => admin.deleteUser(id),
     authenticate: async req => {
       const authorization = req.headers.get('authorization') ?? '';
       if (!/^Bearer [A-Za-z0-9_.-]+$/.test(authorization) || authorization.length > 8192) return null;

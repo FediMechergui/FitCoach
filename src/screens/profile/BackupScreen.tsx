@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Row } from '@/components/ui/misc';
 import { backupAccount, backupStatus, createBackupAccount, signInBackup, signOutBackup, resetBackupPassword,
   prepareRecoveryKey, savedRecoveryCode, setAutomaticBackup, runBackup, listBackups, downloadBackup,
-  applyBackup, deleteCloudBackup, type BackupManifest } from '@/services/backup';
+  applyBackup, deleteCloudBackup, deleteBackupAccount, setBackupWifiOnly, type BackupManifest } from '@/services/backup';
 import type { BackupSnapshot } from '@/repositories/backupRepo';
 
 export function BackupScreen() {
@@ -44,7 +44,7 @@ export function BackupScreen() {
     <Card style={{gap:8}}>
       <Text variant="bodyStrong">Your data, with a recovery copy</Text>
       <Text variant="caption" color="textMuted">FitCoach works without an account. Enable backups to upload an encrypted copy of your profile, health logs, routes and saved photos to Netlify. API keys and account tokens are excluded. Your recovery key is needed on a new phone.</Text>
-      <Text variant="caption" color="textMuted">Automatic backup is due every 24 hours. Android chooses when background jobs run; opening FitCoach catches up a missed backup. Uploads use available internet, including mobile data. Three completed backups are kept.</Text>
+      <Text variant="caption" color="textMuted">Automatic backup is due every 24 hours. Android chooses when background jobs run; opening FitCoach catches up a missed backup. Choose Wi-Fi only to avoid mobile data. Three completed backups are kept.</Text>
     </Card>
     {!account ? <Card style={{gap:12}}>
       <Input label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
@@ -61,6 +61,8 @@ export function BackupScreen() {
             onValueChange={enabled=>void action(async()=>{if(enabled&&!savedRecoveryCode()){setMessage('Set up a recovery key below first.');return;}await setAutomaticBackup(enabled);})} />
         </Row>
         <Text variant="caption" color="textMuted">Last successful backup: {status.lastSuccess?new Date(status.lastSuccess).toLocaleString():'None yet'}</Text>
+        <Row style={{justifyContent:'space-between',alignItems:'center'}}><Text>Wi-Fi only</Text><Switch accessibilityLabel="Back up only on Wi-Fi" disabled={busy||status.busy} value={status.wifiOnly??false} onValueChange={value=>{setBackupWifiOnly(value);setStatus(backupStatus());}}/></Row>
+        {status.enabled && (!status.lastSuccess || Date.now()-status.lastSuccess>48*3600000) && <Text color="warning">Backup overdue. Open the app on an allowed connection and use Back up now. Android may delay background jobs.</Text>}
         {status.busy && <Text variant="caption">Encrypting and uploading…</Text>}
         {status.error && <Text variant="caption" color="warning">{status.error}</Text>}
         <Button title="Back up now" disabled={busy || status.busy || !status.enabled} onPress={()=>void action(async()=>{await runBackup(true);setVersions(await listBackups());setMessage('Backup completed.');})} />
@@ -94,6 +96,7 @@ export function BackupScreen() {
         </View>}
       </Card>
       <Button title="Sign out & pause backups" variant="ghost" disabled={busy || status.busy} onPress={()=>void action(async()=>{await signOutBackup();setRevealed(null);setPreview(null);setVersions([]);})} />
+      <Button title="Delete account and all cloud backups" variant="danger" disabled={busy||status.busy} onPress={()=>Alert.alert('Permanently delete this backup account?',`All cloud backups and the account ${account.email} will be deleted. Your local FitCoach logs stay on this phone.`,[{text:'Cancel',style:'cancel'},{text:'Delete account',style:'destructive',onPress:()=>void action(async()=>{await deleteBackupAccount();setRevealed(null);setPreview(null);setVersions([]);setMessage('Account and cloud backups deleted. Local logs were preserved.');})}])}/>
     </>}
     {!!message && <Text variant="body" accessibilityLiveRegion="polite">{message}</Text>}
     {busy && <Text variant="caption" accessibilityLiveRegion="polite">Working…</Text>}

@@ -1,8 +1,8 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { Pedometer } from 'expo-sensors';
-import { Platform } from 'react-native';
-import { nativeDailySteps, startStepMonitoring } from '../../modules/step-counter';
+import { AppState, Platform } from 'react-native';
+import { nativeDailySteps, nativeStepHistory, alwaysOnStatus, startStepMonitoring, resumeAlwaysOn } from '../../modules/step-counter';
 import { initDatabase } from '@/db/bootstrap';
 import { setDailySteps } from '@/repositories/activityRepo';
 import { distanceFromSteps } from '@/lib/pedometer';
@@ -40,7 +40,15 @@ export async function syncTodaySteps(): Promise<number> {
   if (Platform.OS === 'android') {
     const permission = await Pedometer.getPermissionsAsync().catch(() => null);
     if (!permission?.granted) return 0;
-    startStepMonitoring();
+    if (AppState.currentState === 'active') { resumeAlwaysOn(); startStepMonitoring(); }
+    const user = getUser();
+    const heightCm = user?.heightCm ?? 175;
+    const weightKg = latestWeight()?.weightKg ?? 75;
+    for (const day of nativeStepHistory()) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day.date) || !Number.isFinite(day.steps) || day.steps <= 0) continue;
+      const distanceM = distanceFromSteps(day.steps, heightCm, 'walk');
+      setDailySteps(day.date, day.steps, distanceM, walkCalories({weightKg,distanceM,durationSec:0,steps:day.steps}));
+    }
     const observed = nativeDailySteps();
     if (observed?.date === todayISO()) result = observed;
   } else result = await Pedometer.getStepCountAsync(start, new Date()).catch(() => null);
@@ -58,6 +66,10 @@ export async function syncTodaySteps(): Promise<number> {
 
 export async function registerBackgroundSteps(): Promise<void> {
   try {
+    if (Platform.OS === 'android' && !alwaysOnStatus().enabled) {
+      if (await TaskManager.isTaskRegisteredAsync(DAILY_STEPS_TASK)) await BackgroundFetch.unregisterTaskAsync(DAILY_STEPS_TASK);
+      return;
+    }
     const status = await BackgroundFetch.getStatusAsync();
     if (
       status === BackgroundFetch.BackgroundFetchStatus.Restricted ||

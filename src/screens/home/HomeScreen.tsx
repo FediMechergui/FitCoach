@@ -28,6 +28,7 @@ import { ConsistencyCard } from '@/components/ConsistencyCard';
 import { ReadinessStrip } from '@/components/ReadinessStrip';
 import { SessionTypeSheet } from '@/components/SessionTypeSheet';
 import { FuelCell } from '@/components/FuelCell';
+import { HomeSection, HomeSections } from '@/components/HomeSections';
 import { EnergyBalanceStrip } from '@/components/EnergyBalanceCard';
 import { PHASE_GUIDANCE } from '@/lib/cycle';
 import { getDailySteps } from '@/repositories/activityRepo';
@@ -260,6 +261,9 @@ export function HomeScreen() {
         />
       </Row>
 
+      <Button title="Customize Home" size="sm" variant="ghost" onPress={() => navigation.navigate('HomeLayout')} />
+      <HomeSections>
+      <HomeSection key="consistency" id="consistency">
       {usage && (
         <ConsistencyCard
           usage={usage}
@@ -283,6 +287,8 @@ export function HomeScreen() {
         />
       )}
 
+      </HomeSection>
+      <HomeSection key="challenges" id="challenges">
       {/* ── Points — what the challenges have earned, and today's one ── */}
       {chal && (
         <Card accent={theme.colors.accent} onPress={() => navigation.navigate('DailyChallenge')}>
@@ -333,6 +339,8 @@ export function HomeScreen() {
         </Card>
       )}
 
+      </HomeSection>
+      <HomeSection key="path" id="path">
       {/* ── The path being walked ── */}
       {walking && (
         <Card accent={walking.path.accent} onPress={() => navigation.navigate('PathDetail', { pathKey: walking.path.key })}>
@@ -357,6 +365,8 @@ export function HomeScreen() {
         </Card>
       )}
 
+      </HomeSection>
+      <HomeSection key="readiness" id="readiness">
       {/* ── Readiness ────────────────────────────────────────────────────── */}
       <ReadinessStrip
         meals={digestMeals}
@@ -366,6 +376,8 @@ export function HomeScreen() {
         weatherLine={weatherLine}
       />
 
+      </HomeSection>
+      <HomeSection key="nutrition" id="nutrition">
       {/* ── Fuel ─────────────────────────────────────────────────────────── */}
       <FuelCell
         calConsumed={calConsumed}
@@ -401,6 +413,8 @@ export function HomeScreen() {
         </Text>
       </Pressable>
 
+      </HomeSection>
+      <HomeSection key="selfcare" id="selfcare">
       {/* ── Life ─────────────────────────────────────────────────────────── */}
       <SectionHeader title="Self-care" />
       <Card>
@@ -437,6 +451,8 @@ export function HomeScreen() {
         </Row>
       </Card>
 
+      </HomeSection>
+      <HomeSection key="prayers" id="prayers">
       {/* Prayer check-ins (faith mode) */}
       {faithOn && (
         <>
@@ -476,6 +492,8 @@ export function HomeScreen() {
         </>
       )}
 
+      </HomeSection>
+      <HomeSection key="coach" id="coach">
       {/* Coach tips — at most two; the coach advises, it doesn't lecture. */}
       {tips.length > 0 && (
         <View style={{ gap: theme.spacing.md }}>
@@ -501,6 +519,8 @@ export function HomeScreen() {
         </View>
       )}
 
+      </HomeSection>
+      <HomeSection key="health" id="health">
       {/* Recovery row — when the cycle is on, alcohol keeps its own slot
           instead of the two fighting over one tile. */}
       <Row>
@@ -535,6 +555,8 @@ export function HomeScreen() {
         </Pressable>
       ) : null}
 
+      </HomeSection>
+      <HomeSection key="smoking" id="smoking">
       {/* Smoking tracker tile (opt-in) */}
       {smokingEnabled && (
         <Pressable onPress={() => navigation.navigate('Smoking')}>
@@ -554,7 +576,7 @@ export function HomeScreen() {
                   )}
                   <Text variant="caption" color="textMuted">
                     {smokingImpact
-                      ? `~${smokingImpact.avgPerDay}/day · −${smokingImpact.aerobicPenaltyPct}% aerobic (est.)`
+                      ? `~${smokingImpact.avgPerDay}/day logged`
                       : 'Tap for impact'}
                   </Text>
                 </View>
@@ -564,6 +586,8 @@ export function HomeScreen() {
           </Card>
         </Pressable>
       )}
+      </HomeSection>
+      </HomeSections>
       <SessionTypeSheet visible={showTypePicker} onClose={() => setShowTypePicker(false)} />
     </Screen>
   );

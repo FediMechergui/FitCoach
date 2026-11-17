@@ -84,7 +84,7 @@ import { repairSessionHistory } from '@/repositories/sessionRepo';
  *                  props, reformer, cadillac, Wunda chair, barrels), 37 Hyrox.
  *                  No new table or column: the bump re-seeds.
  */
-export const SCHEMA_VERSION = 43;
+export const SCHEMA_VERSION = 44;
 
 /**
  * Columns added after v1. `ALTER TABLE ADD COLUMN` is applied only if the column
@@ -92,6 +92,9 @@ export const SCHEMA_VERSION = 43;
  * CREATE above) and upgrades from an earlier dev database.
  */
 const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
+  { table: 'set_entries', column: 'duration_source', ddl: 'TEXT' },
+  { table: 'exercise_logs', column: 'equipment_id', ddl: 'INTEGER' },
+  { table: 'exercise_logs', column: 'skipped', ddl: 'INTEGER NOT NULL DEFAULT 0' },
   { table: 'exercise_logs', column: 'rest_seconds', ddl: 'INTEGER' },
   { table: 'custom_routines', column: 'style', ddl: 'TEXT' },
   { table: 'custom_routines', column: 'session_type', ddl: 'TEXT' },
@@ -885,6 +888,57 @@ CREATE TABLE IF NOT EXISTS place_visits (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_place_visits_user_place ON place_visits(user_id, place_id);
+
+CREATE TABLE IF NOT EXISTS workout_timing (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  log_id INTEGER REFERENCES exercise_logs(id) ON DELETE SET NULL,
+  set_id INTEGER,
+  phase TEXT NOT NULL CHECK(phase IN ('work','rest','transition','paused')),
+  started_at INTEGER NOT NULL,
+  ended_at INTEGER,
+  target_end INTEGER,
+  review_required INTEGER NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_open_timing ON workout_timing(session_id) WHERE ended_at IS NULL;
+CREATE TABLE IF NOT EXISTS gym_equipment (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  brand TEXT,
+  model TEXT,
+  location TEXT,
+  unit TEXT NOT NULL DEFAULT 'kg',
+  settings TEXT,
+  exercise_ids TEXT NOT NULL DEFAULT '[]',
+  ocr_text TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS exercise_preferences (
+  exercise_id INTEGER PRIMARY KEY REFERENCES exercises(id) ON DELETE CASCADE,
+  favorite INTEGER NOT NULL DEFAULT 0,
+  aliases TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS training_calendar (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  title TEXT NOT NULL,
+  routine_id INTEGER,
+  status TEXT NOT NULL DEFAULT 'planned',
+  session_id INTEGER,
+  notes TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS walk_annotations (
+  walk_id INTEGER PRIMARY KEY REFERENCES walk_sessions(id) ON DELETE CASCADE,
+  route_name TEXT,
+  saved INTEGER NOT NULL DEFAULT 0,
+  original_json TEXT,
+  correction_json TEXT,
+  reason TEXT,
+  updated_at INTEGER NOT NULL
+);
 `;
 
 let initialized = false;

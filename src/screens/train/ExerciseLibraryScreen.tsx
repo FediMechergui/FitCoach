@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Pressable, FlatList } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
@@ -36,6 +36,7 @@ import { difficultyBySlug } from '@/data/exercises';
 import { DIFFICULTY_LABELS, suitsLevel, levelFit, levelNote, type Difficulty } from '@/lib/exerciseDifficulty';
 import { levelOrDefault, LEVEL_LABELS } from '@/lib/level';
 import { EXERCISE_FAMILIES, familyOf, findFamily, type ExerciseFamily } from '@/lib/exerciseFamilies';
+import { equipmentList, exercisePreferences, recentExerciseIds, saveExercisePreference } from '@/repositories/gymRepo';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type LibRoute = RouteProp<RootStackParamList, 'ExerciseLibrary'>;
@@ -93,6 +94,10 @@ export function ExerciseLibraryScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<ExerciseView | null>(null);
   const [refresh, setRefresh] = useState(0);
+  useFocusEffect(useCallback(() => { setRefresh(v => v + 1); }, []));
+  const [collection, setCollection] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const preferences = useMemo(() => new Map(exercisePreferences().map(p => [p.exercise_id, p])), [refresh]);
 
   const muscleItems = useMemo(
     () =>
@@ -129,10 +134,13 @@ export function ExerciseLibraryScreen() {
     const inFamily = family === 'all' ? muscleItems : muscleItems.filter((e) => familyOf(e) === family);
     const base = subMuscle === 'all' ? inFamily : inFamily.filter((e) => subMuscleOf(e) === subMuscle);
     const rated = base.map((e, i) => ({ e, i, d: ((e.slug ? difficultyBySlug(e.slug) : null) ?? 3) as Difficulty }));
-    const pool = forMyLevel ? rated.filter((x) => suitsLevel(x.d, level)) : rated;
+    const recent = new Set(recentExerciseIds());
+    const gym = new Set(equipmentList().flatMap(e => JSON.parse(e.exercise_ids) as number[]));
+    const filtered = rated.filter(x => collection === 'favorites' ? preferences.get(x.e.id)?.favorite : collection === 'recent' ? recent.has(x.e.id) : collection === 'gym' ? gym.has(x.e.id) || x.e.equipmentType === 'bodyweight' : true);
+    const pool = forMyLevel ? filtered.filter((x) => suitsLevel(x.d, level)) : filtered;
     // Stable: equally-fitting exercises keep the catalogue's own order.
     return pool.sort((x, y) => levelFit(y.d, level) - levelFit(x.d, level) || x.i - y.i).map((x) => x.e);
-  }, [muscleItems, subMuscle, level, forMyLevel, family]);
+  }, [muscleItems, subMuscle, level, forMyLevel, family, collection, preferences]);
 
   const onSelect = useCallback(
     (ex: ExerciseView) => {
@@ -159,7 +167,17 @@ export function ExerciseLibraryScreen() {
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <View style={{ padding: theme.spacing.lg, gap: theme.spacing.sm }}>
         <Input value={search} onChangeText={setSearch} placeholder="Search exercises & activities" />
-        <SegmentedControl scrollable options={TYPE_FILTERS} value={type} onChange={setType} />
+        <Button title={showFilters ? 'Hide filters' : `Filters · ${[type !== 'all',muscle !== 'all',equip !== 'all',family !== 'all',forMyLevel].filter(Boolean).length} active`} size="sm" variant="secondary" onPress={()=>setShowFilters(value=>!value)} />
+      </View>
+
+      <FlatList
+        data={items}
+        keyExtractor={(i) => String(i.id)}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 120 }}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={{ gap: 6, marginBottom: 6 }}>
+        {showFilters&&<View style={{gap:theme.spacing.sm}}><SegmentedControl scrollable options={TYPE_FILTERS} value={type} onChange={setType} />
         <SegmentedControl
           scrollable
           options={MUSCLE_FILTERS}
@@ -188,15 +206,9 @@ export function ExerciseLibraryScreen() {
             onPress={() => setForMyLevel((v) => !v)}
           />
         </View>
-      </View>
-
-      <FlatList
-        data={items}
-        keyExtractor={(i) => String(i.id)}
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0, gap: theme.spacing.sm, paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          <View style={{ gap: 6, marginBottom: 6 }}>
+        </View>}
+            <SegmentedControl scrollable options={[{ value:'all',label:'All' },{ value:'favorites',label:'Favorites' },{ value:'recent',label:'Recent' },{ value:'gym',label:'My gym' }]} value={collection} onChange={setCollection} />
+            <Button title="My gym · scan or save equipment" size="sm" variant="secondary" onPress={() => navigation.navigate('MyGym')} />
             {findFamily(family)?.caution ? (
               <Card accent={theme.colors.warning} style={{ gap: 4 }}>
                 <Row gap={8} style={{ alignItems: 'flex-start' }}>
@@ -224,13 +236,13 @@ export function ExerciseLibraryScreen() {
           const kcalPer10 = caloriesForReference(met, bodyKg, 10);
           return (
           <Pressable onPress={() => onSelect(item)}>
-            <Card>
+            <Card style={{gap:8}}>
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Row gap={12} style={{ alignItems: 'center', flex: 1 }}>
                   <ExerciseHero iconKey={item.iconKey} sessionType={item.sessionType} />
                   <View style={{ flex: 1 }}>
                     <Row gap={6} style={{ alignItems: 'center' }}>
-                      <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
+                      <Text variant="bodyStrong" numberOfLines={2} style={{ flexShrink: 1 }}>
                         {item.name}
                       </Text>
                       {/* A tutorial exists — say so before the card is opened. */}
@@ -268,19 +280,24 @@ export function ExerciseLibraryScreen() {
                     })()}
                   </View>
                 </Row>
+                <Icon icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.primary} />
+              </Row>
+              <Row gap={12} style={{justifyContent:'flex-end'}}>
+                <Pressable accessibilityLabel={preferences.get(item.id)?.favorite ? 'Remove favorite' : 'Add favorite'} onPress={() => { saveExercisePreference(item.id, { favorite: preferences.get(item.id)?.favorite ? 0 : 1 }); setRefresh(r => r + 1); }} style={{ padding: 8, minHeight:40, justifyContent:'center' }}>
+                  <Text variant="caption" color="primary">{preferences.get(item.id)?.favorite ? '★ Saved' : '☆ Favorite'}</Text>
+                </Pressable>
                 {/* In pick mode, still let the user open the how-to guide. */}
                 {pick && (
-                  <Pressable onPress={() => openDetail(item)} hitSlop={10} style={{ paddingHorizontal: 6 }}>
-                    <Icon artistic="minted" icon="core.info" size={20} color={theme.colors.textFaint} />
+                  <Pressable accessibilityLabel={`Details for ${item.name}`} onPress={() => openDetail(item)} hitSlop={6} style={{ padding:8, minHeight:40, justifyContent:'center' }}>
+                    <Text variant="caption" color="primary">Details</Text>
                   </Pressable>
                 )}
                 {/* Custom exercises are editable. */}
                 {item.isCustom && (
-                  <Pressable onPress={() => setEditing(item)} hitSlop={10} style={{ paddingHorizontal: 6 }}>
-                    <Icon artistic="minted" icon="core.edit" size={18} color={theme.colors.accent} />
+                  <Pressable accessibilityLabel={`Edit ${item.name}`} onPress={() => setEditing(item)} hitSlop={6} style={{ padding:8, minHeight:40, justifyContent:'center' }}>
+                    <Text variant="caption" color="primary">Edit</Text>
                   </Pressable>
                 )}
-                <Icon artistic="glass" icon={pick ? 'core.add' : 'core.forward'} size={20} color={theme.colors.primary} />
               </Row>
             </Card>
           </Pressable>

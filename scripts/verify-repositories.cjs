@@ -40,9 +40,10 @@ const originalLoad = Module._load;
 const secureValues = new Map();
 let backgroundBackupRegistered = false;
 Module._load = function(id, parent, main) {
+  if (id === 'expo-modules-core') return { requireOptionalNativeModule: () => null };
   if (id === 'expo-sqlite') return { openDatabaseSync: () => adapter };
   if (id === 'expo-secure-store') return { getItem: key => secureValues.get(key) ?? null, setItem: (key,value) => secureValues.set(key,value) };
-  if (id === 'expo-file-system' || id === 'expo-crypto') return {};
+  if (id === 'expo-file-system' || id === 'expo-crypto' || id === 'expo-sharing') return {};
   if (id === 'expo-background-fetch') return {
     registerTaskAsync: async () => { backgroundBackupRegistered = true; },
     unregisterTaskAsync: async () => { backgroundBackupRegistered = false; },
@@ -312,6 +313,144 @@ test('a killed backup attempt does not leave manual retry permanently disabled',
   assert.equal(status.enabled,true);assert.equal(status.busy,false);assert.equal(status.error,'Interrupted');
   secureValues.delete('fitcoach.backup.session');
 });
+test('set timing excludes pauses, survives recovery and closes rest at its actual deadline', () => {
+  const timing=require('../src/repositories/timingRepo.ts');
+  const realNow=Date.now;let now=realNow();Date.now=()=>now;
+  try {
+    const current=session.activeSession();if(current)session.finalizeSession(current.id);
+    const id=session.startSession('strength');
+    const exerciseId=native.prepare("SELECT id FROM exercises WHERE tracking_type='reps_weight' LIMIT 1").get().id;
+    const log=session.addExerciseToSession(id,exerciseId);
+    now+=10000;timing.startWork(id,log);now+=30000;timing.pauseTiming(id);
+    now+=10000;timing.resumeTiming(id);timing.flagRecoveredTiming(id);now+=20000;timing.stopWork(id,log);
+    const set=session.addSet(log,{reps:10,weightKg:20});
+    const recorded=session.getSessionDetail(id).logs[0].sets[0];
+    assert.equal(recorded.durationS,50);assert.equal(recorded.durationSource,'wall_clock');
+    assert.equal(timing.pendingWorkSeconds(id,log),null);
+    assert.equal(timing.timingRows(id).filter(r=>r.phase==='work').every(r=>r.set_id===set),true);
+    timing.changeTiming(id,'rest',log,now+90000);now+=100000;
+    session.finalizeSession(id);const totals=timing.timingSummary(id);
+    assert.equal(totals.work,50);assert.equal(totals.paused,10);assert.equal(totals.rest,90);assert.equal(totals.transition,20);
+    assert.equal(totals.reviewRequired,true);assert.equal(timing.openTiming(id),undefined);
+    const before=JSON.stringify(timing.timingRows(id));session.finalizeSession(id);assert.equal(JSON.stringify(timing.timingRows(id)),before);
+    session.updateSet(set,{durationS:45});assert.equal(session.getSessionDetail(id).logs[0].sets[0].durationSource,'manual');
+  } finally {Date.now=realNow;}
+});
+test('timer transitions roll back atomically and clock reversal never creates negative time',()=>{
+  const timing=require('../src/repositories/timingRepo.ts');
+  const id=session.startSession('strength');const open=timing.openTiming(id);
+  assert.throws(()=>timing.changeTiming(id,'paused',null,null,open.started_at-1),/clock moved backwards/);
+  failSql=/INSERT INTO workout_timing/i;
+  assert.throws(()=>timing.changeTiming(id,'paused'),/injected/);failSql=null;
+  assert.equal(timing.openTiming(id).id,open.id);assert.equal(timing.openTiming(id).ended_at,null);
+  session.deleteSession(id);assert.equal(timing.timingRows(id).length,0);
+});
+test('machine-specific PRs and progression never merge different machines',()=>{
+  const gym=require('../src/repositories/gymRepo.ts');const stats=require('../src/repositories/statsRepo.ts');
+  const exerciseId=native.prepare("SELECT id FROM exercises WHERE tracking_type='reps_weight' LIMIT 1").get().id;
+  const machine=name=>gym.saveEquipment({name,kind:'machine',brand:null,model:null,location:'QA',unit:'kg',settings:'Seat 2',exercise_ids:JSON.stringify([exerciseId]),ocr_text:null});
+  const a=machine('Machine A'),b=machine('Machine B');
+  for(const [equipment,weight] of [[a,100],[b,20]]){
+    const id=session.startSession('strength');const log=session.addExerciseToSession(id,exerciseId);gym.assignEquipment(log,equipment);
+    session.addSet(log,{reps:5,weightKg:weight});session.finalizeSession(id);
+    assert.equal(session.getSessionDetail(id).logs[0].sets[0].isPr,true);
+    assert.throws(()=>gym.assignEquipment(log,null),/before logging/);
+    assert.throws(()=>gym.deleteEquipment(equipment),/history/);
+  }
+  assert.equal(stats.exerciseProgression(exerciseId,'epley',1,a)[0].topWeight,100);
+  assert.equal(stats.exerciseProgression(exerciseId,'epley',1,b)[0].topWeight,20);
+  gym.saveExercisePreference(exerciseId,{aliases:'my special press',favorite:1});
+  const found=require('../src/repositories/exerciseRepo.ts').listExercises({search:'my special press'});
+  assert.equal(found.some(e=>e.id===exerciseId),true);
+});
+test('activity corrections preserve originals and adjust contributions once',()=>{
+  const activity=require('../src/repositories/activityRepo.ts');
+  const review=require('../src/repositories/walkReviewRepo.ts');
+  const id=activity.saveWalkSession({mode:'walk',startTime:Date.now()-100000,endTime:Date.now(),steps:100,distanceM:70,durationS:100,caloriesBurned:10,source:'gps'});
+  review.correctWalk(id,{steps:80,distanceM:50,durationS:90,caloriesBurned:8},'Vehicle segment correction');
+  assert.equal(activity.getWalkSession(id).steps,80);
+  assert.equal(JSON.parse(review.walkAnnotation(id).original_json).steps,100);
+  review.correctWalk(id,{steps:80,distanceM:50,durationS:90,caloriesBurned:8},'Same correction');
+  assert.equal(JSON.parse(review.walkAnnotation(id).original_json).steps,100);
+  review.restoreOriginalWalk(id);assert.equal(activity.getWalkSession(id).steps,100);
+  assert.equal(review.walkAnnotation(id).correction_json,null);
+  activity.deleteWalkSession(id);assert.equal(review.walkAnnotation(id),undefined);
+});
+test('version 43 backups remain supported with empty newly introduced tables',()=>{
+  const backup=require('../src/repositories/backupRepo.ts');const snapshot=backup.captureSnapshot();snapshot.schema=43;
+  for(const row of snapshot.tables.exercise_logs){delete row.equipment_id;delete row.skipped;}
+  for(const row of snapshot.tables.set_entries)delete row.duration_source;
+  for(const name of ['gym_equipment','exercise_preferences','workout_timing','training_calendar','walk_annotations'])delete snapshot.tables[name];
+  const value=backup.validateSnapshot(snapshot);assert.deepEqual(value.tables.workout_timing,[]);assert.deepEqual(value.tables.gym_equipment,[]);
+});
+
+test('seconds/minutes parsing and interval pause boundaries are exact',()=>{
+  const {parseDuration}=require('../src/lib/duration.ts');
+  for(const [input,seconds] of [['45',45],['45s',45],['1:30',90],['1.5m',90],['2 min',120],['',null]])assert.equal(parseDuration(input),seconds,input);
+  for(const input of ['1:60','-3','NaN','0','99999999s'])assert.throws(()=>parseDuration(input));
+  const {intervalPosition,platePlan}=require('../src/lib/trainingTools.ts');
+  const state={work:30,rest:10,rounds:2,startedAt:1000,pausedAt:null,pausedMs:0};
+  assert.equal(intervalPosition(state,31000).phase,'rest');
+  assert.equal(intervalPosition(state,41000).round,2);
+  assert.equal(intervalPosition(state,71000).finished,true);
+  assert.equal(intervalPosition({...state,pausedAt:16000},90000).elapsed,15);
+  assert.equal(intervalPosition({...state,pausedMs:10000},51000).round,2);
+  assert.equal(platePlan(100,20,[20,10,5,2.5,1.25]).loaded,100);
+  assert.equal(platePlan(16,0,[6,4]).loaded,16);
+  assert.throws(()=>platePlan(20,0,[0.0001]));
+  assert.throws(()=>platePlan(10,20,[5]));
+});
+
+test('AI imports validate ranges, preserve existing plans and commit atomically',()=>{
+  const {parseTrainingDraft}=require('../src/lib/trainingDraft.ts');
+  const {saveTrainingDraft}=require('../src/repositories/trainingDraftRepo.ts');
+  const row={exerciseId:1,name:'Bench press',sets:3,reps:8,weightKg:20,durationS:45,restSeconds:90};
+  for(const patch of [{sets:21},{reps:1.5},{weightKg:NaN},{durationS:-1}])assert.throws(()=>parseTrainingDraft({title:'Bad',exercises:[{...row,...patch}]}));
+  const before=native.prepare('SELECT COUNT(*) AS n FROM custom_routines').get().n;
+  failSql=/UPDATE custom_routines SET prescription/;
+  assert.throws(()=>saveTrainingDraft('Failed AI import',[row]),/injected/);failSql=null;
+  assert.equal(native.prepare('SELECT COUNT(*) AS n FROM custom_routines').get().n,before);
+  const id=saveTrainingDraft('Confirmed AI import',[row]);
+  assert.equal(JSON.parse(native.prepare('SELECT prescription FROM custom_routines WHERE id=?').get(id).prescription)[0].sets.length,3);
+  assert.throws(()=>saveTrainingDraft('Confirmed AI import',[row]),/already/);
+});
+
+test('CSV escapes formulas and GPX preserves GPS gaps without invented time',()=>{
+  const {csvCell,csvRows,routeGpx}=require('../src/services/dataExport.ts');
+  assert.equal(csvCell('=SUM(A1)'),`"'=SUM(A1)"`);
+  assert.equal(csvCell(' \t+cmd'),`"' \t+cmd"`);
+  assert.equal(csvCell(-5),'"-5"');
+  assert.equal(csvCell('a"b'),'"a""b"');
+  assert.ok(csvRows([{name:'A',value:3}]).includes('\r\n'));
+  const gpx=routeGpx('A&B',[ [36,10],[36.0001,10],[36.0002,10,1],[36.0003,10] ]);
+  assert.equal((gpx.match(/<trkseg>/g)||[]).length,2);
+  assert.ok(gpx.includes('A&amp;B'));assert.ok(!gpx.includes('<time>'));
+});
+
+test('session creation and calendar links survive failures and deletion correctly',()=>{
+  const calendar=require('../src/repositories/calendarRepo.ts');
+  const before=native.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
+  failSql=/INSERT INTO workout_timing/;assert.throws(()=>session.startSession('strength'),/injected/);failSql=null;
+  assert.equal(native.prepare('SELECT COUNT(*) AS n FROM sessions').get().n,before);
+  const id=session.startSession('strength');calendar.savePlannedSession('2026-11-20','Planned workout',null);
+  const planned=calendar.plannedSessions().at(-1);calendar.linkPlanned(planned.id,id);
+  session.deleteSession(id);assert.equal(calendar.plannedSessions().find(p=>p.id===planned.id).session_id,null);
+});
+
+test('routine deletion undo restores prescriptions, identity and calendar links',()=>{
+  const routines=require('../src/repositories/routinesRepo.ts');
+  const calendar=require('../src/repositories/calendarRepo.ts');
+  const original=routines.saveSessionRoutine('Undo prescribed routine',first);
+  calendar.savePlannedSession('2026-11-21','Undo plan',original.id);
+  const planned=calendar.plannedSessions().find(p=>p.routine_id===original.id);
+  const undo=routines.deleteRoutine(original.id);
+  assert.equal(routines.getRoutine(original.id),undefined);
+  assert.equal(calendar.plannedSessions().find(p=>p.id===planned.id).routine_id,null);
+  undo();
+  assert.deepEqual(routines.getRoutine(original.id),original);
+  assert.equal(calendar.plannedSessions().find(p=>p.id===planned.id).routine_id,original.id);
+});
+
 (async () => {
   const {kvSetStrict}=require('../src/repositories/kvRepo.ts');
   const backup=require('../src/services/backup.ts');

@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.health.READ_STEPS" />
+  <uses-permission android:name="android.permission.health.READ_SLEEP" />
+  <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
+  <queries><intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent></queries>
+  <application>
+    <receiver android:name=".FitCoachWidget" android:exported="false" android:label="FitCoach">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/fitcoach_widget_info" />
+    </receiver>
+    <activity android:name=".HealthRationaleActivity" android:exported="true">
+      <intent-filter><action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" /></intent-filter>
+    </activity>
+    <activity-alias android:name=".HealthPermissionUsage" android:exported="true" android:targetActivity=".HealthRationaleActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+      <intent-filter><action android:name="android.intent.action.VIEW_PERMISSION_USAGE" /><category android:name="android.intent.category.HEALTH_PERMISSIONS" /></intent-filter>
+    </activity-alias>
+  </application>
+</manifest>

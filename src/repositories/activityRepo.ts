@@ -227,6 +227,7 @@ function changeTotals(date: string, userId: number, values: number[], kind: 'sen
     const existing = getDailySteps(date, userId);
     const state = kvGet<StepTotals>(key) ?? { manual: [existing?.stepCount ?? 0, existing?.distanceM ?? 0, existing?.caloriesBurned ?? 0], sensor: [0,0,0] };
     values = values.map(v => { if (!Number.isFinite(v) || v < 0) throw new Error('Invalid activity total'); return v; });
+    if (kind === 'sensor' && existing && values.every((v,i) => v <= state.sensor[i])) return;
     if (kind === 'sensor') state.sensor = state.sensor.map((v,i) => Math.max(v,values[i]));
     else state.manual = state.manual.map((v,i) => Math.max(0,v + (kind === 'add' ? values[i] : -values[i])));
     // Session estimates and the all-day sensor overlap. Use the larger supported count,

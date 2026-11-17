@@ -1,7 +1,7 @@
 import { bridgedStreak } from '@/lib/streaks';
 import { restDaySet } from './restDaysRepo';
 import { and, desc, eq } from 'drizzle-orm';
-import { isNotNull } from 'drizzle-orm';
+import { isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/db/client';
 import {
   exerciseLogs,
@@ -25,7 +25,8 @@ export interface ProgressionPoint {
 export function exerciseProgression(
   exerciseId: number,
   formula: ORMFormula = 'epley',
-  userId: number = PRIMARY_USER_ID
+  userId: number = PRIMARY_USER_ID,
+  equipmentId?: number | null
 ): ProgressionPoint[] {
   const rows = db
     .select({
@@ -41,6 +42,7 @@ export function exerciseProgression(
     .where(
       and(
         eq(exerciseLogs.exerciseId, exerciseId),
+        equipmentId === undefined ? undefined : equipmentId === null ? isNull(exerciseLogs.equipmentId) : eq(exerciseLogs.equipmentId, equipmentId),
         and(eq(sessions.userId, userId), isNotNull(sessions.endTime)),
         eq(setEntries.completed, true)
       )

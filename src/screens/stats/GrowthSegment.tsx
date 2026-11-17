@@ -19,6 +19,7 @@ import {
 } from '@/lib/growth';
 import { MUSCLE_LABELS } from '@/data/exercises';
 import { fmtNum } from '@/lib/format';
+import { EvidenceLink } from '@/components/EvidenceLink';
 
 /**
  * The Growth segment of the Stats tab — mounted only while active, so the
@@ -60,7 +61,8 @@ export function GrowthSegment() {
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
-      <PageHero icon="stats.muscleMap" color={theme.colors.accent} title="Muscle growth" subtitle="An honest readout: how closely your real logs match the conditions research ties to hypertrophy — volume (10–20 hard sets/muscle/week), progressive overload, recovery, protein and sleep. No invented numbers." />
+      <PageHero icon="stats.muscleMap" color={theme.colors.accent} title="Training conditions" subtitle="App scores based on logged training, nutrition and sleep. These rules are not measurements of muscle growth or recovery." />
+      <EvidenceLink />
 
       {/* Growth gates */}
       <SectionHeader title="Growth conditions" />
@@ -90,11 +92,11 @@ export function GrowthSegment() {
           <Icon icon="stats.progression" size={20} color={theme.colors.accent} />
           <View style={{ flex: 1 }}>
             <Text variant="bodyStrong">
-              Realistic gain at your level: {report.gainRange.min}–{report.gainRange.max} kg muscle / month
+              Muscle gain is not measured here
             </Text>
             <Text variant="caption" color="textMuted">
-              {report.gainRange.label} · training age ~{report.trainingAgeMonths} months. Population
-              averages under good conditions — a range, not a promise.
+              Weight, body composition readings and performance are different outcomes. The app cannot
+              predict your personal monthly muscle gain from training age.
             </Text>
           </View>
         </Row>
@@ -115,7 +117,7 @@ export function GrowthSegment() {
                 ~{fmtNum(m.avgEffectiveSetsPerWeek4w)} hard sets/wk (this week: {fmtNum(m.effectiveSetsThisWeek)})
               </Text>
               <Text variant="caption" color="textMuted">
-                growth zone {OPTIMAL_SETS_MIN}–{OPTIMAL_SETS_MAX}
+                app reference band {OPTIMAL_SETS_MIN}–{OPTIMAL_SETS_MAX}
               </Text>
             </Row>
             {/* Sets bar against the 10–20 band */}

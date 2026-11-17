@@ -4,7 +4,7 @@ const path = require('node:path');
 
 module.exports = config => {
   config = withGradleProperties(config, config => {
-  const values = { 'android.enableProguardInReleaseBuilds': 'true', 'android.enableShrinkResourcesInReleaseBuilds': 'true' };
+  const values = { 'android.enableProguardInReleaseBuilds': 'true', 'android.enableShrinkResourcesInReleaseBuilds': 'true', 'expo.useLegacyPackaging': 'true' };
   for (const [key,value] of Object.entries(values)) {
     config.modResults = config.modResults.filter(item => item.type !== 'property' || item.key !== key);
     config.modResults.push({type:'property',key,value});

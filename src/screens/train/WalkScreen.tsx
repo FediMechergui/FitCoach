@@ -32,6 +32,7 @@ import { activityFor, outdoorCalories, requiresGps } from '@/lib/outdoorActiviti
 import { loadCalorieFactor, profileFor } from '@/lib/loadProfile';
 import { postSessionMargins, sessionStrain } from '@/lib/postSession';
 import { isSmokingEnabled } from '@/repositories/smokingRepo';
+import { AlwaysOnWalkCard } from '@/components/AlwaysOnWalkCard';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type WalkRoute = RouteProp<RootStackParamList, 'Walk'>;
@@ -361,6 +362,7 @@ export function WalkScreen() {
       ) : (
         <Button title="Finish" icon="core.end" size="lg" onPress={stop} color={theme.colors.danger} />
       )}
+      {!walk.active && <AlwaysOnWalkCard />}
     </Screen>
   );
 }

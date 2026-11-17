@@ -4,7 +4,8 @@ import { registerDailyBackup, runBackup } from '@/services/backup';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, DefaultTheme, type LinkingOptions } from '@react-navigation/native';
+import type { RootStackParamList } from '@/navigation/types';
 import { StatusBar } from 'expo-status-bar';
 
 import { initDatabase } from '@/db/bootstrap';
@@ -24,8 +25,10 @@ import { useWalkStore } from '@/stores/walkStore';
 import { registerBackgroundSteps, syncTodaySteps } from '@/services/backgroundSteps';
 // Importing the service registers its TaskManager background task at startup.
 import { cleanupOrphanWalk } from '@/services/walkTracking';
+import { resumeAlwaysOn, stopIdleMonitoring } from './modules/step-counter';
 import { cleanupOrphanSessionGps } from '@/services/sessionGps';
 import { activeSession } from '@/repositories/sessionRepo';
+import { updateHomeWidget } from '@/services/widget';
 
 /** Run a startup step but never let it brick the app; log failures instead. */
 function safe(label: string, fn: () => void) {
@@ -59,9 +62,10 @@ function ThemedApp() {
       notification: theme.colors.accent,
     },
   };
+  const linking: LinkingOptions<RootStackParamList> = { prefixes:['fitcoach://'], config:{ screens:{ Main:{screens:{Train:'train',Home:'home'}},Walk:'walk' } } };
   return (
     <ErrorBoundary>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer theme={navTheme} linking={linking}>
         <StatusBar style={theme.dark ? 'light' : 'dark'} />
         <RootNavigator />
       </NavigationContainer>
@@ -82,8 +86,10 @@ export default function App() {
   const [bootAttempt, setBootAttempt] = useState(0);
   useEffect(() => {
     if (!ready || fatal) return;
+    updateHomeWidget();
     const subscription = AppState.addEventListener('change', state => {
-      if (state === 'active') { void runBackup().catch(() => {}); void syncTodaySteps().catch(() => {}); }
+      if (state === 'active') { resumeAlwaysOn(); void registerBackgroundSteps(); void runBackup().catch(() => {}); void syncTodaySteps().then(updateHomeWidget).catch(() => {}); }
+      else if (state === 'background') stopIdleMonitoring();
     });
     const timer = setInterval(() => { if (AppState.currentState === 'active') void syncTodaySteps().catch(() => {}); }, 30_000);
     return () => { subscription.remove(); clearInterval(timer); };

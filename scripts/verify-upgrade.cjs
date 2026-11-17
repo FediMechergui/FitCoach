@@ -90,4 +90,7 @@ assert.ok(native.prepare('SELECT food_entry_id FROM alcohol_entries WHERE id=6')
 assert.equal(native.prepare("SELECT count(*) AS n FROM food_entries WHERE source='alcohol'").get().n,1);
 initDatabase();
 assert.equal(native.prepare("SELECT count(*) AS n FROM food_entries WHERE source='alcohol'").get().n,1);
-console.log('PASS v42 → v43 preserves IDs, targets, drafts and history; rollback/retry and alcohol backfill are idempotent.');
+assert.ok(native.prepare('PRAGMA table_info(set_entries)').all().some(c=>c.name==='duration_source'));
+assert.equal(native.prepare('SELECT COUNT(*) AS n FROM workout_timing').get().n,0);
+assert.equal(native.prepare('SELECT equipment_id FROM exercise_logs WHERE id=8').get().equipment_id,null);
+console.log('PASS v42 → v44 preserves IDs, targets, drafts and history; rollback/retry and alcohol backfill are idempotent.');

@@ -17,7 +17,7 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { listSessions, sessionExercisePeek, type SessionExercisePeek } from '@/repositories/sessionRepo';
 import { ExercisePeek } from '@/components/ExercisePeek';
 import { OUTDOOR_ACTIVITIES } from '@/lib/outdoorActivities';
-import { deleteRoutine, saveRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
+import { deleteRoutine, listRoutines, type RoutineView } from '@/repositories/routinesRepo';
 import type { Session } from '@/db/schema';
 import { formatDurationLong } from '@/lib/format';
 import { fromISODate, toISODate } from '@/lib/date';
@@ -130,19 +130,19 @@ export function TrainScreen() {
 
   /**
    * Delete with forgiveness — the routine goes optimistically and the toast
-   * holds the door open for six seconds. Undo recreates it from the same name
-   * and exercise list; logged sessions were never touched either way.
+   * holds the door open for six seconds. Undo restores the complete prescription
+   * and calendar links; logged sessions were never touched either way.
    */
   const removeRoutine = (r: RoutineView) => {
-    const { name, exerciseIds } = r;
-    deleteRoutine(r.id);
+    const { name } = r;
+    const undo = deleteRoutine(r.id);
     setRoutines(listRoutines());
     toast({
       message: `Deleted “${name}”`,
       actionLabel: 'Undo',
       onAction: () => {
-        saveRoutine(name, exerciseIds);
-        setRoutines(listRoutines());
+        try { undo(); setRoutines(listRoutines()); }
+        catch { toast({ message: 'Could not restore the routine. Its identifier is already in use.' }); }
       },
     });
   };
@@ -179,6 +179,10 @@ export function TrainScreen() {
         variant="secondary"
         onPress={() => navigation.navigate('SplitPicker')}
       />
+      <Button title="My gym · equipment and label scanner" icon="strength.dumbbell" variant="secondary" onPress={() => navigation.navigate('MyGym')} />
+      <Button title="Plate calculator, tempo & intervals" icon="core.timer" variant="secondary" onPress={() => navigation.navigate('TrainingTools')} />
+      <Button title="Calendar & weekly review" icon="core.calendar" variant="secondary" onPress={() => navigation.navigate('TrainingCalendar')} />
+      <Button title="AI tools · import, voice log & training review" icon="stats.coachTip" variant="secondary" onPress={() => navigation.navigate('CoachWorkbench')} />
 
       <Button
         title="Log a past session"

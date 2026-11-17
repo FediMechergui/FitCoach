@@ -10,6 +10,33 @@ the app's **Profile → App version** both reflect the latest and show "Up to da
 
 ---
 
+## v4.1.0 — Recorded timing, your gym and reviewable coaching (2026-11-17)
+
+- Persisted work, rest, transition and pause clocks, with explicit Start/End set controls,
+  seconds/minutes input and editable duration provenance. Failure sets keep their reps.
+- Library favorites, recent exercises and aliases; saved gym equipment, setup notes,
+  machine-specific PRs/history, circuit groups, planned sets and equipment substitutions.
+- Built-in offline Latin-text OCR for equipment and nutrition labels. Optional OpenRouter
+  equipment suggestions, programme photo/PDF import, voice-log drafts and training reviews
+  remain editable and require confirmation. Private records are shared only when selected.
+- Plate and warm-up tools, interval and tempo timers, a training calendar, weekly review,
+  customizable Home sections and an Android snapshot widget.
+- Formula/source pages distinguish records, estimates and coaching heuristics. Removed
+  unsupported personal oxygen-loss, recovery and monthly muscle-gain percentages.
+- Optional Health Connect summaries and explicit workout export on Android 14+, CSV and
+  GPX exports, reversible activity corrections and named route comparisons.
+- Always-on walk detection can be enabled in Walk or Outdoor settings. It counts observed
+  hardware steps without GPS, filters recognized vehicle movement and provides an off
+  action in its notification. Manual walk sessions stay separately controlled.
+- Wi-Fi-only backups, overdue status and deletion of the backup account and cloud copies.
+- APKs compile and sign locally using the original key. Native runtime 4.1.0 / versionCode 6;
+  compatible JavaScript updates continue through the preview OTA channel after installing
+  the new APK.
+
+OCR accuracy and background vehicle detection depend on the device and conditions.
+Android can interrupt background tracking and scheduled backups. Camera-based rep counting
+and form assessment are not included without representative validation.
+
 ## v4.0.0 — Reliable logs, lighter tracking and private backups (2026-11-16)
 
 - New midnight-and-mint launcher, adaptive and splash artwork.

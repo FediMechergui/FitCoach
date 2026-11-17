@@ -6,6 +6,7 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import { captureSnapshot, validateSnapshot, restoreSnapshot, type BackupSnapshot } from '@/repositories/backupRepo';
 import { kvGet, kvSetStrict } from '@/repositories/kvRepo';
 import { initDatabase } from '@/db/bootstrap';
+import { nativeTools } from '../../modules/fitcoach-tools';
 import { encryptBackup, decryptBackup, encode64, decode64, digestBytes, recoveryCode, parseRecoveryCode } from '@/lib/backupCrypto';
 
 export const BACKUP_ORIGIN = 'https://fitcoach-private-backups.netlify.app';
@@ -16,7 +17,7 @@ const CHUNK = 512 * 1024;
 interface AccountSession { id: string; email: string; accessToken: string; refreshToken: string; expiresAt: number }
 export interface BackupManifest { id: string; createdAt: number; schema: number; keyId: string; bytes: number;
   sha256: string; chunks: Array<{size: number; sha256: string}> }
-export interface BackupStatus { enabled: boolean; lastSuccess?: number; lastAttempt?: number; error?: string; busy?: boolean }
+export interface BackupStatus { enabled: boolean; wifiOnly?: boolean; lastSuccess?: number; lastAttempt?: number; error?: string; busy?: boolean }
 export function backupAccount(): AccountSession | null {
   try { const raw = SecureStore.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
@@ -107,6 +108,19 @@ export async function signOutBackup(): Promise<void> {
   await SecureStore.deleteItemAsync(SESSION_KEY);
   await BackgroundFetch.unregisterTaskAsync(BACKUP_TASK).catch(() => {});
 }
+export function setBackupWifiOnly(wifiOnly: boolean): void {
+  const account = backupAccount(); if (!account) throw new Error('Sign in first.');
+  saveStatus(account.id, { wifiOnly });
+}
+export async function deleteBackupAccount(): Promise<void> {
+  if (running) throw new Error('Wait for the current upload to finish before deleting the account.');
+  const account = backupAccount(); if (!account) throw new Error('Sign in first.');
+  saveStatus(account.id, { enabled: false });
+  await BackgroundFetch.unregisterTaskAsync(BACKUP_TASK).catch(() => {});
+  await api('/account', { ...jsonPost({ confirm:'DELETE MY ACCOUNT' }), method:'DELETE' });
+  await SecureStore.deleteItemAsync(keyName(account.id));
+  await signOutBackup();
+}
 
 async function withMedia(snapshot: BackupSnapshot): Promise<BackupSnapshot> {
   let bytes = 0;
@@ -131,6 +145,11 @@ export async function runBackup(force = false): Promise<void> {
   const account = backupAccount(); if (!account) return;
   const state = backupStatus();
   if (!state.enabled || (!force && ((state.lastSuccess ?? 0) > Date.now()-DAY || (state.lastAttempt ?? 0) > Date.now()-5*60_000))) return;
+  if (state.wifiOnly && !nativeTools().isWifi()) {
+    saveStatus(account.id, { error:'Waiting for Wi-Fi. Your last completed backup is unchanged.' });
+    if (force) throw new Error('Wi-Fi-only backup is enabled. Connect to Wi-Fi or turn that option off.');
+    return;
+  }
   running = (async () => {
     saveStatus(account.id,{busy:true,lastAttempt:Date.now(),error:undefined});
     try {

@@ -203,6 +203,8 @@ export const sessions = sqliteTable('sessions', {
 
 // ── ExerciseLog ──────────────────────────────────────────────────────────────
 export const exerciseLogs = sqliteTable('exercise_logs', {
+  equipmentId: integer('equipment_id'),
+  skipped: integer('skipped', { mode: 'boolean' }).notNull().default(false),
   restSeconds: integer('rest_seconds'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   sessionId: integer('session_id').notNull(),
@@ -214,6 +216,7 @@ export const exerciseLogs = sqliteTable('exercise_logs', {
 
 // ── SetEntry ─────────────────────────────────────────────────────────────────
 export const setEntries = sqliteTable('set_entries', {
+  durationSource: text('duration_source', { enum: ['manual', 'wall_clock', 'gps'] }),
   id: integer('id').primaryKey({ autoIncrement: true }),
   exerciseLogId: integer('exercise_log_id').notNull(),
   setNumber: integer('set_number').notNull(),

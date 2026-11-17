@@ -291,15 +291,14 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
       </Row>
 
       {/* Fitness impact — the "how it's affecting you" model */}
-      <SectionHeader title="Estimated Fitness Impact" />
+      <SectionHeader title="Smoking and training" />
       <Card style={{ gap: 12 }}>
         <Row gap={10} style={{ alignItems: 'center' }}>
           <Icon icon="smoking.lungs" size={22} color={theme.colors.info} />
           <View style={{ flex: 1 }}>
-            <Text variant="bodyStrong">Aerobic capacity −{impact.aerobicPenaltyPct}%</Text>
+            <Text variant="bodyStrong">Endurance may be affected</Text>
             <Text variant="caption" color="textMuted">
-              At ~{impact.avgPerDay}/day, carbon monoxide binds haemoglobin and cuts oxygen
-              delivery — blunting endurance and pace. (Estimate.)
+              Carbon monoxide can reduce oxygen delivery. Your smoking log cannot measure the change in your aerobic capacity.
             </Text>
           </View>
         </Row>
@@ -307,7 +306,7 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
         <Row gap={10} style={{ alignItems: 'center' }}>
           <Icon icon="smoking.heart" size={22} color={theme.colors.danger} />
           <View style={{ flex: 1 }}>
-            <Text variant="bodyStrong">Resting heart rate +{impact.restingHrElevationBpm} bpm</Text>
+            <Text variant="bodyStrong">Heart rate can increase</Text>
             <Text variant="caption" color="textMuted">
               Nicotine is a stimulant that raises resting heart rate and blood pressure, so
               your heart works harder at rest and in training.
@@ -343,13 +342,7 @@ function ImpactDashboard({ onEditSettings }: { onEditSettings: () => void }) {
                 higherIsBetter
               />
             )}
-            {correlation.lostSessionEquivalent > 0 && (
-              <Text variant="caption" color="textFaint">
-                Reduced aerobic capacity is roughly equivalent to losing{' '}
-                {correlation.lostSessionEquivalent} of your {correlation.sessionsInWindow} sessions'
-                endurance benefit this month.
-              </Text>
-            )}
+            <Text variant="caption" color="textFaint">These comparisons do not establish cause and effect. Missing logs, training plans and other habits affect the results.</Text>
           </Card>
         </>
       )}

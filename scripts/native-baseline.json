@@ -1,14 +1,14 @@
 {
   "note": "Native profile of the validated release APK. Written by scripts/build-apk.js or native-profile.js --write; read by scripts/release.js.",
-  "apk": "FitCoach-4.0.0-vc5.apk",
-  "recorded": "2026-11-16",
+  "apk": "FitCoach-4.1.0-vc6.apk",
+  "recorded": "2026-11-17",
   "config": {
     "package": "com.fitcoach.app",
-    "version": "4.0.0",
+    "version": "4.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "versionCode": 5,
+    "versionCode": 6,
     "allowBackup": false,
     "nativeArtwork": {
       "icon.png": "5f3faf7293b0805944139521504a60b35a3d5c034de60870fbce35884c000832",
@@ -108,7 +108,8 @@
     "react-native-view-shot": "4.0.3"
   },
   "localModules": {
-    "step-counter": "466eac4dd137ec5c"
+    "fitcoach-tools": "d2d46e57b93d7960",
+    "step-counter": "10b30917593316f7"
   },
-  "configPlugins": "5ba571aad921accc"
+  "configPlugins": "929a0758c8e9d75a"
 }
